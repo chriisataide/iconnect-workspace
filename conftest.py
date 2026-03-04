@@ -1,13 +1,13 @@
 """
 conftest.py — Fixtures reutilizáveis para pytest no projeto iConnect
 """
+
 import pytest
 from django.contrib.auth.models import User
 
 from dashboard.models import (
     CategoriaTicket,
     Cliente,
-    InteracaoTicket,
     PrioridadeTicket,
     StatusTicket,
     Ticket,
@@ -18,9 +18,9 @@ from dashboard.models import (
 def user(db):
     """Cria um usuário padrão para testes."""
     return User.objects.create_user(
-        username='testuser',
-        password='testpass123',
-        email='testuser@test.com',
+        username="testuser",
+        password="testpass123",
+        email="testuser@test.com",
     )
 
 
@@ -28,9 +28,9 @@ def user(db):
 def admin_user(db):
     """Cria um superusuário para testes."""
     return User.objects.create_superuser(
-        username='admin',
-        password='admin123',
-        email='admin@test.com',
+        username="admin",
+        password="admin123",
+        email="admin@test.com",
     )
 
 
@@ -38,9 +38,9 @@ def admin_user(db):
 def staff_user(db):
     """Cria um usuário staff (supervisor) para testes."""
     return User.objects.create_user(
-        username='staffuser',
-        password='testpass123',
-        email='staff@test.com',
+        username="staffuser",
+        password="testpass123",
+        email="staff@test.com",
         is_staff=True,
     )
 
@@ -49,8 +49,8 @@ def staff_user(db):
 def cliente(db):
     """Cria um cliente padrão para testes."""
     return Cliente.objects.create(
-        nome='Cliente Teste',
-        email='cliente@test.com',
+        nome="Cliente Teste",
+        email="cliente@test.com",
     )
 
 
@@ -58,9 +58,9 @@ def cliente(db):
 def categoria(db):
     """Cria uma categoria de ticket para testes."""
     return CategoriaTicket.objects.create(
-        nome='Suporte Técnico',
-        descricao='Categoria de suporte técnico geral',
-        cor='#007bff',
+        nome="Suporte Técnico",
+        descricao="Categoria de suporte técnico geral",
+        cor="#007bff",
     )
 
 
@@ -68,8 +68,8 @@ def categoria(db):
 def ticket(db, cliente, user, categoria):
     """Cria um ticket básico para testes."""
     return Ticket.objects.create(
-        titulo='Ticket de Teste',
-        descricao='Descrição do ticket de teste',
+        titulo="Ticket de Teste",
+        descricao="Descrição do ticket de teste",
         cliente=cliente,
         agente=user,
         categoria=categoria,
@@ -82,8 +82,8 @@ def ticket(db, cliente, user, categoria):
 def ticket_resolvido(db, cliente, user, categoria):
     """Cria um ticket já resolvido para testes."""
     return Ticket.objects.create(
-        titulo='Ticket Resolvido',
-        descricao='Ticket já resolvido',
+        titulo="Ticket Resolvido",
+        descricao="Ticket já resolvido",
         cliente=cliente,
         agente=user,
         categoria=categoria,
@@ -96,6 +96,7 @@ def ticket_resolvido(db, cliente, user, categoria):
 def api_client():
     """Cria um APIClient do DRF."""
     from rest_framework.test import APIClient
+
     return APIClient()
 
 
