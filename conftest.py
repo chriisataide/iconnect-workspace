@@ -2,6 +2,15 @@
 conftest.py — Fixtures reutilizáveis para pytest no projeto iConnect
 """
 
+import django
+from django.conf import settings
+
+# Desabilita Axes durante testes para evitar AxesBackendRequestParameterRequired
+settings.AXES_ENABLED = False
+settings.AUTHENTICATION_BACKENDS = [
+    "django.contrib.auth.backends.ModelBackend",
+]
+
 import pytest
 from django.contrib.auth.models import User
 
