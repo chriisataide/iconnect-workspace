@@ -11,6 +11,11 @@ settings.AUTHENTICATION_BACKENDS = [
     "django.contrib.auth.backends.ModelBackend",
 ]
 
+# Desabilita o enforcement de MFA nos testes (o comportamento é verificado
+# separadamente). Sem isto, views autenticadas como admin/gerente redirecionam
+# para o cadastro de 2FA e retornam 302 em vez de 200.
+settings.MFA_ENFORCE = False
+
 import pytest
 from django.contrib.auth.models import User
 
