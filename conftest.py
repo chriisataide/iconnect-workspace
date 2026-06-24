@@ -28,6 +28,20 @@ from dashboard.models import (
 )
 
 
+@pytest.fixture(autouse=True)
+def _clear_cache_between_tests():
+    """Limpa o cache antes de cada teste.
+
+    O throttling do DRF guarda o histórico de requisições no cache; sem limpar,
+    o contador acumula entre testes e endpoints como /health/ e /auth/jwt/
+    passam a retornar 429 dependendo da ordem/volume de testes (flaky).
+    """
+    from django.core.cache import cache
+
+    cache.clear()
+    yield
+
+
 @pytest.fixture
 def user(db):
     """Cria um usuário padrão para testes."""
