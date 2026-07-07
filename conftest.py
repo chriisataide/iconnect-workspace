@@ -16,6 +16,13 @@ settings.AUTHENTICATION_BACKENDS = [
 # para o cadastro de 2FA e retornam 302 em vez de 200.
 settings.MFA_ENFORCE = False
 
+# Chave Fernet dedicada para testes. Sem ela, com DEBUG=False, TODO teste que
+# cifra PII/segredos (Fornecedor, PontoDeVenda, Webhook, SSO, AIConfiguration...)
+# falha com ImproperlyConfigured. Só define se o ambiente não trouxe a sua
+# (CI injeta via env); assim `pytest` roda em qualquer máquina sem setup manual.
+if not getattr(settings, "FIELD_ENCRYPTION_KEY", None):
+    settings.FIELD_ENCRYPTION_KEY = "wOCJ81ziK2GZoSdzQogPIT_sB5Q-IAZdOYxe23_1R2U="
+
 import pytest
 from django.contrib.auth.models import User
 
