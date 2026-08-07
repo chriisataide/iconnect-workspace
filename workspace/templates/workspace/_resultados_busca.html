@@ -1,0 +1,33 @@
+{% load i18n %}
+{% if curta %}
+  <p class="au-busca-aviso">{% trans "Digite ao menos 2 caracteres." %}</p>
+{% elif not grupos %}
+  <p class="au-busca-aviso">
+    {% blocktrans %}Nada encontrado para <b>{{ consulta }}</b>.{% endblocktrans %}
+  </p>
+{% else %}
+  {% for rotulo, itens in grupos.items %}
+    <div class="au-busca-grupo">
+      <p class="au-busca-grupo-titulo">{{ rotulo }}</p>
+      {% for item in itens %}
+        {% if item.disponivel %}
+          <a class="au-busca-item" href="{{ item.url }}" role="option">
+            <svg class="au-icon" aria-hidden="true"><use href="#i-{{ item.icone }}"></use></svg>
+            <span class="au-busca-item-texto">
+              <span class="au-busca-item-titulo">{{ item.titulo }}</span>
+              {% if item.subtitulo %}<span class="au-busca-item-sub">{{ item.subtitulo }}</span>{% endif %}
+            </span>
+          </a>
+        {% else %}
+          <span class="au-busca-item au-busca-item--inativo">
+            <svg class="au-icon" aria-hidden="true"><use href="#i-{{ item.icone }}"></use></svg>
+            <span class="au-busca-item-texto">
+              <span class="au-busca-item-titulo">{{ item.titulo }}</span>
+              <span class="au-busca-item-sub">{% trans "Em breve" %}</span>
+            </span>
+          </span>
+        {% endif %}
+      {% endfor %}
+    </div>
+  {% endfor %}
+{% endif %}

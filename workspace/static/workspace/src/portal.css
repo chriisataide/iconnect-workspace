@@ -64,16 +64,25 @@ body {
 .au-brand {
   display: flex;
   align-items: center;
-  gap: var(--au-2);
-  font-size: var(--au-t-md);
-  font-weight: 650;
-  letter-spacing: -0.011em;
+  gap: var(--au-3);
   color: var(--au-text);
   text-decoration: none;
 }
-.au-brand-mark {
-  width: 22px; height: 22px;
-  color: var(--au-accent);
+
+/* Altura fixa, largura automática: o wordmark tem proporção própria e
+   esticá-lo é a forma mais rápida de estragar uma marca. */
+.au-brand-logo { height: 26px; width: auto; display: block; }
+
+.au-brand-divisor {
+  width: 1px; height: 18px;
+  background: var(--au-border-strong);
+}
+
+.au-brand-produto {
+  font-size: var(--au-t-md);
+  font-weight: 600;
+  letter-spacing: -0.011em;
+  color: var(--au-text-muted);
 }
 
 .au-topbar-fim { margin-left: auto; display: flex; align-items: center; gap: var(--au-2); }
@@ -164,10 +173,17 @@ body {
 
 .au-hero { margin-bottom: var(--au-10); }
 
+.au-hero-eyebrow {
+  margin: 0 0 var(--au-2);
+  font-size: var(--au-t-sm);
+  font-weight: 550;
+  color: var(--au-text-subtle);
+}
+
 .au-hero-titulo {
   margin: 0 0 var(--au-1);
-  font-size: var(--au-t-2xl);
-  font-weight: 660;
+  font-size: var(--au-t-3xl);
+  font-weight: 680;
   letter-spacing: -0.021em;
   line-height: 1.2;
 }
@@ -237,11 +253,79 @@ body {
   text-align: center;
 }
 
+/* ── Painel de resultados da busca ──────────────────────────── */
+
+.au-busca-painel {
+  position: absolute;
+  top: calc(100% + var(--au-2));
+  left: 0;
+  right: 0;
+  z-index: 40;
+  max-height: 60vh;
+  overflow-y: auto;
+  padding: var(--au-2);
+  background: var(--au-surface-raised);
+  border: 1px solid var(--au-border);
+  border-radius: var(--au-r-md);
+  box-shadow: var(--au-e-3);
+}
+.au-busca-painel[hidden] { display: none; }
+
+.au-busca-grupo + .au-busca-grupo {
+  margin-top: var(--au-2);
+  padding-top: var(--au-2);
+  border-top: 1px solid var(--au-border);
+}
+
+.au-busca-grupo-titulo {
+  margin: 0;
+  padding: var(--au-2) var(--au-3);
+  font-size: var(--au-t-2xs);
+  font-weight: 650;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--au-text-subtle);
+}
+
+.au-busca-item {
+  display: flex;
+  align-items: center;
+  gap: var(--au-3);
+  padding: var(--au-2) var(--au-3);
+  border-radius: var(--au-r-sm);
+  color: var(--au-text);
+  text-decoration: none;
+}
+.au-busca-item:hover,
+.au-busca-item:focus-visible { background: var(--au-surface-sunken); }
+.au-busca-item > .au-icon { color: var(--au-text-subtle); }
+
+.au-busca-item--inativo { color: var(--au-text-subtle); cursor: default; }
+.au-busca-item--inativo:hover { background: transparent; }
+
+.au-busca-item-texto { display: flex; flex-direction: column; min-width: 0; }
+.au-busca-item-titulo { font-size: var(--au-t-base); font-weight: 550; }
+.au-busca-item-sub {
+  font-size: var(--au-t-sm);
+  color: var(--au-text-muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.au-busca-aviso {
+  margin: 0;
+  padding: var(--au-5) var(--au-3);
+  text-align: center;
+  font-size: var(--au-t-base);
+  color: var(--au-text-muted);
+}
+
 /* ── Grade de aplicativos ───────────────────────────────────── */
 
 .au-grade {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(178px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
   gap: var(--au-3);
   list-style: none;
   margin: 0;
@@ -264,33 +348,25 @@ body {
               box-shadow var(--au-dur-fast) var(--au-ease),
               transform var(--au-dur-fast) var(--au-ease);
 }
-.au-app:hover {
-  border-color: var(--au-border-strong);
-  box-shadow: var(--au-e-2);
-  transform: translateY(-1px);
-}
 
-.au-app--indisponivel { cursor: default; }
-.au-app--indisponivel:hover {
-  border-color: var(--au-border);
-  box-shadow: none;
-  transform: none;
-}
+.au-app-topo { display: flex; align-items: flex-start; }
 
 .au-app-icone {
   display: grid;
   place-items: center;
-  width: 34px; height: 34px;
+  width: 36px; height: 36px;
   border-radius: var(--au-r-sm);
-  background: var(--au-cor-bg, var(--au-neutral-bg));
-  color: var(--au-cor, var(--au-neutral-text));
+  background: var(--au-cor-bg, var(--au-surface-sunken));
+  color: var(--au-cor, var(--au-text-muted));
+  transition: background var(--au-dur-fast) var(--au-ease),
+              color var(--au-dur-fast) var(--au-ease);
 }
-.au-app-icone .au-icon { width: 18px; height: 18px; }
+.au-app-icone .au-icon { width: 19px; height: 19px; }
 
 .au-app-nome {
-  font-size: var(--au-t-base);
+  font-size: var(--au-t-md);
   font-weight: 600;
-  letter-spacing: -0.006em;
+  letter-spacing: -0.008em;
 }
 
 .au-app-desc {
@@ -300,11 +376,59 @@ body {
   color: var(--au-text-muted);
 }
 
-.au-selo {
+/* O app em destaque é o iConnect — hoje o único acesso ao sistema principal.
+   Sem peso visual, ele se perde entre nove cards "em breve" idênticos, e o
+   usuário precisa ler os dez para achar o único que abre alguma coisa. */
+.au-app--destaque {
+  border-color: var(--au-accent);
+  box-shadow: var(--au-e-1);
+}
+.au-app--destaque .au-app-icone {
+  background: var(--au-btn-bg);
+  color: var(--au-btn-fg);
+}
+.au-app--destaque .au-app-seta { opacity: 1; transform: none; color: var(--au-accent-text); }
+
+.au-app-marca {
   position: absolute;
-  top: var(--au-3);
-  right: var(--au-3);
-  padding: 2px 6px;
+  inset: auto 0 0 0;
+  height: 3px;
+  border-radius: 0 0 var(--au-r-md) var(--au-r-md);
+  /* Navy → crimson: o único lugar da interface onde o crimson aparece,
+     e é ornamento de marca, não estado. */
+  background: linear-gradient(90deg, var(--au-btn-bg), var(--au-marca));
+}
+
+/* Só o card ativo reage. Card "em breve" que levanta no hover promete um
+   clique que não existe. */
+.au-app--ativo:hover {
+  border-color: var(--au-accent);
+  box-shadow: var(--au-e-2);
+  transform: translateY(-2px);
+}
+.au-app--ativo:hover .au-app-icone {
+  background: var(--au-accent);
+  color: #ffffff;
+}
+
+.au-app-seta {
+  width: 16px; height: 16px;
+  margin-left: auto;
+  color: var(--au-text-subtle);
+  opacity: 0;
+  transform: translateX(-4px);
+  transition: opacity var(--au-dur-fast) var(--au-ease),
+              transform var(--au-dur-fast) var(--au-ease);
+}
+.au-app--ativo:hover .au-app-seta,
+.au-app--ativo:focus-visible .au-app-seta { opacity: 1; transform: none; }
+
+.au-app--indisponivel { cursor: default; }
+.au-app--indisponivel .au-app-nome { color: var(--au-text-muted); }
+
+.au-selo {
+  margin-left: auto;
+  padding: 3px 7px;
   font-size: var(--au-t-2xs);
   font-weight: 600;
   letter-spacing: 0.03em;
@@ -312,33 +436,57 @@ body {
   color: var(--au-text-subtle);
   background: var(--au-surface-sunken);
   border-radius: var(--au-r-full);
-}
-
-.au-selo--destaque {
-  color: var(--au-accent-text);
-  background: var(--au-accent-bg);
+  white-space: nowrap;
 }
 
 /* ── Cards de conteúdo ──────────────────────────────────────── */
 
 .au-colunas {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(340px, 1fr));
   gap: var(--au-4);
 }
 
 .au-card {
+  display: flex;
+  flex-direction: column;
   padding: var(--au-5);
   background: var(--au-surface);
   border: 1px solid var(--au-border);
   border-radius: var(--au-r-md);
 }
 
-.au-card-titulo {
-  margin: 0 0 var(--au-3);
-  font-size: var(--au-t-base);
-  font-weight: 650;
+.au-card-cabeca {
+  display: flex;
+  align-items: center;
+  gap: var(--au-3);
+  margin-bottom: var(--au-2);
 }
+
+.au-card-icone {
+  display: grid;
+  place-items: center;
+  width: 28px; height: 28px;
+  border-radius: var(--au-r-sm);
+  background: var(--au-accent-bg);
+  color: var(--au-accent-text);
+}
+.au-card-icone .au-icon { width: 15px; height: 15px; }
+
+.au-card-titulo { margin: 0; font-size: var(--au-t-md); font-weight: 650; }
+
+.au-secao-contagem {
+  padding: 1px 8px;
+  font-size: var(--au-t-xs);
+  font-weight: 600;
+  color: var(--au-text-muted);
+  background: var(--au-surface-sunken);
+  border-radius: var(--au-r-full);
+}
+.au-secao-cabeca .au-secao-contagem { margin-left: 0; }
+.au-card-cabeca .au-secao-contagem { margin-left: auto; }
+
+/* ── Lista de publicações ───────────────────────────────────── */
 
 .au-lista { list-style: none; margin: 0; padding: 0; }
 
@@ -348,52 +496,121 @@ body {
   gap: var(--au-3);
   padding: var(--au-3) 0;
   border-bottom: 1px solid var(--au-border);
-  font-size: var(--au-t-base);
 }
 .au-list-row:last-child { border-bottom: 0; padding-bottom: 0; }
 
 .au-ponto {
-  width: 6px; height: 6px;
-  margin-top: 7px;
+  width: 7px; height: 7px;
+  margin-top: 6px;
   flex: none;
   border-radius: var(--au-r-full);
   background: var(--au-cor, var(--au-neutral));
 }
 
+.au-list-link {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  color: inherit;
+  text-decoration: none;
+}
+.au-list-link:hover .au-list-titulo { color: var(--au-accent-text); }
+
+.au-list-titulo {
+  display: flex;
+  align-items: center;
+  gap: var(--au-1);
+  font-size: var(--au-t-base);
+  font-weight: 550;
+  line-height: 1.35;
+}
+
+.au-list-pin { width: 13px; height: 13px; color: var(--au-text-subtle); flex: none; }
+
+.au-list-resumo {
+  font-size: var(--au-t-sm);
+  line-height: 1.45;
+  color: var(--au-text-muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .au-list-meta {
   margin-left: auto;
+  padding-left: var(--au-2);
   font-size: var(--au-t-sm);
   color: var(--au-text-subtle);
   white-space: nowrap;
 }
 
+/* ── Estado vazio ───────────────────────────────────────────── */
+
 .au-vazio {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: var(--au-1);
   padding: var(--au-8) var(--au-4);
   text-align: center;
-  color: var(--au-text-muted);
-  font-size: var(--au-t-base);
 }
+.au-vazio-titulo { margin: 0; font-size: var(--au-t-base); color: var(--au-text-muted); }
+.au-vazio-dica { margin: 0; font-size: var(--au-t-sm); color: var(--au-text-subtle); }
+.au-vazio-dica b { font-weight: 600; color: var(--au-text-muted); }
 
-/* ── Faixa de login ─────────────────────────────────────────── */
+/* ── Artigo (comunicado / notícia) ──────────────────────────── */
 
-.au-faixa {
+.au-voltar { margin-bottom: var(--au-6); }
+.au-icon--espelhado { transform: scaleX(-1); }
+
+.au-artigo { max-width: 720px; }
+
+.au-artigo-tipo {
   display: flex;
   align-items: center;
-  gap: var(--au-4);
-  flex-wrap: wrap;
-  padding: var(--au-5) var(--au-6);
-  background: var(--au-surface-sunken);
-  border: 1px solid var(--au-border);
-  border-radius: var(--au-r-md);
+  gap: var(--au-2);
+  margin: 0 0 var(--au-3);
+  font-size: var(--au-t-sm);
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  color: var(--au-text-muted);
 }
 
-.au-faixa-texto { font-size: var(--au-t-base); color: var(--au-text-muted); }
-.au-faixa-texto strong { color: var(--au-text); font-weight: 600; }
-.au-faixa .au-btn { margin-left: auto; }
+.au-artigo-titulo {
+  margin: 0 0 var(--au-3);
+  font-size: var(--au-t-2xl);
+  font-weight: 680;
+  letter-spacing: -0.018em;
+  line-height: 1.25;
+}
+
+.au-artigo-resumo {
+  margin: 0 0 var(--au-4);
+  font-size: var(--au-t-lg);
+  line-height: 1.55;
+  color: var(--au-text-muted);
+}
+
+.au-artigo-meta {
+  margin: 0 0 var(--au-6);
+  padding-bottom: var(--au-5);
+  border-bottom: 1px solid var(--au-border);
+  font-size: var(--au-t-sm);
+  color: var(--au-text-subtle);
+}
+
+.au-artigo-corpo { font-size: var(--au-t-md); line-height: 1.7; }
+.au-artigo-corpo p { margin: 0 0 var(--au-4); }
 
 /* ── Rodapé ─────────────────────────────────────────────────── */
 
 .au-rodape {
+  display: flex;
+  align-items: center;
+  gap: var(--au-2);
   max-width: var(--au-content-max);
   margin: 0 auto;
   padding: var(--au-6);
@@ -401,6 +618,7 @@ body {
   font-size: var(--au-t-sm);
   color: var(--au-text-subtle);
 }
+.au-rodape-marca { opacity: .75; }
 
 /* ── Responsivo ─────────────────────────────────────────────── */
 
@@ -408,6 +626,9 @@ body {
   .au-main { padding: var(--au-6) var(--au-4) var(--au-12); }
   .au-topbar { padding: 0 var(--au-4); }
   .au-hero-titulo { font-size: var(--au-t-xl); }
-  .au-grade { grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); }
-  .au-usuario { display: none; }
+  .au-grade { grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); }
+  .au-colunas { grid-template-columns: 1fr; }
+  .au-usuario, .au-brand-divisor, .au-brand-produto { display: none; }
+  .au-atalho { display: none; }
+  .au-busca-campo { padding-right: var(--au-4); }
 }

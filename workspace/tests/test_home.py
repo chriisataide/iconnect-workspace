@@ -1,22 +1,18 @@
-"""Home do Portal — pública.
-
-O Portal é a porta de entrada da empresa: acessível sem login. O tile do
-iConnect é que leva ao login do sistema principal.
-"""
+"""Home do Portal — pública, com um único acesso ao iConnect."""
 
 from __future__ import annotations
 
+import re
+
 import pytest
+from django.test import Client
 from django.urls import resolve, reverse
 
 
 @pytest.mark.django_db
 def test_home_responde_200_para_anonimo():
     """O requisito central: o Portal NÃO exige login."""
-    from django.test import Client
-
-    resposta = Client().get(reverse("workspace:home"))
-    assert resposta.status_code == 200
+    assert Client().get(reverse("workspace:home")).status_code == 200
 
 
 @pytest.mark.django_db
@@ -36,42 +32,35 @@ def test_rota_montada_sob_workspace():
     assert resolve("/workspace/").view_name == "workspace:home"
 
 
+# ── Um único acesso ao iConnect ──────────────────────────────────
+
+
 @pytest.mark.django_db
-def test_anonimo_ve_convite_para_entrar(client):
+def test_existe_exatamente_um_link_para_o_login(client):
+    """Antes havia três (topbar, tile, faixa). Três caminhos para o mesmo
+    destino fazem o usuário parar para decidir se são a mesma coisa."""
     corpo = client.get(reverse("workspace:home")).content.decode()
-    assert "Entrar no iConnect" in corpo
+    links = re.findall(r'href="%s"' % re.escape(reverse("login")), corpo)
+    assert len(links) == 1, f"esperado 1 acesso ao iConnect, achei {len(links)}"
 
 
 @pytest.mark.django_db
-def test_autenticado_e_cumprimentado_pelo_primeiro_nome(client, django_user_model):
-    usuario = django_user_model.objects.create_user(
-        username="cataide", password="x", first_name="Christopher", last_name="Ataide"
-    )
-    client.force_login(usuario)
-    resposta = client.get(reverse("workspace:home"))
-
-    assert resposta.context["nome"] == "Christopher"
-    corpo = resposta.content.decode()
-    assert "Olá, Christopher." in corpo
-    assert "Entrar no iConnect" not in corpo, "usuário logado não deve ver convite de login"
+def test_topbar_nao_tem_botao_de_login(client):
+    corpo = client.get(reverse("workspace:home")).content.decode()
+    assert "Entrar no iConnect" not in corpo
 
 
 @pytest.mark.django_db
-def test_nome_cai_para_username_sem_nome_completo(client, django_user_model):
-    usuario = django_user_model.objects.create_user(username="semnome", password="x")
-    client.force_login(usuario)
-    assert client.get(reverse("workspace:home")).context["nome"] == "semnome"
-
-
-@pytest.mark.django_db
-def test_tile_do_iconnect_aponta_para_o_login(client):
+def test_tile_do_iconnect_e_o_acesso(client):
     """O elo do diagrama: Portal → iConnect → login do sistema principal."""
     resposta = client.get(reverse("workspace:home"))
     iconnect = next(a for a in resposta.context["apps"] if a.chave == "iconnect")
 
     assert iconnect.disponivel
-    assert iconnect.url_direta == reverse("login")
-    assert f'href="{reverse("login")}"' in resposta.content.decode()
+    assert iconnect.destino == reverse("login")
+
+
+# ── Grade de aplicativos ─────────────────────────────────────────
 
 
 @pytest.mark.django_db
@@ -91,7 +80,47 @@ def test_sistema_inexistente_aparece_como_em_breve(client):
     rh = next(a for a in resposta.context["apps"] if a.chave == "rh")
 
     assert not rh.disponivel
+    assert rh.destino == ""
     assert "Em breve" in resposta.content.decode()
+
+
+# ── Personalização progressiva ───────────────────────────────────
+
+
+@pytest.mark.django_db
+def test_autenticado_e_cumprimentado_pelo_primeiro_nome(client, django_user_model):
+    usuario = django_user_model.objects.create_user(
+        username="cataide", password="x", first_name="Christopher", last_name="Ataide"
+    )
+    client.force_login(usuario)
+    resposta = client.get(reverse("workspace:home"))
+
+    assert resposta.context["nome"] == "Christopher"
+    assert "Olá, Christopher." in resposta.content.decode()
+
+
+@pytest.mark.django_db
+def test_anonimo_ve_saudacao_neutra(client):
+    corpo = client.get(reverse("workspace:home")).content.decode()
+    assert "Bem-vindo ao Portal." in corpo
+
+
+@pytest.mark.django_db
+def test_nome_cai_para_username_sem_nome_completo(client, django_user_model):
+    usuario = django_user_model.objects.create_user(username="semnome", password="x")
+    client.force_login(usuario)
+    assert client.get(reverse("workspace:home")).context["nome"] == "semnome"
+
+
+# ── Marca ────────────────────────────────────────────────────────
+
+
+@pytest.mark.django_db
+def test_pagina_usa_a_marca_icodev(client):
+    corpo = client.get(reverse("workspace:home")).content.decode()
+    assert "icodev-wordmark.png" in corpo
+    assert "favicon.ico" in corpo
+    assert "icodev-apple-touch.png" in corpo
 
 
 @pytest.mark.django_db
@@ -103,7 +132,17 @@ def test_shell_nao_herda_material_dashboard(client):
 
 
 @pytest.mark.django_db
-def test_pagina_carrega_os_tokens_do_aurora(client):
+def test_pagina_carrega_tokens_e_script(client):
     corpo = client.get(reverse("workspace:home")).content.decode()
     assert "workspace/src/tokens.css" in corpo
     assert "workspace/src/portal.css" in corpo
+    assert "workspace/js/portal.js" in corpo
+
+
+@pytest.mark.django_db
+def test_nenhum_script_inline(client):
+    """A CSP de produção não tem `unsafe-inline`. Um `<script>` sem src aqui
+    passa em dev e quebra calado em produção."""
+    corpo = client.get(reverse("workspace:home")).content.decode()
+    inline = re.findall(r"<script(?![^>]*\ssrc=)[^>]*>", corpo)
+    assert not inline, f"script inline encontrado: {inline}"

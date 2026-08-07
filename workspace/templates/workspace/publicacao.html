@@ -1,0 +1,34 @@
+{% extends "workspace/_shell.html" %}
+{% load i18n portal %}
+
+{% block titulo %}{{ publicacao.titulo }}{% endblock %}
+
+{% block conteudo %}
+  <nav class="au-voltar" aria-label="{% trans 'Navegação' %}">
+    <a class="au-btn au-btn--sutil" href="{% url 'workspace:home' %}">
+      <svg class="au-icon au-icon--espelhado" aria-hidden="true"><use href="#i-seta"></use></svg>
+      {% trans "Portal" %}
+    </a>
+  </nav>
+
+  <article class="au-artigo">
+    <p class="au-artigo-tipo">
+      <span class="au-ponto" style="--au-cor: {{ publicacao.cor }}" aria-hidden="true"></span>
+      {{ publicacao.get_tipo_display }}
+      {% if publicacao.prioridade %}· {{ publicacao.get_prioridade_display }}{% endif %}
+    </p>
+
+    <h1 class="au-artigo-titulo">{{ publicacao.titulo }}</h1>
+
+    {% if publicacao.resumo %}<p class="au-artigo-resumo">{{ publicacao.resumo }}</p>{% endif %}
+
+    <p class="au-artigo-meta">
+      <time datetime="{{ publicacao.publicar_em|date:'c' }}">{{ publicacao.publicar_em|data_extenso }}</time>
+      {% if publicacao.autor %}· {{ publicacao.autor.get_full_name|default:publicacao.autor.username }}{% endif %}
+    </p>
+
+    {% if publicacao.corpo %}
+      <div class="au-artigo-corpo">{{ publicacao.corpo|linebreaks }}</div>
+    {% endif %}
+  </article>
+{% endblock %}

@@ -1,22 +1,26 @@
 {% load i18n static %}<!DOCTYPE html>
 {% comment %}
   Casca do Portal — deliberadamente NÃO estende templates/base.html.
+  Decisão A-02 (Etapa 6): não herda a casca antiga. Os ~40 templates
+  operacionais continuam como estão; a migração é por atração.
 
-  Decisão A-02 (Etapa 6): o shell não herda a casca antiga. Os ~40 templates
-  operacionais continuam como estão; a migração é por atração, não por decreto.
+  O ST-003 troca os <link> por um bundle Tailwind único (dist/aurora.css).
 
-  O ST-003 troca os dois <link> por um bundle Tailwind único (dist/aurora.css).
-
-  Nota: use {% templatetag openblock %} comment {% templatetag closeblock %}
-  para comentário de várias linhas. O {% templatetag opencomment %} do Django
-  é de UMA linha só — em bloco, o texto vaza para o HTML renderizado.
+  Nota: {% templatetag opencomment %} do Django é de UMA linha. Em bloco, o
+  texto vaza para o HTML renderizado — use {% templatetag openblock %} comment.
 {% endcomment %}
 <html lang="{{ LANGUAGE_CODE|default:'pt-br' }}">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="color-scheme" content="light dark">
+  <meta name="theme-color" content="#2e3192">
   <title>{% block titulo %}{% trans "Portal" %}{% endblock %} · iConnect</title>
+
+  <link rel="icon" href="{% static 'workspace/img/favicon.ico' %}" sizes="any">
+  <link rel="icon" type="image/png" href="{% static 'workspace/img/icodev-512.png' %}">
+  <link rel="apple-touch-icon" href="{% static 'workspace/img/icodev-apple-touch.png' %}">
+
   <link rel="stylesheet" href="{% static 'workspace/src/tokens.css' %}">
   <link rel="stylesheet" href="{% static 'workspace/src/portal.css' %}">
   {% block head %}{% endblock %}
@@ -28,18 +32,22 @@
 
   <header class="au-topbar">
     <a class="au-brand" href="{% url 'workspace:home' %}">
-      <svg class="au-brand-mark" aria-hidden="true"><use href="#i-cube"></use></svg>
-      iConnect
+      <img class="au-brand-logo" src="{% static 'workspace/img/icodev-wordmark.png' %}"
+           alt="icodev" width="176" height="60">
+      <span class="au-brand-divisor" aria-hidden="true"></span>
+      <span class="au-brand-produto">Portal</span>
     </a>
 
-    <div class="au-topbar-fim">
-      {% if autenticado %}
+    {% comment %}
+      Sem botão de login aqui. O acesso ao iConnect é UM só — o tile na grade.
+      Antes eram três (topbar, tile, faixa do rodapé), o que faz o usuário
+      hesitar sobre se levam ao mesmo lugar.
+    {% endcomment %}
+    {% if autenticado %}
+      <div class="au-topbar-fim">
         <span class="au-usuario">{{ request.user.get_full_name|default:request.user.username }}</span>
-        <a class="au-btn au-btn--sutil" href="{% url 'logout' %}">{% trans "Sair" %}</a>
-      {% else %}
-        <a class="au-btn au-btn--primario" href="{% url 'login' %}">{% trans "Entrar no iConnect" %}</a>
-      {% endif %}
-    </div>
+      </div>
+    {% endif %}
   </header>
 
   <main id="conteudo" class="au-main">
@@ -47,7 +55,9 @@
   </main>
 
   <footer class="au-rodape">
-    {% blocktrans %}iConnect Portal · o ponto de entrada da empresa{% endblocktrans %}
+    <img class="au-rodape-marca" src="{% static 'workspace/img/icodev-mark.png' %}"
+         alt="" width="18" height="18" aria-hidden="true">
+    <span>{% blocktrans %}iConnect Portal · o ponto de entrada da empresa{% endblocktrans %}</span>
   </footer>
 
   {% block scripts %}{% endblock %}

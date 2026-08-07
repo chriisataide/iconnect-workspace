@@ -1,0 +1,37 @@
+{% load i18n %}
+<article class="au-card">
+  <header class="au-card-cabeca">
+    <span class="au-card-icone"><svg class="au-icon" aria-hidden="true"><use href="#i-{{ icone }}"></use></svg></span>
+    <h3 class="au-card-titulo">{{ titulo }}</h3>
+    {% if itens %}<span class="au-secao-contagem">{{ itens|length }}</span>{% endif %}
+  </header>
+
+  {% if itens %}
+    <ul class="au-lista">
+      {% for pub in itens %}
+        <li class="au-list-row">
+          <span class="au-ponto" style="--au-cor: {{ pub.cor }}" aria-hidden="true"></span>
+          <a class="au-list-link" href="{% url 'workspace:publicacao_detalhe' pub.pk %}">
+            <span class="au-list-titulo">
+              {% if pub.fixado %}<svg class="au-list-pin" aria-hidden="true"><use href="#i-pin"></use></svg>{% endif %}
+              {{ pub.titulo }}
+            </span>
+            {% if pub.resumo %}<span class="au-list-resumo">{{ pub.resumo }}</span>{% endif %}
+          </a>
+          <time class="au-list-meta" datetime="{{ pub.publicar_em|date:'c' }}">{{ pub.publicar_em|date:"d/m" }}</time>
+        </li>
+      {% endfor %}
+    </ul>
+  {% else %}
+    {% comment %}
+      Empty state explica O QUE é, POR QUE está vazio e QUAL a próxima ação
+      (Etapa 6 §8.6). "Nada publicado ainda" sozinho não ajuda ninguém.
+    {% endcomment %}
+    <div class="au-vazio">
+      <p class="au-vazio-titulo">{{ vazio }}</p>
+      <p class="au-vazio-dica">
+        {% blocktrans %}Publique em <b>Admin › iConnect Workspace › Publicações</b>.{% endblocktrans %}
+      </p>
+    </div>
+  {% endif %}
+</article>

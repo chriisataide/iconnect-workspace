@@ -1,56 +1,61 @@
 {% extends "workspace/_shell.html" %}
-{% load i18n %}
+{% load i18n static %}
 
 {% block titulo %}{% trans "Portal" %}{% endblock %}
 
 {% block conteudo %}
   <section class="au-hero">
+    <p class="au-hero-eyebrow">{{ hoje }}</p>
     <h1 class="au-hero-titulo">
       {% if autenticado %}
         {% blocktrans %}Olá, {{ nome }}.{% endblocktrans %}
       {% else %}
-        {% trans "iConnect Portal" %}
+        {% trans "Bem-vindo ao Portal." %}
       {% endif %}
     </h1>
-    <p class="au-hero-sub">{% trans "Como posso ajudar?" %}</p>
+    <p class="au-hero-sub">{% trans "Busque um sistema, um comunicado ou uma notícia." %}</p>
 
-    {% comment %}
-      Campo inerte no ST-002: a busca federada e o ⌘K são ST-0xx (Onda 5).
-      Está aqui porque a barra é o elemento fixo da casca, e o layout precisa
-      nascer com ela reservada — encaixar busca depois sempre desmonta o topo.
-    {% endcomment %}
     <div class="au-busca">
       <svg class="au-busca-icone" aria-hidden="true"><use href="#i-search"></use></svg>
-      <label class="au-sr" for="busca">{% trans "Buscar ou perguntar" %}</label>
-      <input class="au-busca-campo" id="busca" type="search" disabled
-             placeholder="{% trans 'Buscar ou perguntar…  (em breve)' %}">
+      <label class="au-sr" for="busca">{% trans "Buscar no Portal" %}</label>
+      <input class="au-busca-campo" id="busca" type="search" autocomplete="off"
+             role="combobox" aria-expanded="false" aria-controls="busca-resultados"
+             placeholder="{% trans 'Buscar…' %}">
       <span class="au-atalho" aria-hidden="true">
         <kbd class="au-tecla">⌘</kbd><kbd class="au-tecla">K</kbd>
       </span>
+      <div class="au-busca-painel" id="busca-resultados" role="listbox" hidden
+           data-url="{% url 'workspace:buscar' %}"></div>
     </div>
   </section>
 
   <section class="au-secao">
     <div class="au-secao-cabeca">
       <h2 class="au-secao-titulo">{% trans "Aplicativos" %}</h2>
+      <span class="au-secao-contagem">{{ apps|length }}</span>
     </div>
 
     <ul class="au-grade">
       {% for app in apps %}
         <li>
           {% if app.disponivel %}
-            <a class="au-app" href="{% if app.url_direta %}{{ app.url_direta }}{% else %}{% url app.url_name %}{% endif %}"
+            <a class="au-app au-app--ativo{% if app.destaque %} au-app--destaque{% endif %}"
+               href="{{ app.destino }}"
                style="--au-cor: {{ app.cor }}; --au-cor-bg: {{ app.cor_bg }};">
-              {% if app.destaque %}<span class="au-selo au-selo--destaque">{% trans "Sistema" %}</span>{% endif %}
-              <span class="au-app-icone"><svg class="au-icon" aria-hidden="true"><use href="#i-{{ app.icone }}"></use></svg></span>
+              <span class="au-app-topo">
+                <span class="au-app-icone"><svg class="au-icon" aria-hidden="true"><use href="#i-{{ app.icone }}"></use></svg></span>
+                <svg class="au-app-seta" aria-hidden="true"><use href="#i-seta"></use></svg>
+              </span>
               <span class="au-app-nome">{{ app.nome }}</span>
               <span class="au-app-desc">{{ app.descricao }}</span>
+              {% if app.destaque %}<span class="au-app-marca" aria-hidden="true"></span>{% endif %}
             </a>
           {% else %}
-            <div class="au-app au-app--indisponivel" aria-disabled="true"
-                 style="--au-cor: {{ app.cor }}; --au-cor-bg: {{ app.cor_bg }};">
-              <span class="au-selo">{% trans "Em breve" %}</span>
-              <span class="au-app-icone"><svg class="au-icon" aria-hidden="true"><use href="#i-{{ app.icone }}"></use></svg></span>
+            <div class="au-app au-app--indisponivel" aria-disabled="true">
+              <span class="au-app-topo">
+                <span class="au-app-icone"><svg class="au-icon" aria-hidden="true"><use href="#i-{{ app.icone }}"></use></svg></span>
+                <span class="au-selo">{% trans "Em breve" %}</span>
+              </span>
               <span class="au-app-nome">{{ app.nome }}</span>
               <span class="au-app-desc">{{ app.descricao }}</span>
             </div>
@@ -68,30 +73,12 @@
     </div>
 
     <div class="au-colunas">
-      <article class="au-card">
-        <h3 class="au-card-titulo">{% trans "Comunicados" %}</h3>
-        <p class="au-vazio">
-          {% trans "Nada publicado ainda. O Mural entra na Onda 3." %}
-        </p>
-      </article>
-
-      <article class="au-card">
-        <h3 class="au-card-titulo">{% trans "Notícias" %}</h3>
-        <p class="au-vazio">
-          {% trans "Nada publicado ainda." %}
-        </p>
-      </article>
+      {% include "workspace/_card_publicacoes.html" with titulo=_("Comunicados") itens=comunicados icone="megafone" vazio=_("Nenhum comunicado no ar.") %}
+      {% include "workspace/_card_publicacoes.html" with titulo=_("Notícias") itens=noticias icone="jornal" vazio=_("Nenhuma notícia publicada.") %}
     </div>
   </section>
+{% endblock %}
 
-  {% if not autenticado %}
-    <section class="au-secao">
-      <div class="au-faixa">
-        <span class="au-faixa-texto">
-          {% blocktrans %}<strong>Sua agenda, pendências e aprovações</strong> aparecem aqui depois que você entra.{% endblocktrans %}
-        </span>
-        <a class="au-btn au-btn--primario" href="{% url 'login' %}">{% trans "Entrar no iConnect" %}</a>
-      </div>
-    </section>
-  {% endif %}
+{% block scripts %}
+  <script src="{% static 'workspace/js/portal.js' %}" defer></script>
 {% endblock %}
