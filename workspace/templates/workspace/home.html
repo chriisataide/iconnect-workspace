@@ -1,0 +1,31 @@
+{% extends "workspace/_shell.html" %}
+{% load i18n %}
+
+{% block titulo %}{{ titulo }}{% endblock %}
+
+{% block conteudo %}
+  <h1 class="au-h1">{{ titulo }}</h1>
+
+  {% comment %}
+    As três zonas do Blueprint §6.1 entram na Onda 3:
+      Zona 1  briefing   imutável, gerado por IA
+      Zona 2  ação       widgets acionáveis inline
+      Zona 3  contexto   personalizável
+    Aqui, no ST-002, a home só prova que rota + autenticação + template funcionam.
+  {% endcomment %}
+  <p class="au-texto-suave">
+    {% blocktrans count total=providers|length %}
+      {{ total }} domínio registrado.
+    {% plural %}
+      {{ total }} domínios registrados.
+    {% endblocktrans %}
+  </p>
+
+  {% if providers %}
+    <ul class="au-lista">
+      {% for provider in providers %}
+        <li class="au-list-row">{{ provider.label }} <code>{{ provider.key }}</code></li>
+      {% endfor %}
+    </ul>
+  {% endif %}
+{% endblock %}
