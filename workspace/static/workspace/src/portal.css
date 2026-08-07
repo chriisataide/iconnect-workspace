@@ -1,0 +1,413 @@
+/* ═══════════════════════════════════════════════════════════════
+   AURORA — componentes do Portal (hub público)
+   Escrito à mão sobre tokens.css. O ST-003 troca isto por um bundle
+   Tailwind com @source restrito a workspace/ — os nomes `au-*` ficam.
+   ═══════════════════════════════════════════════════════════════ */
+
+*, *::before, *::after { box-sizing: border-box; }
+
+html { -webkit-text-size-adjust: 100%; }
+
+body {
+  margin: 0;
+  background: var(--au-bg);
+  color: var(--au-text);
+  font-family: var(--au-font);
+  font-size: var(--au-t-md);
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ── Acessibilidade ─────────────────────────────────────────── */
+
+.au-skip-link {
+  position: absolute;
+  left: var(--au-4);
+  top: -100px;
+  z-index: 100;
+  padding: var(--au-2) var(--au-4);
+  background: var(--au-surface);
+  color: var(--au-text);
+  border-radius: var(--au-r-sm);
+  box-shadow: var(--au-e-2);
+  text-decoration: none;
+  transition: top var(--au-dur) var(--au-ease);
+}
+.au-skip-link:focus { top: var(--au-4); }
+
+:focus-visible { outline: none; box-shadow: var(--au-focus); border-radius: var(--au-r-sm); }
+
+.au-sr {
+  position: absolute; width: 1px; height: 1px;
+  padding: 0; margin: -1px; overflow: hidden;
+  clip: rect(0 0 0 0); white-space: nowrap; border: 0;
+}
+
+/* ── Topbar ─────────────────────────────────────────────────── */
+
+.au-topbar {
+  position: sticky;
+  top: 0;
+  z-index: 50;
+  height: var(--au-topbar-h);
+  display: flex;
+  align-items: center;
+  gap: var(--au-4);
+  padding: 0 var(--au-6);
+  background: color-mix(in srgb, var(--au-surface) 78%, transparent);
+  border-bottom: 1px solid var(--au-border);
+  /* Glass permitido aqui — é uma das 3 exceções do §8.4 */
+  backdrop-filter: blur(20px) saturate(140%);
+  -webkit-backdrop-filter: blur(20px) saturate(140%);
+}
+
+.au-brand {
+  display: flex;
+  align-items: center;
+  gap: var(--au-2);
+  font-size: var(--au-t-md);
+  font-weight: 650;
+  letter-spacing: -0.011em;
+  color: var(--au-text);
+  text-decoration: none;
+}
+.au-brand-mark {
+  width: 22px; height: 22px;
+  color: var(--au-accent);
+}
+
+.au-topbar-fim { margin-left: auto; display: flex; align-items: center; gap: var(--au-2); }
+
+.au-usuario {
+  font-size: var(--au-t-base);
+  color: var(--au-text-muted);
+  padding-right: var(--au-2);
+}
+
+/* ── Botões ─────────────────────────────────────────────────── */
+
+.au-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--au-2);
+  height: var(--au-control-h);
+  padding: 0 var(--au-4);
+  border: 1px solid transparent;
+  border-radius: var(--au-r-sm);
+  font-family: inherit;
+  font-size: var(--au-t-base);
+  font-weight: 550;
+  line-height: 1;
+  text-decoration: none;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background var(--au-dur-fast) var(--au-ease),
+              border-color var(--au-dur-fast) var(--au-ease),
+              color var(--au-dur-fast) var(--au-ease);
+}
+
+.au-btn--primario {
+  background: var(--au-btn-bg);
+  color: var(--au-btn-fg);
+}
+.au-btn--primario:hover { background: var(--au-btn-bg-hover); }
+
+.au-btn--sutil {
+  background: transparent;
+  border-color: var(--au-border);
+  color: var(--au-text-muted);
+}
+.au-btn--sutil:hover { background: var(--au-surface-sunken); color: var(--au-text); }
+
+.au-btn--icone { width: var(--au-control-h); padding: 0; }
+
+.au-icon { width: 16px; height: 16px; flex: none; }
+
+/* ── Layout ─────────────────────────────────────────────────── */
+
+.au-main {
+  max-width: var(--au-content-max);
+  margin: 0 auto;
+  padding: var(--au-10) var(--au-6) var(--au-16);
+}
+
+.au-secao { margin-top: var(--au-12); }
+.au-secao:first-child { margin-top: 0; }
+
+.au-secao-cabeca {
+  display: flex;
+  align-items: baseline;
+  gap: var(--au-3);
+  margin-bottom: var(--au-5);
+}
+
+.au-secao-titulo {
+  margin: 0;
+  font-size: var(--au-t-xs);
+  font-weight: 650;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--au-text-subtle);
+}
+
+.au-secao-link {
+  margin-left: auto;
+  font-size: var(--au-t-base);
+  color: var(--au-accent-text);
+  text-decoration: none;
+  font-weight: 550;
+}
+.au-secao-link:hover { text-decoration: underline; }
+
+/* ── Hero + busca ───────────────────────────────────────────── */
+
+.au-hero { margin-bottom: var(--au-10); }
+
+.au-hero-titulo {
+  margin: 0 0 var(--au-1);
+  font-size: var(--au-t-2xl);
+  font-weight: 660;
+  letter-spacing: -0.021em;
+  line-height: 1.2;
+}
+
+.au-hero-sub {
+  margin: 0 0 var(--au-6);
+  color: var(--au-text-muted);
+  font-size: var(--au-t-md);
+}
+
+.au-busca {
+  position: relative;
+  max-width: 620px;
+}
+
+.au-busca-icone {
+  position: absolute;
+  left: var(--au-4);
+  top: 50%;
+  transform: translateY(-50%);
+  width: 18px; height: 18px;
+  color: var(--au-text-subtle);
+  pointer-events: none;
+}
+
+.au-busca-campo {
+  width: 100%;
+  height: 46px;
+  padding: 0 84px 0 46px;
+  font-family: inherit;
+  font-size: var(--au-t-md);
+  color: var(--au-text);
+  background: var(--au-surface);
+  border: 1px solid var(--au-border);
+  border-radius: var(--au-r-md);
+  box-shadow: var(--au-e-1);
+  transition: border-color var(--au-dur-fast) var(--au-ease),
+              box-shadow var(--au-dur-fast) var(--au-ease);
+}
+.au-busca-campo::placeholder { color: var(--au-text-subtle); }
+.au-busca-campo:hover { border-color: var(--au-border-strong); }
+.au-busca-campo:focus {
+  outline: none;
+  border-color: var(--au-accent);
+  box-shadow: var(--au-e-1), 0 0 0 3px var(--au-accent-bg);
+}
+
+.au-atalho {
+  position: absolute;
+  right: var(--au-3);
+  top: 50%;
+  transform: translateY(-50%);
+  display: inline-flex;
+  gap: 3px;
+  pointer-events: none;
+}
+.au-tecla {
+  min-width: 20px;
+  padding: 3px 5px;
+  font-family: var(--au-mono);
+  font-size: var(--au-t-2xs);
+  line-height: 1;
+  color: var(--au-text-subtle);
+  background: var(--au-surface-sunken);
+  border: 1px solid var(--au-border);
+  border-radius: 4px;
+  text-align: center;
+}
+
+/* ── Grade de aplicativos ───────────────────────────────────── */
+
+.au-grade {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(178px, 1fr));
+  gap: var(--au-3);
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.au-app {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: var(--au-3);
+  height: 100%;
+  padding: var(--au-4);
+  background: var(--au-surface);
+  border: 1px solid var(--au-border);
+  border-radius: var(--au-r-md);
+  text-decoration: none;
+  color: inherit;
+  transition: border-color var(--au-dur-fast) var(--au-ease),
+              box-shadow var(--au-dur-fast) var(--au-ease),
+              transform var(--au-dur-fast) var(--au-ease);
+}
+.au-app:hover {
+  border-color: var(--au-border-strong);
+  box-shadow: var(--au-e-2);
+  transform: translateY(-1px);
+}
+
+.au-app--indisponivel { cursor: default; }
+.au-app--indisponivel:hover {
+  border-color: var(--au-border);
+  box-shadow: none;
+  transform: none;
+}
+
+.au-app-icone {
+  display: grid;
+  place-items: center;
+  width: 34px; height: 34px;
+  border-radius: var(--au-r-sm);
+  background: var(--au-cor-bg, var(--au-neutral-bg));
+  color: var(--au-cor, var(--au-neutral-text));
+}
+.au-app-icone .au-icon { width: 18px; height: 18px; }
+
+.au-app-nome {
+  font-size: var(--au-t-base);
+  font-weight: 600;
+  letter-spacing: -0.006em;
+}
+
+.au-app-desc {
+  margin-top: auto;
+  font-size: var(--au-t-sm);
+  line-height: 1.45;
+  color: var(--au-text-muted);
+}
+
+.au-selo {
+  position: absolute;
+  top: var(--au-3);
+  right: var(--au-3);
+  padding: 2px 6px;
+  font-size: var(--au-t-2xs);
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  color: var(--au-text-subtle);
+  background: var(--au-surface-sunken);
+  border-radius: var(--au-r-full);
+}
+
+.au-selo--destaque {
+  color: var(--au-accent-text);
+  background: var(--au-accent-bg);
+}
+
+/* ── Cards de conteúdo ──────────────────────────────────────── */
+
+.au-colunas {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: var(--au-4);
+}
+
+.au-card {
+  padding: var(--au-5);
+  background: var(--au-surface);
+  border: 1px solid var(--au-border);
+  border-radius: var(--au-r-md);
+}
+
+.au-card-titulo {
+  margin: 0 0 var(--au-3);
+  font-size: var(--au-t-base);
+  font-weight: 650;
+}
+
+.au-lista { list-style: none; margin: 0; padding: 0; }
+
+.au-list-row {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--au-3);
+  padding: var(--au-3) 0;
+  border-bottom: 1px solid var(--au-border);
+  font-size: var(--au-t-base);
+}
+.au-list-row:last-child { border-bottom: 0; padding-bottom: 0; }
+
+.au-ponto {
+  width: 6px; height: 6px;
+  margin-top: 7px;
+  flex: none;
+  border-radius: var(--au-r-full);
+  background: var(--au-cor, var(--au-neutral));
+}
+
+.au-list-meta {
+  margin-left: auto;
+  font-size: var(--au-t-sm);
+  color: var(--au-text-subtle);
+  white-space: nowrap;
+}
+
+.au-vazio {
+  padding: var(--au-8) var(--au-4);
+  text-align: center;
+  color: var(--au-text-muted);
+  font-size: var(--au-t-base);
+}
+
+/* ── Faixa de login ─────────────────────────────────────────── */
+
+.au-faixa {
+  display: flex;
+  align-items: center;
+  gap: var(--au-4);
+  flex-wrap: wrap;
+  padding: var(--au-5) var(--au-6);
+  background: var(--au-surface-sunken);
+  border: 1px solid var(--au-border);
+  border-radius: var(--au-r-md);
+}
+
+.au-faixa-texto { font-size: var(--au-t-base); color: var(--au-text-muted); }
+.au-faixa-texto strong { color: var(--au-text); font-weight: 600; }
+.au-faixa .au-btn { margin-left: auto; }
+
+/* ── Rodapé ─────────────────────────────────────────────────── */
+
+.au-rodape {
+  max-width: var(--au-content-max);
+  margin: 0 auto;
+  padding: var(--au-6);
+  border-top: 1px solid var(--au-border);
+  font-size: var(--au-t-sm);
+  color: var(--au-text-subtle);
+}
+
+/* ── Responsivo ─────────────────────────────────────────────── */
+
+@media (max-width: 640px) {
+  .au-main { padding: var(--au-6) var(--au-4) var(--au-12); }
+  .au-topbar { padding: 0 var(--au-4); }
+  .au-hero-titulo { font-size: var(--au-t-xl); }
+  .au-grade { grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); }
+  .au-usuario { display: none; }
+}

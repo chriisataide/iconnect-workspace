@@ -1,44 +1,55 @@
-{% load i18n %}<!DOCTYPE html>
+{% load i18n static %}<!DOCTYPE html>
 {% comment %}
-  Casca do Workspace — deliberadamente NÃO estende templates/base.html.
+  Casca do Portal — deliberadamente NÃO estende templates/base.html.
 
-  Decisão A-02 (Etapa 6): o shell não herda a casca antiga. A ambição de
-  "parecer plataforma internacional" não é alcançável estendendo uma base com
-  sombras pesadas, raio grande e densidade baixa. Os ~40 templates operacionais
-  continuam como estão; a migração é por atração, não por decreto.
+  Decisão A-02 (Etapa 6): o shell não herda a casca antiga. Os ~40 templates
+  operacionais continuam como estão; a migração é por atração, não por decreto.
 
-  O <link> do Aurora entra no ST-003, junto com o pipeline Tailwind isolado.
-  Referenciar workspace/dist/aurora.css antes de ele existir quebra o
-  collectstatic em produção (CompressedManifestStaticFilesStorage).
+  O ST-003 troca os dois <link> por um bundle Tailwind único (dist/aurora.css).
 
   Nota: use {% templatetag openblock %} comment {% templatetag closeblock %}
   para comentário de várias linhas. O {% templatetag opencomment %} do Django
   é de UMA linha só — em bloco, o texto vaza para o HTML renderizado.
 {% endcomment %}
-<html lang="{{ LANGUAGE_CODE|default:'pt-br' }}" data-theme="light">
+<html lang="{{ LANGUAGE_CODE|default:'pt-br' }}">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>{% block titulo %}{% trans "Workspace" %}{% endblock %} · iConnect</title>
-  {# ST-003: <link rel="stylesheet" href="{% static 'workspace/dist/aurora.css' %}"> #}
+  <meta name="color-scheme" content="light dark">
+  <title>{% block titulo %}{% trans "Portal" %}{% endblock %} · iConnect</title>
+  <link rel="stylesheet" href="{% static 'workspace/src/tokens.css' %}">
+  <link rel="stylesheet" href="{% static 'workspace/src/portal.css' %}">
   {% block head %}{% endblock %}
 </head>
-<body class="au-body">
+<body>
+  {% include "workspace/_icones.html" %}
+
   <a class="au-skip-link" href="#conteudo">{% trans "Pular para o conteúdo" %}</a>
 
   <header class="au-topbar">
-    <span class="au-brand">iConnect</span>
-    {# ST-0xx: ⌘K entra aqui, como elemento fixo da casca #}
-    <nav class="au-topbar-acoes" aria-label="{% trans 'Ações da conta' %}">
-      <span class="au-usuario">{{ request.user.get_full_name|default:request.user.username }}</span>
-    </nav>
+    <a class="au-brand" href="{% url 'workspace:home' %}">
+      <svg class="au-brand-mark" aria-hidden="true"><use href="#i-cube"></use></svg>
+      iConnect
+    </a>
+
+    <div class="au-topbar-fim">
+      {% if autenticado %}
+        <span class="au-usuario">{{ request.user.get_full_name|default:request.user.username }}</span>
+        <a class="au-btn au-btn--sutil" href="{% url 'logout' %}">{% trans "Sair" %}</a>
+      {% else %}
+        <a class="au-btn au-btn--primario" href="{% url 'login' %}">{% trans "Entrar no iConnect" %}</a>
+      {% endif %}
+    </div>
   </header>
 
   <main id="conteudo" class="au-main">
     {% block conteudo %}{% endblock %}
   </main>
 
-  {# ST-024: HTMX + Alpine (build CSP), ambos locais e com nonce #}
+  <footer class="au-rodape">
+    {% blocktrans %}iConnect Portal · o ponto de entrada da empresa{% endblocktrans %}
+  </footer>
+
   {% block scripts %}{% endblock %}
 </body>
 </html>

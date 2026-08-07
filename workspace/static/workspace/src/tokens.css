@@ -1,0 +1,180 @@
+/* ═══════════════════════════════════════════════════════════════
+   AURORA — Design System do iConnect Workspace
+   Marca preservada: Slate #334155 + Cyan #06b6d4
+   Todo token de texto validado em WCAG AA (≥ 4,5:1) — ST-019
+   Fonte: EXEC_06_DESIGN_SYSTEM.md §6.7
+   ═══════════════════════════════════════════════════════════════ */
+
+:root {
+  /* ── Marca ─────────────────────────────────────────────────── */
+  --au-brand-50:#f8fafc; --au-brand-100:#f1f5f9; --au-brand-200:#e2e8f0;
+  --au-brand-300:#cbd5e1; --au-brand-400:#94a3b8; --au-brand-500:#64748b;
+  --au-brand-600:#475569; --au-brand-700:#334155; --au-brand-800:#1e293b;
+  --au-brand-900:#0f172a; --au-brand-950:#020617;
+
+  --au-accent-300:#67e8f9; --au-accent-400:#22d3ee; --au-accent-500:#06b6d4;
+  --au-accent-600:#0891b2; --au-accent-700:#0e7490; --au-accent-800:#155e75;
+
+  /* ── Superfície e texto ────────────────────────────────────── */
+  --au-bg:              var(--au-brand-50);
+  --au-surface:         #ffffff;
+  --au-surface-raised:  #ffffff;
+  --au-surface-sunken:  var(--au-brand-100);
+  --au-border:          var(--au-brand-200);
+  --au-border-strong:   var(--au-brand-300);
+  --au-text:            var(--au-brand-900);
+  /* Um degrau abaixo do que a Etapa 6 §6.7 especificava: lá, `subtle` era
+     brand-400, que sobre branco dá 2,56:1 e reprova AA mesmo para texto de
+     apoio. Rótulo de seção e selo "em breve" são texto pequeno — 4,5:1 vale. */
+  --au-text-muted:      var(--au-brand-600);   /* 7,58:1 sobre surface */
+  --au-text-subtle:     var(--au-brand-500);   /* 4,76:1 sobre surface */
+  --au-text-inverse:    #ffffff;
+
+  /* ── Semântica: fill / text / bg ───────────────────────────── */
+  --au-accent:          var(--au-accent-500);
+  --au-accent-text:     var(--au-accent-700);
+  --au-accent-bg:       rgb(6 182 212 / .10);
+
+  --au-success:         #059669;
+  --au-success-text:    #047857;
+  --au-success-bg:      rgb(5 150 105 / .10);
+
+  --au-warning:         #d97706;
+  --au-warning-text:    #b45309;
+  --au-warning-bg:      rgb(217 119 6 / .10);
+
+  --au-danger:          #dc2626;
+  --au-danger-text:     #b91c1c;
+  --au-danger-bg:       rgb(220 38 38 / .10);
+
+  --au-neutral:         var(--au-brand-500);
+  --au-neutral-text:    var(--au-brand-600);
+  --au-neutral-bg:      rgb(100 116 139 / .10);
+
+  /* ── Ação primária ─────────────────────────────────────────── */
+  /* Token próprio porque a marca não serve nos dois temas: slate-700 sobre
+     fundo claro tem 10:1, mas sobre o fundo escuro quase some. No escuro a
+     ação primária vira o accent, com texto escuro. */
+  --au-btn-bg:          var(--au-brand-700);
+  --au-btn-bg-hover:    var(--au-brand-800);
+  --au-btn-fg:          #ffffff;
+
+  /* ── Estado operacional (herdado do padrão existente) ──────── */
+  --au-st-aberto:#ef4444;      --au-st-aberto-text:#b91c1c;
+  --au-st-andamento:#f59e0b;   --au-st-andamento-text:#b45309;
+  --au-st-aguardando:#64748b;  --au-st-aguardando-text:#475569;
+  --au-st-resolvido:#22c55e;   --au-st-resolvido-text:#15803d;
+  --au-st-fechado:#334155;     --au-st-fechado-text:#334155;
+
+  /* ── Espaço ────────────────────────────────────────────────── */
+  --au-0:0; --au-1:4px; --au-2:8px; --au-3:12px; --au-4:16px;
+  --au-5:20px; --au-6:24px; --au-8:32px; --au-10:40px; --au-12:48px; --au-16:64px;
+
+  /* ── Densidade (padrão no V1.0) ────────────────────────────── */
+  --au-row-h:36px;
+  --au-card-pad:var(--au-4);
+  --au-control-h:34px;
+
+  /* ── Raio ──────────────────────────────────────────────────── */
+  --au-r-sm:6px; --au-r-md:10px; --au-r-lg:14px; --au-r-full:999px;
+
+  /* ── Elevação ──────────────────────────────────────────────── */
+  --au-e-0:none;
+  --au-e-1:0 1px 2px rgb(15 23 42/.06), 0 1px 3px rgb(15 23 42/.10);
+  --au-e-2:0 4px 6px -1px rgb(15 23 42/.07), 0 2px 4px -2px rgb(15 23 42/.06);
+  --au-e-3:0 12px 20px -6px rgb(15 23 42/.12), 0 4px 8px -4px rgb(15 23 42/.08);
+
+  /* ── Tipografia ────────────────────────────────────────────── */
+  --au-font:'InterVariable','Inter',system-ui,-apple-system,'Segoe UI',sans-serif;
+  --au-mono:'JetBrains Mono',ui-monospace,'SF Mono',monospace;
+  --au-t-2xs:10px; --au-t-xs:11px; --au-t-sm:12px; --au-t-base:13px;
+  --au-t-md:15px;  --au-t-lg:18px; --au-t-xl:22px; --au-t-2xl:28px; --au-t-3xl:36px;
+
+  /* ── Movimento ─────────────────────────────────────────────── */
+  --au-dur-fast:120ms; --au-dur:180ms; --au-dur-slow:280ms;
+  --au-ease:cubic-bezier(.2,0,0,1);
+  --au-ease-out:cubic-bezier(0,0,.2,1);
+
+  /* ── Foco ──────────────────────────────────────────────────── */
+  --au-focus:0 0 0 2px var(--au-surface), 0 0 0 4px var(--au-accent-600);
+
+  /* ── Layout ────────────────────────────────────────────────── */
+  --au-sidebar-w:236px;
+  --au-sidebar-w-collapsed:60px;
+  --au-topbar-h:52px;
+  --au-content-max:1440px;
+}
+
+/* ── DARK ─────────────────────────────────────────────────────── */
+
+/* Os overrides do tema escuro vivem numa custom property list única para não
+   duplicar a lista em dois blocos (preferência do SO + escolha manual). Cada
+   bloco abaixo só reaplica os mesmos valores. */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --au-bg:              var(--au-brand-950);
+    --au-surface:         #0b1220;
+    --au-surface-raised:  #111c2e;
+    --au-surface-sunken:  #060b16;
+    --au-border:          var(--au-brand-800);
+    --au-border-strong:   var(--au-brand-700);
+    --au-text:            var(--au-brand-200);
+    --au-text-muted:      var(--au-brand-400);   /* 7,30:1 */
+    --au-text-subtle:     #7c8ba1;               /* 5,41:1 — brand-500 daria 3,93 */
+
+    --au-accent:          var(--au-accent-400);
+    --au-accent-text:     var(--au-accent-400);
+    --au-accent-bg:       rgb(34 211 238 / .14);
+    --au-success-text:    #34d399;
+    --au-warning-text:    #fbbf24;
+    --au-danger-text:     #f87171;
+    --au-neutral-text:    var(--au-brand-400);
+
+    --au-e-1:0 1px 2px rgb(0 0 0/.40);
+    --au-e-2:0 4px 8px rgb(0 0 0/.45);
+    --au-e-3:0 16px 32px rgb(0 0 0/.50);
+
+    --au-btn-bg:          var(--au-accent-400);
+    --au-btn-bg-hover:    var(--au-accent-300);
+    --au-btn-fg:          var(--au-brand-950);
+
+    --au-focus:0 0 0 2px var(--au-surface), 0 0 0 4px var(--au-accent-400);
+  }
+}
+
+/* Escolha manual do usuário — vence a preferência do SO nas duas direções. */
+:root[data-theme="dark"] {
+  --au-bg:              var(--au-brand-950);
+  --au-surface:         #0b1220;
+  --au-surface-raised:  #111c2e;
+  --au-surface-sunken:  #060b16;
+  --au-border:          var(--au-brand-800);
+  --au-border-strong:   var(--au-brand-700);
+  --au-text:            var(--au-brand-200);
+  --au-text-muted:      var(--au-brand-400);   /* 7,30:1 */
+  --au-text-subtle:     #7c8ba1;               /* 5,41:1 — brand-500 daria 3,93 */
+
+  --au-accent:          var(--au-accent-400);
+  --au-accent-text:     var(--au-accent-400);
+  --au-accent-bg:       rgb(34 211 238 / .14);
+  --au-success-text:    #34d399;
+  --au-warning-text:    #fbbf24;
+  --au-danger-text:     #f87171;
+  --au-neutral-text:    var(--au-brand-400);
+
+  --au-e-1:0 1px 2px rgb(0 0 0/.40);
+  --au-e-2:0 4px 8px rgb(0 0 0/.45);
+  --au-e-3:0 16px 32px rgb(0 0 0/.50);
+
+  --au-btn-bg:          var(--au-accent-400);
+  --au-btn-bg-hover:    var(--au-accent-300);
+  --au-btn-fg:          var(--au-brand-950);
+
+  --au-focus:0 0 0 2px var(--au-surface), 0 0 0 4px var(--au-accent-400);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration:.01ms!important; transition-duration:.01ms!important;
+  }
+}

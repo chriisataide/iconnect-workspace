@@ -1,29 +1,40 @@
-"""Home do Workspace.
+"""Home do Portal — pública.
 
-No ST-002 é uma casca: prova que a rota, o template e a autenticação funcionam.
-As três zonas e os widgets chegam na Onda 3 (ST-0xx), montados sobre o runtime
-de widget da Etapa 5 §5.8.
+O Portal é a porta de entrada da empresa e **não exige login**: quem chega vê
+o hub e escolhe o sistema. O tile do iConnect é que leva ao login do sistema
+principal.
+
+A personalização do briefing original ("Olá Christopher", pendências,
+aprovações, favoritos) exige identidade. Resolvido de forma progressiva: a
+página funciona anônima e, se houver sessão, cumprimenta pelo nome e passa a
+`pessoa` para o launcher filtrar. Nada aqui redireciona para o login.
 """
 
 from __future__ import annotations
 
-from django.contrib.auth.decorators import login_required
 from django.http import HttpRequest, HttpResponse
 from django.shortcuts import render
 
-from workspace.providers import registry
+from workspace.launcher import apps_disponiveis
 
 
-@login_required
 def home(request: HttpRequest) -> HttpResponse:
-    """Renderiza a casca do Workspace."""
+    """Renderiza o hub do Portal."""
+    autenticado = request.user.is_authenticated
+    pessoa = request.user if autenticado else None
+
     return render(
         request,
         "workspace/home.html",
         {
-            "titulo": "Meu Espaço",
-            # Ainda não há provider registrado — a lista existe para que a
-            # casca já leia do registro, e não de uma lista fixa no template.
-            "providers": registry.all(),
+            "autenticado": autenticado,
+            "nome": _primeiro_nome(request) if autenticado else "",
+            "apps": apps_disponiveis(pessoa),
         },
     )
+
+
+def _primeiro_nome(request: HttpRequest) -> str:
+    """Só o primeiro nome — 'Olá Christopher', não 'Olá Christopher Ataide'."""
+    completo = (request.user.get_full_name() or request.user.get_username()).strip()
+    return completo.split()[0] if completo else ""

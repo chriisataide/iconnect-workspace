@@ -1,31 +1,97 @@
 {% extends "workspace/_shell.html" %}
 {% load i18n %}
 
-{% block titulo %}{{ titulo }}{% endblock %}
+{% block titulo %}{% trans "Portal" %}{% endblock %}
 
 {% block conteudo %}
-  <h1 class="au-h1">{{ titulo }}</h1>
+  <section class="au-hero">
+    <h1 class="au-hero-titulo">
+      {% if autenticado %}
+        {% blocktrans %}Olá, {{ nome }}.{% endblocktrans %}
+      {% else %}
+        {% trans "iConnect Portal" %}
+      {% endif %}
+    </h1>
+    <p class="au-hero-sub">{% trans "Como posso ajudar?" %}</p>
 
-  {% comment %}
-    As três zonas do Blueprint §6.1 entram na Onda 3:
-      Zona 1  briefing   imutável, gerado por IA
-      Zona 2  ação       widgets acionáveis inline
-      Zona 3  contexto   personalizável
-    Aqui, no ST-002, a home só prova que rota + autenticação + template funcionam.
-  {% endcomment %}
-  <p class="au-texto-suave">
-    {% blocktrans count total=providers|length %}
-      {{ total }} domínio registrado.
-    {% plural %}
-      {{ total }} domínios registrados.
-    {% endblocktrans %}
-  </p>
+    {% comment %}
+      Campo inerte no ST-002: a busca federada e o ⌘K são ST-0xx (Onda 5).
+      Está aqui porque a barra é o elemento fixo da casca, e o layout precisa
+      nascer com ela reservada — encaixar busca depois sempre desmonta o topo.
+    {% endcomment %}
+    <div class="au-busca">
+      <svg class="au-busca-icone" aria-hidden="true"><use href="#i-search"></use></svg>
+      <label class="au-sr" for="busca">{% trans "Buscar ou perguntar" %}</label>
+      <input class="au-busca-campo" id="busca" type="search" disabled
+             placeholder="{% trans 'Buscar ou perguntar…  (em breve)' %}">
+      <span class="au-atalho" aria-hidden="true">
+        <kbd class="au-tecla">⌘</kbd><kbd class="au-tecla">K</kbd>
+      </span>
+    </div>
+  </section>
 
-  {% if providers %}
-    <ul class="au-lista">
-      {% for provider in providers %}
-        <li class="au-list-row">{{ provider.label }} <code>{{ provider.key }}</code></li>
+  <section class="au-secao">
+    <div class="au-secao-cabeca">
+      <h2 class="au-secao-titulo">{% trans "Aplicativos" %}</h2>
+    </div>
+
+    <ul class="au-grade">
+      {% for app in apps %}
+        <li>
+          {% if app.disponivel %}
+            <a class="au-app" href="{% if app.url_direta %}{{ app.url_direta }}{% else %}{% url app.url_name %}{% endif %}"
+               style="--au-cor: {{ app.cor }}; --au-cor-bg: {{ app.cor_bg }};">
+              {% if app.destaque %}<span class="au-selo au-selo--destaque">{% trans "Sistema" %}</span>{% endif %}
+              <span class="au-app-icone"><svg class="au-icon" aria-hidden="true"><use href="#i-{{ app.icone }}"></use></svg></span>
+              <span class="au-app-nome">{{ app.nome }}</span>
+              <span class="au-app-desc">{{ app.descricao }}</span>
+            </a>
+          {% else %}
+            <div class="au-app au-app--indisponivel" aria-disabled="true"
+                 style="--au-cor: {{ app.cor }}; --au-cor-bg: {{ app.cor_bg }};">
+              <span class="au-selo">{% trans "Em breve" %}</span>
+              <span class="au-app-icone"><svg class="au-icon" aria-hidden="true"><use href="#i-{{ app.icone }}"></use></svg></span>
+              <span class="au-app-nome">{{ app.nome }}</span>
+              <span class="au-app-desc">{{ app.descricao }}</span>
+            </div>
+          {% endif %}
+        </li>
+      {% empty %}
+        <li class="au-vazio">{% trans "Nenhuma aplicação disponível." %}</li>
       {% endfor %}
     </ul>
+  </section>
+
+  <section class="au-secao">
+    <div class="au-secao-cabeca">
+      <h2 class="au-secao-titulo">{% trans "Minha empresa" %}</h2>
+    </div>
+
+    <div class="au-colunas">
+      <article class="au-card">
+        <h3 class="au-card-titulo">{% trans "Comunicados" %}</h3>
+        <p class="au-vazio">
+          {% trans "Nada publicado ainda. O Mural entra na Onda 3." %}
+        </p>
+      </article>
+
+      <article class="au-card">
+        <h3 class="au-card-titulo">{% trans "Notícias" %}</h3>
+        <p class="au-vazio">
+          {% trans "Nada publicado ainda." %}
+        </p>
+      </article>
+    </div>
+  </section>
+
+  {% if not autenticado %}
+    <section class="au-secao">
+      <div class="au-faixa">
+        <span class="au-faixa-texto">
+          {% blocktrans %}<strong>Sua agenda, pendências e aprovações</strong> aparecem aqui depois que você entra.{% endblocktrans %}
+        </span>
+        <a class="au-btn au-btn--primario" href="{% url 'login' %}">{% trans "Entrar no iConnect" %}</a>
+      </div>
+    </section>
   {% endif %}
 {% endblock %}
