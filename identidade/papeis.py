@@ -1,9 +1,19 @@
-"""Os papéis do V1.0 e o mapa a partir dos 6 papéis planos atuais.
+"""Os papéis do Portal.
 
-Hoje o sistema tem `UserRole.role` com 6 valores (`dashboard/utils/rbac.py`) e
-nenhum escopo. Aqui eles ganham escopo e permissões declarativas, **sem que
-ninguém perca acesso**: o comando `semear_papeis` cria as atribuições
-equivalentes, e `UserRole` continua funcionando durante a transição.
+**Não são os papéis do iConnect.** O iConnect é plataforma separada, com 1432
+técnicos e clientes; o Portal é dos funcionários da icodev, que são algumas
+dezenas. Espelhar `UserRole.role` aqui produziria `tecnico_campo` e `cliente`
+como papéis do Portal, que não descrevem nada do que o Portal faz.
+
+Os papéis abaixo derivam das permissões que os 8 módulos especificados exigem.
+Cada um é uma resposta a "quem faz o quê no Portal", não a "quem é quem no
+iConnect".
+
+## Como o escopo funciona
+
+`escopo_padrao` é o que a atribuição herda quando ninguém informa outro. As
+permissões trazem o escopo embutido (`rh.ler.equipe`), e o embutido vence o
+padrão — é mais específico. Ver `identidade/services/autorizacao.py`.
 """
 
 from __future__ import annotations
@@ -15,112 +25,208 @@ from identidade.models import (
     ESCOPO_UNIDADE,
 )
 
-# `chave`, `nome`, `escopo_padrao`, `permissoes`
-#
-# As permissões usam curinga por domínio onde o papel realmente responde pelo
-# domínio inteiro. Enumerar 40 ações para "admin" seria lista que envelhece
-# sozinha a cada feature nova.
+# Permissões que TODO funcionário tem. Repetir em cada papel produziria seis
+# listas para manter em sincronia.
+AUTOATENDIMENTO = [
+    "rh.ler.proprio",
+    "rh.solicitar.proprio",
+    "fin.ler.proprio",
+    "fin.solicitar.proprio",
+    "com.solicitar.proprio",
+    "log.ler.proprio",
+    "log.solicitar.proprio",
+    "hab.ler.proprio",
+    "hab.inscrever.proprio",
+    "ti.ler.proprio",
+    "ti.solicitar.proprio",
+    "ti.status.ler",
+    "doc.ler.publico",
+    "doc.sugerir",
+]
+
 PAPEIS_V1 = [
     {
-        "chave": "admin",
-        "nome": "Administrador",
-        "escopo_padrao": ESCOPO_GLOBAL,
-        "permissoes": ["*"],
-        "descricao": "Acesso total. Equivale ao papel `admin` atual.",
+        "chave": "colaborador",
+        "nome": "Colaborador",
+        "escopo_padrao": ESCOPO_PROPRIO,
+        "permissoes": AUTOATENDIMENTO,
+        "descricao": (
+            "Todo funcionário. Autoatendimento: suas férias, seus documentos, "
+            "suas habilitações, seus pedidos. É o papel padrão."
+        ),
     },
     {
-        "chave": "gerente",
-        "nome": "Gerente",
+        "chave": "gestor",
+        "nome": "Gestor",
         "escopo_padrao": ESCOPO_EQUIPE,
-        "permissoes": [
+        "permissoes": AUTOATENDIMENTO
+        + [
             "rh.ler.equipe",
             "rh.aprovar.equipe",
             "apr.aprovar.equipe",
-            "fin.ler.equipe",
             "fin.aprovar.equipe",
             "com.aprovar.equipe",
-            "ops.ler.unidade",
             "hab.ler.equipe",
             "hab.inscrever.equipe",
+            "doc.leitura.cobrar.equipe",
+        ],
+        "descricao": (
+            "Responde por uma equipe. Aprova o que vem dos liderados e vê a "
+            "cobertura deles. O escopo `equipe` vem do organograma (Lotacao.gestor)."
+        ),
+    },
+    {
+        "chave": "diretoria",
+        "nome": "Diretoria",
+        "escopo_padrao": ESCOPO_GLOBAL,
+        "permissoes": AUTOATENDIMENTO
+        + [
+            "apr.aprovar.global",
+            "fin.aprovar.global",
+            "com.aprovar.global",
+            "rh.ler.global",
+            "fin.ler.global",
+            "ops.ler.global",
+            # Exceção de habilitação vencida é de diretoria, auditada e
+            # notificada ao jurídico. Bloqueio sem escape faz a operação burlar
+            # o sistema; escape fácil torna o bloqueio decorativo.
+            "ops.excecao.certificacao",
+            "log.perda.registrar",
+        ],
+        "descricao": "Último degrau da cadeia de aprovação. Vê tudo, aprova acima do teto.",
+    },
+    {
+        "chave": "rh",
+        "nome": "RH",
+        "escopo_padrao": ESCOPO_GLOBAL,
+        "permissoes": AUTOATENDIMENTO
+        + [
+            "rh.ler.global",
+            "rh.admin.global",
+            "hab.ler.unidade",
+            "hab.registrar.presenca",
+            "doc.publicar.assunto",
+            "com.publicar.unidade",
+        ],
+        "descricao": "Pessoas: perfil, férias, documentos com validade, onboarding.",
+    },
+    {
+        "chave": "financeiro",
+        "nome": "Financeiro",
+        "escopo_padrao": ESCOPO_GLOBAL,
+        "permissoes": AUTOATENDIMENTO
+        + [
+            "fin.ler.global",
+            "fin.aprovar.centro_custo",
+            "fin.contrato.ler.unidade",
+            "apr.aprovar.equipe",
+        ],
+        "descricao": "Reembolso, prestação de contas, orçamento por centro de custo.",
+    },
+    {
+        "chave": "compras",
+        "nome": "Compras",
+        "escopo_padrao": ESCOPO_UNIDADE,
+        "permissoes": AUTOATENDIMENTO
+        + [
+            "com.operar.unidade",
+            "com.receber.unidade",
+            "com.ler.unidade",
+            "com.fornecedor.cadastrar",
             "log.ler.unidade",
-            "doc.ler.publico",
         ],
-        "descricao": "Gestão da própria equipe e leitura da operação da unidade.",
+        "descricao": (
+            "Transforma requisição aprovada em pedido. NÃO aprova — quem pede não "
+            "aprova, quem aprova não compra, quem compra não recebe."
+        ),
     },
     {
-        "chave": "analista",
-        "nome": "Analista",
-        "escopo_padrao": ESCOPO_PROPRIO,
-        "permissoes": [
-            "rh.ler.proprio",
-            "rh.solicitar.proprio",
-            "fin.ler.proprio",
-            "fin.solicitar.proprio",
-            "com.solicitar.proprio",
-            "log.solicitar.proprio",
-            "hab.ler.proprio",
-            "hab.inscrever.proprio",
+        "chave": "logistica",
+        "nome": "Logística",
+        "escopo_padrao": ESCOPO_UNIDADE,
+        "permissoes": AUTOATENDIMENTO
+        + [
+            "log.ler.unidade",
+            "log.movimentar.unidade",
+            "log.custodia.ler.unidade",
+            "log.custodia.atribuir.unidade",
+            "log.inventario.contar.unidade",
+        ],
+        "descricao": (
+            "Materiais e ativos. Conta o inventário mas NÃO o fecha — segregação "
+            "de função é o controle interno mais básico de patrimônio."
+        ),
+    },
+    {
+        "chave": "ti",
+        "nome": "TI",
+        "escopo_padrao": ESCOPO_GLOBAL,
+        "permissoes": AUTOATENDIMENTO
+        + [
+            "ti.atender.unidade",
+            "ti.status.publicar",
+            "ti.admin.global",
+            "log.custodia.ler.unidade",
+        ],
+        "descricao": (
+            "Status dos serviços e provisionamento de acesso. Provisiona, mas "
+            "quem CONCEDE acesso é o dono do sistema — requisito de ISO 27001."
+        ),
+    },
+    {
+        "chave": "sesmt",
+        "nome": "Segurança do Trabalho",
+        "escopo_padrao": ESCOPO_GLOBAL,
+        "permissoes": AUTOATENDIMENTO
+        + [
+            "hab.ler.unidade",
+            "hab.validar.evidencia",
+            "hab.exigencia.definir",
+            "hab.registrar.presenca",
+            "hab.auditoria.ler",
+        ],
+        "descricao": (
+            "Valida evidência de habilitação e define o que cada serviço exige. "
+            "Separado da operação de propósito: quem coordena a operação tem "
+            "incentivo para liberar o técnico."
+        ),
+    },
+    {
+        "chave": "operacao",
+        "nome": "Operação",
+        "escopo_padrao": ESCOPO_UNIDADE,
+        "permissoes": AUTOATENDIMENTO
+        + [
             "ops.ler.unidade",
-            "doc.ler.publico",
-            "ti.solicitar.proprio",
+            "ops.despachar.unidade",
+            "ops.escala.editar.unidade",
+            "ops.incidente.comandar.unidade",
+            "hab.ler.equipe",
         ],
-        "descricao": "Autoatendimento e leitura da operação. É o papel padrão.",
+        "descricao": "Painel ao vivo, despacho, escala e incidente.",
     },
     {
-        "chave": "tecnico_campo",
-        "nome": "Técnico de Campo",
-        "escopo_padrao": ESCOPO_PROPRIO,
-        "permissoes": [
-            "rh.ler.proprio",
-            "rh.solicitar.proprio",
-            "fin.solicitar.proprio",
-            "ops.ler.proprio",
-            "ops.executar.proprio",
-            "log.ler.proprio",
-            "log.solicitar.proprio",
-            "hab.ler.proprio",
-            "hab.inscrever.proprio",
-            "doc.ler.publico",
-        ],
-        "descricao": "Sua rota, seu kit, suas habilitações. Sem KPI corporativo.",
-    },
-    {
-        "chave": "sala_monitoramento",
+        "chave": "monitoramento",
         "nome": "Sala de Monitoramento",
         "escopo_padrao": ESCOPO_UNIDADE,
-        # Somente leitura de propósito: turno de 12h com poder de despacho e
-        # sem supervisão é onde acidente operacional acontece.
-        "permissoes": [
-            "ops.ler.unidade",
-            "ti.status.ler",
-            "doc.ler.publico",
-        ],
-        "descricao": "Leitura da operação ao vivo. Sem despacho, por decisão.",
+        # Somente leitura de propósito: turno de 12h com poder de despacho e sem
+        # supervisão é onde acidente operacional acontece.
+        "permissoes": ["ops.ler.unidade", "ti.status.ler", "doc.ler.publico"],
+        "descricao": "Leitura da operação ao vivo, 24h. Sem despacho, por decisão.",
     },
     {
-        "chave": "cliente",
-        "nome": "Cliente",
-        "escopo_padrao": ESCOPO_PROPRIO,
+        "chave": "auditoria",
+        "nome": "Auditoria",
+        "escopo_padrao": ESCOPO_GLOBAL,
         "permissoes": [
-            "cli.ler.proprio",
+            "doc.ler.publico",
+            "doc.auditoria.ler",
+            "hab.auditoria.ler",
+            "ti.auditoria.ler",
         ],
-        "descricao": "Portal do cliente. Nunca vê nada interno.",
+        "descricao": (
+            "Somente leitura de trilha e evidência. Existe como papel próprio "
+            "porque o auditor pode ser externo — cliente auditando fornecedor."
+        ),
     },
 ]
-
-# `UserRole.role` → chave do papel em IDN. Um-para-um: nenhum papel atual se
-# divide nem se funde, para que a migração seja verificável linha a linha.
-MAPA_PAPEL_LEGADO = {
-    "admin": "admin",
-    "gerente": "gerente",
-    "analista": "analista",
-    "tecnico_campo": "tecnico_campo",
-    "sala_monitoramento": "sala_monitoramento",
-    "cliente": "cliente",
-    # Aliases legados que `UserRole.LEGACY_ROLE_MAP` já resolvia.
-    "supervisor": "gerente",
-    "tecnico_senior": "tecnico_campo",
-    "agente": "analista",
-    "financeiro": "gerente",
-    "visualizador": "analista",
-}
