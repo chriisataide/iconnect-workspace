@@ -1,9 +1,24 @@
 """Serviços de IDN.
 
-Os módulos entram nas stories da Onda 1:
+A superfície pública do app é esta. Views e outros apps importam daqui:
 
-    autorizacao.py    ST-014  pode(pessoa, permissao, alvo) — a única porta
-    busca.py          ST-0xx  subjects_de(pessoa) — security trimming da busca
-    habilitacao.py    ST-0xx  pode_executar(tecnico, os) — hook do dispatch FSM
-    sincronizacao.py  ST-0xx  conector do RH + reconciliação
+    from identidade.services import pode, escopo_de, subjects_de
 """
+
+from .autorizacao import (
+    cadeia_de_gestores,
+    escopo_de,
+    liderados_recursivos,
+    pode,
+    situacao_de,
+    subjects_de,
+)
+
+__all__ = [
+    "cadeia_de_gestores",
+    "escopo_de",
+    "liderados_recursivos",
+    "pode",
+    "situacao_de",
+    "subjects_de",
+]
