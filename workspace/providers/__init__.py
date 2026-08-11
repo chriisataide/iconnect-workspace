@@ -5,7 +5,7 @@ Reexporta a superfície pública para que os domínios importem de um lugar só:
     from workspace.providers import WorkspaceProvider, WidgetSpec, register
 """
 
-from . import registry
+from . import orcamento, registry
 from .base import (
     ActionSpec,
     PendingItemDTO,
@@ -26,5 +26,6 @@ __all__ = [
     "WidgetSpec",
     "WorkspaceProvider",
     "register",
+    "orcamento",
     "registry",
 ]

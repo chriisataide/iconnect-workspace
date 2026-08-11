@@ -84,22 +84,33 @@ def test_dominio_nao_importa_superficie_do_workspace(app):
     )
 
 
-@pytest.mark.parametrize("app", DOMINIOS)
-def test_st002_nao_acoplou_nenhum_dominio(app):
-    """Aceite ④ no estado em que o ST-002 entrega: acoplamento zero.
+def test_o_provider_real_importa_so_o_contrato():
+    """`dashboard` é o primeiro domínio a se registrar no Portal.
 
-    Diferente do teste acima, que permite o contrato. Este fixa o *ponto de
-    partida*: nenhum domínio foi tocado. Quando o primeiro provider real for
-    escrito (Onda 2+), este teste sai e o de cima continua.
+    Substitui `test_st002_nao_acoplou_nenhum_dominio`, que fixava o ponto de
+    partida (acoplamento zero) e cumpriu o papel: agora existe provider real, e
+    o que importa é que ele importe apenas o contrato.
     """
+    importados = set()
+    for caminho in _arquivos_python("dashboard"):
+        importados.update(_modulos_workspace_importados(caminho))
+
+    assert importados, "dashboard deveria registrar seu provider"
+    for modulo in importados:
+        assert modulo == CONTRATO_PERMITIDO or modulo.startswith(CONTRATO_PERMITIDO + "."), (
+            f"dashboard importa {modulo}, que não é o contrato"
+        )
+
+
+@pytest.mark.parametrize("app", ["fsm", "km_audit", "calculo_vigilante"])
+def test_dominio_sem_provider_nao_importa_nada_do_workspace(app):
+    """Os que ainda não expõem nada ao Portal seguem em acoplamento zero."""
     importadores = [
         str(caminho.relative_to(RAIZ))
         for caminho in _arquivos_python(app)
         if _modulos_workspace_importados(caminho)
     ]
-    assert not importadores, (
-        f"O ST-002 não deveria tocar `{app}`. Arquivos que importam workspace: {importadores}"
-    )
+    assert not importadores, f"`{app}` não tem provider ainda: {importadores}"
 
 
 def test_workspace_nao_importa_model_de_dominio():

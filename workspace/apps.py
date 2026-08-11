@@ -13,3 +13,9 @@ class WorkspaceConfig(AppConfig):
         from .launcher import semear
 
         semear()
+
+        # Liga orçamento ao motor de aprovação. APR não conhece Compromisso e
+        # orçamento não conhece cadeia de aprovação — o sinal é a costura.
+        from .services.orcamento import conectar
+
+        conectar()

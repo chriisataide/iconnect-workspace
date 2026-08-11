@@ -11,6 +11,7 @@ from django.contrib import admin, messages
 from django.utils import timezone
 
 from .models import (
+    Compromisso,
     EtapaAprovacao,
     Publicacao,
     RegraAprovacao,
@@ -130,3 +131,26 @@ class SolicitacaoAprovacaoAdmin(admin.ModelAdmin):
         if etapa is None:
             return "—"
         return str(etapa.aprovador or etapa.papel or "?")
+
+
+@admin.register(Compromisso)
+class CompromissoAdmin(admin.ModelAdmin):
+    """Auditoria do comprometido — o que foi aprovado e ainda não pagou.
+
+    Somente leitura de propósito: compromisso nasce da aprovação e morre na
+    baixa. Editar valor à mão aqui produziria um orçamento que não bate com
+    nenhuma decisão registrada.
+    """
+
+    list_display = ("centro_custo_codigo", "valor", "competencia", "situacao",
+                    "dominio", "descricao", "criado_em")
+    list_filter = ("situacao", "competencia", "dominio")
+    search_fields = ("centro_custo_codigo", "descricao", "origem_id", "movimentacao_id")
+    date_hierarchy = "competencia"
+    list_select_related = ("solicitacao", "criado_por")
+
+    def has_add_permission(self, request):
+        return False
+
+    def has_change_permission(self, request, obj=None):
+        return False

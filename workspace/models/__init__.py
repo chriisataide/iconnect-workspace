@@ -5,6 +5,7 @@ Já existe (Etapa 5 §5.2):
     comunicacao.py COM  Publicacao — alimenta Comunicados e Notícias no Portal
     aprovacao.py   APR  RegraAprovacao, SolicitacaoAprovacao, EtapaAprovacao
                         Uma bandeja para férias, reembolso e compra
+    orcamento.py   FIN  Compromisso — aprovado e não pago
 
 Entram nas ondas seguintes:
     catalogo.py    SVC  ItemCatalogo, Solicitacao
@@ -24,15 +25,19 @@ from .aprovacao import (
     TipoAprovador,
 )
 from .comunicacao import Prioridade, Publicacao, TipoPublicacao
+from .orcamento import Compromisso, SituacaoCompromisso, competencia_de
 
 __all__ = [
+    "Compromisso",
     "EtapaAprovacao",
     "Prioridade",
     "Publicacao",
     "RegraAprovacao",
     "SituacaoEtapa",
     "SituacaoSolicitacao",
+    "SituacaoCompromisso",
     "SolicitacaoAprovacao",
     "TipoAprovador",
     "TipoPublicacao",
+    "competencia_de",
 ]

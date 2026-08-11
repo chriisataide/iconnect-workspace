@@ -219,3 +219,25 @@ def test_inline_de_etapa_nao_permite_acrescentar(rf, admin_user):
     req = rf.get("/")
     req.user = admin_user
     assert inline.has_add_permission(req, None) is False
+
+
+@pytest.mark.django_db
+def test_listagem_de_compromisso_abre(client, admin_user):
+    client.force_login(admin_user)
+    assert client.get(reverse("admin:workspace_compromisso_changelist")).status_code == 200
+
+
+@pytest.mark.django_db
+def test_compromisso_e_somente_leitura(rf, admin_user):
+    """Editar valor à mão produziria orçamento que não bate com nenhuma
+    decisão registrada."""
+    from django.contrib.admin.sites import AdminSite
+
+    from workspace.admin import CompromissoAdmin
+    from workspace.models import Compromisso
+
+    admin_obj = CompromissoAdmin(Compromisso, AdminSite())
+    req = rf.get("/")
+    req.user = admin_user
+    assert admin_obj.has_add_permission(req) is False
+    assert admin_obj.has_change_permission(req) is False
