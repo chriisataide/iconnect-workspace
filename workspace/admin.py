@@ -12,10 +12,12 @@ from django.utils import timezone
 
 from .models import (
     Compromisso,
+    ItemCatalogo,
     EtapaAprovacao,
     Publicacao,
     RegraAprovacao,
     SolicitacaoAprovacao,
+    SolicitacaoServico,
 )
 
 
@@ -154,3 +156,69 @@ class CompromissoAdmin(admin.ModelAdmin):
 
     def has_change_permission(self, request, obj=None):
         return False
+
+
+@admin.register(ItemCatalogo)
+class ItemCatalogoAdmin(admin.ModelAdmin):
+    """O catálogo. Onde os itens e os limites de auto-aprovação são mantidos."""
+
+    list_display = ("nome", "grupo", "dominio", "prazo", "limite_auto_aprovacao",
+                    "qtd_campos", "ativo", "ordem")
+    list_filter = ("ativo", "grupo")
+    search_fields = ("chave", "nome", "descricao_curta", "dominio")
+    prepopulated_fields = {"chave": ("nome",)}
+    ordering = ("grupo", "ordem", "nome")
+    fieldsets = (
+        (None, {"fields": ("chave", "nome", "descricao_curta", "grupo", "icone", "ordem", "ativo")}),
+        (
+            "Roteamento",
+            {
+                "fields": ("dominio", "permissao"),
+                "description": (
+                    "<b>Domínio</b> é para onde o pedido vai — é dado de roteamento, "
+                    "não de navegação. O usuário navega por <b>grupo de intenção</b>."
+                ),
+            },
+        ),
+        (
+            "Formulário",
+            {
+                "fields": ("campos", "exige_valor", "exige_centro_custo"),
+                "description": (
+                    "Máximo de <b>3 campos obrigatórios</b>. O resto vem da identidade "
+                    "da pessoa — formulário longo é o que faz o usuário mandar e-mail."
+                ),
+            },
+        ),
+        (
+            "Aprovação",
+            {
+                "fields": ("prazo_prometido_dias", "limite_auto_aprovacao"),
+                "description": (
+                    "Abaixo do limite <b>e</b> dentro do orçamento, o pedido não vai "
+                    "para fila humana. Vazio = sempre exige aprovação."
+                ),
+            },
+        ),
+    )
+
+    @admin.display(description="Prazo")
+    def prazo(self, obj: ItemCatalogo) -> str:
+        from workspace.services.catalogo import prazo_medido
+
+        dias, medido = prazo_medido(obj)
+        return f"{dias}d {'(medido)' if medido else '(prometido)'}"
+
+    @admin.display(description="Campos")
+    def qtd_campos(self, obj: ItemCatalogo) -> str:
+        return f"{len(obj.campos or [])} ({len(obj.campos_obrigatorios)} obrig.)"
+
+
+@admin.register(SolicitacaoServico)
+class SolicitacaoServicoAdmin(admin.ModelAdmin):
+    list_display = ("item", "solicitante", "valor", "situacao", "auto_aprovada", "criado_em")
+    list_filter = ("situacao", "auto_aprovada", "item__grupo")
+    search_fields = ("solicitante__username", "item__nome", "centro_custo_codigo")
+    date_hierarchy = "criado_em"
+    list_select_related = ("item", "solicitante")
+    readonly_fields = ("criado_em", "concluido_em", "dados", "aprovacao", "auto_aprovada")

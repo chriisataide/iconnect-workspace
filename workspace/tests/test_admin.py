@@ -8,6 +8,7 @@ from __future__ import annotations
 
 from datetime import timedelta
 
+
 import pytest
 from django.contrib.admin.sites import AdminSite
 from django.urls import reverse
@@ -241,3 +242,60 @@ def test_compromisso_e_somente_leitura(rf, admin_user):
     req.user = admin_user
     assert admin_obj.has_add_permission(req) is False
     assert admin_obj.has_change_permission(req) is False
+
+
+# ── Admin do catálogo ───────────────────────────────────────────────
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize("modelo", ["itemcatalogo", "solicitacaoservico"])
+def test_listagem_do_catalogo_abre(client, admin_user, modelo):
+    client.force_login(admin_user)
+    assert client.get(reverse(f"admin:workspace_{modelo}_changelist")).status_code == 200
+
+
+@pytest.mark.django_db
+def test_formulario_de_item_abre(client, admin_user):
+    client.force_login(admin_user)
+    assert client.get(reverse("admin:workspace_itemcatalogo_add")).status_code == 200
+
+
+@pytest.mark.django_db
+def test_coluna_de_prazo_distingue_medido_de_prometido():
+    from django.contrib.admin.sites import AdminSite
+    from django.utils import timezone
+
+    from identidade.tests import fabricas as idn
+    from workspace.admin import ItemCatalogoAdmin
+    from workspace.models import GrupoCatalogo, ItemCatalogo, SituacaoServico, SolicitacaoServico
+
+    admin_obj = ItemCatalogoAdmin(ItemCatalogo, AdminSite())
+    it = ItemCatalogo.objects.create(
+        chave="p", nome="P", grupo=GrupoCatalogo.DINHEIRO, dominio="x",
+        prazo_prometido_dias=9,
+    )
+    assert admin_obj.prazo(it) == "9d (prometido)"
+
+    ana = idn.pessoa("ana_prazo")
+    agora = timezone.now()
+    for _ in range(5):
+        s = SolicitacaoServico.objects.create(item=it, solicitante=ana)
+        SolicitacaoServico.objects.filter(pk=s.pk).update(
+            criado_em=agora - timedelta(days=3), concluido_em=agora,
+            situacao=SituacaoServico.CONCLUIDA,
+        )
+    assert admin_obj.prazo(it) == "3d (medido)"
+
+
+@pytest.mark.django_db
+def test_coluna_de_campos_mostra_total_e_obrigatorios():
+    from django.contrib.admin.sites import AdminSite
+
+    from workspace.admin import ItemCatalogoAdmin
+    from workspace.models import GrupoCatalogo, ItemCatalogo
+
+    it = ItemCatalogo(
+        chave="c", nome="C", grupo=GrupoCatalogo.DINHEIRO, dominio="x",
+        campos=[{"chave": "a", "obrigatorio": True}, {"chave": "b"}],
+    )
+    assert ItemCatalogoAdmin(ItemCatalogo, AdminSite()).qtd_campos(it) == "2 (1 obrig.)"

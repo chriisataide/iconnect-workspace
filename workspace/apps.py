@@ -16,6 +16,11 @@ class WorkspaceConfig(AppConfig):
 
         # Liga orçamento ao motor de aprovação. APR não conhece Compromisso e
         # orçamento não conhece cadeia de aprovação — o sinal é a costura.
-        from .services.orcamento import conectar
+        from .services.orcamento import conectar as conectar_orcamento
 
-        conectar()
+        conectar_orcamento()
+
+        # O catálogo também ouve a decisão, para refletir no pedido de serviço.
+        from .services.catalogo import conectar as conectar_catalogo
+
+        conectar_catalogo()
