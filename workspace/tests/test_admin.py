@@ -165,3 +165,57 @@ def test_data_extenso_sem_ano():
     from datetime import date
 
     assert data_extenso(date(2026, 8, 7), com_ano=False) == "7 de agosto"
+
+
+# ── Admin do motor de aprovação ─────────────────────────────────────
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize("modelo", ["regraaprovacao", "solicitacaoaprovacao"])
+def test_listagem_de_aprovacao_abre(client, admin_user, modelo):
+    client.force_login(admin_user)
+    assert client.get(reverse(f"admin:workspace_{modelo}_changelist")).status_code == 200
+
+
+@pytest.mark.django_db
+def test_formulario_de_regra_abre(client, admin_user):
+    client.force_login(admin_user)
+    assert client.get(reverse("admin:workspace_regraaprovacao_add")).status_code == 200
+
+
+@pytest.mark.django_db
+def test_coluna_etapa_pendente_mostra_quem_falta():
+    from django.contrib.admin.sites import AdminSite
+
+    from identidade.tests import fabricas as idn
+    from workspace.admin import SolicitacaoAprovacaoAdmin
+    from workspace.models import RegraAprovacao, SolicitacaoAprovacao, TipoAprovador
+    from workspace.services import aprovacao as apr
+
+    ana, gestor = idn.pessoa("ana_apr"), idn.pessoa("gestor_apr")
+    idn.lotar(gestor)
+    idn.lotar(ana, gestor=gestor)
+    RegraAprovacao.objects.create(dominio="*", tipo=TipoAprovador.GESTOR_DIRETO, ordem=10)
+
+    admin_obj = SolicitacaoAprovacaoAdmin(SolicitacaoAprovacao, AdminSite())
+    s = apr.criar(dominio="fin.reembolso", titulo="X", solicitante=ana, valor=None)
+    assert admin_obj.etapa_pendente(s) == "gestor_apr"
+
+    apr.decidir(s, gestor, apr.Decisao.APROVAR)
+    s.refresh_from_db()
+    assert admin_obj.etapa_pendente(s) == "—"
+
+
+@pytest.mark.django_db
+def test_inline_de_etapa_nao_permite_acrescentar(rf, admin_user):
+    """A cadeia é montada pelo serviço. Etapa à mão produz solicitação
+    que ninguém consegue explicar depois."""
+    from django.contrib.admin.sites import AdminSite
+
+    from workspace.admin import EtapaInline
+    from workspace.models import EtapaAprovacao
+
+    inline = EtapaInline(EtapaAprovacao, AdminSite())
+    req = rf.get("/")
+    req.user = admin_user
+    assert inline.has_add_permission(req, None) is False
