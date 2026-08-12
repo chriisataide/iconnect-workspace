@@ -257,6 +257,92 @@ def _documentos_a_vencer(pessoa) -> Bloco | None:
     )
 
 
+def _correspondencia(pessoa) -> Bloco | None:
+    """O que chegou e espera retirada.
+
+    Urgente quando há prazo legal: intimação parada é o caso que este módulo
+    existe para evitar.
+    """
+    from workspace.models.correspondencia import Correspondencia
+
+    if pessoa is None or getattr(pessoa, "is_authenticated", False) is False:
+        return None
+
+    esperando = list(
+        Correspondencia.objects.de(pessoa).aguardando().select_related("unidade")
+    )
+    if not esperando:
+        return None
+
+    itens = [
+        Item(
+            titulo=c.get_tipo_display(),
+            subtitulo=(
+                f"de {c.remetente}" if c.remetente else "aguardando retirada"
+            ) + (f" · {c.unidade}" if c.unidade_id else ""),
+            url=reverse("workspace:correspondencias"),
+            etiqueta="prazo legal" if c.urgente else "",
+            dias=c.dias_esperando or None,
+        )
+        for c in esperando[:LIMITE_POR_BLOCO]
+    ]
+    return Bloco(
+        chave="correspondencia",
+        titulo="Correspondência para retirar",
+        icone="jornal",
+        itens=itens,
+        url=reverse("workspace:correspondencias"),
+        rotulo_url="Ver correspondências",
+        urgente=any(c.urgente for c in esperando),
+        total=len(esperando),
+    )
+
+
+def _reservas_de_hoje(pessoa) -> Bloco | None:
+    """Reservas da pessoa que começam hoje.
+
+    Não é urgente e não é pendência: é lembrete. Fica no fim dos blocos próprios,
+    antes dos federados.
+    """
+    from workspace.services import reserva as res
+
+    if pessoa is None or getattr(pessoa, "is_authenticated", False) is False:
+        return None
+
+    hoje = timezone.localdate()
+    do_dia = [
+        r
+        for r in res.minhas(pessoa).confirmadas().futuras()
+        if timezone.localtime(r.inicio).date() == hoje
+    ]
+    if not do_dia:
+        return None
+
+    do_dia.sort(key=lambda r: r.inicio)
+    itens = [
+        Item(
+            titulo=r.recurso.nome,
+            subtitulo=(
+                f"{timezone.localtime(r.inicio):%H:%M}"
+                f"–{timezone.localtime(r.fim):%H:%M}"
+                + (f" · {r.motivo}" if r.motivo else "")
+            ),
+            url=reverse("workspace:minhas_reservas"),
+            etiqueta="agora" if r.em_curso else "",
+        )
+        for r in do_dia[:LIMITE_POR_BLOCO]
+    ]
+    return Bloco(
+        chave="reservas_hoje",
+        titulo="Suas reservas de hoje",
+        icone="pin",
+        itens=itens,
+        url=reverse("workspace:minhas_reservas"),
+        rotulo_url="Ver minhas reservas",
+        total=len(do_dia),
+    )
+
+
 # ── Blocos federados pelos domínios ─────────────────────────────────
 
 
@@ -315,9 +401,11 @@ def para(pessoa, cache: dict | None = None) -> dict:
     blocos = [
         _aprovacoes(pessoa, cache=cache),
         _leituras(pessoa, cache=cache),
+        _correspondencia(pessoa),
         _devolvidas(pessoa),
         _atrasadas(pessoa),
         _documentos_a_vencer(pessoa),
+        _reservas_de_hoje(pessoa),
         *_dos_dominios(pessoa),
     ]
     blocos = [b for b in blocos if b is not None]

@@ -130,6 +130,25 @@ MODULOS: tuple[Modulo, ...] = (
         ordem=90,
     ),
     Modulo(
+        chave="reservas",
+        nome="Reservas",
+        descricao="Salas, veículos e equipamentos",
+        icone="pin",
+        # Tela própria: reserva não é pedido que entra em fila de aprovação — é
+        # ocupação de uma janela de tempo, e o que a pessoa precisa ver é a
+        # agenda, não um formulário.
+        rota="workspace:reservas",
+        ordem=95,
+    ),
+    Modulo(
+        chave="correspondencias",
+        nome="Correspondências",
+        descricao="Cartas, encomendas e intimações",
+        icone="jornal",
+        rota="workspace:correspondencias",
+        ordem=96,
+    ),
+    Modulo(
         chave="documentacao",
         nome="Documentação",
         descricao="POP, políticas, normas e manuais",

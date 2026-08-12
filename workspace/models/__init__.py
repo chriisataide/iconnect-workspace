@@ -11,6 +11,8 @@ Já existe (Etapa 5 §5.2):
     notificacao.py WKS  Notificacao — aviso com UM destinatário, nunca fan-out
     conteudo.py    CNT  Documento, ConfirmacaoLeitura — acervo normativo
     busca.py       SRC  EntradaIndice, SujeitoIndice — índice com ACL no WHERE
+    reserva.py     RES  Recurso, Reserva — sem choque de horário
+    correspondencia.py COR  Correspondencia — o que chega na recepção
 
 Entram nas ondas seguintes:
     conteudo.py    CNT  Documento, VersaoDocumento, PendenciaLeitura
@@ -38,6 +40,12 @@ from .catalogo import (
 )
 from .notificacao import Notificacao, TipoNotificacao
 from .busca import EntradaIndice, OrigemIndice, SujeitoIndice
+from .correspondencia import (
+    Correspondencia,
+    SituacaoCorrespondencia,
+    TipoCorrespondencia,
+)
+from .reserva import Recurso, Reserva, SituacaoReserva, TipoRecurso
 from .conteudo import (
     ConfirmacaoLeitura,
     Documento,
@@ -48,6 +56,13 @@ from .comunicacao import Prioridade, Publicacao, TipoPublicacao
 from .orcamento import Compromisso, SituacaoCompromisso, competencia_de
 
 __all__ = [
+    "TipoRecurso",
+    "TipoCorrespondencia",
+    "SituacaoReserva",
+    "SituacaoCorrespondencia",
+    "Reserva",
+    "Recurso",
+    "Correspondencia",
     "Anexo",
     "ConfirmacaoLeitura",
     "Compromisso",

@@ -1,0 +1,242 @@
+{% extends "workspace/_shell_modulo.html" %}
+{% load i18n wks %}
+
+{% block titulo %}{% trans "Correspondências" %}{% endblock %}
+
+{% block rail %}{% include "workspace/_rail_servicos.html" with aba="correspondencias" %}{% endblock %}
+{% block trilha %}<span>{% trans "Correspondências" %}</span>{% endblock %}
+{% block pagina_titulo %}{% trans "Correspondências" %}{% endblock %}
+
+{% block pagina_descricao %}
+  <p class="au-pagina-desc">
+    {% if aguardando %}
+      <strong>{% blocktrans count a=aguardando %}{{ a }} esperando você retirar.{% plural %}{{ a }} esperando você retirar.{% endblocktrans %}</strong>
+    {% else %}
+      {% trans "Nada esperando você." %}
+    {% endif %}
+  </p>
+{% endblock %}
+
+{% block corpo %}
+{% comment %}
+  Uma tela, dois públicos. Quem opera a recepção vê a fila e o formulário; todo
+  mundo vê o que chegou para si. Duas telas fariam a recepção decorar duas URLs e
+  o resto da empresa tropeçar numa fila que não é dela.
+
+  A ordem coloca "o que é meu" primeiro mesmo para quem opera: a recepcionista
+  também recebe carta.
+{% endcomment %}
+<section class="au-secao">
+  <div class="au-secao-cabeca">
+    <h2 class="au-secao-titulo">{% trans "Para você" %}</h2>
+    {% if aguardando %}<span class="au-secao-contagem">{{ aguardando }}</span>{% endif %}
+  </div>
+
+  {% if minhas %}
+    <ul class="au-corresp">
+      {% for c in minhas %}
+        <li class="au-corresp-item {% if c.urgente and c.aguardando_retirada %}au-corresp-item--urgente{% endif %}">
+          <span class="au-corresp-tipo">{{ c.get_tipo_display }}</span>
+          <span class="au-corresp-texto">
+            {% if c.remetente %}<b>{{ c.remetente }}</b>{% endif %}
+            {% if c.descricao %}<span class="au-corresp-desc">{{ c.descricao }}</span>{% endif %}
+            {% if c.unidade %}<span class="au-corresp-desc">{% trans "guardada na" %} {{ c.unidade }}</span>{% endif %}
+          </span>
+          <span class="au-corresp-meta">
+            {% if c.aguardando_retirada %}
+              {% if c.urgente %}
+                <span class="au-selo au-selo--alerta">{% trans "prazo legal" %}</span>
+              {% endif %}
+              {% blocktrans count d=c.dias_esperando %}há {{ d }} dia{% plural %}há {{ d }} dias{% endblocktrans %}
+            {% else %}
+              <span class="au-etiqueta au-etiqueta--{{ c.situacao }}">{{ c.get_situacao_display }}</span>
+            {% endif %}
+          </span>
+        </li>
+      {% endfor %}
+    </ul>
+  {% else %}
+    <div class="au-vazio">
+      <p class="au-vazio-titulo">{% trans "Nada chegou para você." %}</p>
+      <p class="au-vazio-dica">
+        {% blocktrans %}Quando uma carta, encomenda ou intimação chegar, você é avisado
+        aqui e no sino.{% endblocktrans %}
+      </p>
+    </div>
+  {% endif %}
+</section>
+
+{% if opera_recepcao %}
+  {% if nao_identificadas %}
+    <section class="au-secao">
+      <div class="au-secao-cabeca">
+        <h2 class="au-secao-titulo">{% trans "Sem destinatário" %}</h2>
+        <span class="au-secao-contagem">{{ nao_identificadas|length }}</span>
+      </div>
+      {% comment %}
+        Vem antes da fila geral porque é a única parte que exige DECISÃO de quem
+        opera. O resto é só aguardar retirada.
+      {% endcomment %}
+      <p class="au-ajuda">
+        {% blocktrans %}Nome errado no envelope, sem etiqueta, endereçada só à empresa.
+        Identificar avisa a pessoa na hora — é o único momento em que ela pode
+        saber.{% endblocktrans %}
+      </p>
+
+      <ul class="au-corresp">
+        {% for c in nao_identificadas %}
+          <li class="au-corresp-item">
+            <span class="au-corresp-tipo">{{ c.get_tipo_display }}</span>
+            <span class="au-corresp-texto">
+              {% if c.nome_no_envelope %}
+                <b>{% trans "no envelope:" %} {{ c.nome_no_envelope }}</b>
+              {% endif %}
+              {% if c.remetente %}<span class="au-corresp-desc">{% trans "de" %} {{ c.remetente }}</span>{% endif %}
+            </span>
+            <form class="au-corresp-acao" method="post"
+                  action="{% url 'workspace:identificar_correspondencia' c.pk %}">
+              {% csrf_token %}
+              <select class="au-input au-input--compacto" name="destinatario"
+                      aria-label="{% trans 'Destinatário' %}">
+                <option value="">{% trans "quem é?" %}</option>
+                {% for p in pessoas %}
+                  <option value="{{ p.pk }}">{{ p.get_full_name|default:p.username }}</option>
+                {% endfor %}
+              </select>
+              <button class="au-btn au-btn--primario au-btn--pequeno" type="submit">
+                {% trans "Identificar" %}
+              </button>
+            </form>
+          </li>
+        {% endfor %}
+      </ul>
+    </section>
+  {% endif %}
+
+  <section class="au-secao">
+    <div class="au-secao-cabeca">
+      <h2 class="au-secao-titulo">{% trans "Fila da recepção" %}</h2>
+      {% if fila %}<span class="au-secao-contagem">{{ fila|length }}</span>{% endif %}
+    </div>
+
+    {% if fila %}
+      <div class="au-tabela">
+        <table>
+          <thead>
+            <tr>
+              <th>{% trans "Tipo" %}</th>
+              <th>{% trans "Para" %}</th>
+              <th>{% trans "De" %}</th>
+              <th class="num">{% trans "Espera" %}</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for c in fila %}
+              <tr>
+                <td>
+                  {{ c.get_tipo_display }}
+                  {% if c.urgente %}
+                    <span class="au-selo au-selo--alerta">{% trans "prazo" %}</span>
+                  {% endif %}
+                </td>
+                <td>
+                  {% if c.destinatario %}
+                    {{ c.destinatario.get_full_name|default:c.destinatario.username }}
+                  {% else %}
+                    <span class="au-list-resumo au-list-resumo--alerta">
+                      {{ c.nome_no_envelope|default:_("não identificado") }}
+                    </span>
+                  {% endif %}
+                </td>
+                <td>{{ c.remetente|default:"—" }}</td>
+                <td class="num">{{ c.dias_esperando }}d</td>
+                <td>
+                  {% if c.destinatario %}
+                    <form method="post"
+                          action="{% url 'workspace:entregar_correspondencia' c.pk %}">
+                      {% csrf_token %}
+                      <button class="au-btn au-btn--sutil au-btn--pequeno" type="submit">
+                        {% trans "Retirada" %}
+                      </button>
+                    </form>
+                  {% endif %}
+                </td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    {% else %}
+      <p class="au-agenda-livre">{% trans "Fila vazia." %}</p>
+    {% endif %}
+  </section>
+
+  <section class="au-secao">
+    <div class="au-secao-cabeca">
+      <h2 class="au-secao-titulo">{% trans "Registrar o que chegou" %}</h2>
+    </div>
+
+    <form class="au-form" method="post"
+          action="{% url 'workspace:registrar_correspondencia' %}" novalidate>
+      {% csrf_token %}
+
+      <div class="au-colunas au-colunas--duas">
+        <div class="au-campo">
+          <label class="au-rotulo" for="tipo">
+            {% trans "Tipo" %} <span class="au-obrigatorio" aria-hidden="true">*</span>
+          </label>
+          <select class="au-input" id="tipo" name="tipo">
+            {% for valor, rotulo in tipos %}
+              <option value="{{ valor }}">{{ rotulo }}</option>
+            {% endfor %}
+          </select>
+          <p class="au-ajuda">
+            {% blocktrans %}Intimação e multa entram como urgentes automaticamente — quem
+            registra não tem como saber o prazo.{% endblocktrans %}
+          </p>
+        </div>
+
+        <div class="au-campo">
+          <label class="au-rotulo" for="destinatario">{% trans "Para quem" %}</label>
+          <select class="au-input" id="destinatario" name="destinatario">
+            <option value="">{% trans "não identificado" %}</option>
+            {% for p in pessoas %}
+              <option value="{{ p.pk }}">{{ p.get_full_name|default:p.username }}</option>
+            {% endfor %}
+          </select>
+        </div>
+      </div>
+
+      <div class="au-campo">
+        <label class="au-rotulo" for="nome_no_envelope">{% trans "Nome no envelope" %}</label>
+        <input class="au-input" id="nome_no_envelope" name="nome_no_envelope"
+               type="text" maxlength="160">
+        <p class="au-ajuda">
+          {% blocktrans %}Obrigatório quando não dá para identificar a pessoa — é o que
+          permite alguém se reconhecer na fila.{% endblocktrans %}
+        </p>
+      </div>
+
+      <div class="au-colunas au-colunas--duas">
+        <div class="au-campo">
+          <label class="au-rotulo" for="remetente">{% trans "Remetente" %}</label>
+          <input class="au-input" id="remetente" name="remetente" type="text" maxlength="160">
+        </div>
+        <div class="au-campo">
+          <label class="au-rotulo" for="descricao">{% trans "O que é" %}</label>
+          <input class="au-input" id="descricao" name="descricao" type="text"
+                 maxlength="200"
+                 placeholder="{% trans 'Envelope pardo A4, caixa pequena…' %}">
+        </div>
+      </div>
+
+      <div class="au-form-acoes">
+        <button class="au-btn au-btn--primario" type="submit">
+          {% trans "Registrar e avisar" %}
+        </button>
+      </div>
+    </form>
+  </section>
+{% endif %}
+{% endblock %}

@@ -3,6 +3,8 @@
     home, buscar, publicacao   públicas — o Workspace é a porta de entrada
     meu_dia, notificacoes      área pessoal — o que exige você, e o que aconteceu
     documentacao, documento    públicas — o acervo normativo da empresa
+    reservas                   pública — a agenda dos recursos
+    correspondencias           área pessoal — a minha, e a fila da recepção
     modulo                     pública — a vitrine de cada departamento
     servicos, aprovacoes       área pessoal, com @login_required
 
@@ -12,9 +14,21 @@ As demais entram nas ondas seguintes: `widget`, `conteudo`, `perfil`.
 from .aprovacoes import bandeja, decidir as decidir_aprovacao, decidir_em_lote as aprovar_em_lote
 from .busca import buscar_view
 from .conteudo import confirmar_leitura, documentacao, documento
+from .correspondencia import (
+    correspondencias,
+    entregar_correspondencia,
+    identificar_correspondencia,
+    registrar_correspondencia,
+)
 from .home import home
 from .meu_dia import marcar_lidas, meu_dia, notificacoes
 from .modulo import modulo
+from .reserva import (
+    cancelar_reserva,
+    minhas_reservas,
+    reservar,
+    reservas,
+)
 from .publicacao import detalhe as publicacao_detalhe
 from .servicos import (
     baixar_anexo,
@@ -25,6 +39,14 @@ from .servicos import (
 )
 
 __all__ = [
+    "reservas",
+    "reservar",
+    "registrar_correspondencia",
+    "minhas_reservas",
+    "identificar_correspondencia",
+    "entregar_correspondencia",
+    "correspondencias",
+    "cancelar_reserva",
     "aprovar_em_lote",
     "baixar_anexo",
     "bandeja",

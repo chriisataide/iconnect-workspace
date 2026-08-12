@@ -97,3 +97,28 @@ def test_razao_de_contraste_esta_correta():
     """Sanidade do próprio cálculo: preto sobre branco é 21:1."""
     assert round(_razao("#000000", "#ffffff"), 1) == 21.0
     assert round(_razao("#ffffff", "#ffffff"), 1) == 1.0
+
+
+def test_au_tabela_tem_estilo():
+    """`.au-tabela` é usada em quatro telas e ficou sem CSS por várias ondas.
+
+    Tabela vazia parece igual estilizada ou não, então o defeito atravessou
+    revisão e screenshot — só apareceu quando a fila da recepção encheu.
+
+    Este teste guarda o caso geral: classe usada em template PRECISA existir na
+    folha de estilo. Sem isso, o próximo `.au-algo` novo repete o erro.
+    """
+    app = TOKENS.parents[3]  # .../workspace
+    folha = (TOKENS.with_name("workspace.css")).read_text(encoding="utf-8")
+    folha += TOKENS.read_text(encoding="utf-8")
+
+    usadas = set()
+    for template in (app / "templates").rglob("*.html"):
+        for atributo in re.findall(r'class="([^"]*)"', template.read_text(encoding="utf-8")):
+            for classe in atributo.split():
+                # Ignora o que o Django interpola: `au-etiqueta--{{ ... }}`.
+                if classe.startswith("au-") and "{" not in classe:
+                    usadas.add(classe)
+
+    sem_estilo = sorted(c for c in usadas if f".{c}" not in folha)
+    assert not sem_estilo, f"classes usadas sem CSS: {sem_estilo}"

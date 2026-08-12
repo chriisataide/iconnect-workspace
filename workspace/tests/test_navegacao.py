@@ -55,7 +55,16 @@ def test_todo_tile_disponivel_leva_a_pagina_que_responde(client):
             continue
         destino = reverse(spec.url_name, args=spec.url_args)
         assert destino in _href(corpo), f"tile {spec.chave} não está na home"
-        assert client.get(destino).status_code == 200, f"{destino} não responde"
+        # 200 (público) ou 302 para o login (área pessoal). O que o tile NÃO
+        # pode devolver é 404: Correspondências exige login porque é dado
+        # pessoal, e exigir 200 aqui obrigaria a tornar a fila da recepção
+        # pública para o teste passar.
+        resposta = client.get(destino)
+        assert resposta.status_code in (200, 302), f"{destino} não responde"
+        if resposta.status_code == 302:
+            assert "/login" in resposta["Location"], (
+                f"{destino} redireciona para fora do login"
+            )
 
 
 def test_modulo_disponivel_tem_tile_e_destino():

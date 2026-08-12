@@ -2,6 +2,8 @@
 
     /admin/workspace/publicacao/   Comunicados e Notícias
     /admin/workspace/documento/    POP, políticas e normas — com trilha de leitura
+    /admin/workspace/recurso/      salas, veículos e equipamentos reserváveis
+    /admin/workspace/correspondencia/  o que chega na recepção
     /admin/workspace/regraaprovacao/   os tetos da cadeia de aprovação
     /admin/workspace/solicitacaoaprovacao/   auditoria das decisões
 """
@@ -14,13 +16,16 @@ from django.utils import timezone
 from .models import (
     Anexo,
     Compromisso,
+    Correspondencia,
     ConfirmacaoLeitura,
     Documento,
     SituacaoDocumento,
     ItemCatalogo,
     EtapaAprovacao,
     Publicacao,
+    Recurso,
     RegraAprovacao,
+    Reserva,
     SolicitacaoAprovacao,
     SolicitacaoServico,
 )
@@ -329,3 +334,89 @@ class DocumentoAdmin(admin.ModelAdmin):
         if obj.vigente:
             return "em vigor"
         return obj.get_situacao_display().lower()
+
+
+@admin.register(Recurso)
+class RecursoAdmin(admin.ModelAdmin):
+    list_display = ("nome", "tipo", "unidade", "capacidade", "duracao_maxima_horas", "ativo")
+    list_filter = ("tipo", "ativo", "unidade")
+    search_fields = ("nome", "codigo", "descricao")
+    prepopulated_fields = {"codigo": ("nome",)}
+    list_select_related = ("unidade",)
+
+    fieldsets = (
+        (None, {"fields": ("tipo", "nome", "codigo", "descricao", "ativo")}),
+        (
+            "Onde e para quantos",
+            {
+                "fields": ("unidade", "capacidade"),
+                "description": (
+                    "<b>Unidade vazia</b> = o recurso aparece para toda a empresa. "
+                    "A unidade é informação na tela, não barreira: quem está em "
+                    "outra base pode precisar da sala da matriz."
+                ),
+            },
+        ),
+        (
+            "Limite",
+            {
+                "fields": ("duracao_maxima_horas",),
+                "description": (
+                    "Recurso preso por três meses bloqueia todo mundo. Pedido de "
+                    "bloqueio longo tem de passar por alguém, não por um "
+                    "formulário de reserva."
+                ),
+            },
+        ),
+    )
+
+
+@admin.register(Reserva)
+class ReservaAdmin(admin.ModelAdmin):
+    list_display = ("recurso", "solicitante", "inicio", "fim", "situacao", "motivo")
+    list_filter = ("situacao", "recurso__tipo", "recurso")
+    search_fields = ("recurso__nome", "solicitante__username", "motivo")
+    date_hierarchy = "inicio"
+    list_select_related = ("recurso", "solicitante")
+    autocomplete_fields = ("solicitante",)
+    readonly_fields = ("criado_em", "cancelado_em", "cancelado_por")
+
+
+@admin.register(Correspondencia)
+class CorrespondenciaAdmin(admin.ModelAdmin):
+    list_display = (
+        "tipo", "destinatario", "nome_no_envelope", "remetente",
+        "urgente", "situacao", "recebido_em",
+    )
+    list_filter = ("situacao", "tipo", "urgente", "unidade")
+    search_fields = ("remetente", "descricao", "nome_no_envelope", "destinatario__username")
+    date_hierarchy = "recebido_em"
+    list_select_related = ("destinatario", "unidade")
+    autocomplete_fields = ("destinatario", "recebido_por", "retirado_por")
+    readonly_fields = ("urgente", "retirado_em")
+
+    fieldsets = (
+        (None, {"fields": ("tipo", "remetente", "descricao")}),
+        (
+            "Para quem",
+            {
+                "fields": ("destinatario", "nome_no_envelope", "unidade"),
+                "description": (
+                    "<b>Destinatário vazio é caso normal</b>: nome errado no "
+                    "envelope, sem etiqueta, endereçada só à empresa. O nome no "
+                    "envelope é o que permite alguém se reconhecer na fila."
+                ),
+            },
+        ),
+        (
+            "Situação",
+            {
+                "fields": ("situacao", "urgente", "recebido_por", "recebido_em",
+                           "retirado_por", "retirado_em", "observacao"),
+                "description": (
+                    "<b>Urgente é derivado do tipo</b> — intimação e multa têm "
+                    "prazo legal, e quem registra não tem como saber isso."
+                ),
+            },
+        ),
+    )

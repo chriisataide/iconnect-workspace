@@ -18,12 +18,13 @@ def catalogo_vazio():
     launcher._apps.update(anterior)
 
 
-def test_semente_traz_os_dez_destinos_do_diagrama():
+def test_semente_traz_todo_modulo_mais_a_platform():
+    """Derivado de `MODULOS` — ver o comentário em `test_home.py`."""
+    from workspace.modulos import MODULOS
+
     chaves = {s.chave for s in launcher.catalogo_semente()}
-    assert chaves == {
-        "iconnect", "helpdesk", "rh", "financeiro", "operacoes",
-        "logistica", "redes", "compras", "universidade", "documentacao",
-    }
+
+    assert chaves == {m.chave for m in MODULOS} | {"iconnect", "helpdesk"}
 
 
 def test_iconnect_e_o_unico_destino_fora_do_portal():
@@ -61,8 +62,11 @@ def test_app_registrado_vence_a_semente(catalogo_vazio):
 def test_semear_e_idempotente(catalogo_vazio):
     launcher.semear()
     launcher.semear()
+    from workspace.modulos import MODULOS
+
     chaves = [s.chave for s in apps_disponiveis()]
-    assert len(chaves) == len(set(chaves)) == 10
+    esperado = len(MODULOS) + 2  # + iConnect Platform e HelpDesk
+    assert len(chaves) == len(set(chaves)) == esperado
 
 
 def test_ordenacao_poe_disponivel_antes_de_em_breve(catalogo_vazio):

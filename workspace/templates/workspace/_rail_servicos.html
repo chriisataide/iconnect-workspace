@@ -23,6 +23,17 @@
   {% trans "Documentação" %}
 </a>
 
+<a class="au-rail-item {% if aba == 'reservas' %}au-rail-item--ativo{% endif %}"
+   href="{% url 'workspace:reservas' %}">
+  <svg class="au-icon" aria-hidden="true"><use href="#i-pin"></use></svg>
+  {% trans "Reservas" %}
+</a>
+<a class="au-rail-item {% if aba == 'correspondencias' %}au-rail-item--ativo{% endif %}"
+   href="{% url 'workspace:correspondencias' %}">
+  <svg class="au-icon" aria-hidden="true"><use href="#i-jornal"></use></svg>
+  {% trans "Correspondências" %}
+</a>
+
 <p class="au-rail-grupo">{% trans "Pedir" %}</p>
 <a class="au-rail-item {% if aba == 'catalogo' %}au-rail-item--ativo{% endif %}"
    href="{% url 'workspace:servicos' %}">

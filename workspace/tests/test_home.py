@@ -64,13 +64,22 @@ def test_tile_do_iconnect_e_o_acesso(client):
 
 
 @pytest.mark.django_db
-def test_os_dez_destinos_do_diagrama_aparecem(client):
-    esperados = {
-        "iconnect", "helpdesk", "rh", "financeiro", "operacoes",
-        "logistica", "redes", "compras", "universidade", "documentacao",
-    }
+def test_todo_modulo_registrado_tem_tile(client):
+    """DERIVADO de `MODULOS`, não uma lista fixa.
+
+    A versão anterior fixava as dez chaves do diagrama original, e quebrou duas
+    vezes: quando Documentação ganhou tela e quando Reservas e Correspondências
+    nasceram. Teste que precisa ser editado a cada módulo novo não protege nada —
+    ele só ensina a atualizar o número.
+    """
+    from workspace.modulos import MODULOS
+
     apps = client.get(reverse("workspace:home")).context["apps"]
-    assert {a.chave for a in apps} == esperados
+    chaves = {a.chave for a in apps}
+
+    assert {m.chave for m in MODULOS} <= chaves, "módulo sem tile na home"
+    # Os dois destinos que NÃO são módulo: a Platform e o HelpDesk dela.
+    assert {"iconnect", "helpdesk"} <= chaves
 
 
 @pytest.mark.django_db

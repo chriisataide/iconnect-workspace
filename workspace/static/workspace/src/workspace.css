@@ -1233,6 +1233,15 @@ a.au-dia-link:hover { color: var(--au-accent-text); text-decoration: underline; 
 .au-dia-rodape a:hover { text-decoration: underline; }
 
 .au-etiqueta--devolvido { color: var(--au-danger-text); background: var(--au-danger-bg); }
+/* Reserva em curso. Classe própria e não emprestada de `em_atendimento`:
+   aquela é situação de PEDIDO de serviço, e reserva acontecendo não é
+   pedido em atendimento. Emprestar classe por conveniência é como um
+   estado ganha a cor errada na primeira mudança de paleta. */
+.au-etiqueta--agora { color: var(--au-warning-text); background: var(--au-warning-bg); }
+.au-etiqueta--confirmada { color: var(--au-success-text); background: var(--au-success-bg); }
+.au-etiqueta--cancelada  { color: var(--au-neutral-text); background: var(--au-neutral-bg); }
+.au-etiqueta--aguardando { color: var(--au-warning-text); background: var(--au-warning-bg); }
+.au-etiqueta--entregue   { color: var(--au-success-text); background: var(--au-success-bg); }
 .au-etiqueta--atrasado  { color: var(--au-warning-text); background: var(--au-warning-bg); }
 
 /* ── Central de Notificações ───────────────────────────────────────
@@ -1451,3 +1460,140 @@ a.au-notif-titulo:hover { color: var(--au-accent-text); text-decoration: underli
 .au-busca-grupo--acao .au-busca-item > .au-icon { color: var(--au-accent-text); }
 .au-busca-grupo--acao .au-busca-item-titulo { font-weight: 640; }
 .au-busca-grupo--acao .au-busca-item:hover { background: var(--au-surface); }
+
+/* ── Reservas ──────────────────────────────────────────────────────
+   A agenda vem antes do formulário, então cada recurso é um bloco com
+   a lista de horas ocupadas embaixo do nome. */
+.au-faixa--dia { justify-content: center; gap: var(--au-4); }
+
+.au-recursos { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--au-3); }
+.au-recurso {
+  border: 1px solid var(--au-border);
+  border-radius: var(--au-r-md);
+  background: var(--au-surface);
+  overflow: hidden;
+}
+.au-recurso-cabeca {
+  display: flex; align-items: baseline; gap: var(--au-3); flex-wrap: wrap;
+  padding: var(--au-3) var(--au-4);
+  border-bottom: 1px solid var(--au-border);
+  background: var(--au-surface-sunken);
+}
+.au-recurso-nome { font-size: var(--au-t-base); font-weight: 600; color: var(--au-text); }
+.au-recurso-nome a { color: inherit; }
+.au-recurso-nome a:hover { color: var(--au-accent-text); text-decoration: underline; }
+.au-recurso-meta { font-size: var(--au-t-sm); color: var(--au-text-subtle); margin-left: auto; }
+
+.au-agenda { list-style: none; margin: 0; padding: 0; }
+.au-agenda-item {
+  display: flex; align-items: baseline; gap: var(--au-3);
+  padding: var(--au-2) var(--au-4);
+  border-bottom: 1px solid var(--au-border);
+  font-size: var(--au-t-sm);
+}
+.au-agenda-item:last-child { border-bottom: none; }
+.au-agenda-hora {
+  flex: none;
+  font-family: var(--au-mono);
+  font-variant-numeric: tabular-nums;
+  color: var(--au-text);
+}
+/* O que está acontecendo AGORA é a informação mais útil da agenda. */
+.au-agenda-item--agora { background: var(--au-warning-bg); }
+.au-agenda-item--agora .au-agenda-hora { color: var(--au-warning-text); font-weight: 650; }
+.au-agenda-quem { color: var(--au-text-muted); display: flex; gap: var(--au-2); flex-wrap: wrap; }
+.au-agenda-motivo { color: var(--au-text-subtle); }
+.au-agenda-livre {
+  margin: 0;
+  padding: var(--au-3) var(--au-4);
+  font-size: var(--au-t-sm);
+  color: var(--au-success-text);
+}
+.au-card .au-agenda-livre { padding: 0; }
+
+.au-colunas--duas { display: grid; grid-template-columns: 1fr 1fr; gap: var(--au-4); }
+
+/* ── Correspondências ──────────────────────────────────────────────
+   Lista, não tabela, na parte "para você": são poucas linhas e o que
+   importa é reconhecer o remetente, não comparar colunas. */
+.au-corresp { list-style: none; margin: 0; padding: 0; border-top: 1px solid var(--au-border); }
+.au-corresp-item {
+  display: grid;
+  grid-template-columns: 8.5rem minmax(0, 1fr) auto;
+  gap: var(--au-3);
+  align-items: center;
+  padding: var(--au-3) 0;
+  border-bottom: 1px solid var(--au-border);
+}
+.au-corresp-item--urgente { border-left: 3px solid var(--au-danger); padding-left: var(--au-3); }
+.au-corresp-tipo {
+  font-size: var(--au-t-xs);
+  text-transform: uppercase;
+  letter-spacing: .04em;
+  color: var(--au-text-subtle);
+}
+.au-corresp-texto { display: flex; flex-direction: column; gap: 2px; min-width: 0; font-size: var(--au-t-base); }
+.au-corresp-desc { font-size: var(--au-t-sm); color: var(--au-text-muted); }
+.au-corresp-meta {
+  display: flex; align-items: center; gap: var(--au-2);
+  font-size: var(--au-t-xs); color: var(--au-text-subtle); white-space: nowrap;
+}
+.au-corresp-acao { display: flex; gap: var(--au-2); align-items: center; }
+.au-input--compacto { height: 28px; padding: 0 var(--au-2); font-size: var(--au-t-sm); }
+
+@media (max-width: 640px) {
+  .au-colunas--duas { grid-template-columns: 1fr; }
+  .au-corresp-item { grid-template-columns: minmax(0, 1fr); }
+  .au-corresp-acao { flex-wrap: wrap; }
+  .au-recurso-meta { margin-left: 0; }
+}
+
+/* ── Tabelas ───────────────────────────────────────────────────────
+   `.au-tabela` é usada em quatro telas desde a primeira onda e NUNCA
+   teve estilo — as tabelas renderizavam sem cabeçalho, sem divisória e
+   sem alinhamento numérico. Só apareceu quando uma delas ficou cheia:
+   tabela vazia parece igual estilizada ou não.
+
+   O `overflow-x` fica no invólucro, não na tabela: coluna larga tem de
+   rolar dentro do próprio bloco, senão o corpo da página rola de lado. */
+.au-tabela {
+  overflow-x: auto;
+  border: 1px solid var(--au-border);
+  border-radius: var(--au-r-md);
+  background: var(--au-surface);
+}
+.au-tabela table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--au-t-base);
+}
+.au-tabela thead th {
+  text-align: left;
+  padding: var(--au-2) var(--au-4);
+  background: var(--au-surface-sunken);
+  border-bottom: 1px solid var(--au-border-strong);
+  font-size: var(--au-t-2xs);
+  font-weight: 700;
+  letter-spacing: .07em;
+  text-transform: uppercase;
+  color: var(--au-text-subtle);
+  white-space: nowrap;
+}
+.au-tabela tbody td {
+  padding: var(--au-3) var(--au-4);
+  border-bottom: 1px solid var(--au-border);
+  color: var(--au-text-muted);
+  vertical-align: top;
+}
+.au-tabela tbody tr:last-child td { border-bottom: none; }
+.au-tabela tbody tr:hover td { background: var(--au-surface-sunken); }
+/* Dinheiro e contagem alinhados à direita com dígito de largura fixa —
+   coluna numérica desalinhada é o sinal mais rápido de produto solto. */
+.au-tabela .num {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.au-tabela thead th.num { text-align: right; }
+/* Célula com formulário de ação não deve esticar a linha. */
+.au-tabela tbody td form { margin: 0; }

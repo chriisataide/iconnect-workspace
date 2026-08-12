@@ -1,0 +1,80 @@
+{% extends "workspace/_shell_modulo.html" %}
+{% load i18n wks %}
+
+{% block titulo %}{% trans "Minhas reservas" %}{% endblock %}
+
+{% block rail %}{% include "workspace/_rail_servicos.html" with aba="reservas" %}{% endblock %}
+{% block trilha %}
+  <a href="{% url 'workspace:reservas' %}">{% trans "Reservas" %}</a>
+  <span>{% trans "Minhas reservas" %}</span>
+{% endblock %}
+{% block pagina_titulo %}{% trans "Minhas reservas" %}{% endblock %}
+
+{% block pagina_descricao %}
+  <p class="au-pagina-desc">
+    {% blocktrans count f=futuras %}{{ f }} pela frente.{% plural %}{{ f }} pela frente.{% endblocktrans %}
+  </p>
+{% endblock %}
+
+{% block corpo %}
+{% if reservas %}
+  <div class="au-tabela">
+    <table>
+      <thead>
+        <tr>
+          <th>{% trans "Recurso" %}</th>
+          <th>{% trans "Quando" %}</th>
+          <th>{% trans "Motivo" %}</th>
+          <th>{% trans "Situação" %}</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for r in reservas %}
+          <tr>
+            <td>
+              <span class="au-list-titulo">{{ r.recurso.nome }}</span>
+              {% if r.recurso.unidade %}
+                <span class="au-list-resumo">{{ r.recurso.unidade }}</span>
+              {% endif %}
+            </td>
+            <td>
+              {{ r.inicio|date:"d/m" }} · {{ r.inicio|time:"H:i" }}–{{ r.fim|time:"H:i" }}
+            </td>
+            <td>{{ r.motivo|default:"—" }}</td>
+            <td>
+              {% if r.em_curso %}
+                <span class="au-etiqueta au-etiqueta--agora">{% trans "agora" %}</span>
+              {% else %}
+                <span class="au-etiqueta au-etiqueta--{{ r.situacao }}">
+                  {{ r.get_situacao_display }}
+                </span>
+                {% if r.passou and r.situacao == "confirmada" %}
+                  <span class="au-selo">{% trans "passou" %}</span>
+                {% endif %}
+              {% endif %}
+            </td>
+            <td>
+              {% if r.pode_cancelar %}
+                <form method="post" action="{% url 'workspace:cancelar_reserva' r.pk %}">
+                  {% csrf_token %}
+                  <button class="au-btn au-btn--sutil au-btn--pequeno" type="submit">
+                    {% trans "Cancelar" %}
+                  </button>
+                </form>
+              {% endif %}
+            </td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+{% else %}
+  <div class="au-vazio">
+    <p class="au-vazio-titulo">{% trans "Você não tem reservas." %}</p>
+    <p><a class="au-btn au-btn--primario" href="{% url 'workspace:reservas' %}">
+      {% trans "Ver os recursos" %}
+    </a></p>
+  </div>
+{% endif %}
+{% endblock %}

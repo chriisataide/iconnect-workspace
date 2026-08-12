@@ -29,6 +29,11 @@ from identidade.models import (
 # listas para manter em sincronia.
 AUTOATENDIMENTO = [
     "rh.ler.proprio",
+    # Reserva de recurso e a própria correspondência são autoatendimento puro:
+    # ninguém precisa de aprovação para marcar uma sala nem para saber que
+    # chegou uma carta para si.
+    "res.reservar.proprio",
+    "cor.ler.proprio",
     "rh.solicitar.proprio",
     "fin.ler.proprio",
     "fin.solicitar.proprio",
@@ -172,10 +177,16 @@ PAPEIS_V1 = [
             "log.custodia.ler.unidade",
             "log.custodia.atribuir.unidade",
             "log.inventario.contar.unidade",
+            # Facilities: quem cuida de material também cuida de sala, veículo e
+            # do que chega na recepção. Módulo próprio para isso seria um papel
+            # com uma permissão só.
+            "res.admin.global",
+            "cor.registrar.global",
         ],
         "descricao": (
-            "Materiais e ativos. Conta o inventário mas NÃO o fecha — segregação "
-            "de função é o controle interno mais básico de patrimônio."
+            "Materiais e ativos, mais recursos e recepção. Conta o inventário mas "
+            "NÃO o fecha — segregação de função é o controle interno mais básico "
+            "de patrimônio."
         ),
     },
     {

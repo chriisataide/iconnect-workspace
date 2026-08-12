@@ -1,0 +1,112 @@
+{% extends "workspace/_shell_modulo.html" %}
+{% load i18n wks %}
+
+{% block titulo %}{% trans "Reservas" %}{% endblock %}
+
+{% block rail %}{% include "workspace/_rail_servicos.html" with aba="reservas" %}{% endblock %}
+{% block trilha %}<span>{% trans "Reservas" %}</span>{% endblock %}
+{% block pagina_titulo %}{% trans "Reservas" %}{% endblock %}
+
+{% block pagina_descricao %}
+  <p class="au-pagina-desc">
+    {% blocktrans count total=total %}{{ total }} recurso disponível.{% plural %}{{ total }} recursos disponíveis.{% endblocktrans %}
+    {% if minhas_futuras %}
+      <a href="{% url 'workspace:minhas_reservas' %}">{% blocktrans count m=minhas_futuras %}Você tem {{ m }} reserva.{% plural %}Você tem {{ m }} reservas.{% endblocktrans %}</a>
+    {% endif %}
+  </p>
+{% endblock %}
+
+{% block corpo %}
+{% comment %}
+  A AGENDA vem antes do formulário. A tela mostra o que já está ocupado hoje em
+  cada recurso; formulário que aceita qualquer hora e responde "conflito" depois
+  do envio faz a pessoa tentar por adivinhação.
+{% endcomment %}
+<div class="au-faixa au-faixa--dia">
+  <a class="au-btn au-btn--sutil au-btn--pequeno" href="?dia={{ ontem|date:'Y-m-d' }}">
+    ← {{ ontem|date:"d/m" }}
+  </a>
+  <span class="au-faixa-texto">
+    <b>{{ dia|data_extenso }}</b>{% if e_hoje %} · {% trans "hoje" %}{% endif %}
+  </span>
+  <a class="au-btn au-btn--sutil au-btn--pequeno" href="?dia={{ amanha|date:'Y-m-d' }}">
+    {{ amanha|date:"d/m" }} →
+  </a>
+</div>
+
+{% if not autenticado %}
+  <div class="au-faixa">
+    <span class="au-faixa-texto">
+      {% blocktrans %}Você está vendo a agenda. Para reservar, entre com sua conta.{% endblocktrans %}
+    </span>
+    <a class="au-btn au-btn--primario" href="{% url 'workspace:minhas_reservas' %}">
+      {% trans "Entrar" %}
+    </a>
+  </div>
+{% endif %}
+
+{% if grupos %}
+  {% for grupo in grupos %}
+    <section class="au-secao">
+      <div class="au-secao-cabeca">
+        <h2 class="au-secao-titulo">{{ grupo.rotulo }}</h2>
+        <span class="au-secao-contagem">{{ grupo.recursos|length }}</span>
+      </div>
+
+      <ul class="au-recursos">
+        {% for entrada in grupo.recursos %}
+          <li class="au-recurso">
+            <div class="au-recurso-cabeca">
+              <span class="au-recurso-nome">
+                {% if autenticado %}
+                  <a href="{% url 'workspace:reservar' entrada.recurso.codigo %}?dia={{ dia|date:'Y-m-d' }}">
+                    {{ entrada.recurso.nome }}
+                  </a>
+                {% else %}
+                  {{ entrada.recurso.nome }}
+                {% endif %}
+              </span>
+              <span class="au-recurso-meta">
+                {% if entrada.recurso.unidade %}{{ entrada.recurso.unidade }}{% endif %}
+                {% if entrada.recurso.capacidade %}
+                  · {% blocktrans count c=entrada.recurso.capacidade %}{{ c }} pessoa{% plural %}{{ c }} pessoas{% endblocktrans %}
+                {% endif %}
+              </span>
+            </div>
+
+            {% if entrada.agenda %}
+              <ul class="au-agenda">
+                {% for r in entrada.agenda %}
+                  <li class="au-agenda-item {% if r.em_curso %}au-agenda-item--agora{% endif %}">
+                    <span class="au-agenda-hora">
+                      {{ r.inicio|time:"H:i" }}–{{ r.fim|time:"H:i" }}
+                    </span>
+                    <span class="au-agenda-quem">
+                      {{ r.solicitante.get_short_name|default:r.solicitante.username }}
+                      {% if r.motivo %}<span class="au-agenda-motivo">{{ r.motivo }}</span>{% endif %}
+                    </span>
+                  </li>
+                {% endfor %}
+              </ul>
+            {% else %}
+              {% comment %}
+                "Livre o dia inteiro" e não uma lista vazia: a informação útil é
+                que dá para reservar, não que não há registros.
+              {% endcomment %}
+              <p class="au-agenda-livre">{% trans "Livre o dia inteiro." %}</p>
+            {% endif %}
+          </li>
+        {% endfor %}
+      </ul>
+    </section>
+  {% endfor %}
+{% else %}
+  <div class="au-vazio">
+    <p class="au-vazio-titulo">{% trans "Nenhum recurso cadastrado." %}</p>
+    <p class="au-vazio-dica">
+      {% blocktrans %}Salas, veículos e equipamentos são cadastrados em
+      <b>Admin › iConnect Workspace › Recursos</b>.{% endblocktrans %}
+    </p>
+  </div>
+{% endif %}
+{% endblock %}

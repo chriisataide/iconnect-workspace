@@ -39,6 +39,10 @@ class TipoNotificacao(models.TextChoices):
     PEDIDO_APROVADO = "pedido_aprovado", "Seu pedido foi aprovado"
     PEDIDO_DEVOLVIDO = "pedido_devolvido", "Seu pedido foi devolvido"
     PEDIDO_CANCELADO = "pedido_cancelado", "Seu pedido foi cancelado"
+    CORRESPONDENCIA_RECEBIDA = (
+        "correspondencia_recebida",
+        "Chegou correspondência para você",
+    )
 
 
 class NotificacaoQuerySet(models.QuerySet):

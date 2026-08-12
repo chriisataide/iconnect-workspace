@@ -26,6 +26,20 @@ urlpatterns = [
     path("documentacao/<slug:slug>/", views.documento, name="documento"),
     path("documentacao/<slug:slug>/confirmar/", views.confirmar_leitura,
          name="confirmar_leitura"),
+    # Reservas — a vitrine é pública; reservar exige login.
+    path("reservas/", views.reservas, name="reservas"),
+    path("reservas/minhas/", views.minhas_reservas, name="minhas_reservas"),
+    path("reservas/<slug:codigo>/", views.reservar, name="reservar"),
+    path("reserva/<int:pk>/cancelar/", views.cancelar_reserva,
+         name="cancelar_reserva"),
+    # Correspondências — tudo autenticado: é dado de pessoa.
+    path("correspondencias/", views.correspondencias, name="correspondencias"),
+    path("correspondencias/registrar/", views.registrar_correspondencia,
+         name="registrar_correspondencia"),
+    path("correspondencia/<int:pk>/entregar/", views.entregar_correspondencia,
+         name="entregar_correspondencia"),
+    path("correspondencia/<int:pk>/identificar/",
+         views.identificar_correspondencia, name="identificar_correspondencia"),
     # Meu dia e notificações — área pessoal
     path("meu-dia/", views.meu_dia, name="meu_dia"),
     path("notificacoes/", views.notificacoes, name="notificacoes"),

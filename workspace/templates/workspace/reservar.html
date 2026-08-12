@@ -1,0 +1,118 @@
+{% extends "workspace/_shell_modulo.html" %}
+{% load i18n wks %}
+
+{% block titulo %}{{ recurso.nome }}{% endblock %}
+
+{% block rail %}{% include "workspace/_rail_servicos.html" with aba="reservas" %}{% endblock %}
+{% block trilha %}
+  <a href="{% url 'workspace:reservas' %}">{% trans "Reservas" %}</a>
+  <span>{{ recurso.nome }}</span>
+{% endblock %}
+{% block pagina_titulo %}{{ recurso.nome }}{% endblock %}
+
+{% block pagina_descricao %}
+  <p class="au-pagina-desc">
+    {{ recurso.get_tipo_display }}
+    {% if recurso.unidade %} · {{ recurso.unidade }}{% endif %}
+    {% if recurso.capacidade %} · {% blocktrans count c=recurso.capacidade %}{{ c }} pessoa{% plural %}{{ c }} pessoas{% endblocktrans %}{% endif %}
+    · {% blocktrans count h=recurso.duracao_maxima_horas %}até {{ h }} hora seguida{% plural %}até {{ h }} horas seguidas{% endblocktrans %}
+  </p>
+{% endblock %}
+
+{% block corpo %}
+<div class="au-colunas au-colunas--assimetrica">
+  <form class="au-form" method="post" novalidate>
+    {% csrf_token %}
+
+    {% if erro %}
+      {% comment %}
+        O erro de conflito diz QUEM e QUANDO — "horário indisponível" faz a pessoa
+        tentar às cegas; com o nome ela resolve por conversa, que é mais rápido.
+      {% endcomment %}
+      <div class="au-aviso au-aviso--error" role="alert">{{ erro }}</div>
+    {% endif %}
+
+    <div class="au-campo">
+      <label class="au-rotulo" for="dia">
+        {% trans "Dia" %} <span class="au-obrigatorio" aria-hidden="true">*</span>
+      </label>
+      <input class="au-input" id="dia" name="dia" type="date"
+             value="{{ valores.dia|default:dia|date:'Y-m-d' }}">
+    </div>
+
+    <div class="au-colunas au-colunas--duas">
+      <div class="au-campo">
+        <label class="au-rotulo" for="de">
+          {% trans "Das" %} <span class="au-obrigatorio" aria-hidden="true">*</span>
+        </label>
+        <input class="au-input" id="de" name="de" type="time" step="900"
+               list="horarios" value="{{ valores.de|default:'' }}">
+      </div>
+      <div class="au-campo">
+        <label class="au-rotulo" for="ate">
+          {% trans "Às" %} <span class="au-obrigatorio" aria-hidden="true">*</span>
+        </label>
+        <input class="au-input" id="ate" name="ate" type="time" step="900"
+               list="horarios" value="{{ valores.ate|default:'' }}">
+      </div>
+    </div>
+
+    {% comment %}
+      `datalist` e não `select`: sugere o horário comercial sem impedir 07:30 nem
+      uma reserva de madrugada. Reserva de sala às 19h é rara e legítima.
+    {% endcomment %}
+    <datalist id="horarios">
+      {% for hora in horarios %}<option value="{{ hora }}"></option>{% endfor %}
+    </datalist>
+
+    <div class="au-campo">
+      <label class="au-rotulo" for="motivo">{% trans "Motivo" %}</label>
+      <input class="au-input" id="motivo" name="motivo" type="text" maxlength="200"
+             value="{{ valores.motivo|default:'' }}"
+             placeholder="{% trans 'Reunião de fechamento, visita de cliente…' %}">
+      <p class="au-ajuda">
+        {% blocktrans %}Opcional. Quem vê a agenda entende por que o recurso está preso.{% endblocktrans %}
+      </p>
+    </div>
+
+    <div class="au-form-acoes">
+      <a class="au-btn au-btn--sutil" href="{% url 'workspace:reservas' %}">{% trans "Cancelar" %}</a>
+      <button class="au-btn au-btn--primario" type="submit">{% trans "Reservar" %}</button>
+    </div>
+  </form>
+
+  <aside class="au-lateral">
+    <article class="au-card">
+      <header class="au-card-cabeca">
+        <span class="au-card-icone">
+          <svg class="au-icon" aria-hidden="true"><use href="#i-relogio"></use></svg>
+        </span>
+        <h3 class="au-card-titulo">{{ dia|data_extenso:False }}</h3>
+      </header>
+
+      {% if agenda %}
+        <ul class="au-agenda">
+          {% for r in agenda %}
+            <li class="au-agenda-item {% if r.em_curso %}au-agenda-item--agora{% endif %}">
+              <span class="au-agenda-hora">{{ r.inicio|time:"H:i" }}–{{ r.fim|time:"H:i" }}</span>
+              <span class="au-agenda-quem">
+                {{ r.solicitante.get_short_name|default:r.solicitante.username }}
+              </span>
+            </li>
+          {% endfor %}
+        </ul>
+      {% else %}
+        <p class="au-agenda-livre">{% trans "Livre o dia inteiro." %}</p>
+      {% endif %}
+    </article>
+
+    <article class="au-card">
+      <h3 class="au-card-titulo">{% trans "Encostadas valem" %}</h3>
+      <p class="au-ajuda">
+        {% blocktrans %}Uma reserva que termina 11:00 e outra que começa 11:00 não é
+        conflito — é o caso mais comum.{% endblocktrans %}
+      </p>
+    </article>
+  </aside>
+</div>
+{% endblock %}
