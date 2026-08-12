@@ -22,6 +22,7 @@ CATALOGO_INICIAL = [
     # ── Equipamento e acesso ────────────────────────────────────────
     {
         "chave": "notebook",
+        "termos": ["laptop", "computador", "maquina", "pc", "equipamento novo"],
         "nome": "Notebook",
         "descricao_curta": "Novo equipamento ou substituição do atual",
         "grupo": GrupoCatalogo.EQUIPAMENTO,
@@ -42,6 +43,7 @@ CATALOGO_INICIAL = [
     },
     {
         "chave": "equipamento-quebrado",
+        "termos": ["quebrou", "parou de funcionar", "nao liga", "defeito", "conserto", "manutencao de equipamento"],
         "nome": "Meu equipamento parou de funcionar",
         "descricao_curta": "Notebook, celular, monitor ou periférico com defeito",
         "grupo": GrupoCatalogo.EQUIPAMENTO,
@@ -61,6 +63,7 @@ CATALOGO_INICIAL = [
     },
     {
         "chave": "acesso-vpn",
+        "termos": ["vpn", "acesso remoto", "trabalhar de casa acesso", "conexao remota"],
         "nome": "Acesso à VPN",
         "descricao_curta": "Conexão remota à rede da empresa",
         "grupo": GrupoCatalogo.EQUIPAMENTO,
@@ -78,6 +81,7 @@ CATALOGO_INICIAL = [
     },
     {
         "chave": "acesso-sistema",
+        "termos": ["senha", "login", "permissao de sistema", "acesso a sistema", "usuario bloqueado"],
         "nome": "Acesso a um sistema",
         "descricao_curta": "iConnect, portal de operadora, SharePoint",
         "grupo": GrupoCatalogo.EQUIPAMENTO,
@@ -94,6 +98,7 @@ CATALOGO_INICIAL = [
     # ── Trabalho e ausência ─────────────────────────────────────────
     {
         "chave": "ferias",
+        "termos": ["descanso", "folga longa", "periodo de ferias", "tirar ferias"],
         "nome": "Férias",
         "descricao_curta": "Programar suas férias",
         "grupo": GrupoCatalogo.TRABALHO,
@@ -109,6 +114,9 @@ CATALOGO_INICIAL = [
     },
     {
         "chave": "atestado",
+        "termos": [
+            "atestado medico", "afastamento", "consulta medica", "declaracao de comparecimento", "fiquei doente",
+        ],
         "nome": "Enviar atestado",
         "descricao_curta": "Atestado médico ou declaração de comparecimento",
         "grupo": GrupoCatalogo.TRABALHO,
@@ -125,6 +133,7 @@ CATALOGO_INICIAL = [
     },
     {
         "chave": "home-office",
+        "termos": ["trabalho remoto", "trabalhar de casa", "teletrabalho"],
         "nome": "Trabalho remoto",
         "descricao_curta": "Solicitar dias de home office",
         "grupo": GrupoCatalogo.TRABALHO,
@@ -138,6 +147,7 @@ CATALOGO_INICIAL = [
     },
     {
         "chave": "declaracao",
+        "termos": ["comprovante de vinculo", "declaracao de renda", "comprovante de trabalho", "carta"],
         "nome": "Declaração ou comprovante",
         "descricao_curta": "Vínculo, renda, tempo de serviço",
         "grupo": GrupoCatalogo.TRABALHO,
@@ -154,6 +164,9 @@ CATALOGO_INICIAL = [
     # ── Dinheiro ────────────────────────────────────────────────────
     {
         "chave": "reembolso",
+        "termos": [
+            "gastei", "despesa", "nota fiscal", "cupom", "taxi", "uber", "combustivel", "pedagio", "restituicao",
+        ],
         "nome": "Reembolso",
         "descricao_curta": "Despesa que você pagou e a empresa devolve",
         "grupo": GrupoCatalogo.DINHEIRO,
@@ -170,6 +183,7 @@ CATALOGO_INICIAL = [
     },
     {
         "chave": "adiantamento",
+        "termos": ["dinheiro antes", "vale", "antecipacao", "adiantar despesa"],
         "nome": "Adiantamento",
         "descricao_curta": "Dinheiro antes da despesa, com prestação de contas",
         "grupo": GrupoCatalogo.DINHEIRO,
@@ -185,6 +199,7 @@ CATALOGO_INICIAL = [
     },
     {
         "chave": "compra",
+        "termos": ["comprar", "aquisicao", "requisicao de compra", "orcamento de compra", "fornecedor"],
         "nome": "Comprar algo",
         "descricao_curta": "Material, serviço ou equipamento",
         "grupo": GrupoCatalogo.DINHEIRO,
@@ -203,6 +218,7 @@ CATALOGO_INICIAL = [
     # ── Viagem ──────────────────────────────────────────────────────
     {
         "chave": "viagem",
+        "termos": ["passagem", "hospedagem", "hotel", "diaria", "deslocamento longo"],
         "nome": "Viagem",
         "descricao_curta": "Passagem, hospedagem e diária",
         "grupo": GrupoCatalogo.VIAGEM,
@@ -220,6 +236,7 @@ CATALOGO_INICIAL = [
     },
     {
         "chave": "veiculo",
+        "termos": ["carro", "van", "utilitario", "frota", "reservar carro"],
         "nome": "Veículo da empresa",
         "descricao_curta": "Reservar carro ou utilitário",
         "grupo": GrupoCatalogo.VIAGEM,
@@ -236,6 +253,7 @@ CATALOGO_INICIAL = [
     # ── Espaço e material ───────────────────────────────────────────
     {
         "chave": "material",
+        "termos": ["insumo", "suprimento", "material de escritorio", "papelaria"],
         "nome": "Material de trabalho",
         "descricao_curta": "Cabo, conector, ferramenta, material de escritório",
         "grupo": GrupoCatalogo.ESPACO,
@@ -250,6 +268,7 @@ CATALOGO_INICIAL = [
     },
     {
         "chave": "epi",
+        "termos": ["equipamento de protecao", "capacete", "luva", "bota", "cinto", "talabarte", "protecao individual"],
         "nome": "EPI ou uniforme",
         "descricao_curta": "Equipamento de proteção, bota, camisa",
         "grupo": GrupoCatalogo.ESPACO,
@@ -265,6 +284,7 @@ CATALOGO_INICIAL = [
     },
     {
         "chave": "manutencao-predial",
+        "termos": ["ar condicionado", "lampada", "infiltracao", "predio", "instalacao predial", "reparo no escritorio"],
         "nome": "Manutenção predial",
         "descricao_curta": "Ar-condicionado, elétrica, hidráulica, limpeza",
         "grupo": GrupoCatalogo.ESPACO,
@@ -282,6 +302,7 @@ CATALOGO_INICIAL = [
     # ── Desenvolvimento ─────────────────────────────────────────────
     {
         "chave": "treinamento",
+        "termos": ["curso", "capacitacao", "estudar", "formacao"],
         "nome": "Treinamento ou curso",
         "descricao_curta": "Curso externo, certificação, congresso",
         "grupo": GrupoCatalogo.DESENVOLVIMENTO,
@@ -299,6 +320,7 @@ CATALOGO_INICIAL = [
     },
     {
         "chave": "reciclagem-nr",
+        "termos": ["nr", "nr-10", "nr-35", "reciclagem", "norma regulamentadora", "certificado vencendo"],
         "nome": "Reciclagem de NR",
         "descricao_curta": "NR-10, NR-35 e outras habilitações a vencer",
         "grupo": GrupoCatalogo.DESENVOLVIMENTO,
@@ -316,6 +338,7 @@ CATALOGO_INICIAL = [
     # ── Jurídico ────────────────────────────────────────────────────
     {
         "chave": "analise-contrato",
+        "termos": ["juridico", "contrato", "revisao de contrato", "clausula"],
         "nome": "Análise de contrato",
         "descricao_curta": "Revisão jurídica antes de assinar",
         "grupo": GrupoCatalogo.JURIDICO,

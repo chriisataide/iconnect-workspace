@@ -1439,3 +1439,15 @@ a.au-notif-titulo:hover { color: var(--au-accent-text); text-decoration: underli
 @media (max-width: 640px) {
   .au-paleta { margin-top: var(--au-4); max-height: calc(100vh - 2 * var(--au-4)); }
 }
+
+/* ── Ação na busca ─────────────────────────────────────────────────
+   O grupo "Ação" não é mais um link: começa um pedido. O fundo de marca
+   é o que separa "vá ler sobre isso" de "resolva isso agora". */
+.au-busca-grupo--acao {
+  background: var(--au-accent-bg);
+  border-bottom: 1px solid var(--au-border);
+}
+.au-busca-grupo--acao .au-busca-grupo-titulo { color: var(--au-accent-text); }
+.au-busca-grupo--acao .au-busca-item > .au-icon { color: var(--au-accent-text); }
+.au-busca-grupo--acao .au-busca-item-titulo { font-weight: 640; }
+.au-busca-grupo--acao .au-busca-item:hover { background: var(--au-surface); }

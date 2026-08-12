@@ -26,10 +26,12 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 from django.db.models import Q
+from django.urls import reverse
 
 from identidade.services.autorizacao import subjects_de
 from workspace.launcher import apps_disponiveis
 from workspace.models.busca import EntradaIndice, OrigemIndice
+from workspace.services import intencao
 from workspace.services.indice import normalizar  # noqa: F401 — reexportado
 
 LIMITE_POR_GRUPO = 6
@@ -68,6 +70,23 @@ def buscar(consulta: str, pessoa=None) -> dict[str, list[Resultado]]:
 
     grupos: dict[str, list[Resultado]] = {}
 
+    # 0 · A AÇÃO, quando a frase pede uma.
+    #
+    # Primeiro grupo do dicionário, e é o único que aparece com UM item: quando
+    # a pessoa escreveu "quero solicitar férias", oferecer seis opções é devolver
+    # a ela o trabalho que ela acabou de delegar.
+    acao = intencao.interpretar(consulta)
+    if acao is not None:
+        grupos["Ação"] = [
+            Resultado(
+                origem="acao",
+                titulo=acao.rotulo,
+                subtitulo=acao.item.descricao_curta,
+                url=reverse("workspace:pedir", args=(acao.item.chave,)),
+                icone=acao.item.icone or "spark",
+            )
+        ]
+
     # 1 · Aplicativos, do launcher em memória.
     apps = [
         Resultado(
@@ -87,11 +106,29 @@ def buscar(consulta: str, pessoa=None) -> dict[str, list[Resultado]]:
     # UMA consulta para todos os grupos, e o agrupamento em Python sobre o
     # resultado já recortado: uma consulta por grupo multiplicaria por quatro o
     # custo do `JOIN` de sujeitos a cada tecla digitada.
-    encontradas = list(
-        EntradaIndice.objects.para_sujeitos(subjects_de(pessoa))
-        .filter(Q(texto__contains=termo))
-        .order_by("origem", "titulo")[: LIMITE_POR_GRUPO * len(ORDEM_DOS_GRUPOS) * 2]
-    )
+    #
+    # E a busca é por PALAVRA, não pela frase inteira. `texto__contains="quero solicitar
+    # ferias"` não achava a política de férias, porque nenhum documento contém
+    # essa frase — a busca em linguagem natural devolvia a ação certa e zero
+    # conhecimento.
+    #
+    # Palavras combinadas com E: quem digita "politica de viagem" quer o
+    # documento que fala das duas coisas, não a união de tudo que fala de uma.
+    palavras = intencao.termos_significativos(consulta) or [termo]
+    encontradas = _no_indice(palavras, pessoa, juntar_com_e=True)
+
+    # E com queda para OU.
+    #
+    # E é o certo para "politica de viagem": quem digita duas palavras quer o
+    # documento que fala das duas. Mas frase conversacional sempre traz uma
+    # palavra que não está em texto nenhum — "minha nr-35 está vencendo" tem
+    # "vencendo", e o E devolvia zero enquanto a ação certa aparecia acima. Ficava
+    # a impressão de que a busca não funciona, na mesma tela em que ela acertou.
+    #
+    # A segunda consulta só acontece quando a primeira falha, e nunca durante
+    # digitação normal de uma ou duas palavras.
+    if not encontradas and len(palavras) > 1:
+        encontradas = _no_indice(palavras, pessoa, juntar_com_e=False)
 
     por_origem: dict[str, list[Resultado]] = {}
     for entrada in encontradas:
@@ -118,12 +155,24 @@ def buscar(consulta: str, pessoa=None) -> dict[str, list[Resultado]]:
     return grupos
 
 
+def _no_indice(palavras, pessoa, *, juntar_com_e: bool):
+    """Consulta o índice, com o recorte por sujeito no `WHERE`."""
+    condicao = Q()
+    for palavra in palavras:
+        parte = Q(texto__contains=palavra)
+        condicao = (condicao & parte) if juntar_com_e else (condicao | parte)
+
+    return list(
+        EntradaIndice.objects.para_sujeitos(subjects_de(pessoa))
+        .filter(condicao)
+        .order_by("origem", "titulo")[: LIMITE_POR_GRUPO * len(ORDEM_DOS_GRUPOS) * 2]
+    )
+
+
 def _url_do_app(spec) -> str:
     if spec.url_direta:
         return spec.url_direta
     if spec.url_name:
-        from django.urls import reverse
-
         # `args` porque a página de módulo é uma rota parametrizada pela chave.
         # Sem eles, buscar "RH" estourava NoReverseMatch e derrubava a busca
         # inteira — não só o resultado do módulo.

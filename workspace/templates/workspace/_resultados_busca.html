@@ -7,7 +7,12 @@
   </p>
 {% else %}
   {% for rotulo, itens in grupos.items %}
-    <div class="au-busca-grupo">
+    {% comment %}
+      O grupo "Ação" ganha destaque porque não é o mesmo tipo de coisa que os
+      outros: os demais levam a uma tela para ler; este COMEÇA um pedido. Tratar
+      os dois igual faz a ação passar como mais um link.
+    {% endcomment %}
+    <div class="au-busca-grupo{% if itens.0.origem == 'acao' %} au-busca-grupo--acao{% endif %}">
       <p class="au-busca-grupo-titulo">{{ rotulo }}</p>
       {% for item in itens %}
         {% if item.disponivel %}

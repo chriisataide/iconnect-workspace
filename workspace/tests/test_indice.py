@@ -454,3 +454,43 @@ def test_str_das_entradas(pessoas):
 
     assert str(entrada) == "Documentação · Norma com nome"
     assert str(entrada.sujeitos.first()) == "*"
+
+
+def test_frase_com_palavra_de_pergunta_acha_o_documento(pessoas):
+    """"qual a política de viagens" devolvia ZERO documentos.
+
+    "qual" entrava na consulta como se fosse conteúdo, e o E exigia que algum
+    texto contivesse "qual". A busca recusava a ação corretamente e não achava
+    nada — a pior combinação, porque parece que nada funciona.
+    """
+    documento(pessoas["dono"], titulo="Politica de viagens e reembolso")
+
+    grupos = buscar("qual a politica de viagens", pessoas["ana"])
+
+    assert [r.titulo for r in grupos["Documentação"]] == ["Politica de viagens e reembolso"]
+
+
+def test_e_com_queda_para_ou(pessoas):
+    """Frase conversacional sempre traz palavra que não está em texto nenhum.
+
+    "politica de viagem urgente" combinado por E devolve zero, porque nenhum
+    documento diz "urgente". A queda para OU acha o documento — e só acontece
+    quando o E falhou.
+    """
+    documento(pessoas["dono"], titulo="Politica de viagens")
+
+    assert buscar("politica viagens", pessoas["ana"])["Documentação"], "o E resolve"
+    assert buscar("politica viagens inexistentexyz", pessoas["ana"])["Documentação"], (
+        "a queda para OU resolve"
+    )
+
+
+def test_e_tem_precedencia_sobre_ou(pessoas):
+    """Quando o E acha, o OU não roda — senão o resultado preciso viria diluído
+    no meio de tudo que fala de uma das palavras."""
+    documento(pessoas["dono"], slug="a", titulo="Politica de viagens")
+    documento(pessoas["dono"], slug="b", titulo="Politica de compras")
+
+    achados = [r.titulo for r in buscar("politica viagens", pessoas["ana"])["Documentação"]]
+
+    assert achados == ["Politica de viagens"]

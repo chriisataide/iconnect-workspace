@@ -163,6 +163,10 @@ def indexar_item(item) -> None:
         origem=OrigemIndice.SERVICO,
         titulo=item.nome,
         subtitulo=item.descricao_curta,
+        # Os termos entram no texto buscável, não no subtítulo: quem digita
+        # "uber" precisa achar Reembolso, e não precisa ver a palavra "uber" na
+        # linha do resultado.
+        corpo=" ".join(item.termos or []),
         url=f"/workspace/servicos/{item.chave}/",
         icone=item.icone or "grid",
         sujeitos=["*"],

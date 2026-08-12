@@ -96,6 +96,16 @@ class ItemCatalogo(models.Model):
         max_digits=12, decimal_places=2, null=True, blank=True
     )
 
+    termos = models.JSONField(
+        default=list,
+        blank=True,
+        help_text=(
+            "Como as pessoas CHAMAM isto. `laptop`, `computador`, `máquina` "
+            "levam a Notebook. É o que faz o assistente de ação funcionar sem "
+            "IA — e cada termo aqui é um e-mail que ninguém precisou mandar."
+        ),
+    )
+
     ativo = models.BooleanField(default=True, db_index=True)
     ordem = models.PositiveSmallIntegerField(default=100)
     criado_em = models.DateTimeField(auto_now_add=True)
