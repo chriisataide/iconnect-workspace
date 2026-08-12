@@ -1266,3 +1266,61 @@ a.au-notif-titulo:hover { color: var(--au-accent-text); text-decoration: underli
   .au-dia-item { grid-template-columns: minmax(0, 1fr); grid-template-areas: "titulo" "sub" "meta"; }
   .au-dia-meta { margin-top: 4px; }
 }
+
+/* ── Acervo de documentos ──────────────────────────────────────────
+   Lista e não grade de cartões: documento se procura por nome, e nome
+   longo em cartão de largura fixa é truncado justamente onde o nome
+   distingue um POP do outro. */
+.au-docs { list-style: none; margin: 0; padding: 0; border-top: 1px solid var(--au-border); }
+.au-doc {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-areas: "titulo meta" "resumo meta";
+  gap: 0 var(--au-4);
+  padding: var(--au-3) 0;
+  border-bottom: 1px solid var(--au-border);
+}
+.au-doc-titulo {
+  grid-area: titulo;
+  font-size: var(--au-t-base); font-weight: 580;
+  color: var(--au-text);
+}
+.au-doc-titulo:hover { color: var(--au-accent-text); text-decoration: underline; }
+.au-doc-resumo {
+  grid-area: resumo;
+  font-size: var(--au-t-sm); color: var(--au-text-muted);
+}
+.au-doc-meta {
+  grid-area: meta;
+  align-self: center;
+  display: flex; align-items: center; gap: var(--au-2);
+  white-space: nowrap;
+}
+.au-doc-versao {
+  font-family: var(--au-mono);
+  font-size: var(--au-t-xs);
+  color: var(--au-text-subtle);
+}
+.au-doc-dono { font-size: var(--au-t-xs); color: var(--au-text-subtle); }
+
+/* ── Leitura de documento ──────────────────────────────────────────
+   Medida de ~72ch: texto normativo é lido inteiro, e linha larga faz o
+   olho perder o começo da linha seguinte. */
+.au-leitura { max-width: 72ch; }
+.au-leitura-resumo {
+  margin: 0 0 var(--au-4);
+  font-size: var(--au-t-md);
+  color: var(--au-text-muted);
+  padding-bottom: var(--au-3);
+  border-bottom: 1px solid var(--au-border);
+}
+.au-leitura-corpo { font-size: var(--au-t-md); line-height: 1.65; color: var(--au-text); }
+.au-leitura-corpo p { margin: 0 0 var(--au-3); }
+.au-ajuda--ok { color: var(--au-success-text); font-weight: 550; }
+
+.au-etiqueta--obrigatório { color: var(--au-warning-text); background: var(--au-warning-bg); }
+
+@media (max-width: 640px) {
+  .au-doc { grid-template-columns: minmax(0, 1fr); grid-template-areas: "titulo" "resumo" "meta"; }
+  .au-doc-meta { margin-top: 4px; flex-wrap: wrap; white-space: normal; }
+}

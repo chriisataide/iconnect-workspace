@@ -126,8 +126,11 @@ def catalogo_semente() -> list[AppSpec]:
             nome=modulo.nome,
             descricao=modulo.descricao,
             icone=modulo.icone,
-            url_name="workspace:modulo" if modulo.tem_catalogo else None,
-            url_args=(modulo.chave,) if modulo.tem_catalogo else (),
+            # O módulo decide a própria rota: com catálogo vai para a vista de
+            # módulo, com `rota` vai para a tela própria (Documentação), sem
+            # nenhum dos dois segue "em breve".
+            url_name=modulo.url_name or None,
+            url_args=modulo.url_args,
             ordem=modulo.ordem,
         )
         for modulo in MODULOS

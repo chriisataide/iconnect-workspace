@@ -9,6 +9,7 @@ Já existe (Etapa 5 §5.2):
     catalogo.py    SVC  ItemCatalogo, SolicitacaoServico — uma fila de pedido
     anexo.py       SVC  Anexo — arquivo em armazenamento privado, fora de MEDIA
     notificacao.py WKS  Notificacao — aviso com UM destinatário, nunca fan-out
+    conteudo.py    CNT  Documento, ConfirmacaoLeitura — acervo normativo
 
 Entram nas ondas seguintes:
     conteudo.py    CNT  Documento, VersaoDocumento, PendenciaLeitura
@@ -35,12 +36,20 @@ from .catalogo import (
     TipoCampo,
 )
 from .notificacao import Notificacao, TipoNotificacao
+from .conteudo import (
+    ConfirmacaoLeitura,
+    Documento,
+    SituacaoDocumento,
+    TipoDocumento,
+)
 from .comunicacao import Prioridade, Publicacao, TipoPublicacao
 from .orcamento import Compromisso, SituacaoCompromisso, competencia_de
 
 __all__ = [
     "Anexo",
+    "ConfirmacaoLeitura",
     "Compromisso",
+    "Documento",
     "Notificacao",
     "GrupoCatalogo",
     "ItemCatalogo",
@@ -49,6 +58,7 @@ __all__ = [
     "Publicacao",
     "RegraAprovacao",
     "SituacaoEtapa",
+    "SituacaoDocumento",
     "SituacaoServico",
     "SituacaoSolicitacao",
     "SituacaoCompromisso",
@@ -56,6 +66,7 @@ __all__ = [
     "SolicitacaoServico",
     "TipoAprovador",
     "TipoCampo",
+    "TipoDocumento",
     "TipoNotificacao",
     "TipoPublicacao",
     "competencia_de",

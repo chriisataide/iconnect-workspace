@@ -181,6 +181,82 @@ def _atrasadas(pessoa) -> Bloco | None:
     )
 
 
+def _leituras(pessoa, cache: dict | None = None) -> Bloco | None:
+    """Documentos com leitura obrigatória pendentes.
+
+    Urgente porque é obrigação, e porque o valor do acervo está exatamente aqui:
+    comunicado sem retorno é e-mail; documento com confirmação por versão é
+    trilha de auditoria.
+    """
+    from workspace.services import conteudo as cnt
+
+    pendentes = cnt.pendentes_de_leitura(pessoa, cache=cache)
+    if not pendentes:
+        return None
+
+    itens = [
+        Item(
+            titulo=d.titulo,
+            subtitulo=f"{d.get_tipo_display()} · v{d.versao}",
+            url=reverse("workspace:documento", args=(d.slug,)),
+            etiqueta="obrigatório",
+        )
+        for d in pendentes[:LIMITE_POR_BLOCO]
+    ]
+    return Bloco(
+        chave="leituras",
+        titulo="Leitura obrigatória",
+        icone="book",
+        itens=itens,
+        url=reverse("workspace:documentacao"),
+        rotulo_url="Ver a documentação",
+        urgente=True,
+        total=len(pendentes),
+    )
+
+
+def _documentos_a_vencer(pessoa) -> Bloco | None:
+    """Só para quem é DONO de documento. Ninguém mais precisa ver isto.
+
+    Documento normativo sem dono é documento que ninguém atualiza; o aviso de
+    vencimento é o que transforma "tem dono" em "o dono age".
+    """
+    from workspace.services import conteudo as cnt
+
+    if pessoa is None or getattr(pessoa, "is_authenticated", False) is False:
+        return None
+
+    vencidos = list(cnt.vencidos(dono=pessoa))
+    a_vencer = list(cnt.a_vencer(dono=pessoa))
+    tudo = vencidos + [d for d in a_vencer if d not in vencidos]
+    if not tudo:
+        return None
+
+    itens = []
+    for documento in tudo[:LIMITE_POR_BLOCO]:
+        dias = documento.dias_para_vencer
+        itens.append(
+            Item(
+                titulo=documento.titulo,
+                subtitulo=(
+                    "vencido" if documento.vencido else f"vence em {dias} dia(s)"
+                ),
+                url=reverse("workspace:documento", args=(documento.slug,)),
+                etiqueta="vencido" if documento.vencido else "",
+            )
+        )
+    return Bloco(
+        chave="documentos_do_dono",
+        titulo="Seus documentos precisam de revisão",
+        icone="file",
+        itens=itens,
+        total=len(tudo),
+        # Urgente só quando já venceu: POP vencido em vigor é risco de
+        # conformidade, "vence em 28 dias" é planejamento.
+        urgente=bool(vencidos),
+    )
+
+
 # ── Blocos federados pelos domínios ─────────────────────────────────
 
 
@@ -238,8 +314,10 @@ def para(pessoa, cache: dict | None = None) -> dict:
     """
     blocos = [
         _aprovacoes(pessoa, cache=cache),
+        _leituras(pessoa, cache=cache),
         _devolvidas(pessoa),
         _atrasadas(pessoa),
+        _documentos_a_vencer(pessoa),
         *_dos_dominios(pessoa),
     ]
     blocos = [b for b in blocos if b is not None]

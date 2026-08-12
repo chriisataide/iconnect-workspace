@@ -21,6 +21,11 @@ urlpatterns = [
     # "buscar" ou "servicos" sequestraria uma rota existente, e o erro só
     # apareceria no dia em que alguém acrescentasse a chave errada.
     path("m/<slug:chave>/", views.modulo, name="modulo"),
+    # Documentação — pública. Confirmar leitura exige login (ver a view).
+    path("documentacao/", views.documentacao, name="documentacao"),
+    path("documentacao/<slug:slug>/", views.documento, name="documento"),
+    path("documentacao/<slug:slug>/confirmar/", views.confirmar_leitura,
+         name="confirmar_leitura"),
     # Meu dia e notificações — área pessoal
     path("meu-dia/", views.meu_dia, name="meu_dia"),
     path("notificacoes/", views.notificacoes, name="notificacoes"),

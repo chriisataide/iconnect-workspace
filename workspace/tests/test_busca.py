@@ -58,10 +58,13 @@ def test_busca_sem_acento_encontra_com_acento():
 
 @pytest.mark.django_db
 def test_app_em_breve_aparece_marcado_como_indisponivel():
-    # Documentação e não RH: o RH ganhou página quando os tiles viraram
-    # destinos reais. Documentação segue sem nada a mostrar.
-    doc = next(r for r in buscar("POP")["Aplicativos"] if r.titulo == "Documentação")
-    assert not doc.disponivel
+    # HelpDesk é o único "em breve" PERMANENTE, por desenho: chamado abre no
+    # iConnect Platform. RH e Documentação já ocuparam este lugar e ganharam
+    # página — exemplo que muda a cada onda não serve de exemplo.
+    helpdesk = next(
+        r for r in buscar("chamado")["Aplicativos"] if r.titulo == "HelpDesk"
+    )
+    assert not helpdesk.disponivel
 
 
 @pytest.mark.django_db
@@ -188,8 +191,10 @@ def test_resultado_de_app_com_url_name_e_resolvido():
 
 @pytest.mark.django_db
 def test_resultado_de_app_em_breve_nao_tem_url():
-    doc = next(r for r in buscar("POP")["Aplicativos"] if r.titulo == "Documentação")
-    assert doc.url == ""
+    helpdesk = next(
+        r for r in buscar("chamado")["Aplicativos"] if r.titulo == "HelpDesk"
+    )
+    assert helpdesk.url == ""
 
 
 @pytest.mark.django_db

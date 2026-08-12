@@ -1,6 +1,7 @@
 """Admin do Workspace.
 
     /admin/workspace/publicacao/   Comunicados e Notícias
+    /admin/workspace/documento/    POP, políticas e normas — com trilha de leitura
     /admin/workspace/regraaprovacao/   os tetos da cadeia de aprovação
     /admin/workspace/solicitacaoaprovacao/   auditoria das decisões
 """
@@ -13,6 +14,9 @@ from django.utils import timezone
 from .models import (
     Anexo,
     Compromisso,
+    ConfirmacaoLeitura,
+    Documento,
+    SituacaoDocumento,
     ItemCatalogo,
     EtapaAprovacao,
     Publicacao,
@@ -246,3 +250,82 @@ class SolicitacaoServicoAdmin(admin.ModelAdmin):
     list_select_related = ("item", "solicitante")
     readonly_fields = ("criado_em", "concluido_em", "dados", "aprovacao", "auto_aprovada")
     inlines = (AnexoInline,)
+
+
+class ConfirmacaoInline(admin.TabularInline):
+    """A trilha de leitura, em leitura. É a peça que vai para a auditoria."""
+
+    model = ConfirmacaoLeitura
+    extra = 0
+    can_delete = False
+    fields = ("pessoa", "versao", "confirmado_em")
+    readonly_fields = fields
+
+    def has_add_permission(self, request, obj) -> bool:
+        # Confirmação lançada à mão no admin é declaração falsa de conformidade.
+        # Quem leu confirma na tela do documento, autenticado.
+        return False
+
+
+@admin.register(Documento)
+class DocumentoAdmin(admin.ModelAdmin):
+    list_display = (
+        "titulo", "tipo", "versao", "situacao", "vigencia_fim",
+        "leitura_obrigatoria", "dono", "situacao_real",
+    )
+    list_filter = ("tipo", "situacao", "leitura_obrigatoria")
+    search_fields = ("titulo", "resumo", "corpo", "slug")
+    prepopulated_fields = {"slug": ("titulo",)}
+    autocomplete_fields = ("dono",)
+    date_hierarchy = "vigencia_inicio"
+    list_select_related = ("dono",)
+    inlines = (ConfirmacaoInline,)
+
+    fieldsets = (
+        (None, {"fields": ("tipo", "titulo", "slug", "resumo", "corpo")}),
+        (
+            "Responsabilidade",
+            {
+                "fields": ("dono", "versao"),
+                "description": (
+                    "<b>Dono</b> é quem responde pelo conteúdo, não quem digitou. "
+                    "Documento normativo sem dono é documento que ninguém atualiza."
+                ),
+            },
+        ),
+        (
+            "Quem vê",
+            {
+                "fields": ("publico_alvo", "leitura_obrigatoria"),
+                "description": (
+                    'Público-alvo em JSON. <code>["*"]</code> = toda a empresa. '
+                    "Também aceita <code>papel:sesmt</code>, <code>depto:3</code>, "
+                    "<code>unidade:1</code>, <code>pessoa:42</code> — o mesmo "
+                    "vocabulário do recorte da busca. Lista vazia é tratada como "
+                    "<code>[&quot;*&quot;]</code>."
+                ),
+            },
+        ),
+        (
+            "Vigência",
+            {
+                "fields": ("situacao", "vigencia_inicio", "vigencia_fim", "revoga"),
+                "description": (
+                    "<b>Vencido não é uma situação</b> — sai de <i>vigência até</i> "
+                    "ter passado. Estado gravado que depende da data mente no dia "
+                    "seguinte. Documento vencido some da vitrine e da busca, mas "
+                    "continua abrindo por link, com aviso."
+                ),
+            },
+        ),
+    )
+
+    @admin.display(description="Estado real")
+    def situacao_real(self, obj) -> str:
+        if obj.situacao == SituacaoDocumento.REVOGADO:
+            return "revogado"
+        if obj.vencido:
+            return "VENCIDO"
+        if obj.vigente:
+            return "em vigor"
+        return obj.get_situacao_display().lower()

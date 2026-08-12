@@ -16,6 +16,13 @@
   {% if nao_lidas %}<span class="au-rail-contagem au-rail-contagem--alerta">{{ nao_lidas }}</span>{% endif %}
 </a>
 
+<p class="au-rail-grupo">{% trans "Consultar" %}</p>
+<a class="au-rail-item {% if aba == 'documentacao' %}au-rail-item--ativo{% endif %}"
+   href="{% url 'workspace:documentacao' %}">
+  <svg class="au-icon" aria-hidden="true"><use href="#i-book"></use></svg>
+  {% trans "Documentação" %}
+</a>
+
 <p class="au-rail-grupo">{% trans "Pedir" %}</p>
 <a class="au-rail-item {% if aba == 'catalogo' %}au-rail-item--ativo{% endif %}"
    href="{% url 'workspace:servicos' %}">

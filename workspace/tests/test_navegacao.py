@@ -58,22 +58,35 @@ def test_todo_tile_disponivel_leva_a_pagina_que_responde(client):
         assert client.get(destino).status_code == 200, f"{destino} não responde"
 
 
-def test_modulo_com_catalogo_tem_tile_e_pagina():
-    """Registro de módulos e launcher não podem divergir."""
+def test_modulo_disponivel_tem_tile_e_destino():
+    """Registro de módulos e launcher não podem divergir.
+
+    `disponivel` e não `tem_catalogo`: desde a onda C um módulo pode ter tela
+    PRÓPRIA em vez da vista de catálogo — Documentação é o primeiro caso, porque
+    acervo normativo não é fila de pedidos.
+    """
     tiles = {s.chave: s for s in catalogo_semente()}
 
     for modulo in MODULOS:
         spec = tiles.get(modulo.chave)
         assert spec is not None, f"módulo {modulo.chave} sem tile na home"
-        assert spec.disponivel is modulo.tem_catalogo
+        assert spec.disponivel is modulo.disponivel
 
 
-def test_modulo_sem_catalogo_nao_abre_pagina(client):
-    """Documentação não tem o que mostrar — 404 em vez de tela vazia."""
-    sem_catalogo = [m for m in MODULOS if not m.tem_catalogo]
-    assert sem_catalogo, "o teste perde o sentido se todo módulo tiver catálogo"
+def test_modulo_com_rota_propria_nao_abre_a_pagina_de_catalogo(client):
+    """A vista de catálogo é só para quem atende domínio de catálogo."""
+    com_rota = [m for m in MODULOS if m.rota]
+    assert com_rota, "o teste perde o sentido se nenhum módulo tiver rota própria"
 
-    for modulo in sem_catalogo:
+    for modulo in com_rota:
+        resposta = client.get(reverse("workspace:modulo", args=(modulo.chave,)))
+        assert resposta.status_code == 404, f"{modulo.chave} abriu a vista de catálogo"
+
+
+def test_modulo_sem_destino_nenhum_nao_abre_pagina(client):
+    """Sem catálogo e sem rota própria = "em breve", e 404 na URL."""
+    sem_destino = [m for m in MODULOS if not m.disponivel]
+    for modulo in sem_destino:
         resposta = client.get(reverse("workspace:modulo", args=(modulo.chave,)))
         assert resposta.status_code == 404
 

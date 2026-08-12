@@ -43,13 +43,30 @@ class Modulo:
     # domínio é hierárquico: `rh.ferias`, `rh.ausencia` e `rh.documento` são
     # todos do RH, e listar um a um garante que o próximo item nasça órfão.
     dominios: tuple[str, ...] = field(default_factory=tuple)
-    # Uma frase sobre o que o módulo faz além do catálogo. Aparece na página e
-    # é onde fica registrado o que ainda NÃO existe.
     ordem: int = 100
+    # Módulo que tem tela PRÓPRIA, e não a vista de catálogo. Documentação é o
+    # primeiro caso: um acervo normativo não é uma fila de pedidos, e forçá-lo na
+    # tela de catálogo produziria uma vitrine de coisas que não se pedem.
+    rota: str = ""
 
     @property
     def tem_catalogo(self) -> bool:
         return bool(self.dominios)
+
+    @property
+    def disponivel(self) -> bool:
+        return bool(self.dominios or self.rota)
+
+    @property
+    def url_name(self) -> str:
+        """A rota do tile. Própria quando existe; senão a página de módulo."""
+        if self.rota:
+            return self.rota
+        return "workspace:modulo" if self.tem_catalogo else ""
+
+    @property
+    def url_args(self) -> tuple:
+        return () if self.rota else ((self.chave,) if self.tem_catalogo else ())
 
 
 MODULOS: tuple[Modulo, ...] = (
@@ -117,8 +134,9 @@ MODULOS: tuple[Modulo, ...] = (
         nome="Documentação",
         descricao="POP, políticas, normas e manuais",
         icone="file",
-        # Sem domínio de catálogo: documentação não é coisa que se "pede". O
-        # tile fica "em breve" até existir o repositório de conteúdo (CNT).
+        # Sem domínio de catálogo — documentação não é coisa que se "pede" —, mas
+        # com tela própria: o acervo normativo (CNT) existe desde a onda C.
+        rota="workspace:documentacao",
         ordem=100,
     ),
 )

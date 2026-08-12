@@ -1,0 +1,80 @@
+{% extends "workspace/_shell_modulo.html" %}
+{% load i18n wks %}
+
+{% block titulo %}{% trans "Documentação" %}{% endblock %}
+
+{% block rail %}{% include "workspace/_rail_servicos.html" with aba="documentacao" %}{% endblock %}
+{% block trilha %}<span>{% trans "Documentação" %}</span>{% endblock %}
+{% block pagina_titulo %}{% trans "Documentação" %}{% endblock %}
+
+{% block pagina_descricao %}
+  <p class="au-pagina-desc">
+    {% blocktrans count total=total %}{{ total }} documento em vigor.{% plural %}{{ total }} documentos em vigor.{% endblocktrans %}
+    {% if pendentes %}
+      <strong>{% blocktrans count p=pendentes %}{{ p }} exige sua confirmação de leitura.{% plural %}{{ p }} exigem sua confirmação de leitura.{% endblocktrans %}</strong>
+    {% endif %}
+  </p>
+{% endblock %}
+
+{% block corpo %}
+{% if not autenticado %}
+  {% comment %}
+    Política geral não é segredo, então a vitrine é pública. O que exige login é
+    documento de departamento — `subjects_de()` de anônimo devolve só `["*"]` —
+    e a confirmação de leitura, que sem identidade não é trilha de auditoria.
+  {% endcomment %}
+  <div class="au-faixa">
+    <span class="au-faixa-texto">
+      {% blocktrans %}Você está vendo os documentos abertos a toda a empresa. Entre para ver os
+      da sua área e confirmar leitura.{% endblocktrans %}
+    </span>
+    <a class="au-btn au-btn--primario" href="{% url 'workspace:meu_dia' %}">
+      {% trans "Entrar" %}
+    </a>
+  </div>
+{% endif %}
+
+{% if grupos %}
+  {% for grupo in grupos %}
+    <section class="au-secao">
+      <div class="au-secao-cabeca">
+        <h2 class="au-secao-titulo">{{ grupo.rotulo }}</h2>
+        <span class="au-secao-contagem">{{ grupo.documentos|length }}</span>
+      </div>
+
+      <ul class="au-docs">
+        {% for doc in grupo.documentos %}
+          <li class="au-doc">
+            <a class="au-doc-titulo" href="{% url 'workspace:documento' doc.slug %}">
+              {{ doc.titulo }}
+            </a>
+            {% if doc.resumo %}<span class="au-doc-resumo">{{ doc.resumo }}</span>{% endif %}
+            <span class="au-doc-meta">
+              <span class="au-doc-versao">v{{ doc.versao }}</span>
+              {% if doc.leitura_obrigatoria %}
+                <span class="au-selo au-selo--alerta">{% trans "leitura obrigatória" %}</span>
+              {% endif %}
+              {% if doc.dias_para_vencer != None and doc.dias_para_vencer <= 30 %}
+                <span class="au-selo au-selo--medido">
+                  {% blocktrans count d=doc.dias_para_vencer %}vence em {{ d }} dia{% plural %}vence em {{ d }} dias{% endblocktrans %}
+                </span>
+              {% endif %}
+              <span class="au-doc-dono">
+                {{ doc.dono.get_full_name|default:doc.dono.get_username }}
+              </span>
+            </span>
+          </li>
+        {% endfor %}
+      </ul>
+    </section>
+  {% endfor %}
+{% else %}
+  <div class="au-vazio">
+    <p class="au-vazio-titulo">{% trans "Nenhum documento em vigor." %}</p>
+    <p class="au-vazio-dica">
+      {% blocktrans %}POP, políticas e normas publicados aparecem aqui. Publique em
+      <b>Admin › iConnect Workspace › Documentos</b>.{% endblocktrans %}
+    </p>
+  </div>
+{% endif %}
+{% endblock %}

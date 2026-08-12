@@ -77,13 +77,14 @@ def test_os_dez_destinos_do_diagrama_aparecem(client):
 def test_sistema_inexistente_aparece_como_em_breve(client):
     """Não esconder o que não existe — o Workspace comunica o roadmap."""
     resposta = client.get(reverse("workspace:home"))
-    # `documentacao` e não `rh`: o RH passou a ter página quando os tiles
-    # viraram destinos reais. Documentação segue sem nada a mostrar — não se
-    # "pede" um POP —, e é o caso honesto de roadmap visível.
-    doc = next(a for a in resposta.context["apps"] if a.chave == "documentacao")
+    # `helpdesk` é o único "em breve" permanente, por desenho: chamado abre no
+    # iConnect Platform, e uma segunda fila aqui seria duas verdades sobre o
+    # mesmo chamado. RH e Documentação já ocuparam este lugar e ganharam página
+    # — exemplo que muda a cada onda não serve de exemplo.
+    helpdesk = next(a for a in resposta.context["apps"] if a.chave == "helpdesk")
 
-    assert not doc.disponivel
-    assert doc.destino == ""
+    assert not helpdesk.disponivel
+    assert helpdesk.destino == ""
     assert "Em breve" in resposta.content.decode()
 
 

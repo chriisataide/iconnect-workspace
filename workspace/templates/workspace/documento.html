@@ -1,0 +1,130 @@
+{% extends "workspace/_shell_modulo.html" %}
+{% load i18n wks %}
+
+{% block titulo %}{{ documento.titulo }}{% endblock %}
+
+{% block rail %}{% include "workspace/_rail_servicos.html" with aba="documentacao" %}{% endblock %}
+{% block trilha %}
+  <a href="{% url 'workspace:documentacao' %}">{% trans "Documentação" %}</a>
+  <span>{{ documento.titulo }}</span>
+{% endblock %}
+{% block pagina_titulo %}{{ documento.titulo }}{% endblock %}
+
+{% block pagina_descricao %}
+  <p class="au-pagina-desc">
+    {{ documento.get_tipo_display }} · {% trans "versão" %} {{ documento.versao }} ·
+    {{ documento.dono.get_full_name|default:documento.dono.get_username }}
+  </p>
+{% endblock %}
+
+{% block corpo %}
+{% comment %}
+  Os avisos vêm ANTES do texto, sempre. Um POP vencido lido até o fim e só então
+  desmentido no rodapé é o pior desenho possível: a pessoa já seguiu.
+{% endcomment %}
+{% if documento.situacao == "revogado" %}
+  <div class="au-aviso au-aviso--error" role="alert">
+    <b>{% trans "Este documento foi revogado." %}</b>
+    {% if substituto %}
+      {% trans "Foi substituído por" %}
+      <a href="{% url 'workspace:documento' substituto.slug %}">{{ substituto.titulo }}</a>.
+    {% else %}
+      {% trans "Não há substituto registrado — procure o responsável." %}
+    {% endif %}
+  </div>
+{% elif documento.vencido %}
+  <div class="au-aviso au-aviso--warning" role="alert">
+    <b>{% blocktrans with data=documento.vigencia_fim|date:"d/m/Y" %}Vigência encerrada em {{ data }}.{% endblocktrans %}</b>
+    {% trans "O conteúdo está aqui para consulta histórica, mas não é o procedimento em vigor." %}
+  </div>
+{% elif documento.situacao == "rascunho" %}
+  <div class="au-aviso au-aviso--warning" role="alert">
+    <b>{% trans "Rascunho." %}</b>
+    {% trans "Só você vê isto, porque é o responsável pelo documento." %}
+  </div>
+{% endif %}
+
+<div class="au-colunas au-colunas--assimetrica">
+  <article class="au-leitura">
+    {% if documento.resumo %}<p class="au-leitura-resumo">{{ documento.resumo }}</p>{% endif %}
+    {% comment %}
+      `linebreaks` e não HTML cru: o corpo vem do admin, e um `|safe` aqui
+      transformaria a área de edição de documento em vetor de XSS para toda a
+      empresa. Editor com formatação é decisão de outra onda.
+    {% endcomment %}
+    <div class="au-leitura-corpo">{{ documento.corpo|linebreaks }}</div>
+  </article>
+
+  <aside class="au-lateral">
+    {% if documento.leitura_obrigatoria %}
+      <article class="au-card">
+        <header class="au-card-cabeca">
+          <span class="au-card-icone">
+            <svg class="au-icon" aria-hidden="true"><use href="#i-check"></use></svg>
+          </span>
+          <h3 class="au-card-titulo">{% trans "Leitura obrigatória" %}</h3>
+        </header>
+
+        {% if not autenticado %}
+          <p class="au-ajuda">
+            {% blocktrans %}Entre com sua conta para confirmar. Confirmação sem identidade não
+            serve como registro.{% endblocktrans %}
+          </p>
+        {% elif ja_confirmou %}
+          <p class="au-ajuda au-ajuda--ok">
+            {% blocktrans with v=documento.versao %}Você confirmou a versão {{ v }}.{% endblocktrans %}
+          </p>
+        {% else %}
+          <p class="au-ajuda">
+            {% blocktrans %}Confirme que leu. Fica registrado com a versão e a data — é o que
+            vale em auditoria.{% endblocktrans %}
+          </p>
+          <form method="post" action="{% url 'workspace:confirmar_leitura' documento.slug %}">
+            {% csrf_token %}
+            <button class="au-btn au-btn--primario" type="submit"
+                    {% if not documento.vigente %}disabled{% endif %}>
+              {% trans "Confirmo que li" %}
+            </button>
+          </form>
+        {% endif %}
+
+        {% if e_dono %}
+          <p class="au-ajuda">
+            {% blocktrans count c=cobertura.confirmadas %}{{ c }} pessoa confirmou esta versão.{% plural %}{{ c }} pessoas confirmaram esta versão.{% endblocktrans %}
+          </p>
+        {% endif %}
+      </article>
+    {% endif %}
+
+    <article class="au-card">
+      <h3 class="au-card-titulo">{% trans "Vigência" %}</h3>
+      <ul class="au-lista">
+        <li class="au-list-row">
+          <span class="au-list-titulo">{% trans "Desde" %}</span>
+          <span class="au-list-meta">{{ documento.vigencia_inicio|date:"d/m/Y" }}</span>
+        </li>
+        <li class="au-list-row">
+          <span class="au-list-titulo">{% trans "Até" %}</span>
+          <span class="au-list-meta">
+            {% if documento.vigencia_fim %}
+              {{ documento.vigencia_fim|date:"d/m/Y" }}
+            {% else %}
+              {% trans "sem prazo" %}
+            {% endif %}
+          </span>
+        </li>
+        {% if documento.revoga %}
+          <li class="au-list-row">
+            <span class="au-list-titulo">{% trans "Substitui" %}</span>
+            <span class="au-list-meta">
+              <a href="{% url 'workspace:documento' documento.revoga.slug %}">
+                {{ documento.revoga.titulo }}
+              </a>
+            </span>
+          </li>
+        {% endif %}
+      </ul>
+    </article>
+  </aside>
+</div>
+{% endblock %}
