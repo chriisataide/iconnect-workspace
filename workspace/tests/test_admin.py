@@ -299,3 +299,20 @@ def test_coluna_de_campos_mostra_total_e_obrigatorios():
         campos=[{"chave": "a", "obrigatorio": True}, {"chave": "b"}],
     )
     assert ItemCatalogoAdmin(ItemCatalogo, AdminSite()).qtd_campos(it) == "2 (1 obrig.)"
+
+
+@pytest.mark.django_db
+def test_admin_nao_permite_subir_anexo():
+    """O admin não é uma segunda porta para o upload.
+
+    O formulário do Portal valida magic bytes antes de gravar; um upload pelo
+    admin driblaria essa checagem — e é o admin que um atacante com conta de
+    staff usaria.
+    """
+    from django.contrib.admin.sites import AdminSite
+
+    from workspace.admin import AnexoInline
+    from workspace.models import Anexo
+
+    inline = AnexoInline(Anexo, AdminSite())
+    assert inline.has_add_permission(None, None) is False

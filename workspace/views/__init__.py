@@ -13,6 +13,7 @@ from .home import home
 from .modulo import modulo
 from .publicacao import detalhe as publicacao_detalhe
 from .servicos import (
+    baixar_anexo,
     cancelar as cancelar_solicitacao,
     catalogo,
     minhas_solicitacoes,
@@ -21,6 +22,7 @@ from .servicos import (
 
 __all__ = [
     "aprovar_em_lote",
+    "baixar_anexo",
     "bandeja",
     "buscar_view",
     "cancelar_solicitacao",

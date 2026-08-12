@@ -7,6 +7,7 @@ Já existe (Etapa 5 §5.2):
                         Uma bandeja para férias, reembolso e compra
     orcamento.py   FIN  Compromisso — aprovado e não pago
     catalogo.py    SVC  ItemCatalogo, SolicitacaoServico — uma fila de pedido
+    anexo.py       SVC  Anexo — arquivo em armazenamento privado, fora de MEDIA
 
 Entram nas ondas seguintes:
     conteudo.py    CNT  Documento, VersaoDocumento, PendenciaLeitura
@@ -16,6 +17,7 @@ Entram nas ondas seguintes:
     plataforma.py  PLT  UsoApp, FeatureFlag
 """
 
+from .anexo import Anexo
 from .aprovacao import (
     EtapaAprovacao,
     RegraAprovacao,
@@ -35,6 +37,7 @@ from .comunicacao import Prioridade, Publicacao, TipoPublicacao
 from .orcamento import Compromisso, SituacaoCompromisso, competencia_de
 
 __all__ = [
+    "Anexo",
     "Compromisso",
     "GrupoCatalogo",
     "ItemCatalogo",

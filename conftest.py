@@ -49,6 +49,22 @@ def _clear_cache_between_tests():
     yield
 
 
+@pytest.fixture(autouse=True)
+def _anexos_em_diretorio_temporario(tmp_path, settings):
+    """Anexos do Portal nunca escrevem no repositório.
+
+    `ARQUIVOS_PRIVADOS_ROOT` aponta para `BASE_DIR/arquivos_privados` em
+    produção. Sem este autouse, qualquer teste que crie um `Anexo` — inclusive
+    um teste de outro app, que nem sabe que anexo existe — deixa comprovantes de
+    mentira dentro do projeto. Aconteceu na primeira execução: 34 JPEGs.
+
+    Autouse e não fixture opt-in de propósito: quem esquece de pedir a fixture é
+    exatamente quem não sabia que precisava dela.
+    """
+    settings.ARQUIVOS_PRIVADOS_ROOT = tmp_path / "arquivos_privados"
+    return settings.ARQUIVOS_PRIVADOS_ROOT
+
+
 @pytest.fixture
 def user(db):
     """Cria um usuário padrão para testes."""

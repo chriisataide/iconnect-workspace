@@ -8,6 +8,7 @@ from __future__ import annotations
 
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
+from django.core.exceptions import ObjectDoesNotExist
 from django.http import HttpRequest, HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
@@ -73,6 +74,23 @@ def _faixas(resumo, valor) -> list[dict] | None:
     return faixas
 
 
+def _anexos_de(solicitacao: SolicitacaoAprovacao) -> list:
+    """Anexos do pedido de serviço ligado a esta aprovação.
+
+    A aprovação não conhece o catálogo — é a direção que mantém APR reusável
+    por férias, reembolso e compra. Então a busca vem do outro lado.
+    """
+    # `try` e não `getattr(..., None)`: acessor reverso de OneToOne levanta
+    # `DoesNotExist`, que não é `AttributeError` — o default do `getattr` não
+    # captura, e a bandeja quebraria em toda aprovação que não vem do catálogo
+    # (férias lançadas direto pelo RH, por exemplo).
+    try:
+        servico = solicitacao.servico
+    except ObjectDoesNotExist:
+        return []
+    return list(servico.anexos.all())
+
+
 def _dossie(solicitacao: SolicitacaoAprovacao) -> dict:
     """O contexto que transforma carimbo em decisão."""
     resumo = None
@@ -81,6 +99,9 @@ def _dossie(solicitacao: SolicitacaoAprovacao) -> dict:
 
     return {
         "solicitacao": solicitacao,
+        # Aprovar reembolso sem poder abrir o comprovante é exatamente o
+        # carimbo que esta tela existe para evitar.
+        "anexos": _anexos_de(solicitacao),
         "resumo": resumo,
         "faixas": _faixas(resumo, solicitacao.valor),
         "pct_atual": resumo.percentual() if resumo else None,

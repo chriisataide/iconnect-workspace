@@ -166,6 +166,31 @@ def test_pedido_de_outra_pessoa_nao_aparece(client, pessoa, item_rh):
     assert "Você ainda não pediu nada aqui." in corpo
 
 
+# ── Módulo sem domínio ──────────────────────────────────────────────
+#
+# `Q()` vazio NÃO filtra nada: `filter(Q())` devolve a tabela inteira. Sem a
+# guarda de `prefixos` vazio, um módulo que ainda não declarou domínio nenhum
+# — Documentação, hoje — passaria a exibir o catálogo completo, e cada item
+# apareceria em dois lugares dizendo coisas diferentes sobre quem o atende.
+
+
+def test_vitrine_de_modulo_sem_dominio_e_vazia(item_rh):
+    from workspace.services import catalogo as svc
+
+    assert svc.do_modulo([]) == []
+    assert svc.do_modulo(["rh."]) == [item_rh], "com prefixo, filtra de verdade"
+
+
+def test_meus_pedidos_de_modulo_sem_dominio_e_vazio(pessoa, item_rh):
+    from workspace.models.catalogo import SolicitacaoServico
+    from workspace.services import catalogo as svc
+
+    SolicitacaoServico.objects.create(item=item_rh, solicitante=pessoa)
+
+    assert not svc.minhas_do_modulo(pessoa, []).exists()
+    assert svc.minhas_do_modulo(pessoa, ["rh."]).count() == 1
+
+
 # ── Regressões de renderização ──────────────────────────────────────
 
 

@@ -8,6 +8,7 @@ from io import StringIO
 
 import pytest
 from django.core.exceptions import ValidationError
+from django.core.files.uploadedfile import SimpleUploadedFile
 from django.core.management import call_command
 from django.utils import timezone
 
@@ -652,10 +653,18 @@ def test_do_catalogo_ate_a_conclusao(equipe, provider_temporario):
     assert "Dinheiro" in grupos
 
     reembolso = ItemCatalogo.objects.get(chave="reembolso")
+    # Arquivo de verdade, não o nome dele: o campo `comprovantes` é do tipo
+    # `arquivo`, e desde os anexos reais um texto não satisfaz mais a
+    # obrigatoriedade. Era esse o ponto.
     s = svc.solicitar(
-        reembolso, equipe["ana"], dados={"comprovantes": "cupom.jpg"},
+        reembolso, equipe["ana"],
         valor=Decimal("840"),
+        arquivos={"comprovantes": [
+            SimpleUploadedFile("cupom.jpg", b"\xff\xd8\xff\xe0" + b"0" * 32,
+                               content_type="image/jpeg")
+        ]},
     )
+    assert s.anexos.get().nome_original == "cupom.jpg"
 
     assert s.situacao == SituacaoServico.AGUARDANDO_APROVACAO, "840 > limite de 200"
     assert s.aprovacao.etapa_atual.aprovador == equipe["gestor"]

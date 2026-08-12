@@ -11,12 +11,16 @@ from decimal import Decimal, InvalidOperation
 
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
-from django.http import HttpRequest, HttpResponse
+from django.core.exceptions import PermissionDenied
+from django.http import FileResponse, Http404, HttpRequest, HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 
-from workspace.models.catalogo import ItemCatalogo
+from workspace.models.anexo import Anexo
+from workspace.models.catalogo import ItemCatalogo, TipoCampo
+from workspace.services import anexos as anx
 from workspace.services import catalogo as svc
+from workspace.services.anexos import AnexoError
 from workspace.services.catalogo import SolicitacaoError
 
 
@@ -65,6 +69,7 @@ def pedir(request: HttpRequest, chave: str) -> HttpResponse:
     cache = _cache(request)
 
     dados = {}
+    arquivos = {}
     valor = None
     impedimentos = []
 
@@ -72,16 +77,31 @@ def pedir(request: HttpRequest, chave: str) -> HttpResponse:
         dados = {
             campo["chave"]: (request.POST.get(campo["chave"]) or "").strip()
             for campo in item.campos
+            if campo.get("tipo") != TipoCampo.ARQUIVO
+        }
+        arquivos = {
+            campo["chave"]: request.FILES.getlist(campo["chave"])
+            for campo in item.campos
+            if campo.get("tipo") == TipoCampo.ARQUIVO
         }
         valor = _valor_de(request.POST.get("valor"))
 
         try:
-            solicitacao = svc.solicitar(item, request.user, dados, valor, cache=cache)
-        except SolicitacaoError:
+            solicitacao = svc.solicitar(
+                item, request.user, dados, valor, cache=cache, arquivos=arquivos
+            )
+        except (SolicitacaoError, AnexoError) as erro:
             # Revalida para devolver a lista completa por campo, e não só a
             # primeira mensagem: corrigir um erro por vez é o que faz o usuário
             # desistir no terceiro envio.
-            impedimentos = svc.verificar(item, request.user, dados, valor, cache=cache)
+            impedimentos = svc.verificar(
+                item, request.user, dados, valor, cache=cache, arquivos=arquivos
+            )
+            if not impedimentos:
+                # A revalidação não reproduziu a falha — só acontece se algo
+                # falhou na gravação, não na validação. Formulário que recusa
+                # sem dizer nada é pior que a mensagem crua.
+                impedimentos = [svc.Impedimento("anexos", str(erro))]
         else:
             if solicitacao.auto_aprovada:
                 messages.success(
@@ -96,7 +116,14 @@ def pedir(request: HttpRequest, chave: str) -> HttpResponse:
     # dinâmica — é a regra do design system: a view agrega, o template desenha.
     por_campo = {i.campo: i.motivo for i in impedimentos}
     campos = [
-        {**campo, "valor": dados.get(campo["chave"], ""), "erro": por_campo.get(campo["chave"])}
+        {
+            **campo,
+            "valor": dados.get(campo["chave"], ""),
+            "erro": por_campo.get(campo["chave"]),
+            # O template não compara string de tipo: a view resolve, como manda
+            # o design system.
+            "e_arquivo": campo.get("tipo") == TipoCampo.ARQUIVO,
+        }
         for campo in item.campos
     ]
 
@@ -111,7 +138,39 @@ def pedir(request: HttpRequest, chave: str) -> HttpResponse:
             "erro_valor": por_campo.get("valor"),
             "impedimentos": impedimentos,
             "centro_custo": svc._centro_custo_de(request.user),
+            "maximo_anexos": anx.MAXIMO_POR_CAMPO,
         },
+    )
+
+
+@login_required
+def baixar_anexo(request: HttpRequest, pk: int) -> HttpResponse:
+    """O único caminho até um anexo. Autoriza, então entrega.
+
+    Não existe URL pública para estes arquivos: eles moram fora de MEDIA_ROOT e
+    o storage não tem `base_url` (ver `workspace/storage.py`). Se esta view negar,
+    não há segunda porta.
+    """
+    anexo = get_object_or_404(
+        Anexo.objects.select_related("solicitacao", "solicitacao__aprovacao"), pk=pk
+    )
+
+    if not anx.pode_baixar(request.user, anexo, cache=_cache(request)):
+        # 403 e não 404: quem chegou aqui tem o id de um anexo que existe, e
+        # mentir sobre a existência não protege nada que o 403 já não proteja.
+        raise PermissionDenied("Você não tem acesso a este anexo.")
+
+    try:
+        arquivo = anexo.arquivo.open("rb")
+    except FileNotFoundError:
+        # Metadado na tabela e arquivo ausente no disco: erro de operação, e a
+        # tela precisa dizer "não está lá" em vez de estourar 500.
+        raise Http404("Arquivo não encontrado no armazenamento.")
+
+    # `as_attachment` sempre: comprovante e atestado não devem ser renderizados
+    # inline no navegador — SVG e HTML abrem porta para XSS na nossa origem.
+    return FileResponse(
+        arquivo, as_attachment=True, filename=anexo.nome_original
     )
 
 

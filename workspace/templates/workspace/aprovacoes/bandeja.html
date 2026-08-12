@@ -132,6 +132,13 @@
             </div>
           {% endif %}
 
+          {% if entrada.anexos %}
+            <div class="au-dossie-anexos">
+              <p class="au-dossie-rotulo">{% trans "Comprovação" %}</p>
+              {% include "workspace/_anexos.html" with anexos=entrada.anexos %}
+            </div>
+          {% endif %}
+
           {% if entrada.etapa_atual %}
             <p class="au-bandeja-cadeia">
               <svg class="au-icon au-icon--mini" aria-hidden="true"><use href="#i-relogio"></use></svg>

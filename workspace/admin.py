@@ -11,6 +11,7 @@ from django.contrib import admin, messages
 from django.utils import timezone
 
 from .models import (
+    Anexo,
     Compromisso,
     ItemCatalogo,
     EtapaAprovacao,
@@ -214,6 +215,28 @@ class ItemCatalogoAdmin(admin.ModelAdmin):
         return f"{len(obj.campos or [])} ({len(obj.campos_obrigatorios)} obrig.)"
 
 
+class AnexoInline(admin.TabularInline):
+    """Anexos em leitura. Sem link para o arquivo, de propósito.
+
+    O admin roda sob autenticação de staff, mas a autorização do anexo é a do
+    Portal — solicitante, aprovador da cadeia, ou quem aprova sobre a pessoa.
+    Um staff qualquer não está nessa lista, e um link aqui abriria uma segunda
+    porta que não passa por `pode_baixar()`. Quem precisa auditar o conteúdo
+    entra pela tela do Portal.
+    """
+
+    model = Anexo
+    extra = 0
+    can_delete = False
+    fields = ("campo", "nome_original", "tamanho_legivel", "tipo_mime", "criado_por", "criado_em")
+    readonly_fields = fields
+
+    def has_add_permission(self, request, obj) -> bool:
+        # Anexo nasce do formulário do Portal, que valida magic bytes. Upload
+        # pelo admin driblaria essa validação.
+        return False
+
+
 @admin.register(SolicitacaoServico)
 class SolicitacaoServicoAdmin(admin.ModelAdmin):
     list_display = ("item", "solicitante", "valor", "situacao", "auto_aprovada", "criado_em")
@@ -222,3 +245,4 @@ class SolicitacaoServicoAdmin(admin.ModelAdmin):
     date_hierarchy = "criado_em"
     list_select_related = ("item", "solicitante")
     readonly_fields = ("criado_em", "concluido_em", "dados", "aprovacao", "auto_aprovada")
+    inlines = (AnexoInline,)

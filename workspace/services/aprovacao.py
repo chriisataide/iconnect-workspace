@@ -398,7 +398,11 @@ def pendentes_para(quem, cache: dict | None = None):
         SolicitacaoAprovacao.objects.aguardando()
         .filter(pk__in=ids)
         .exclude(solicitante=quem)  # nunca a própria
-        .select_related("solicitante")
+        # `servico` no select_related e `servico__anexos` no prefetch: o dossiê
+        # mostra os anexos de cada pedido, e sem isto uma bandeja de 20 itens
+        # faria 41 consultas a mais só para desenhar a lista de arquivos.
+        .select_related("solicitante", "servico")
+        .prefetch_related("servico__anexos")
         .order_by("criado_em")
     )
 

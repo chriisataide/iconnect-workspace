@@ -27,6 +27,7 @@ from workspace.models.catalogo import (
     ItemCatalogo,
     SituacaoServico,
     SolicitacaoServico,
+    TipoCampo,
 )
 from workspace.services import aprovacao as apr
 from workspace.services import orcamento as orc
@@ -150,14 +151,22 @@ def verificar(
     dados: dict | None = None,
     valor: Decimal | None = None,
     cache: dict | None = None,
+    arquivos: dict | None = None,
 ) -> list[Impedimento]:
     """O que impede este pedido de ser enviado. Vazio = pode enviar.
 
     Chamado pela tela a cada mudança (HTMX) para bloquear com o motivo à vista,
     e de novo dentro de `solicitar()` — a tela não é a fonte de verdade.
     """
+    from workspace.services import anexos as anx
+
     impedimentos: list[Impedimento] = []
     dados = dados or {}
+    # Campos de arquivo se satisfazem com arquivo, não com texto. Antes desta
+    # distinção, `dados["comprovantes"] = "cupom.jpg"` passava a validação — o
+    # usuário digitava o nome do arquivo e o pedido seguia sem comprovante.
+    de_arquivo = {c["chave"] for c in item.campos if c.get("tipo") == TipoCampo.ARQUIVO}
+    anexados = anx.campos_com_arquivo(arquivos)
 
     if not item.ativo:
         impedimentos.append(Impedimento("item", "Este serviço não está disponível."))
@@ -166,12 +175,19 @@ def verificar(
         impedimentos.append(Impedimento("item", "Você não tem acesso a este serviço."))
 
     for chave in item.campos_obrigatorios:
+        rotulo = next(
+            (c.get("rotulo", chave) for c in item.campos if c["chave"] == chave), chave
+        )
+        if chave in de_arquivo:
+            if chave not in anexados:
+                impedimentos.append(Impedimento(chave, f"Anexe {rotulo.lower()}."))
+            continue
         valor_campo = dados.get(chave)
         if valor_campo is None or (isinstance(valor_campo, str) and not valor_campo.strip()):
-            rotulo = next(
-                (c.get("rotulo", chave) for c in item.campos if c["chave"] == chave), chave
-            )
             impedimentos.append(Impedimento(chave, f"{rotulo} é obrigatório."))
+
+    for recusa in anx.verificar_lote(arquivos):
+        impedimentos.append(Impedimento("anexos", f"{recusa.nome}: {recusa.motivo}"))
 
     if item.exige_valor and (valor is None or valor <= 0):
         impedimentos.append(Impedimento("valor", "Informe o valor."))
@@ -216,9 +232,12 @@ def solicitar(
     dados: dict | None = None,
     valor: Decimal | None = None,
     cache: dict | None = None,
+    arquivos: dict | None = None,
 ) -> SolicitacaoServico:
     """Cria o pedido e o roteia — auto-aprovado ou para a cadeia de aprovação."""
-    impedimentos = verificar(item, pessoa, dados, valor, cache=cache)
+    from workspace.services import anexos as anx
+
+    impedimentos = verificar(item, pessoa, dados, valor, cache=cache, arquivos=arquivos)
     if impedimentos:
         raise SolicitacaoError("; ".join(i.motivo for i in impedimentos))
 
@@ -236,6 +255,11 @@ def solicitar(
             SituacaoServico.APROVADA if auto else SituacaoServico.AGUARDANDO_APROVACAO
         ),
     )
+
+    # Antes de rotear: se o arquivo não gravar, a transação inteira volta e o
+    # pedido não existe. Aprovador recebendo reembolso sem comprovante porque o
+    # disco encheu é pior que o pedido não ter sido criado.
+    anx.guardar(solicitacao, arquivos, pessoa)
 
     if auto:
         # Automático não pode significar invisível: o compromisso é escriturado
@@ -276,6 +300,9 @@ def minhas(pessoa):
     return (
         SolicitacaoServico.objects.de(pessoa)
         .select_related("item", "aprovacao")
+        # `prefetch` e não N+1: a tela lista os anexos de cada linha, e sem isto
+        # uma pessoa com 30 pedidos faria 31 consultas só para os arquivos.
+        .prefetch_related("anexos")
         .order_by("-criado_em")
     )
 

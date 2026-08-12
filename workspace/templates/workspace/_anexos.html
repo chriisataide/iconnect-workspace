@@ -1,0 +1,23 @@
+{% load i18n %}
+{% comment %}
+  Lista de anexos. Um parcial só, usado na minha lista e no dossiê do aprovador
+  — anexo que aparece de um jeito para quem envia e de outro para quem aprova é
+  onde nasce a dúvida de "é o mesmo arquivo?".
+
+  O href aponta para a view que autoriza. Não existe `anexo.arquivo.url`: o
+  storage não tem `base_url`, justamente para que ninguém escreva isso por
+  distração.
+{% endcomment %}
+{% if anexos %}
+  <ul class="au-anexos">
+    {% for anexo in anexos %}
+      <li class="au-anexo">
+        <svg class="au-icon au-icon--mini" aria-hidden="true"><use href="#i-file"></use></svg>
+        <a class="au-anexo-nome" href="{% url 'workspace:baixar_anexo' anexo.pk %}">
+          {{ anexo.nome_original }}
+        </a>
+        <span class="au-anexo-meta">{{ anexo.tamanho_legivel }}</span>
+      </li>
+    {% endfor %}
+  </ul>
+{% endif %}

@@ -35,6 +35,7 @@
           <tr>
             <td>
               <span class="au-list-titulo">{{ s.item.nome }}</span>
+              {% include "workspace/_anexos.html" with anexos=s.anexos.all %}
               {% if s.motivo_devolucao %}
                 {% comment %}
                   Devolução sem motivo obriga o solicitante a adivinhar, e

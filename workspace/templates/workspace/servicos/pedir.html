@@ -16,7 +16,12 @@
 
 {% block corpo %}
 <div class="au-colunas au-colunas--assimetrica">
-  <form method="post" class="au-form" novalidate>
+  {% comment %}
+    `enctype` obrigatório: sem ele o navegador envia só os nomes dos arquivos e
+    `request.FILES` chega vazio — o formulário recusaria o anexo que o usuário
+    de fato escolheu, sem explicar por quê.
+  {% endcomment %}
+  <form method="post" class="au-form" enctype="multipart/form-data" novalidate>
     {% csrf_token %}
 
     {% if impedimentos %}
@@ -44,21 +49,30 @@
         {% elif campo.tipo == "numero" %}
           <input class="au-input" id="c-{{ campo.chave }}" name="{{ campo.chave }}"
                  type="number" inputmode="numeric" value="{{ campo.valor }}">
-        {% elif campo.tipo == "arquivo" %}
+        {% elif campo.e_arquivo %}
           {% comment %}
-            Upload real é ST-0xx (precisa de storage e antivírus). Aqui é o nome
-            do arquivo, para o fluxo fechar ponta a ponta sem prometer o que
-            ainda não existe.
+            `multiple` porque comprovante quase nunca é um só: a corrida de ida
+            e a de volta são dois cupons, e forçar um envio por vez faz a pessoa
+            juntar tudo num PDF ou desistir.
+
+            Sem `accept` restritivo no HTML de propósito — quem valida é o
+            servidor, com magic bytes. `accept` só guia o seletor de arquivos;
+            confiar nele seria validação do lado do cliente.
           {% endcomment %}
-          <input class="au-input" id="c-{{ campo.chave }}" name="{{ campo.chave }}"
-                 type="text" value="{{ campo.valor }}"
-                 placeholder="{% trans 'nome do arquivo (upload em breve)' %}">
+          <input class="au-input au-input--arquivo" id="c-{{ campo.chave }}"
+                 name="{{ campo.chave }}" type="file" multiple>
         {% else %}
           <input class="au-input" id="c-{{ campo.chave }}" name="{{ campo.chave }}"
                  type="text" value="{{ campo.valor }}">
         {% endif %}
 
         {% if campo.ajuda %}<p class="au-ajuda">{{ campo.ajuda }}</p>{% endif %}
+        {% if campo.e_arquivo %}
+          <p class="au-ajuda">
+            {% blocktrans %}JPG, PNG ou PDF · até 10 MB cada{% endblocktrans %}
+            · {% blocktrans count maximo=maximo_anexos %}no máximo {{ maximo }} arquivo{% plural %}no máximo {{ maximo }} arquivos{% endblocktrans %}
+          </p>
+        {% endif %}
         {% if campo.erro %}<p class="au-erro">{{ campo.erro }}</p>{% endif %}
       </div>
     {% endfor %}

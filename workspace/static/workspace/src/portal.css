@@ -959,6 +959,59 @@ body {
   font-weight: 550;
 }
 
+/* ── Anexos ────────────────────────────────────────────────────────
+   Nome do arquivo é link, e link com sublinhado: aqui o clique baixa
+   um arquivo, e afordância só no hover esconde a ação de quem navega
+   por teclado ou não passa o mouse antes de decidir. */
+.au-anexos { list-style: none; margin: var(--au-2) 0 0; padding: 0; }
+.au-anexo {
+  display: flex; align-items: center; gap: var(--au-2);
+  padding: 2px 0;
+  font-size: var(--au-t-sm);
+}
+.au-anexo > .au-icon { color: var(--au-text-subtle); flex: none; }
+.au-anexo-nome {
+  color: var(--au-accent-text);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  /* Nome longo não empurra o tamanho para fora do card. */
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.au-anexo-nome:hover { color: var(--au-accent); }
+.au-anexo-meta {
+  flex: none;
+  font-size: var(--au-t-xs);
+  color: var(--au-text-subtle);
+  font-variant-numeric: tabular-nums;
+}
+
+.au-dossie-anexos { margin-top: var(--au-3); }
+.au-dossie-rotulo {
+  margin: 0;
+  font-size: var(--au-t-2xs); font-weight: 700;
+  letter-spacing: .07em; text-transform: uppercase;
+  color: var(--au-text-subtle);
+}
+
+/* `type=file` não aceita a mesma pintura de um input de texto — o botão
+   interno é desenhado pelo navegador. Padroniza só o que é padronizável. */
+.au-input--arquivo {
+  padding: var(--au-2);
+  font-size: var(--au-t-sm);
+  cursor: pointer;
+}
+.au-input--arquivo::file-selector-button {
+  margin-right: var(--au-3);
+  padding: 6px var(--au-3);
+  border: 1px solid var(--au-border-strong);
+  border-radius: var(--au-r-sm);
+  background: var(--au-surface);
+  color: var(--au-text);
+  font: inherit; font-weight: 550;
+  cursor: pointer;
+}
+.au-input--arquivo::file-selector-button:hover { background: var(--au-surface-sunken); }
+
 .au-bandeja-cadeia {
   display: flex; align-items: center; gap: var(--au-1);
   margin: var(--au-3) 0 0;
