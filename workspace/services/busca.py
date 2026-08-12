@@ -99,5 +99,8 @@ def _url_do_app(spec) -> str:
     if spec.url_name:
         from django.urls import reverse
 
-        return reverse(spec.url_name)
+        # `args` porque a página de módulo é uma rota parametrizada pela chave.
+        # Sem eles, buscar "RH" estourava NoReverseMatch e derrubava a busca
+        # inteira — não só o resultado do módulo.
+        return reverse(spec.url_name, args=spec.url_args)
     return ""

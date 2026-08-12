@@ -19,7 +19,7 @@ from dataclasses import dataclass
 from decimal import Decimal
 from statistics import median
 
-from django.db import transaction
+from django.db import models, transaction
 
 from identidade.models import Lotacao
 from identidade.services.autorizacao import pode
@@ -87,6 +87,36 @@ def agrupado_para(pessoa, cache: dict | None = None) -> dict[str, list[ItemCatal
         if itens:
             agrupado[grupo.label] = itens
     return agrupado
+
+
+def q_dominios(prefixos, campo: str = "dominio") -> models.Q:
+    """`Q` que casa qualquer um dos prefixos de domínio.
+
+    Prefixo e não igualdade: o domínio é hierárquico (`rh.ferias`,
+    `rh.ausencia`), e casar valor exato faria cada item novo nascer órfão do
+    seu módulo.
+
+    `campo` permite atravessar a FK (`item__dominio`) sem duplicar a função.
+    """
+    consulta = models.Q()
+    for prefixo in prefixos:
+        consulta |= models.Q(**{f"{campo}__startswith": prefixo})
+    return consulta
+
+
+def do_modulo(prefixos) -> list[ItemCatalogo]:
+    """A vitrine de um módulo — os serviços que aquele departamento atende.
+
+    SEM filtro de permissão, de propósito, e é a diferença para
+    `catalogo_para()`: o Portal é aberto a quem está na rede da empresa, e
+    listar o que um departamento atende é informação, não ação. Quem pode de
+    fato PEDIR continua sendo decidido por `catalogo_para()` — a tela marca os
+    itens fora do alcance em vez de escondê-los, porque saber que o serviço
+    existe é justamente o que faz a pessoa parar de mandar e-mail.
+    """
+    if not prefixos:
+        return []
+    return list(ItemCatalogo.objects.filter(q_dominios(prefixos), ativo=True))
 
 
 def prazo_medido(item: ItemCatalogo) -> tuple[int, bool]:
@@ -248,6 +278,13 @@ def minhas(pessoa):
         .select_related("item", "aprovacao")
         .order_by("-criado_em")
     )
+
+
+def minhas_do_modulo(pessoa, prefixos):
+    """Os pedidos da pessoa dentro da fatia de um módulo, abertos primeiro."""
+    if not prefixos:
+        return SolicitacaoServico.objects.none()
+    return minhas(pessoa).filter(q_dominios(prefixos, campo="item__dominio"))
 
 
 @transaction.atomic

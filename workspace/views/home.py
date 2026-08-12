@@ -22,6 +22,7 @@ from django.utils import formats, timezone
 
 from workspace.launcher import AppSpec, apps_disponiveis
 from workspace.models import Publicacao, TipoPublicacao
+from workspace.models.catalogo import ItemCatalogo
 
 LIMITE_CARD = 4
 
@@ -60,6 +61,11 @@ def home(request: HttpRequest) -> HttpResponse:
             "nome": _primeiro_nome(request) if autenticado else "",
             "hoje": _hoje(),
             "apps": [_para_tela(spec) for spec in apps_disponiveis(pessoa)],
+            # O total do catálogo é a promessa concreta do card "Pedir um
+            # serviço" — "19 serviços" convence a clicar; "peça o que precisa"
+            # não. Sem filtro por permissão de propósito: é a home pública, e
+            # aqui o número é informação, não lista de ações.
+            "total_servicos": ItemCatalogo.objects.filter(ativo=True).count(),
             "comunicados": publicadas.do_tipo(TipoPublicacao.COMUNICADO)[:LIMITE_CARD],
             "noticias": publicadas.do_tipo(TipoPublicacao.NOTICIA)[:LIMITE_CARD],
         },
@@ -76,7 +82,8 @@ def _para_tela(spec: AppSpec) -> AppNaTela:
         cor_bg=spec.cor_bg,
         disponivel=spec.disponivel,
         destaque=spec.destaque,
-        destino=spec.url_direta or (reverse(spec.url_name) if spec.url_name else ""),
+        destino=spec.url_direta
+        or (reverse(spec.url_name, args=spec.url_args) if spec.url_name else ""),
     )
 
 

@@ -15,6 +15,12 @@ urlpatterns = [
     path("", views.home, name="home"),
     path("buscar/", views.buscar_view, name="buscar"),
     path("publicacao/<int:pk>/", views.publicacao_detalhe, name="publicacao_detalhe"),
+    # Módulos — o destino dos tiles da home. Públicos como o hub.
+    #
+    # Prefixo `m/` e não `<slug:chave>/` na raiz: sem ele, um módulo chamado
+    # "buscar" ou "servicos" sequestraria uma rota existente, e o erro só
+    # apareceria no dia em que alguém acrescentasse a chave errada.
+    path("m/<slug:chave>/", views.modulo, name="modulo"),
     # Serviços — área pessoal
     path("servicos/", views.catalogo, name="servicos"),
     path("servicos/<slug:chave>/", views.pedir, name="pedir"),

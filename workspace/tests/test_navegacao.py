@@ -1,0 +1,191 @@
+"""Navegação do Portal — todo destino tem porta, toda porta tem destino.
+
+Estes testes existem por causa de um bug de arquitetura de informação que
+nenhuma suíte pegava: a home tinha dez tiles e nove não levavam a lugar nenhum,
+enquanto o catálogo — a única área real — não tinha porta na home. Cada tela
+passava no seu teste isoladamente; o que ninguém verificava era o grafo.
+"""
+
+from __future__ import annotations
+
+import re
+
+import pytest
+from django.contrib.auth import get_user_model
+from django.urls import reverse
+
+from workspace.launcher import catalogo_semente
+from workspace.modulos import MODULOS
+from workspace.models.catalogo import GrupoCatalogo, ItemCatalogo
+
+pytestmark = pytest.mark.django_db
+
+
+@pytest.fixture
+def pessoa(db):
+    return get_user_model().objects.create_user("ana", password="x")
+
+
+def _href(html: str) -> set[str]:
+    return set(re.findall(r'href="([^"]+)"', html))
+
+
+# ── O grafo ─────────────────────────────────────────────────────────
+
+
+def test_home_leva_a_area_pessoal():
+    """A porta que faltava: catálogo e solicitações alcançáveis pela home."""
+    from django.test import Client
+
+    corpo = Client().get(reverse("workspace:home")).content.decode()
+    links = _href(corpo)
+
+    assert reverse("workspace:servicos") in links
+    assert reverse("workspace:minhas_solicitacoes") in links
+
+
+def test_todo_tile_disponivel_leva_a_pagina_que_responde(client):
+    """Tile clicável tem de abrir algo. Tile 'em breve' não é clicável."""
+    corpo = client.get(reverse("workspace:home")).content.decode()
+
+    for spec in catalogo_semente():
+        if not spec.disponivel:
+            continue
+        if spec.url_direta:  # iConnect sai do Portal — não é nossa rota
+            continue
+        destino = reverse(spec.url_name, args=spec.url_args)
+        assert destino in _href(corpo), f"tile {spec.chave} não está na home"
+        assert client.get(destino).status_code == 200, f"{destino} não responde"
+
+
+def test_modulo_com_catalogo_tem_tile_e_pagina():
+    """Registro de módulos e launcher não podem divergir."""
+    tiles = {s.chave: s for s in catalogo_semente()}
+
+    for modulo in MODULOS:
+        spec = tiles.get(modulo.chave)
+        assert spec is not None, f"módulo {modulo.chave} sem tile na home"
+        assert spec.disponivel is modulo.tem_catalogo
+
+
+def test_modulo_sem_catalogo_nao_abre_pagina(client):
+    """Documentação não tem o que mostrar — 404 em vez de tela vazia."""
+    sem_catalogo = [m for m in MODULOS if not m.tem_catalogo]
+    assert sem_catalogo, "o teste perde o sentido se todo módulo tiver catálogo"
+
+    for modulo in sem_catalogo:
+        resposta = client.get(reverse("workspace:modulo", args=(modulo.chave,)))
+        assert resposta.status_code == 404
+
+
+def test_modulo_inexistente_da_404(client):
+    assert client.get("/workspace/m/inventado/").status_code == 404
+
+
+# ── A página de módulo ──────────────────────────────────────────────
+
+
+@pytest.fixture
+def item_rh(db):
+    return ItemCatalogo.objects.create(
+        chave="ferias",
+        nome="Férias",
+        descricao_curta="Programe suas férias",
+        grupo=GrupoCatalogo.TRABALHO,
+        dominio="rh.ferias",
+        prazo_prometido_dias=10,
+    )
+
+
+def test_modulo_e_publico(client, item_rh):
+    """O Portal é aberto a quem está na rede — a vitrine não pede senha."""
+    resposta = client.get(reverse("workspace:modulo", args=("rh",)))
+
+    assert resposta.status_code == 200
+    corpo = resposta.content.decode()
+    assert "Férias" in corpo
+    assert "/login" not in resposta.get("Location", "")
+
+
+def test_modulo_mostra_so_a_propria_fatia(client, item_rh):
+    ItemCatalogo.objects.create(
+        chave="reembolso",
+        nome="Reembolso",
+        grupo=GrupoCatalogo.DINHEIRO,
+        dominio="fin.reembolso",
+    )
+
+    corpo = client.get(reverse("workspace:modulo", args=("rh",))).content.decode()
+
+    assert "Férias" in corpo
+    assert "Reembolso" not in corpo
+
+
+def test_anonimo_ve_o_item_mas_nao_o_link_de_pedir(client, item_rh):
+    """Ver que o serviço existe é o que faz a pessoa parar de mandar e-mail."""
+    corpo = client.get(reverse("workspace:modulo", args=("rh",))).content.decode()
+
+    assert "Férias" in corpo
+    assert reverse("workspace:pedir", args=("ferias",)) not in _href(corpo)
+
+
+def test_autenticado_pode_pedir_direto_do_modulo(client, pessoa, item_rh):
+    client.force_login(pessoa)
+
+    corpo = client.get(reverse("workspace:modulo", args=("rh",))).content.decode()
+
+    assert reverse("workspace:pedir", args=("ferias",)) in _href(corpo)
+
+
+def test_modulo_lista_os_pedidos_da_pessoa_naquela_fatia(client, pessoa, item_rh):
+    from workspace.models.catalogo import SolicitacaoServico
+
+    outro = ItemCatalogo.objects.create(
+        chave="reembolso", nome="Reembolso", grupo=GrupoCatalogo.DINHEIRO,
+        dominio="fin.reembolso",
+    )
+    SolicitacaoServico.objects.create(item=item_rh, solicitante=pessoa)
+    SolicitacaoServico.objects.create(item=outro, solicitante=pessoa)
+
+    client.force_login(pessoa)
+    corpo = client.get(reverse("workspace:modulo", args=("rh",))).content.decode()
+
+    assert "Seus pedidos neste módulo" in corpo
+    assert corpo.count("Reembolso") == 0
+
+
+def test_pedido_de_outra_pessoa_nao_aparece(client, pessoa, item_rh):
+    from workspace.models.catalogo import SolicitacaoServico
+
+    alheio = get_user_model().objects.create_user("bruno", password="x")
+    SolicitacaoServico.objects.create(item=item_rh, solicitante=alheio)
+
+    client.force_login(pessoa)
+    corpo = client.get(reverse("workspace:modulo", args=("rh",))).content.decode()
+
+    assert "Você ainda não pediu nada aqui." in corpo
+
+
+# ── Regressões de renderização ──────────────────────────────────────
+
+
+def test_modulo_sem_estilo_inline(client, item_rh):
+    """A CSP de produção traz nonce em `style-src`, o que faz o navegador
+    ignorar `unsafe-inline` — e nonce não se aplica a atributo `style`."""
+    corpo = client.get(reverse("workspace:modulo", args=("rh",))).content.decode()
+
+    assert "style=" not in corpo
+
+
+def test_icone_do_modulo_existe_no_sprite(client, item_rh):
+    """`<use href="#i-x">` para um símbolo inexistente não desenha nada e não
+    dá erro — some em silêncio, que é o pior modo de falhar."""
+    from pathlib import Path
+
+    from django.conf import settings
+
+    sprite = Path(settings.BASE_DIR) / "workspace/templates/workspace/_icones.html"
+    disponiveis = set(re.findall(r'id="i-([a-z-]+)"', sprite.read_text()))
+
+    for modulo in MODULOS:
+        assert modulo.icone in disponiveis, f"{modulo.chave} usa ícone inexistente"

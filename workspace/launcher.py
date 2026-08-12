@@ -32,6 +32,10 @@ class AppSpec:
     # `None` = sistema ainda não existe. O tile aparece marcado "em breve",
     # em vez de sumir: o Portal comunica o roadmap, não esconde.
     url_name: str | None = None
+    # Argumentos posicionais do `reverse()`. Existe porque a página de módulo é
+    # uma rota só, parametrizada pela chave (`workspace:modulo` + `("rh",)`) —
+    # sem isto, cada módulo precisaria da sua própria entrada em `urls.py`.
+    url_args: tuple = ()
     url_direta: str | None = None
     # `None` = visível para todos, inclusive anônimo. Quando IDN existir
     # (ST-014), o Portal filtra com pode(pessoa, permissao).
@@ -105,11 +109,30 @@ def limpar() -> None:
 def catalogo_semente() -> list[AppSpec]:
     """Os destinos do diagrama do Portal.
 
-    `iconnect` é o único com destino real hoje: leva ao login do sistema
-    principal. Os outros são declarados como "em breve" de propósito — o
-    Portal mostra para onde a empresa está indo.
+    Os tiles de departamento são derivados de `workspace.modulos.MODULOS` e não
+    escritos à mão aqui: o tile e a página do módulo têm de ser a mesma verdade,
+    senão volta o bug que este arquivo já teve — mapa que não leva a lugar
+    nenhum. Módulo sem fatia de catálogo continua "em breve".
+
+    `iconnect` é o único destino externo: leva ao login do sistema principal.
+    `helpdesk` fica sem página de propósito — chamado se abre no iConnect.
     """
-    return [
+    from workspace.modulos import MODULOS
+
+    modulos = [
+        AppSpec(
+            chave=modulo.chave,
+            nome=modulo.nome,
+            descricao=modulo.descricao,
+            icone=modulo.icone,
+            url_name="workspace:modulo" if modulo.tem_catalogo else None,
+            url_args=(modulo.chave,) if modulo.tem_catalogo else (),
+            ordem=modulo.ordem,
+        )
+        for modulo in MODULOS
+    ]
+
+    return modulos + [
         AppSpec(
             chave="iconnect",
             nome="iConnect",
@@ -127,44 +150,6 @@ def catalogo_semente() -> list[AppSpec]:
             descricao="Abertura e acompanhamento de chamados",
             icone="ticket",
             ordem=20,
-        ),
-        AppSpec(chave="rh", nome="RH", descricao="Holerite, férias, benefícios", icone="users", ordem=30),
-        AppSpec(
-            chave="financeiro",
-            nome="Financeiro",
-            descricao="Reembolsos, notas, aprovações",
-            icone="wallet",
-            ordem=40,
-        ),
-        AppSpec(
-            chave="operacoes",
-            nome="Operações",
-            descricao="Ordens de serviço, escala, SLA",
-            icone="activity",
-            ordem=50,
-        ),
-        AppSpec(
-            chave="logistica",
-            nome="Logística",
-            descricao="Estoque, remessas e materiais",
-            icone="truck",
-            ordem=60,
-        ),
-        AppSpec(chave="redes", nome="Redes", descricao="Links, VPN e conectividade", icone="globe", ordem=70),
-        AppSpec(chave="compras", nome="Compras", descricao="Requisições e fornecedores", icone="cart", ordem=80),
-        AppSpec(
-            chave="universidade",
-            nome="Universidade",
-            descricao="Trilhas, cursos e certificações",
-            icone="book",
-            ordem=90,
-        ),
-        AppSpec(
-            chave="documentacao",
-            nome="Documentação",
-            descricao="POP, políticas, normas e manuais",
-            icone="file",
-            ordem=100,
         ),
     ]
 

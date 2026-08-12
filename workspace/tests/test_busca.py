@@ -58,8 +58,10 @@ def test_busca_sem_acento_encontra_com_acento():
 
 @pytest.mark.django_db
 def test_app_em_breve_aparece_marcado_como_indisponivel():
-    rh = next(r for r in buscar("holerite")["Aplicativos"] if r.titulo == "RH")
-    assert not rh.disponivel
+    # Documentação e não RH: o RH ganhou página quando os tiles viraram
+    # destinos reais. Documentação segue sem nada a mostrar.
+    doc = next(r for r in buscar("POP")["Aplicativos"] if r.titulo == "Documentação")
+    assert not doc.disponivel
 
 
 @pytest.mark.django_db
@@ -184,5 +186,13 @@ def test_resultado_de_app_com_url_name_e_resolvido():
 
 @pytest.mark.django_db
 def test_resultado_de_app_em_breve_nao_tem_url():
+    doc = next(r for r in buscar("POP")["Aplicativos"] if r.titulo == "Documentação")
+    assert doc.url == ""
+
+
+@pytest.mark.django_db
+def test_resultado_de_modulo_pronto_leva_a_pagina():
+    """A busca resolve a rota parametrizada. Sem `args` no `reverse`, buscar
+    "RH" estourava NoReverseMatch e derrubava a busca inteira."""
     rh = next(r for r in buscar("holerite")["Aplicativos"] if r.titulo == "RH")
-    assert rh.url == ""
+    assert rh.url == "/workspace/m/rh/"

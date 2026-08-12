@@ -1001,7 +1001,50 @@ body {
   color: var(--au-text-muted);
 }
 
+/* Faixa de contexto no topo de uma tela — não confundir com `.au-lote-barra`,
+   que é fixa no rodapé da viewport. Esta rola com o conteúdo.
+
+   Existia só a variante `--alerta`, sem regra base: a faixa de devolvidas do
+   catálogo renderizava como texto solto com fundo âmbar. */
+.au-faixa {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: var(--au-4); flex-wrap: wrap;
+  margin-bottom: var(--au-5);
+  padding: var(--au-3) var(--au-4);
+  background: var(--au-surface-sunken);
+  border: 1px solid var(--au-border);
+  border-radius: var(--au-r-md);
+  font-size: var(--au-t-base);
+  color: var(--au-text-muted);
+}
+
+.au-faixa-texto { min-width: 0; }
+
 .au-faixa--alerta { background: var(--au-warning-bg); border-color: transparent; }
+
+/* Três colunas fixas para a banda "Meu trabalho": são 2 ou 3 cards, e o
+   `auto-fill` da grade padrão espalharia 3 cards em 6 colunas estreitas numa
+   tela larga. */
+.au-grade--tercos { grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); }
+
+/* Selo com número — contraste maior que o selo de texto, porque aqui o número
+   é a informação, não um rótulo secundário. */
+.au-selo--contagem {
+  color: var(--au-accent-text);
+  background: var(--au-accent-bg);
+  font-variant-numeric: tabular-nums;
+}
+
+.au-selo--alerta {
+  color: var(--au-danger-text);
+  background: var(--au-danger-bg);
+  font-variant-numeric: tabular-nums;
+}
+
+.au-secao-rodape {
+  margin-top: var(--au-3);
+  font-size: var(--au-t-base);
+}
 
 /* ── Responsivo do módulo ───────────────────────────────────── */
 

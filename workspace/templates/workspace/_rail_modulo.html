@@ -1,0 +1,30 @@
+{% load i18n %}
+{% comment %}
+  Rail do módulo. Não lista os outros módulos: para trocar de departamento
+  existe o Portal no breadcrumb e a logo. Rail que repete a home vira um segundo
+  menu principal, e dois menus principais é a forma mais rápida de o usuário
+  parar de confiar em qualquer um dos dois.
+{% endcomment %}
+<p class="au-rail-grupo">{{ modulo.nome }}</p>
+<a class="au-rail-item au-rail-item--ativo" href="{% url 'workspace:modulo' modulo.chave %}">
+  <svg class="au-icon" aria-hidden="true"><use href="#i-{{ modulo.icone }}"></use></svg>
+  {% trans "Visão geral" %}
+</a>
+
+<p class="au-rail-grupo">{% trans "Autoatendimento" %}</p>
+<a class="au-rail-item" href="{% url 'workspace:servicos' %}">
+  <svg class="au-icon" aria-hidden="true"><use href="#i-grid"></use></svg>
+  {% trans "Todos os serviços" %}
+</a>
+<a class="au-rail-item" href="{% url 'workspace:minhas_solicitacoes' %}">
+  <svg class="au-icon" aria-hidden="true"><use href="#i-file"></use></svg>
+  {% trans "Minhas solicitações" %}
+  {% if abertas %}<span class="au-rail-contagem">{{ abertas }}</span>{% endif %}
+</a>
+{% if pendentes_aprovacao %}
+  <a class="au-rail-item" href="{% url 'workspace:aprovacoes' %}">
+    <svg class="au-icon" aria-hidden="true"><use href="#i-check"></use></svg>
+    {% trans "Aprovar" %}
+    <span class="au-rail-contagem au-rail-contagem--alerta">{{ pendentes_aprovacao }}</span>
+  </a>
+{% endif %}

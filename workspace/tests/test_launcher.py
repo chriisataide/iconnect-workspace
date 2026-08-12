@@ -26,9 +26,20 @@ def test_semente_traz_os_dez_destinos_do_diagrama():
     }
 
 
-def test_apenas_o_iconnect_tem_destino_hoje():
-    disponiveis = [s.chave for s in launcher.catalogo_semente() if s.disponivel]
-    assert disponiveis == ["iconnect"]
+def test_iconnect_e_o_unico_destino_fora_do_portal():
+    """Um caminho só para o sistema principal.
+
+    Antes existiam três (topbar, tile, faixa), o que faz o usuário hesitar
+    sobre se levam ao mesmo lugar. Os demais destinos são rotas internas.
+    """
+    externos = [s.chave for s in launcher.catalogo_semente() if s.url_direta]
+    assert externos == ["iconnect"]
+
+
+def test_helpdesk_nao_ganha_pagina_no_portal():
+    """Chamado se abre no iConnect — duplicar aqui criaria uma segunda fila."""
+    helpdesk = next(s for s in launcher.catalogo_semente() if s.chave == "helpdesk")
+    assert not helpdesk.disponivel
 
 
 def test_disponivel_reflete_ter_destino():

@@ -77,11 +77,23 @@ def test_os_dez_destinos_do_diagrama_aparecem(client):
 def test_sistema_inexistente_aparece_como_em_breve(client):
     """Não esconder o que não existe — o Portal comunica o roadmap."""
     resposta = client.get(reverse("workspace:home"))
+    # `documentacao` e não `rh`: o RH passou a ter página quando os tiles
+    # viraram destinos reais. Documentação segue sem nada a mostrar — não se
+    # "pede" um POP —, e é o caso honesto de roadmap visível.
+    doc = next(a for a in resposta.context["apps"] if a.chave == "documentacao")
+
+    assert not doc.disponivel
+    assert doc.destino == ""
+    assert "Em breve" in resposta.content.decode()
+
+
+@pytest.mark.django_db
+def test_tile_de_modulo_pronto_leva_a_pagina(client):
+    resposta = client.get(reverse("workspace:home"))
     rh = next(a for a in resposta.context["apps"] if a.chave == "rh")
 
-    assert not rh.disponivel
-    assert rh.destino == ""
-    assert "Em breve" in resposta.content.decode()
+    assert rh.disponivel
+    assert rh.destino == reverse("workspace:modulo", args=("rh",))
 
 
 # ── Personalização progressiva ───────────────────────────────────
