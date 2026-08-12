@@ -45,7 +45,25 @@ from workspace.models.aprovacao import (
 #     handler(sender, solicitacao, decisao, quem, **kwargs)
 aprovacao_decidida = Signal()
 
+# Emitido quando uma etapa PASSA A SER a da vez — na criação da cadeia e depois
+# de cada aprovação que não encerra o pedido.
+#
+#     vez_de.connect(handler, sender=None)
+#     handler(sender, solicitacao, etapa, **kwargs)
+#
+# Sinal e não chamada direta: sem ele, `criar()` e `decidir()` precisariam
+# conhecer o serviço de notificação, e o motor de aprovação passaria a ter opinião
+# sobre como avisar as pessoas — que é assunto da superfície, não dele.
+vez_de = Signal()
+
 PERMISSAO_APROVAR = "apr.aprovar"
+
+
+def _anunciar_vez(solicitacao) -> None:
+    """Avisa quem tem a etapa da vez, se houver."""
+    etapa = solicitacao.etapa_atual
+    if etapa is not None:
+        vez_de.send(sender=None, solicitacao=solicitacao, etapa=etapa)
 
 
 class AprovacaoError(Exception):
@@ -167,6 +185,9 @@ def criar(
         )
 
     _concluir_se_nao_ha_pendencia(solicitacao, quem=None)
+    solicitacao.refresh_from_db()
+    if solicitacao.situacao == SituacaoSolicitacao.AGUARDANDO:
+        _anunciar_vez(solicitacao)
     return solicitacao
 
 
@@ -315,6 +336,11 @@ def decidir(
         _concluir_se_nao_ha_pendencia(solicitacao, quem)
 
     solicitacao.refresh_from_db()
+    if solicitacao.situacao == SituacaoSolicitacao.AGUARDANDO:
+        # A cadeia andou: o próximo degrau precisa saber que chegou a vez dele.
+        # Sem isto, o aprovador descobre abrindo a tela — e é assim que um pedido
+        # fica cinco dias parado sem ninguém ter culpa.
+        _anunciar_vez(solicitacao)
     return solicitacao
 
 

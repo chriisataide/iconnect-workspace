@@ -1,0 +1,72 @@
+{% extends "workspace/_shell_modulo.html" %}
+{% load i18n wks %}
+
+{% block titulo %}{% trans "Notificações" %}{% endblock %}
+
+{% block rail %}{% include "workspace/_rail_servicos.html" with aba="notificacoes" %}{% endblock %}
+{% block trilha %}<span>{% trans "Notificações" %}</span>{% endblock %}
+{% block pagina_titulo %}{% trans "Notificações" %}{% endblock %}
+
+{% block pagina_descricao %}
+  <p class="au-pagina-desc">
+    {% if nao_lidas %}
+      {% blocktrans count n=nao_lidas %}{{ n }} não lida.{% plural %}{{ n }} não lidas.{% endblocktrans %}
+    {% else %}
+      {% trans "Tudo lido." %}
+    {% endif %}
+    {% trans "O que exige ação fica em" %} <a href="{% url 'workspace:meu_dia' %}">{% trans "Meu dia" %}</a>.
+  </p>
+{% endblock %}
+
+{% block corpo %}
+{% if notificacoes %}
+  {% if nao_lidas %}
+    {% comment %}
+      Marcação explícita, não automática ao abrir a tela. Marcar tudo na abertura
+      faz a pessoa perder o aviso que ela ainda não leu: entrou para ver um item
+      e apagou o rastro dos outros.
+    {% endcomment %}
+    <form class="au-form-linha" method="post" action="{% url 'workspace:marcar_lidas' %}">
+      {% csrf_token %}
+      <button class="au-btn au-btn--sutil au-btn--pequeno" type="submit">
+        <svg class="au-icon au-icon--mini" aria-hidden="true"><use href="#i-check"></use></svg>
+        {% trans "Marcar todas como lidas" %}
+      </button>
+    </form>
+  {% endif %}
+
+  <ul class="au-notifs">
+    {% for n in notificacoes %}
+      <li class="au-notif {% if not n.lida %}au-notif--nova{% endif %}">
+        <span class="au-notif-marca" aria-hidden="true"></span>
+        <div class="au-notif-corpo">
+          {% if n.url %}
+            <a class="au-notif-titulo" href="{{ n.url }}">{{ n.titulo }}</a>
+          {% else %}
+            <span class="au-notif-titulo">{{ n.titulo }}</span>
+          {% endif %}
+          {% if n.corpo %}<span class="au-notif-texto">{{ n.corpo }}</span>{% endif %}
+        </div>
+        <time class="au-notif-quando" datetime="{{ n.criado_em|date:'c' }}">
+          {{ n.criado_em|date:"d/m H:i" }}
+        </time>
+      </li>
+    {% endfor %}
+  </ul>
+
+  {% if truncado %}
+    <p class="au-ajuda">
+      {% blocktrans %}Mostrando as mais recentes. O histórico completo não é paginado nesta
+      versão.{% endblocktrans %}
+    </p>
+  {% endif %}
+{% else %}
+  <div class="au-vazio">
+    <p class="au-vazio-titulo">{% trans "Nenhuma notificação." %}</p>
+    <p class="au-vazio-dica">
+      {% blocktrans %}Você é avisado quando um pedido seu é decidido e quando chega sua vez
+      de aprovar.{% endblocktrans %}
+    </p>
+  </div>
+{% endif %}
+{% endblock %}

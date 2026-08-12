@@ -1,4 +1,21 @@
 {% load i18n %}
+{% comment %}
+  "Meu dia" é o primeiro item porque é a resposta à pergunta com que a pessoa
+  chega. Catálogo e Minhas solicitações são o que ela faz depois de saber.
+{% endcomment %}
+<p class="au-rail-grupo">{% trans "Hoje" %}</p>
+<a class="au-rail-item {% if aba == 'meu_dia' %}au-rail-item--ativo{% endif %}"
+   href="{% url 'workspace:meu_dia' %}">
+  <svg class="au-icon" aria-hidden="true"><use href="#i-spark"></use></svg>
+  {% trans "Meu dia" %}
+</a>
+<a class="au-rail-item {% if aba == 'notificacoes' %}au-rail-item--ativo{% endif %}"
+   href="{% url 'workspace:notificacoes' %}">
+  <svg class="au-icon" aria-hidden="true"><use href="#i-sino"></use></svg>
+  {% trans "Notificações" %}
+  {% if nao_lidas %}<span class="au-rail-contagem au-rail-contagem--alerta">{{ nao_lidas }}</span>{% endif %}
+</a>
+
 <p class="au-rail-grupo">{% trans "Pedir" %}</p>
 <a class="au-rail-item {% if aba == 'catalogo' %}au-rail-item--ativo{% endif %}"
    href="{% url 'workspace:servicos' %}">

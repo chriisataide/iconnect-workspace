@@ -23,6 +23,7 @@ def rail(request: HttpRequest) -> dict:
 
     from workspace.models.catalogo import SolicitacaoServico
     from workspace.services import aprovacao as apr
+    from workspace.services import notificacoes as nt
 
     if not hasattr(request, "perm_cache"):
         request.perm_cache = {}
@@ -34,4 +35,7 @@ def rail(request: HttpRequest) -> dict:
         "pendentes_aprovacao": apr.pendentes_para(
             request.user, cache=request.perm_cache
         ).count(),
+        # O sino está na casca, então o número tem de vir daqui. É um `COUNT`
+        # sobre índice parcial (`wks_notif_sino_idx`), não uma listagem.
+        "nao_lidas": nt.quantas_nao_lidas(request.user),
     }

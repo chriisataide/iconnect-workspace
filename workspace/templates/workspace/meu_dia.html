@@ -1,0 +1,92 @@
+{% extends "workspace/_shell_modulo.html" %}
+{% load i18n wks %}
+
+{% block titulo %}{% trans "Meu dia" %}{% endblock %}
+
+{% block rail %}{% include "workspace/_rail_servicos.html" with aba="meu_dia" %}{% endblock %}
+{% block trilha %}<span>{% trans "Meu dia" %}</span>{% endblock %}
+{% block pagina_titulo %}{% trans "Meu dia" %}{% endblock %}
+
+{% block pagina_descricao %}
+  {% if vazio %}
+    <p class="au-pagina-desc">{% trans "Nada exige você agora." %}</p>
+  {% else %}
+    <p class="au-pagina-desc">
+      {% blocktrans count total=total %}{{ total }} item exige você.{% plural %}{{ total }} itens exigem você.{% endblocktrans %}
+      {% if urgentes %}
+        <strong>{% blocktrans count u=urgentes %}{{ u }} não pode esperar.{% plural %}{{ u }} não podem esperar.{% endblocktrans %}</strong>
+      {% endif %}
+    </p>
+  {% endif %}
+{% endblock %}
+
+{% block corpo %}
+{% if vazio %}
+  {% comment %}
+    ADR-012 · nenhum widget nasce vazio. Aqui a tela inteira pode estar vazia, e
+    isso é uma boa notícia — então ela é dita como boa notícia, não como falta de
+    dado. "Nenhum registro encontrado" transformaria um dia limpo em erro.
+  {% endcomment %}
+  <div class="au-vazio">
+    <p class="au-vazio-titulo">{% trans "Seu dia está limpo." %}</p>
+    <p class="au-vazio-dica">
+      {% blocktrans %}Nenhuma aprovação esperando, nenhum pedido devolvido, nada fora do
+      prazo. Quando algo precisar de você, aparece aqui.{% endblocktrans %}
+    </p>
+    <p><a class="au-btn au-btn--primario" href="{% url 'workspace:servicos' %}">
+      {% trans "Pedir um serviço" %}
+    </a></p>
+  </div>
+{% else %}
+  <div class="au-dia">
+    {% for bloco in blocos %}
+      <section class="au-dia-bloco {% if bloco.urgente %}au-dia-bloco--urgente{% endif %}">
+        <header class="au-dia-cabeca">
+          <span class="au-dia-icone">
+            <svg class="au-icon" aria-hidden="true"><use href="#i-{{ bloco.icone }}"></use></svg>
+          </span>
+          <h2 class="au-dia-titulo">{{ bloco.titulo }}</h2>
+          <span class="au-dia-contagem">{{ bloco.total }}</span>
+          {% if bloco.resumo %}<span class="au-dia-resumo">{{ bloco.resumo }}</span>{% endif %}
+        </header>
+
+        <ul class="au-dia-itens">
+          {% for item in bloco.itens %}
+            <li class="au-dia-item">
+              {% if item.url %}
+                <a class="au-dia-link" href="{{ item.url }}">{{ item.titulo }}</a>
+              {% else %}
+                <span class="au-dia-link">{{ item.titulo }}</span>
+              {% endif %}
+              {% if item.subtitulo %}
+                <span class="au-dia-sub">{{ item.subtitulo }}</span>
+              {% endif %}
+              <span class="au-dia-meta">
+                {% if item.etiqueta %}
+                  <span class="au-etiqueta au-etiqueta--{{ item.etiqueta }}">{{ item.etiqueta }}</span>
+                {% endif %}
+                {% if item.dias %}
+                  {% blocktrans count d=item.dias %}há {{ d }} dia{% plural %}há {{ d }} dias{% endblocktrans %}
+                {% endif %}
+              </span>
+            </li>
+          {% endfor %}
+        </ul>
+
+        {% if bloco.excedente or bloco.url %}
+          <footer class="au-dia-rodape">
+            {% if bloco.excedente %}
+              <span class="au-dia-excedente">
+                {% blocktrans count e=bloco.excedente %}e mais {{ e }}{% plural %}e mais {{ e }}{% endblocktrans %}
+              </span>
+            {% endif %}
+            {% if bloco.url %}
+              <a href="{{ bloco.url }}">{{ bloco.rotulo_url|default:_("Ver tudo") }}</a>
+            {% endif %}
+          </footer>
+        {% endif %}
+      </section>
+    {% endfor %}
+  </div>
+{% endif %}
+{% endblock %}

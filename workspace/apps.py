@@ -24,3 +24,9 @@ class WorkspaceConfig(AppConfig):
         from .services.catalogo import conectar as conectar_catalogo
 
         conectar_catalogo()
+
+        # Notificação também ouve, e não é chamada: sem o sinal, o motor de
+        # aprovação passaria a ter opinião sobre como avisar as pessoas.
+        from .services.notificacoes import conectar as conectar_notificacoes
+
+        conectar_notificacoes()

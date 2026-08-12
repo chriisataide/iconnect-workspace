@@ -21,6 +21,10 @@ urlpatterns = [
     # "buscar" ou "servicos" sequestraria uma rota existente, e o erro só
     # apareceria no dia em que alguém acrescentasse a chave errada.
     path("m/<slug:chave>/", views.modulo, name="modulo"),
+    # Meu dia e notificações — área pessoal
+    path("meu-dia/", views.meu_dia, name="meu_dia"),
+    path("notificacoes/", views.notificacoes, name="notificacoes"),
+    path("notificacoes/lidas/", views.marcar_lidas, name="marcar_lidas"),
     # Serviços — área pessoal
     path("servicos/", views.catalogo, name="servicos"),
     path("servicos/<slug:chave>/", views.pedir, name="pedir"),

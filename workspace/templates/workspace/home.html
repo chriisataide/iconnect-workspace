@@ -55,6 +55,20 @@
     </div>
 
     <ul class="au-grade au-grade--tercos">
+      <li>
+        {% comment %}
+          A porta do Meu dia. Fica antes de tudo porque é o único card que
+          responde "o que exige você" — os outros dois respondem "onde eu vou".
+        {% endcomment %}
+        <a class="au-app au-app--ativo" href="{% url 'workspace:meu_dia' %}">
+          <span class="au-app-topo">
+            <span class="au-app-icone"><svg class="au-icon" aria-hidden="true"><use href="#i-spark"></use></svg></span>
+            <svg class="au-app-seta" aria-hidden="true"><use href="#i-seta"></use></svg>
+          </span>
+          <span class="au-app-nome">{% trans "Meu dia" %}</span>
+          <span class="au-app-desc">{% trans "Tudo o que exige você hoje, num lugar." %}</span>
+        </a>
+      </li>
       {% if pendentes_aprovacao %}
         {% comment %}
           Primeiro card da primeira faixa, e só para quem tem algo esperando

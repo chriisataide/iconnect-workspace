@@ -47,8 +47,40 @@
       Antes eram três (topbar, tile, faixa do rodapé), o que faz o usuário
       hesitar sobre se levam ao mesmo lugar.
     {% endcomment %}
-    {% if autenticado %}
+    {% comment %}
+      `request.user.is_authenticated` e NÃO a variável `autenticado`.
+
+      `autenticado` é preenchida por cada view, e a casca é compartilhada por
+      todas — então bastou uma view nova (Meu dia) não preencher para a topbar
+      perder o sino e o nome do usuário sem quebrar nada. Casca não pode
+      depender de cada view lembrar de um detalhe da casca.
+
+      A variável `autenticado` continua existindo para decisões de CONTEÚDO, que
+      são da view: a vitrine do módulo mostra "Entrar" no lugar de "Pedir".
+    {% endcomment %}
+    {% if request.user.is_authenticated %}
       <div class="au-topbar-fim">
+        {% comment %}
+          O sino leva à Central e NÃO abre painel. Painel de notificação em
+          dropdown exige JS de posicionamento, foco e fechamento por Esc, e
+          entrega uma lista truncada — a Central mostra tudo com o mesmo clique.
+
+          O contador só aparece quando há o que contar: sino com "0" permanente
+          é a coisa que se aprende a não olhar.
+        {% endcomment %}
+        <a class="au-sino {% if nao_lidas %}au-sino--ativo{% endif %}"
+           href="{% url 'workspace:notificacoes' %}"
+           title="{% trans 'Notificações' %}">
+          <svg class="au-icon" aria-hidden="true"><use href="#i-sino"></use></svg>
+          {% if nao_lidas %}
+            <span class="au-sino-contagem">{{ nao_lidas }}</span>
+            <span class="au-sr">
+              {% blocktrans count total=nao_lidas %}{{ total }} notificação não lida{% plural %}{{ total }} notificações não lidas{% endblocktrans %}
+            </span>
+          {% else %}
+            <span class="au-sr">{% trans "Notificações" %}</span>
+          {% endif %}
+        </a>
         <span class="au-usuario">{{ request.user.get_full_name|default:request.user.username }}</span>
       </div>
     {% endif %}

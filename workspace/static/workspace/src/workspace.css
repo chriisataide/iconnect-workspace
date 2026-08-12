@@ -1120,3 +1120,149 @@ body {
      entre reuniões e precisa decidir um a um. */
   .au-check, .au-lote-barra { display: none; }
 }
+
+/* ── Sino da topbar ────────────────────────────────────────────────
+   Leva à Central; não abre painel. Ver comentário em `_shell.html`. */
+.au-sino {
+  position: relative;
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 32px; height: 32px;
+  border-radius: var(--au-r-sm);
+  color: var(--au-text-muted);
+}
+.au-sino:hover { background: var(--au-surface-sunken); color: var(--au-text); }
+.au-sino--ativo { color: var(--au-accent-text); }
+.au-sino-contagem {
+  position: absolute; top: -1px; right: -1px;
+  min-width: 15px; height: 15px; padding: 0 3px;
+  display: inline-flex; align-items: center; justify-content: center;
+  border-radius: var(--au-r-full);
+  background: var(--au-danger);
+  color: #fff;
+  font-size: 9px; font-weight: 700; line-height: 1;
+  font-variant-numeric: tabular-nums;
+  /* Anel na cor do fundo separa o selo do ícone sem sombra. */
+  box-shadow: 0 0 0 1.5px var(--au-surface);
+}
+
+/* ── Meu dia ───────────────────────────────────────────────────────
+   Bloco e não cartão em grade: a ordem é a mensagem (o que bloqueia
+   outra pessoa vem primeiro), e grade de duas colunas destrói ordem
+   de leitura em telas largas. */
+.au-dia { display: flex; flex-direction: column; gap: var(--au-4); }
+.au-dia-bloco {
+  border: 1px solid var(--au-border);
+  border-radius: var(--au-r-md);
+  background: var(--au-surface);
+  overflow: hidden;
+}
+.au-dia-bloco--urgente { border-left: 3px solid var(--au-warning); }
+
+.au-dia-cabeca {
+  display: flex; align-items: center; gap: var(--au-3);
+  padding: var(--au-3) var(--au-4);
+  border-bottom: 1px solid var(--au-border);
+  background: var(--au-surface-sunken);
+}
+.au-dia-icone {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 26px; height: 26px; flex: none;
+  border-radius: var(--au-r-sm);
+  background: var(--au-accent-bg);
+  color: var(--au-accent-text);
+}
+.au-dia-titulo {
+  margin: 0;
+  font-size: var(--au-t-md); font-weight: 640;
+  letter-spacing: -.005em;
+}
+.au-dia-contagem {
+  min-width: 20px; padding: 0 5px;
+  display: inline-flex; align-items: center; justify-content: center;
+  height: 18px;
+  border-radius: var(--au-r-full);
+  background: var(--au-neutral-bg); color: var(--au-neutral-text);
+  font-size: var(--au-t-xs); font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+.au-dia-resumo {
+  margin-left: auto;
+  font-size: var(--au-t-sm); color: var(--au-text-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.au-dia-itens { list-style: none; margin: 0; padding: 0; }
+.au-dia-item {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-areas: "titulo meta" "sub meta";
+  gap: 0 var(--au-3);
+  padding: var(--au-3) var(--au-4);
+  border-bottom: 1px solid var(--au-border);
+}
+.au-dia-item:last-child { border-bottom: none; }
+.au-dia-link {
+  grid-area: titulo;
+  font-size: var(--au-t-base); font-weight: 560;
+  color: var(--au-text);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+a.au-dia-link:hover { color: var(--au-accent-text); text-decoration: underline; }
+.au-dia-sub {
+  grid-area: sub;
+  font-size: var(--au-t-sm); color: var(--au-text-muted);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.au-dia-meta {
+  grid-area: meta;
+  align-self: center;
+  display: flex; align-items: center; gap: var(--au-2);
+  font-size: var(--au-t-xs); color: var(--au-text-subtle);
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+.au-dia-rodape {
+  display: flex; align-items: center; gap: var(--au-3);
+  padding: var(--au-2) var(--au-4);
+  border-top: 1px solid var(--au-border);
+  font-size: var(--au-t-sm);
+}
+.au-dia-excedente { color: var(--au-text-subtle); }
+.au-dia-rodape a { margin-left: auto; color: var(--au-accent-text); font-weight: 550; }
+.au-dia-rodape a:hover { text-decoration: underline; }
+
+.au-etiqueta--devolvido { color: var(--au-danger-text); background: var(--au-danger-bg); }
+.au-etiqueta--atrasado  { color: var(--au-warning-text); background: var(--au-warning-bg); }
+
+/* ── Central de Notificações ───────────────────────────────────────
+   Lista e não cartões: é histórico, lido de cima para baixo. */
+.au-form-linha { margin: 0 0 var(--au-3); }
+
+.au-notifs { list-style: none; margin: 0; padding: 0; border-top: 1px solid var(--au-border); }
+.au-notif {
+  display: grid;
+  grid-template-columns: 10px minmax(0, 1fr) auto;
+  gap: var(--au-3);
+  align-items: start;
+  padding: var(--au-3) 0;
+  border-bottom: 1px solid var(--au-border);
+}
+.au-notif-marca { margin-top: 6px; width: 6px; height: 6px; border-radius: var(--au-r-full); }
+/* O ponto marca o NÃO lido. Estado no traço e não só na cor de fundo:
+   quem não distingue as duas cores ainda vê a bolinha. */
+.au-notif--nova .au-notif-marca { background: var(--au-accent); }
+.au-notif-corpo { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.au-notif-titulo { font-size: var(--au-t-base); color: var(--au-text-muted); }
+.au-notif--nova .au-notif-titulo { color: var(--au-text); font-weight: 600; }
+a.au-notif-titulo:hover { color: var(--au-accent-text); text-decoration: underline; }
+.au-notif-texto { font-size: var(--au-t-sm); color: var(--au-text-subtle); }
+.au-notif-quando {
+  font-size: var(--au-t-xs); color: var(--au-text-subtle);
+  white-space: nowrap; font-variant-numeric: tabular-nums;
+}
+
+@media (max-width: 640px) {
+  .au-dia-item { grid-template-columns: minmax(0, 1fr); grid-template-areas: "titulo" "sub" "meta"; }
+  .au-dia-meta { margin-top: 4px; }
+}

@@ -8,6 +8,7 @@ Já existe (Etapa 5 §5.2):
     orcamento.py   FIN  Compromisso — aprovado e não pago
     catalogo.py    SVC  ItemCatalogo, SolicitacaoServico — uma fila de pedido
     anexo.py       SVC  Anexo — arquivo em armazenamento privado, fora de MEDIA
+    notificacao.py WKS  Notificacao — aviso com UM destinatário, nunca fan-out
 
 Entram nas ondas seguintes:
     conteudo.py    CNT  Documento, VersaoDocumento, PendenciaLeitura
@@ -33,12 +34,14 @@ from .catalogo import (
     SolicitacaoServico,
     TipoCampo,
 )
+from .notificacao import Notificacao, TipoNotificacao
 from .comunicacao import Prioridade, Publicacao, TipoPublicacao
 from .orcamento import Compromisso, SituacaoCompromisso, competencia_de
 
 __all__ = [
     "Anexo",
     "Compromisso",
+    "Notificacao",
     "GrupoCatalogo",
     "ItemCatalogo",
     "EtapaAprovacao",
@@ -53,6 +56,7 @@ __all__ = [
     "SolicitacaoServico",
     "TipoAprovador",
     "TipoCampo",
+    "TipoNotificacao",
     "TipoPublicacao",
     "competencia_de",
 ]
