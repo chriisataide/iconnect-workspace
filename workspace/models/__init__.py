@@ -10,6 +10,7 @@ Já existe (Etapa 5 §5.2):
     anexo.py       SVC  Anexo — arquivo em armazenamento privado, fora de MEDIA
     notificacao.py WKS  Notificacao — aviso com UM destinatário, nunca fan-out
     conteudo.py    CNT  Documento, ConfirmacaoLeitura — acervo normativo
+    busca.py       SRC  EntradaIndice, SujeitoIndice — índice com ACL no WHERE
 
 Entram nas ondas seguintes:
     conteudo.py    CNT  Documento, VersaoDocumento, PendenciaLeitura
@@ -36,6 +37,7 @@ from .catalogo import (
     TipoCampo,
 )
 from .notificacao import Notificacao, TipoNotificacao
+from .busca import EntradaIndice, OrigemIndice, SujeitoIndice
 from .conteudo import (
     ConfirmacaoLeitura,
     Documento,
@@ -50,7 +52,9 @@ __all__ = [
     "ConfirmacaoLeitura",
     "Compromisso",
     "Documento",
+    "EntradaIndice",
     "Notificacao",
+    "OrigemIndice",
     "GrupoCatalogo",
     "ItemCatalogo",
     "EtapaAprovacao",
@@ -64,6 +68,7 @@ __all__ = [
     "SituacaoCompromisso",
     "SolicitacaoAprovacao",
     "SolicitacaoServico",
+    "SujeitoIndice",
     "TipoAprovador",
     "TipoCampo",
     "TipoDocumento",

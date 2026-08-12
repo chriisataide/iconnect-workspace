@@ -30,3 +30,10 @@ class WorkspaceConfig(AppConfig):
         from .services.notificacoes import conectar as conectar_notificacoes
 
         conectar_notificacoes()
+
+        # O índice de busca também ouve. Por sinal e não por rotina noturna:
+        # índice que atualiza de madrugada faz o autor publicar um POP e não
+        # achá-lo — e quem não acha publica de novo.
+        from .services.indice import conectar as conectar_indice
+
+        conectar_indice()

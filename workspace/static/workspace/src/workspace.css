@@ -1324,3 +1324,118 @@ a.au-notif-titulo:hover { color: var(--au-accent-text); text-decoration: underli
   .au-doc { grid-template-columns: minmax(0, 1fr); grid-template-areas: "titulo" "resumo" "meta"; }
   .au-doc-meta { margin-top: 4px; flex-wrap: wrap; white-space: normal; }
 }
+
+/* ── Paleta de busca ───────────────────────────────────────────────
+   `<dialog>` nativo: Esc, foco preso e fundo inerte vêm do navegador. */
+.au-paleta {
+  width: min(640px, calc(100vw - 2 * var(--au-4)));
+  max-height: min(70vh, 560px);
+  margin: 12vh auto auto;
+  padding: 0;
+  border: 1px solid var(--au-border-strong);
+  border-radius: var(--au-r-lg);
+  background: var(--au-surface);
+  color: var(--au-text);
+  box-shadow: 0 24px 48px -12px rgb(15 23 42 / .28), 0 0 0 1px rgb(15 23 42 / .04);
+  overflow: hidden;
+  display: flex; flex-direction: column;
+}
+.au-paleta::backdrop { background: rgb(15 23 42 / .38); }
+.au-paleta:not([open]) { display: none; }
+
+.au-paleta-campo {
+  display: flex; align-items: center; gap: var(--au-3);
+  padding: var(--au-3) var(--au-4);
+  border-bottom: 1px solid var(--au-border);
+  flex: none;
+}
+/* A regra base de `.au-busca-campo` foi desenhada para o herói: borda, sombra,
+   e `padding-left: 46px` para caber o ícone POSICIONADO EM ABSOLUTO. Dentro da
+   paleta o ícone é um irmão em flex, então o padding vira um recuo vazio e a
+   borda desenha um campo dentro do campo. Zerar os três é o que faz o input
+   parecer parte da paleta em vez de um widget colado nela. */
+.au-paleta-campo .au-busca-campo {
+  flex: 1;
+  min-width: 0;
+  height: auto;
+  padding: 0;
+  border: none;
+  border-radius: 0;
+  box-shadow: none;
+  background: none;
+  outline: none;
+  font-size: var(--au-t-lg);
+  color: var(--au-text);
+}
+.au-paleta-campo .au-busca-campo:hover { border-color: transparent; }
+/* O ícone da paleta é irmão em flex, não sobreposto. */
+.au-paleta-campo .au-busca-icone {
+  position: static;
+  transform: none;
+  flex: none;
+}
+.au-paleta-campo .au-busca-campo::placeholder { color: var(--au-text-subtle); }
+/* O X nativo do type=search duplica o botão de fechar. */
+.au-paleta-campo .au-busca-campo::-webkit-search-cancel-button { display: none; }
+
+.au-paleta-fechar {
+  flex: none;
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 28px; height: 28px;
+  border: none; border-radius: var(--au-r-sm);
+  background: none; color: var(--au-text-subtle);
+  cursor: pointer;
+}
+.au-paleta-fechar:hover { background: var(--au-surface-sunken); color: var(--au-text); }
+
+.au-paleta .au-busca-painel {
+  position: static;
+  flex: 1;
+  overflow-y: auto;
+  border: none; border-radius: 0;
+  box-shadow: none;
+  margin: 0;
+}
+
+.au-paleta-dica {
+  flex: none;
+  margin: 0;
+  padding: var(--au-2) var(--au-4);
+  border-top: 1px solid var(--au-border);
+  background: var(--au-surface-sunken);
+  font-size: var(--au-t-xs);
+  color: var(--au-text-subtle);
+}
+
+/* Gatilho na home: parece campo, é botão. */
+.au-busca--gatilho {
+  width: 100%;
+  text-align: left;
+  cursor: pointer;
+  font: inherit;
+}
+.au-busca-placeholder { flex: 1; color: var(--au-text-subtle); }
+
+.au-topbar-botao {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 32px; height: 32px;
+  border: none; border-radius: var(--au-r-sm);
+  background: none; color: var(--au-text-muted);
+  cursor: pointer;
+}
+.au-topbar-botao:hover { background: var(--au-surface-sunken); color: var(--au-text); }
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .au-paleta {
+    box-shadow: 0 24px 48px -12px rgb(0 0 0 / .6), 0 0 0 1px rgb(255 255 255 / .06);
+  }
+  :root:not([data-theme="light"]) .au-paleta::backdrop { background: rgb(0 0 0 / .6); }
+}
+:root[data-theme="dark"] .au-paleta {
+  box-shadow: 0 24px 48px -12px rgb(0 0 0 / .6), 0 0 0 1px rgb(255 255 255 / .06);
+}
+:root[data-theme="dark"] .au-paleta::backdrop { background: rgb(0 0 0 / .6); }
+
+@media (max-width: 640px) {
+  .au-paleta { margin-top: var(--au-4); max-height: calc(100vh - 2 * var(--au-4)); }
+}

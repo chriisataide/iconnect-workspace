@@ -1,5 +1,5 @@
 {% extends "workspace/_shell.html" %}
-{% load i18n static %}
+{% load i18n %}
 
 {% block titulo %}{% trans "Início" %}{% endblock %}
 
@@ -28,18 +28,25 @@
     </h1>
     <p class="au-hero-sub">{% trans "Busque um serviço, um comunicado ou um sistema." %}</p>
 
-    <div class="au-busca">
+    {% comment %}
+      BOTÃO, não campo. O campo de busca mora na paleta, em `_shell.html`, e
+      existe UM em toda a aplicação.
+
+      Antes havia um campo só aqui — então ⌘K, que está no JS desde o começo,
+      não funcionava em nenhuma outra tela: o atalho procurava um `#busca` que
+      só a home tinha. Dois campos com o mesmo id resolveriam isso criando um
+      problema pior.
+
+      Visualmente segue parecendo um campo, porque é isso que a pessoa reconhece.
+    {% endcomment %}
+    <button class="au-busca au-busca--gatilho" type="button" data-abre-busca
+            aria-label="{% trans 'Buscar no Workspace' %}">
       <svg class="au-busca-icone" aria-hidden="true"><use href="#i-search"></use></svg>
-      <label class="au-sr" for="busca">{% trans "Buscar no Workspace" %}</label>
-      <input class="au-busca-campo" id="busca" type="search" autocomplete="off"
-             role="combobox" aria-expanded="false" aria-controls="busca-resultados"
-             placeholder="{% trans 'Buscar…' %}">
+      <span class="au-busca-placeholder">{% trans "Buscar…" %}</span>
       <span class="au-atalho" aria-hidden="true">
         <kbd class="au-tecla">⌘</kbd><kbd class="au-tecla">K</kbd>
       </span>
-      <div class="au-busca-painel" id="busca-resultados" role="listbox" hidden
-           data-url="{% url 'workspace:buscar' %}"></div>
-    </div>
+    </button>
   </section>
 
   {% comment %}
@@ -168,8 +175,4 @@
       {% endfor %}
     </ul>
   </section>
-{% endblock %}
-
-{% block scripts %}
-  <script src="{% static 'workspace/js/workspace.js' %}" defer></script>
 {% endblock %}

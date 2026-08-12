@@ -1,49 +1,59 @@
-"""Busca do Workspace.
+"""Busca universal — objeto, ação e conhecimento no mesmo campo.
 
-Versão honesta do V1.0: procura no que o Workspace realmente tem — aplicativos do
-launcher e publicações no ar. **Não** é a busca federada da Onda 5; aquela
-precisa do índice `SearchDocument` com `tsvector` e `acl_subjects`, que exige
-IDN para o security trimming.
+## Duas fontes, de propósito
 
-O que aqui já respeita, para não ter de ser refeito depois:
+1. **O índice** (`EntradaIndice`) — serviço, documento, comunicado, notícia.
+   Conteúdo com público-alvo no banco, recortado no `WHERE`.
+2. **O launcher** — os aplicativos. Vivem em memória, já filtrados por
+   `apps_disponiveis(pessoa)`. Ver `services/indice.py` para o motivo de não
+   estarem no índice.
 
-- Recorte por permissão vem do launcher (`apps_disponiveis`), não de um filtro
-  aplicado depois sobre o resultado — filtrar no fim vaza contagem.
-- Só publicação `no ar` entra. Rascunho e agendado nunca aparecem em busca.
-- O formato de saída já é o do resultado agrupado por origem, que é como a
-  Onda 5 vai devolver.
+Juntar é explícito e não há ranking global entre as duas: o resultado é agrupado
+por origem, então "Financeiro" (aplicativo) e "Reembolso" (serviço) não competem
+por posição — cada um aparece no seu grupo. Ranking global entre coisas de
+naturezas diferentes é onde a relevância começa a parecer aleatória.
+
+## O recorte acontece no banco
+
+`EntradaIndice.objects.para_sujeitos(...)` é um `WHERE ... IN`, não um filtro em
+Python. É a regra da Etapa 5 §5.10, e o motivo é concreto: filtrar depois de
+recuperar faz a contagem vazar. "8 resultados" que viram 3 na tela conta ao
+usuário que existem cinco coisas que ele não pode ver.
 """
 
 from __future__ import annotations
 
-import unicodedata
 from dataclasses import dataclass
 
+from django.db.models import Q
+
+from identidade.services.autorizacao import subjects_de
 from workspace.launcher import apps_disponiveis
-from workspace.models import Publicacao, TipoPublicacao
+from workspace.models.busca import EntradaIndice, OrigemIndice
+from workspace.services.indice import normalizar  # noqa: F401 — reexportado
 
 LIMITE_POR_GRUPO = 6
 MIN_CARACTERES = 2
 
+# Ordem dos grupos na tela: primeiro o que se RESOLVE, depois o que se LÊ,
+# depois para onde se VAI. Quem busca "reembolso" quer pedir um, não ler a
+# política sobre ele — e quem quer a política reconhece o grupo seguinte.
+ORDEM_DOS_GRUPOS = (
+    (OrigemIndice.SERVICO, "Serviços"),
+    (OrigemIndice.DOCUMENTO, "Documentação"),
+    (OrigemIndice.COMUNICADO, "Comunicados"),
+    (OrigemIndice.NOTICIA, "Notícias"),
+)
+
 
 @dataclass(frozen=True)
 class Resultado:
-    origem: str  # "app" | "comunicado" | "noticia"
+    origem: str
     titulo: str
     subtitulo: str
     url: str
     icone: str
     disponivel: bool = True
-
-
-def normalizar(texto: str) -> str:
-    """Minúsculas sem acento — 'ferias' encontra 'férias'.
-
-    O Postgres faria isto com `unaccent` (spike S5). Em Python, resolve
-    enquanto a busca é sobre dezenas de registros, não dezenas de milhares.
-    """
-    sem_acento = unicodedata.normalize("NFKD", texto or "")
-    return "".join(c for c in sem_acento if not unicodedata.combining(c)).casefold().strip()
 
 
 def _casa(termo: str, *campos: str) -> bool:
@@ -58,6 +68,7 @@ def buscar(consulta: str, pessoa=None) -> dict[str, list[Resultado]]:
 
     grupos: dict[str, list[Resultado]] = {}
 
+    # 1 · Aplicativos, do launcher em memória.
     apps = [
         Resultado(
             origem="app",
@@ -70,25 +81,39 @@ def buscar(consulta: str, pessoa=None) -> dict[str, list[Resultado]]:
         for spec in apps_disponiveis(pessoa)
         if _casa(termo, spec.nome, spec.descricao, spec.chave)
     ]
-    if apps:
-        grupos["Aplicativos"] = apps[:LIMITE_POR_GRUPO]
 
-    for tipo, rotulo in ((TipoPublicacao.COMUNICADO, "Comunicados"), (TipoPublicacao.NOTICIA, "Notícias")):
-        achados = [
+    # 2 · Conteúdo, do índice, recortado no WHERE.
+    #
+    # UMA consulta para todos os grupos, e o agrupamento em Python sobre o
+    # resultado já recortado: uma consulta por grupo multiplicaria por quatro o
+    # custo do `JOIN` de sujeitos a cada tecla digitada.
+    encontradas = list(
+        EntradaIndice.objects.para_sujeitos(subjects_de(pessoa))
+        .filter(Q(texto__contains=termo))
+        .order_by("origem", "titulo")[: LIMITE_POR_GRUPO * len(ORDEM_DOS_GRUPOS) * 2]
+    )
+
+    por_origem: dict[str, list[Resultado]] = {}
+    for entrada in encontradas:
+        por_origem.setdefault(entrada.origem, []).append(
             Resultado(
-                origem=tipo,
-                titulo=pub.titulo,
-                subtitulo=pub.resumo,
-                url=f"/workspace/publicacao/{pub.pk}/",
-                icone="megafone" if tipo == TipoPublicacao.COMUNICADO else "jornal",
+                origem=entrada.origem,
+                titulo=entrada.titulo,
+                subtitulo=entrada.subtitulo,
+                url=entrada.url,
+                icone=entrada.icone,
             )
-            # Carrega só o que está no ar e filtra em Python: a base é pequena
-            # e `unaccent` no banco é decisão da Onda 5 (spike S5), não daqui.
-            for pub in Publicacao.objects.publicadas().do_tipo(tipo)[:100]
-            if _casa(termo, pub.titulo, pub.resumo, pub.corpo)
-        ]
+        )
+
+    for origem, rotulo in ORDEM_DOS_GRUPOS:
+        achados = por_origem.get(origem.value)
         if achados:
             grupos[rotulo] = achados[:LIMITE_POR_GRUPO]
+
+    # Aplicativos por último no dicionário: são navegação, e quem digita já sabe
+    # para onde vai. O que ele não sabe é que existe um serviço que resolve.
+    if apps:
+        grupos["Aplicativos"] = apps[:LIMITE_POR_GRUPO]
 
     return grupos
 

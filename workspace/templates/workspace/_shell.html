@@ -58,8 +58,21 @@
       A variável `autenticado` continua existindo para decisões de CONTEÚDO, que
       são da view: a vitrine do módulo mostra "Entrar" no lugar de "Pedir".
     {% endcomment %}
-    {% if request.user.is_authenticated %}
-      <div class="au-topbar-fim">
+    <div class="au-topbar-fim">
+      {% comment %}
+        UM `au-topbar-fim` só. Ele tem `margin-left: auto`, e dois elementos com
+        isso brigam pelo espaço restante — o segundo cola no primeiro em vez de
+        ir para a direita.
+
+        A busca vem antes do sino e é visível a todos: buscar é o que se faz mais
+        vezes, e a busca é pública como o resto do hub.
+      {% endcomment %}
+      <button class="au-topbar-botao" type="button" data-abre-busca
+              aria-label="{% trans 'Buscar' %}" title="{% trans 'Buscar (⌘K)' %}">
+        <svg class="au-icon" aria-hidden="true"><use href="#i-search"></use></svg>
+      </button>
+
+      {% if request.user.is_authenticated %}
         {% comment %}
           O sino leva à Central e NÃO abre painel. Painel de notificação em
           dropdown exige JS de posicionamento, foco e fechamento por Esc, e
@@ -82,9 +95,40 @@
           {% endif %}
         </a>
         <span class="au-usuario">{{ request.user.get_full_name|default:request.user.username }}</span>
-      </div>
-    {% endif %}
+      {% endif %}
+    </div>
   </header>
+
+  {% comment %}
+    A PALETA — um campo de busca para toda a aplicação.
+
+    `<dialog>` e não `<div>`: o navegador entrega o modal, o `Esc`, o foco preso
+    dentro e o fundo inerte de graça. Reimplementar isso em JS é a fonte mais
+    comum de armadilha de foco em produto interno.
+
+    Fica na casca, então ⌘K funciona em qualquer tela. Antes o campo existia só
+    na home, e o atalho — que está no JS desde o começo — não achava nada nas
+    outras.
+  {% endcomment %}
+  <dialog class="au-paleta" id="paleta" aria-label="{% trans 'Buscar no Workspace' %}">
+    <div class="au-paleta-campo">
+      <svg class="au-busca-icone" aria-hidden="true"><use href="#i-search"></use></svg>
+      <label class="au-sr" for="busca">{% trans "Buscar no Workspace" %}</label>
+      <input class="au-busca-campo" id="busca" type="search" autocomplete="off"
+             role="combobox" aria-expanded="false" aria-controls="busca-resultados"
+             placeholder="{% trans 'Serviço, documento, comunicado, sistema…' %}">
+      <button class="au-paleta-fechar" type="button" data-fecha-busca
+              aria-label="{% trans 'Fechar' %}">
+        <svg class="au-icon" aria-hidden="true"><use href="#i-x"></use></svg>
+      </button>
+    </div>
+    <div class="au-busca-painel" id="busca-resultados" role="listbox" hidden
+         data-url="{% url 'workspace:buscar' %}"></div>
+    <p class="au-paleta-dica">
+      {% trans "Digite ao menos 2 letras." %}
+      <kbd class="au-tecla">Esc</kbd> {% trans "fecha" %}
+    </p>
+  </dialog>
 
   <main id="conteudo" class="au-main">
     {% block conteudo %}{% endblock %}
@@ -96,6 +140,12 @@
     <span>{% blocktrans %}iConnect Workspace · a vida corporativa em um lugar{% endblocktrans %}</span>
   </footer>
 
+  {% comment %}
+    Na casca e não em cada template: a paleta é da casca, e depender de cada
+    tela lembrar de carregar o script faria ⌘K morrer na próxima tela nova — foi
+    exatamente assim que ele já morreu uma vez.
+  {% endcomment %}
+  <script src="{% static 'workspace/js/workspace.js' %}" defer></script>
   {% block scripts %}{% endblock %}
 </body>
 </html>
