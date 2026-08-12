@@ -3,6 +3,8 @@
 > **Documento de execução.** 24 épicos → 149 features → **107 stories** do V1.0, com critérios de aceite, prioridade, estimativa e dependências. Plano de ondas, caminho crítico e cenários de capacidade.
 >
 > **Agosto/2026** · Etapa 7 de 9 · **Aguarda aprovação antes da Etapa 8**
+>
+> ⚠️ **Revisado em 12/08/2026 pela [Etapa 10 — Reposicionamento](EXEC_10_REPOSICIONAMENTO.md).** O produto se chama **iConnect Workspace**, e Workspace e Platform são dois produtos — não uma camada sobre o outro. Onde este documento contradiz a Etapa 10, a Etapa 10 vence; §10.7 nomeia cada contradição. Nada aqui foi descartado.
 
 ---
 

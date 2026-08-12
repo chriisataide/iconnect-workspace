@@ -3,6 +3,8 @@
 > **O que é este documento:** o desenho completo da camada que antecede os módulos operacionais do iConnect — arquitetura, jornadas, navegação, design system, roadmap e riscos.
 >
 > **Data:** Agosto/2026 · **Status:** proposta para decisão · **Base analisada:** branch `feature/chris`
+>
+> ⚠️ **Revisado em 12/08/2026 pela [Etapa 10 — Reposicionamento](EXEC_10_REPOSICIONAMENTO.md).** O produto se chama **iConnect Workspace**, e Workspace e Platform são dois produtos — não uma camada sobre o outro. Onde este documento contradiz a Etapa 10, a Etapa 10 vence; §10.7 nomeia cada contradição. Nada aqui foi descartado.
 
 ---
 
@@ -29,11 +31,11 @@
 
 Antes de propor, o que o código mostra hoje:
 
-| Ativo | Estado real | Implicação para o Portal |
+| Ativo | Estado real | Implicação para o Workspace |
 |---|---|---|
-| **Copiloto com tool-use** (`dashboard/services/copilot/`) | Engine Anthropic com registry de tools, `PermissionGate` por papel, mascaramento de PII no egress, confirmação obrigatória em ações de escrita e auditoria | **É o maior ativo do projeto.** A IA do Portal deve ser este motor com mais tools — não um segundo assistente |
+| **Copiloto com tool-use** (`dashboard/services/copilot/`) | Engine Anthropic com registry de tools, `PermissionGate` por papel, mascaramento de PII no egress, confirmação obrigatória em ações de escrita e auditoria | **É o maior ativo do projeto.** A IA do Workspace deve ser este motor com mais tools — não um segundo assistente |
 | **RAG + busca semântica** (`rag.py`, `knowledge_search.py`, `embeddings.py`) | Funciona, mas indexa **apenas** `ArtigoConhecimento` (KB de helpdesk) | A "pesquisa global" exige um índice unificado novo. O padrão de recuperação já está provado |
-| **RBAC** (`utils/rbac.py`) | **6 papéis:** `admin`, `gerente`, `analista`, `tecnico_campo`, `sala_monitoramento`, `cliente`. `ROLE_FINANCEIRO` é apenas um alias de `gerente` | **Bloqueador nº 1.** As personas do Portal (RH, Jurídico, Compras, Facilities, Diretoria) **não existem** no modelo de identidade |
+| **RBAC** (`utils/rbac.py`) | **6 papéis:** `admin`, `gerente`, `analista`, `tecnico_campo`, `sala_monitoramento`, `cliente`. `ROLE_FINANCEIRO` é apenas um alias de `gerente` | **Bloqueador nº 1.** As personas do Workspace (RH, Jurídico, Compras, Facilities, Diretoria) **não existem** no modelo de identidade |
 | **Multi-tenancy** (`tenants.py`) | Row-level + middleware + `threading.local()` | Aceitável para tickets. **Insuficiente** quando o portal carregar holerite e PDI |
 | **Design System** (`static/css/iconnect-design-system.css`) | Tokens `--ic-*` reais, paleta Slate `#334155` + Cyan `#06b6d4`, ~450 linhas | Base boa de *cor*. Mas a casca é Material Dashboard 2 + Bootstrap 5 |
 | **Front-end** | Django templates server-rendered, Bootstrap, sem build de componentes | Tensão central: não se entrega sensação de "produto internacional" sobre Material Dashboard 2 |
@@ -72,7 +74,12 @@ Comparar-se com Microsoft 365 e Google Workspace é escolher a briga que não d�
 
 Mas há um eixo onde **eles não competem**: o iConnect já possui a **operação** — ordens de serviço, escala de técnicos, SLA em curso, equipamentos em campo, custo por centro de custo. Nenhum Employee Center do mundo sabe que o técnico Marcos está a 12 km do cliente com uma OS crítica vencendo em 40 minutos.
 
-> **Posicionamento recomendado:** **"O Workspace da empresa que opera em campo."** Não é uma intranet com módulo de operação; é a operação com uma camada de trabalho humano em volta. Isso é indefensável para a Microsoft copiar e é exatamente o gap do ServiceNow no mercado brasileiro médio.
+> **Posicionamento recomendado:** ~~"O Workspace da empresa que opera em campo."~~
+> **REVISADO §10.3 → "O Workspace corporativo de quem não trabalha sentado."** O eixo
+> do vertical continua; o Workspace **conhece** a operação em vez de **fazê-la**.
+> Original preservado abaixo:
+>
+> **"O Workspace da empresa que opera em campo."** Não é uma intranet com módulo de operação; é a operação com uma camada de trabalho humano em volta. Isso é indefensável para a Microsoft copiar e é exatamente o gap do ServiceNow no mercado brasileiro médio.
 
 #### Discordância nº 3 — "Cada colaborador tem uma Home diferente" é um erro caro
 
@@ -123,13 +130,13 @@ Feeds sociais corporativos seguem uma curva previsível: pico de engajamento em 
 
 O objetivo declarado — *"parece uma plataforma internacional"* — não é alcançável estendendo Material Dashboard 2 + Bootstrap 5. Essa base carrega decisões visuais de 2019 (sombras pesadas, cards com raio grande, gradientes saturados, densidade baixa) que são justamente o que faz um produto "parecer brasileiro de 2019".
 
-> **Recomendação:** o Workspace é uma **ilha** — app Django novo (`workspace`), casca visual nova (`Aurora`, §8), **sem herdar** o CSS do Material Dashboard. Os ~40 telas operacionais existentes **não são reescritas**: elas continuam vivas e são acessadas a partir do Portal. Migração por atração, não por big bang.
+> **Recomendação:** o Workspace é uma **ilha** — app Django novo (`workspace`), casca visual nova (`Aurora`, §8), **sem herdar** o CSS do Material Dashboard. Os ~40 telas operacionais existentes **não são reescritas**: elas continuam vivas e são acessadas a partir do Workspace. Migração por atração, não por big bang.
 
 ### 1.3 Veredito
 
 | Componente da visão | Veredito | Ação |
 |---|---|---|
-| Portal como porta de entrada única | ✅ Correto | Construir |
+| Workspace como porta de entrada única | ✅ Correto | Construir |
 | IA no centro | ✅ Correto, mas na ordem errada | Construir **depois** do conteúdo |
 | Home por perfil | ⚠️ Certo no espírito, errado na implementação | Presets, não homes únicas |
 | Pesquisa global tipo Spotlight | ✅ Maior alavanca de percepção de qualidade | Construir cedo |
@@ -146,7 +153,7 @@ O objetivo declarado — *"parece uma plataforma internacional"* — não é alc
 
 ### 2.1 Da "porta de entrada" para o "fim do dia"
 
-A visão original descreve o Portal como **início** do dia. A oportunidade maior é fechá-lo como **fim** do dia: o registro do que foi feito, o que ficou pendente e o que amanhã exige. O ritual de saída gera muito mais retenção do que o de entrada — e produz o dado mais valioso da plataforma (o que realmente ocupa o tempo das pessoas).
+A visão original descreve o Workspace como **início** do dia. A oportunidade maior é fechá-lo como **fim** do dia: o registro do que foi feito, o que ficou pendente e o que amanhã exige. O ritual de saída gera muito mais retenção do que o de entrada — e produz o dado mais valioso da plataforma (o que realmente ocupa o tempo das pessoas).
 
 ### 2.2 De "portal de funcionário" para "portal de todos os públicos"
 
@@ -234,7 +241,7 @@ Cada dado continua vivendo no seu módulo. O Workspace lê via camada de contrat
 |---|---|---|
 | **App Django** | Novo app `workspace` | O app `dashboard` já é um god-app. Não agravar |
 | **Front-end** | Django templates + **HTMX + Alpine** + tokens Aurora | Entrega premium sem SPA. Mantém o time produtivo no stack atual. Islands React apenas onde houver estado complexo real (builder de widget, editor de conteúdo) |
-| **Contrato Portal↔Domínio** | `WorkspaceProvider` — interface Python por domínio | Cada módulo declara `widgets()`, `search_documents()`, `quick_actions()`, `notifications()`. O Portal não faz query em model de outro domínio |
+| **Contrato Workspace↔Domínio** | `WorkspaceProvider` — interface Python por domínio | Cada módulo declara `widgets()`, `search_documents()`, `quick_actions()`, `notifications()`. O Workspace não faz query em model de outro domínio |
 | **Índice de busca** | PostgreSQL + **pgvector**, tabela `SearchDocument` única | Um índice, várias origens. Colunas `tenant_id`, `acl_subjects[]`, `embedding`, `tsvector`. Híbrido BM25 + vetorial |
 | **Autorização de busca** | **Security trimming no índice**, nunca no pós-processamento | Filtrar depois de recuperar vaza contagem e snippet. `acl_subjects` é filtro `WHERE`, não `filter()` em Python |
 | **IA** | Estender o Copilot Engine existente | O gate, o mask, a confirmação e a auditoria já estão certos. Adicionar skill packs e tools |
@@ -244,7 +251,7 @@ Cada dado continua vivendo no seu módulo. O Workspace lê via camada de contrat
 
 ### 3.4 Modelo de identidade — o pré-requisito de tudo
 
-O modelo atual (6 papéis planos) não sustenta o Portal. Proposta mínima:
+O modelo atual (6 papéis planos) não sustenta o Workspace. Proposta mínima:
 
 ```python
 Pessoa            # 1:1 User — matrícula, cargo, admissão, foto, contatos
@@ -381,9 +388,9 @@ iConnect Workspace
 │   ├── Carreira, PDI, feedback, avaliações
 │   └── Organograma e diretório
 │
-└── 📊 Operação            ← ponte para os sistemas (não os substitui)
-    ├── Painéis (BI/Analytics por papel)
-    ├── Aplicações (Helpdesk, FSM, CRM, Financeiro, Estoque, Equipamentos)
+└── 🧩 Aplicativos         ← REVISADO §10.7 · era "📊 Operação"
+    ├── iConnect Platform (chamados, OS, clientes, contratos)
+    ├── Demais sistemas corporativos
     └── Administração (para quem tem papel)
 ```
 
@@ -397,7 +404,7 @@ iConnect Workspace
 | **Alternador de audiência** | Para quem tem múltiplos papéis (gestor que também é técnico) |
 | **Favoritos / Recentes** | Sincronizados, com atalho no ⌘K |
 
-**Observação de AI:** os módulos existentes (Helpdesk, FSM…) ficam sob "Operação → Aplicações" e **abrem no seu próprio layout atual**. O Portal não tenta reimplementá-los. Com o tempo, funções migram por atração — quando um widget resolve melhor que a tela antiga, o usuário migra sozinho.
+**Observação de AI:** os módulos existentes (Helpdesk, FSM…) ficam sob "Operação → Aplicações" e **abrem no seu próprio layout atual**. O Workspace não tenta reimplementá-los. Com o tempo, funções migram por atração — quando um widget resolve melhor que a tela antiga, o usuário migra sozinho.
 
 ---
 
@@ -454,7 +461,7 @@ iConnect Workspace
 | **2 — Ação** | "O que eu preciso concluir?" | ⚠️ Ordem sim, remoção não |
 | **3 — Contexto** | "O que preciso saber para decidir?" | ✅ Total |
 
-Essa hierarquia é o que impede o Portal de virar mural de widgets. Se um widget não cabe em nenhuma das três perguntas, ele não entra no produto.
+Essa hierarquia é o que impede o Workspace de virar mural de widgets. Se um widget não cabe em nenhuma das três perguntas, ele não entra no produto.
 
 ### 6.3 Catálogo de widgets
 
@@ -620,14 +627,14 @@ Mural
 
 **Adicionais que eu recomendo:**
 
-- **Offboarding com revogação automática de acesso** — hoje é a maior falha de segurança de 90% das empresas médias. O Portal sabe todos os sistemas que a pessoa acessa; pode revogar em cadeia e gerar evidência
+- **Offboarding com revogação automática de acesso** — hoje é a maior falha de segurança de 90% das empresas médias. O Workspace sabe todos os sistemas que a pessoa acessa; pode revogar em cadeia e gerar evidência
 - **Trilha de admissão com dono e SLA** — onboarding sem prazo não acontece
 - **Ausências do time em calendário único** — resolve o problema real do gestor
 - **Documentos pessoais com validade** (CNH, ASO, certificações) — vence e avisa
 
-### 7.5 Financeiro (no Portal)
+### 7.5 Financeiro (no Workspace)
 
-O Portal expõe apenas a superfície **do colaborador e do gestor** — o módulo financeiro completo continua onde está.
+O Workspace expõe apenas a superfície **do colaborador e do gestor** — o módulo financeiro completo continua onde está.
 
 ```
 No Workspace: reembolso · prestação de contas · aprovação de despesa ·
@@ -901,7 +908,7 @@ Catálogo ──▶ Formulário pré-preenchido ──▶ Validação de políti
 │   Ana teve 4 reembolsos nos últimos 90 dias, todos aprovados        │
 │                                                    [✓] [↩ devolver] │
 │ ☐ Compra · TI · R$ 12.400 · 4 notebooks             há 5 dias       │
-│   ⚠ excede o limite de R$ 10.000 → exige diretoria                  │
+│   ⚠ dentro do teto do gestor (R$ 50.000) → ver §10.6                │
 │   ⚠ consome 91% do saldo do CC neste mês                            │
 │                                                    [✓] [↩] [↑]      │
 ├─────────────────────────────────────────────────────────────────────┤
@@ -1013,7 +1020,7 @@ Um card ao final do expediente: o que foi concluído, o que ficou, o que amanhã
 Cinco produtos em paralelo entregam cinco medianos. **Mitigação:** o MVP de §10 é deliberadamente estreito. Toda funcionalidade fora dele precisa responder: *"isso impede o critério de saída do MVP?"* Se não, espera.
 
 ### 12.2 🔴 Tenancy — o risco que mata a empresa
-O isolamento hoje é row-level com `threading.local()`. Isso funciona enquanto o vazamento significa "ver ticket de outro cliente". Quando o Portal carregar holerite, PDI e avaliação, **um vazamento vira incidente de dado sensível sob LGPD art. 11**.
+O isolamento hoje é row-level com `threading.local()`. Isso funciona enquanto o vazamento significa "ver ticket de outro cliente". Quando o Workspace carregar holerite, PDI e avaliação, **um vazamento vira incidente de dado sensível sob LGPD art. 11**.
 
 **Mitigação obrigatória antes de qualquer dado de RH:**
 - Teste automatizado de isolamento por model — CI falha se um queryset novo não filtra tenant
@@ -1024,11 +1031,11 @@ O isolamento hoje é row-level com `threading.local()`. Isso funciona enquanto o
 ### 12.3 🔴 Biblioteca vazia = IA descreditada
 Assistente lançado sem conteúdo produz a impressão *"a IA daqui não sabe nada"* — e ela não se reverte. **Mitigação:** IA só liga em V2, com meta mínima de conteúdo publicado (sugestão: 40 documentos das 10 dúvidas mais frequentes), mais §11.9 rodando desde o MVP.
 
-### 12.4 🟠 Portal que ninguém abre
+### 12.4 🟠 Workspace que ninguém abre
 Portais corporativos têm taxa de fracasso alta porque não há razão diária para voltar. **Mitigação:** três âncoras de retorno obrigatório — (1) aprovações só existem lá; (2) briefing matinal por push; (3) comunicado obrigatório bloqueia. Sem pelo menos duas, o portal morre em 60 dias.
 
 ### 12.5 🟠 LGPD com dado sensível
-RH traz dado de saúde (ASO, atestado), biometria (ponto) e avaliação de desempenho. **Mitigação:** classificação por documento, minimização (o Portal *exibe*, não *armazena* holerite), retenção definida por tipo, consentimento onde aplicável, e **PII mask já existente aplicado no egress para o LLM** — verificar que cobre os campos novos de RH.
+RH traz dado de saúde (ASO, atestado), biometria (ponto) e avaliação de desempenho. **Mitigação:** classificação por documento, minimização (o Workspace *exibe*, não *armazena* holerite), retenção definida por tipo, consentimento onde aplicável, e **PII mask já existente aplicado no egress para o LLM** — verificar que cobre os campos novos de RH.
 
 ### 12.6 🟠 Custo de IA sem teto
 Assistente corporativo aberto a toda a empresa, com tool-use e loop de até 5 iterações, tem custo linear no número de funcionários e superlinear em usuários curiosos. **Mitigação:** teto por usuário e por tenant, cache agressivo de respostas frequentes, roteamento para modelo menor em intenção simples, e telemetria de custo por skill pack desde o dia 1.
@@ -1054,7 +1061,7 @@ Aurora no Workspace, Material Dashboard nos módulos antigos. Transição visív
 | Plano | Conteúdo | Racional |
 |---|---|---|
 | **Operations** | Módulos operacionais atuais | Base instalada, sem mudança |
-| **Workspace** | Portal, catálogo, biblioteca, mural, pessoas, busca | +40–60% por assento. É a camada que todo funcionário usa, não só o operacional — **multiplica assentos faturáveis** |
+| **Workspace** | Workspace, catálogo, biblioteca, mural, pessoas, busca | +40–60% por assento. É a camada que todo funcionário usa, não só o operacional — **multiplica assentos faturáveis** |
 | **Workspace AI** | Assistente, briefing, explique, captura de conhecimento | Add-on por assento + créditos. Margem controlada por teto |
 | **Compliance** | Leitura confirmada, evidência ISO/LGPD, certificação e bloqueio | Add-on por empresa. Vende para **auditoria e jurídico**, orçamento diferente de TI |
 

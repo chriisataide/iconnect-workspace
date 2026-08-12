@@ -3,6 +3,8 @@
 > **Documento de sequenciamento.** V1.0, V1.1, V2.0 e V3.0 — o que entra em cada versão, **por que** entra ali e não antes, os portões entre versões e como o plano se adapta quando algo dá errado.
 >
 > **Agosto/2026** · Etapa 8 de 9 · **Aguarda aprovação antes da Etapa 9**
+>
+> ⚠️ **Revisado em 12/08/2026 pela [Etapa 10 — Reposicionamento](EXEC_10_REPOSICIONAMENTO.md).** O produto se chama **iConnect Workspace**, e Workspace e Platform são dois produtos — não uma camada sobre o outro. Onde este documento contradiz a Etapa 10, a Etapa 10 vence; §10.7 nomeia cada contradição. Nada aqui foi descartado.
 
 ---
 

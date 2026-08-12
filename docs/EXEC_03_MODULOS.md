@@ -3,6 +3,8 @@
 > **Documento de arquitetura modular.** Para cada um dos 13 domínios: objetivo, escopo, regras, fluxos, dependências, APIs, permissões, banco de dados, componentes e critérios de aceite. Escopo especificado = **V1.0** ([Etapa 2](EXEC_02_MVP.md)); a fronteira do módulo é declarada para o futuro.
 >
 > **Agosto/2026** · Etapa 3 de 9 · **Aguarda aprovação antes da Etapa 4**
+>
+> ⚠️ **Revisado em 12/08/2026 pela [Etapa 10 — Reposicionamento](EXEC_10_REPOSICIONAMENTO.md).** O produto se chama **iConnect Workspace**, e Workspace e Platform são dois produtos — não uma camada sobre o outro. Onde este documento contradiz a Etapa 10, a Etapa 10 vence; §10.7 nomeia cada contradição. Nada aqui foi descartado.
 
 ---
 

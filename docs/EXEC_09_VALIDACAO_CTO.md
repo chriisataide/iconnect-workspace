@@ -2,7 +2,9 @@
 
 > **Auditoria técnica do plano.** Verificação de que as 8 etapas anteriores são implementáveis no stack declarado, onde o plano está complexo demais, onde está simples demais, o que já existe e eu ia reconstruir, e o custo de manutenção em dois anos.
 >
-> **Agosto/2026** · Etapa 9 de 9 · **Última etapa do planejamento**
+> **Agosto/2026** · Etapa 9 de 10
+>
+> ⚠️ **Revisado em 12/08/2026 pela [Etapa 10 — Reposicionamento](EXEC_10_REPOSICIONAMENTO.md).** As 6 condições do parecer seguem válidas; o que muda é o escopo do Workspace (OPS e REV migram para a Platform). §10.7.
 
 ---
 
