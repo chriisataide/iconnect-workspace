@@ -42,7 +42,7 @@ class Anexo(models.Model):
     criado_por = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.PROTECT,
-        related_name="anexos_portal",
+        related_name="anexos_workspace",
     )
     criado_em = models.DateTimeField(auto_now_add=True)
 

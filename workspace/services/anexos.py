@@ -10,10 +10,10 @@ bytes. `dashboard` não está na lista de apps proibidos do teste de isolamento
 (só `fsm`, `km_audit` e `calculo_vigilante` estão), e o que se importa aqui é
 utilitário de segurança, não model de domínio.
 
-**A autorização é do Portal, não do iConnect.** `dashboard/views/
+**A autorização é do Workspace, não do iConnect.** `dashboard/views/
 media_protegida.py` autoriza por `get_user_role`, que são os papéis do iConnect.
-Um colaborador do Portal não tem papel de iConnect, então aquela regra negaria
-a ele o próprio comprovante. Quem decide aqui é a identidade do Portal.
+Um colaborador do Workspace não tem papel de iConnect, então aquela regra negaria
+a ele o próprio comprovante. Quem decide aqui é a identidade do Workspace.
 """
 
 from __future__ import annotations

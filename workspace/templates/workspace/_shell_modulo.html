@@ -4,7 +4,7 @@
 {% comment %}
   Casca de módulo: rail de navegação + breadcrumb + área principal.
 
-  A home do Portal é um hub e não tem rail. Um módulo com várias telas precisa
+  A home do Workspace é um hub e não tem rail. Um módulo com várias telas precisa
   de navegação persistente, senão vira caça ao breadcrumb.
 
   O rail é dividido por AUDIÊNCIA, não por assunto — duas pessoas com crachás
@@ -21,7 +21,7 @@
 
   <div class="au-modulo-corpo">
     <nav class="au-breadcrumb" aria-label="{% trans 'Trilha' %}">
-      <a href="{% url 'workspace:home' %}">{% trans "Portal" %}</a>
+      <a href="{% url 'workspace:home' %}">{% trans "Workspace" %}</a>
       {% block trilha %}{% endblock %}
     </nav>
 

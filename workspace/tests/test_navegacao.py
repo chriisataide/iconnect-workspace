@@ -1,4 +1,4 @@
-"""Navegação do Portal — todo destino tem porta, toda porta tem destino.
+"""Navegação do Workspace — todo destino tem porta, toda porta tem destino.
 
 Estes testes existem por causa de um bug de arquitetura de informação que
 nenhuma suíte pegava: a home tinha dez tiles e nove não levavam a lugar nenhum,
@@ -51,7 +51,7 @@ def test_todo_tile_disponivel_leva_a_pagina_que_responde(client):
     for spec in catalogo_semente():
         if not spec.disponivel:
             continue
-        if spec.url_direta:  # iConnect sai do Portal — não é nossa rota
+        if spec.url_direta:  # iConnect sai do Workspace — não é nossa rota
             continue
         destino = reverse(spec.url_name, args=spec.url_args)
         assert destino in _href(corpo), f"tile {spec.chave} não está na home"
@@ -98,7 +98,7 @@ def item_rh(db):
 
 
 def test_modulo_e_publico(client, item_rh):
-    """O Portal é aberto a quem está na rede — a vitrine não pede senha."""
+    """O Workspace é aberto a quem está na rede — a vitrine não pede senha."""
     resposta = client.get(reverse("workspace:modulo", args=("rh",)))
 
     assert resposta.status_code == 200

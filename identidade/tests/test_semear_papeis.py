@@ -1,7 +1,7 @@
-"""`semear_papeis` — cria os papéis do Portal.
+"""`semear_papeis` — cria os papéis do Workspace.
 
-Os papéis do Portal NÃO são os do iConnect: aquela plataforma tem 1432 técnicos
-e clientes; o Portal é dos funcionários da icodev.
+Os papéis do Workspace NÃO são os do iConnect: aquela plataforma tem 1432 técnicos
+e clientes; o Workspace é dos funcionários da icodev.
 """
 
 from __future__ import annotations

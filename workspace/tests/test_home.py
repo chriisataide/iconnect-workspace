@@ -1,4 +1,4 @@
-"""Home do Portal — pública, com um único acesso ao iConnect."""
+"""Home do Workspace — pública, com um único acesso ao iConnect."""
 
 from __future__ import annotations
 
@@ -11,14 +11,14 @@ from django.urls import resolve, reverse
 
 @pytest.mark.django_db
 def test_home_responde_200_para_anonimo():
-    """O requisito central: o Portal NÃO exige login."""
+    """O requisito central: o Workspace NÃO exige login."""
     assert Client().get(reverse("workspace:home")).status_code == 200
 
 
 @pytest.mark.django_db
 def test_home_nao_redireciona_para_login(client):
     resposta = client.get(reverse("workspace:home"))
-    assert resposta.status_code != 302, "o Portal virou página autenticada — não é o desenho"
+    assert resposta.status_code != 302, "o Workspace virou página autenticada — não é o desenho"
 
 
 @pytest.mark.django_db
@@ -52,7 +52,7 @@ def test_topbar_nao_tem_botao_de_login(client):
 
 @pytest.mark.django_db
 def test_tile_do_iconnect_e_o_acesso(client):
-    """O elo do diagrama: Portal → iConnect → login do sistema principal."""
+    """O elo do diagrama: Workspace → iConnect → login do sistema principal."""
     resposta = client.get(reverse("workspace:home"))
     iconnect = next(a for a in resposta.context["apps"] if a.chave == "iconnect")
 
@@ -75,7 +75,7 @@ def test_os_dez_destinos_do_diagrama_aparecem(client):
 
 @pytest.mark.django_db
 def test_sistema_inexistente_aparece_como_em_breve(client):
-    """Não esconder o que não existe — o Portal comunica o roadmap."""
+    """Não esconder o que não existe — o Workspace comunica o roadmap."""
     resposta = client.get(reverse("workspace:home"))
     # `documentacao` e não `rh`: o RH passou a ter página quando os tiles
     # viraram destinos reais. Documentação segue sem nada a mostrar — não se
@@ -114,7 +114,7 @@ def test_autenticado_e_cumprimentado_pelo_primeiro_nome(client, django_user_mode
 @pytest.mark.django_db
 def test_anonimo_ve_saudacao_neutra(client):
     corpo = client.get(reverse("workspace:home")).content.decode()
-    assert "Bem-vindo ao Portal." in corpo
+    assert "Bem-vindo ao Workspace." in corpo
 
 
 @pytest.mark.django_db
@@ -137,18 +137,18 @@ def test_pagina_usa_a_marca_icodev(client):
 
 @pytest.mark.django_db
 def test_shell_nao_herda_material_dashboard(client):
-    """Decisão A-02: o shell do Portal não carrega a casca antiga."""
+    """Decisão A-02: o shell do Workspace não carrega a casca antiga."""
     corpo = client.get(reverse("workspace:home")).content.decode().lower()
     for marcador in ("material-dashboard", "bootstrap", "argon"):
-        assert marcador not in corpo, f"casca antiga vazou para o Portal: {marcador}"
+        assert marcador not in corpo, f"casca antiga vazou para o Workspace: {marcador}"
 
 
 @pytest.mark.django_db
 def test_pagina_carrega_tokens_e_script(client):
     corpo = client.get(reverse("workspace:home")).content.decode()
     assert "workspace/src/tokens.css" in corpo
-    assert "workspace/src/portal.css" in corpo
-    assert "workspace/js/portal.js" in corpo
+    assert "workspace/src/workspace.css" in corpo
+    assert "workspace/js/workspace.js" in corpo
 
 
 @pytest.mark.django_db

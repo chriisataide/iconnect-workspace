@@ -1,4 +1,4 @@
-"""URLs do Portal, montadas sob `/workspace/`.
+"""URLs do Workspace, montadas sob `/workspace/`.
 
 A home é pública. Tudo sob `servicos/` e `aprovacoes/` é área pessoal —
 `@login_required` mora nas views, não aqui, para que a regra fique junto do

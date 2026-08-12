@@ -109,7 +109,7 @@ def do_modulo(prefixos) -> list[ItemCatalogo]:
     """A vitrine de um módulo — os serviços que aquele departamento atende.
 
     SEM filtro de permissão, de propósito, e é a diferença para
-    `catalogo_para()`: o Portal é aberto a quem está na rede da empresa, e
+    `catalogo_para()`: o Workspace é aberto a quem está na rede da empresa, e
     listar o que um departamento atende é informação, não ação. Quem pode de
     fato PEDIR continua sendo decidido por `catalogo_para()` — a tela marca os
     itens fora do alcance em vez de escondê-los, porque saber que o serviço

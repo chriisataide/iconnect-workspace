@@ -16,6 +16,21 @@ A primeira cria as lotações **sem gestor**; a segunda amarra os gestores. Assi
 a ordem das linhas no arquivo não importa — e não importar é o que se espera de
 uma planilha que RH vai ordenar por departamento, não por hierarquia.
 
+## Por que `--criar-usuarios` é desligado por padrão
+
+Criar conta a partir de planilha é ação de segurança: um `username` digitado
+errado não gera erro, gera **conta fantasma** — que passa a existir, aparecer no
+organograma e receber etapa de aprovação que ninguém decide.
+
+A empresa usa Microsoft 365, então em produção a conta deve nascer do **SSO no
+primeiro login** (`dashboard/utils/sso.py`), e o CSV apenas pendura a estrutura
+organizacional em quem já entrou. A flag existe para semear ambiente de teste e
+para o caso de quem ainda não fez o primeiro acesso.
+
+Quando a flag é usada, a conta nasce com `set_unusable_password()`: ela não
+autentica por senha, só por SSO. Conta semeada com senha conhecida é a porta que
+fica aberta depois que todos esqueceram que ela existe.
+
 ## Ciclo é rejeitado no fim, não na linha
 
 Validar A→B na linha de A e B→A na linha de B só pega o ciclo na segunda linha,
@@ -52,6 +67,14 @@ class Command(BaseCommand):
             default=True,
             help="Cria Unidade/Departamento que não existirem (padrão).",
         )
+        parser.add_argument(
+            "--criar-usuarios",
+            action="store_true",
+            help=(
+                "Cria conta para quem não tem, SEM senha utilizável. "
+                "Desligado por padrão — ver docstring."
+            ),
+        )
 
     def handle(self, *args, **opcoes):
         caminho = Path(opcoes["arquivo"])
@@ -70,7 +93,12 @@ class Command(BaseCommand):
 
         try:
             with transaction.atomic():
-                relatorio = self._importar(linhas, aplicar, opcoes["criar_estrutura"])
+                relatorio = self._importar(
+                    linhas,
+                    aplicar,
+                    opcoes["criar_estrutura"],
+                    opcoes["criar_usuarios"],
+                )
                 if not aplicar:
                     transaction.set_rollback(True)
         except ValidationError as erro:
@@ -91,9 +119,35 @@ class Command(BaseCommand):
                 if (linha.get("username") or "").strip()
             ]
 
+    def _criar_usuario(self, linha: dict) -> User:
+        """Conta sem senha utilizável — autentica só por SSO.
+
+        `nome` do CSV é uma coluna só; parte no primeiro espaço porque `User` do
+        Django separa em dois campos. Nome composto vai inteiro para
+        `last_name`, que é o comportamento certo em português: "Maria Clara
+        Souza Lima" tem primeiro nome "Maria" e o resto é sobrenome.
+        """
+        nome = (linha.get("nome") or "").strip()
+        primeiro, _, resto = nome.partition(" ")
+        user = User(
+            username=linha["username"],
+            first_name=primeiro[:150],
+            last_name=resto[:150],
+            email=linha.get("email", ""),
+        )
+        user.set_unusable_password()
+        user.save()
+        return user
+
     # ── Importação ──────────────────────────────────────────────────
 
-    def _importar(self, linhas: list[dict], aplicar: bool, criar_estrutura: bool) -> dict:
+    def _importar(
+        self,
+        linhas: list[dict],
+        aplicar: bool,
+        criar_estrutura: bool,
+        criar_usuarios: bool = False,
+    ) -> dict:
         usuarios = {u.get_username(): u for u in User.objects.all()}
         rel = {
             "criadas": 0,
@@ -101,6 +155,7 @@ class Command(BaseCommand):
             "unidades": set(),
             "departamentos": set(),
             "sem_usuario": [],
+            "usuarios_criados": [],
             "gestor_ausente": [],
             "situacao_invalida": [],
             "gestores_amarrados": 0,
@@ -110,6 +165,10 @@ class Command(BaseCommand):
         for linha in linhas:
             username = linha["username"]
             user = usuarios.get(username)
+            if user is None and criar_usuarios:
+                user = self._criar_usuario(linha)
+                usuarios[username] = user
+                rel["usuarios_criados"].append(username)
             if user is None:
                 rel["sem_usuario"].append(username)
                 continue
@@ -215,6 +274,11 @@ class Command(BaseCommand):
         self.stdout.write(f"  criadas            {rel['criadas']}")
         self.stdout.write(f"  atualizadas        {rel['atualizadas']}")
         self.stdout.write(f"  gestores amarrados {rel['gestores_amarrados']}")
+        if rel["usuarios_criados"]:
+            self.stdout.write(
+                f"  contas criadas     {len(rel['usuarios_criados'])} "
+                "(sem senha — entram por SSO)"
+            )
 
         if rel["unidades"]:
             self.stdout.write(

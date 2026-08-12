@@ -1,6 +1,6 @@
-"""Busca do Portal.
+"""Busca do Workspace.
 
-Versão honesta do V1.0: procura no que o Portal realmente tem — aplicativos do
+Versão honesta do V1.0: procura no que o Workspace realmente tem — aplicativos do
 launcher e publicações no ar. **Não** é a busca federada da Onda 5; aquela
 precisa do índice `SearchDocument` com `tsvector` e `acl_subjects`, que exige
 IDN para o security trimming.

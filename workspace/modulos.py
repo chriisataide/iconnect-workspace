@@ -1,9 +1,9 @@
-"""Os módulos do Portal — o que cada tile da home abre.
+"""Os módulos do Workspace — o que cada tile da home abre.
 
 ## O erro que este arquivo corrige
 
 A home tinha dez tiles e nove deles não levavam a lugar nenhum. Ao mesmo tempo,
-a única área real do Portal (o catálogo de serviços) não tinha porta na home:
+a única área real do Workspace (o catálogo de serviços) não tinha porta na home:
 existia só se você digitasse a URL. Mapa sem destino de um lado, destino sem
 porta do outro.
 
@@ -33,7 +33,7 @@ from dataclasses import dataclass, field
 
 @dataclass(frozen=True)
 class Modulo:
-    """Um departamento do Portal, com a fatia do catálogo que ele atende."""
+    """Um departamento do Workspace, com a fatia do catálogo que ele atende."""
 
     chave: str
     nome: str

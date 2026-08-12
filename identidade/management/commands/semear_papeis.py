@@ -1,4 +1,4 @@
-"""Cria os papéis do Portal.
+"""Cria os papéis do Workspace.
 
     python manage.py semear_papeis            # relatório, sem gravar
     python manage.py semear_papeis --aplicar
@@ -11,7 +11,7 @@ Reexecutável sem duplicar: casa por `chave`. Papel cujas permissões mudaram em
 
 Não migra `UserRole` do iConnect. Fazia, e estava errado: os 1432 registros de
 `UserRole` são técnicos e clientes do **iConnect**, que é plataforma separada. O
-Portal é dos funcionários da icodev, algumas dezenas, e quem entra no organograma
+Workspace é dos funcionários da icodev, algumas dezenas, e quem entra no organograma
 é decidido no CSV do `importar_organograma` — não herdado de outra plataforma.
 
 Atribuir papel a pessoa é ato deliberado: acontece no admin
@@ -28,7 +28,7 @@ from identidade.papeis import PAPEIS_V1
 
 
 class Command(BaseCommand):
-    help = "Semeia os papéis do Portal em identidade.Papel."
+    help = "Semeia os papéis do Workspace em identidade.Papel."
 
     def add_arguments(self, parser):
         parser.add_argument(

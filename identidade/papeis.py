@@ -1,12 +1,12 @@
-"""Os papéis do Portal.
+"""Os papéis do Workspace.
 
 **Não são os papéis do iConnect.** O iConnect é plataforma separada, com 1432
-técnicos e clientes; o Portal é dos funcionários da icodev, que são algumas
+técnicos e clientes; o Workspace é dos funcionários da icodev, que são algumas
 dezenas. Espelhar `UserRole.role` aqui produziria `tecnico_campo` e `cliente`
-como papéis do Portal, que não descrevem nada do que o Portal faz.
+como papéis do Workspace, que não descrevem nada do que o Workspace faz.
 
 Os papéis abaixo derivam das permissões que os 8 módulos especificados exigem.
-Cada um é uma resposta a "quem faz o quê no Portal", não a "quem é quem no
+Cada um é uma resposta a "quem faz o quê no Workspace", não a "quem é quem no
 iConnect".
 
 ## Como o escopo funciona
@@ -93,7 +93,28 @@ PAPEIS_V1 = [
             "ops.excecao.certificacao",
             "log.perda.registrar",
         ],
-        "descricao": "Último degrau da cadeia de aprovação. Vê tudo, aprova acima do teto.",
+        "descricao": (
+            "Terceiro degrau da cadeia. Aprova de R$ 50.000 a R$ 300.000 e vê tudo."
+        ),
+    },
+    {
+        "chave": "socios",
+        "nome": "Sócios",
+        "escopo_padrao": ESCOPO_GLOBAL,
+        "permissoes": AUTOATENDIMENTO
+        + [
+            "apr.aprovar.global",
+            "fin.aprovar.global",
+            "fin.ler.global",
+            "rh.ler.global",
+            "ops.ler.global",
+        ],
+        "descricao": (
+            "Último degrau. Aprova acima de R$ 300.000. Deliberadamente SEM as "
+            "permissões administrativas de `diretoria` — sócio decide sobre "
+            "dinheiro, não opera o sistema, e papel de aprovação com poder de "
+            "administração transforma a última instância em superusuário."
+        ),
     },
     {
         "chave": "rh",

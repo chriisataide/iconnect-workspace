@@ -1,0 +1,7 @@
+username,nome,email,matricula,cargo,unidade_codigo,unidade_nome,departamento_codigo,departamento_nome,gestor_username,centro_custo_codigo,situacao
+socio.fundador,Sócio Fundador,socio.fundador@icodev.com.br,IC0001,Sócio,MTZ,Matriz,DIR,Diretoria,,1000,ativo
+diretor.operacoes,Diretor de Operações,diretor.operacoes@icodev.com.br,IC0002,Diretor de Operações,MTZ,Matriz,DIR,Diretoria,socio.fundador,1000,ativo
+gerente.suporte,Gerente de Suporte,gerente.suporte@icodev.com.br,IC0003,Gerente de Suporte,MTZ,Matriz,OPS,Operações,diretor.operacoes,1042,ativo
+gerente.campo,Gerente de Campo,gerente.campo@icodev.com.br,IC0004,Gerente de Campo,MTZ,Matriz,OPS,Operações,diretor.operacoes,1042,ativo
+analista.suporte,Analista de Suporte,analista.suporte@icodev.com.br,IC0005,Analista de Suporte,MTZ,Matriz,OPS,Operações,gerente.suporte,1042,ativo
+tecnico.campo,Técnico de Campo,tecnico.campo@icodev.com.br,IC0006,Técnico de Campo,BA1,Base Salvador,OPS,Operações,gerente.campo,1055,ativo

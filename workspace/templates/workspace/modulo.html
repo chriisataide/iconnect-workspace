@@ -1,5 +1,5 @@
 {% extends "workspace/_shell_modulo.html" %}
-{% load i18n portal %}
+{% load i18n wks %}
 
 {% block titulo %}{{ modulo.nome }}{% endblock %}
 
@@ -14,7 +14,7 @@
 {% block corpo %}
   {% if not autenticado %}
     {% comment %}
-      O Portal é aberto na rede da empresa: a vitrine aparece sem senha. O login
+      O Workspace é aberto na rede da empresa: a vitrine aparece sem senha. O login
       só entra quando a pessoa vai agir — e dizer isso aqui evita que ela clique
       em "Pedir" achando que a tela quebrou.
     {% endcomment %}

@@ -1,5 +1,5 @@
 {% extends "workspace/_shell.html" %}
-{% load i18n portal %}
+{% load i18n wks %}
 
 {% block titulo %}{{ publicacao.titulo }}{% endblock %}
 
@@ -7,7 +7,7 @@
   <nav class="au-voltar" aria-label="{% trans 'Navegação' %}">
     <a class="au-btn au-btn--sutil" href="{% url 'workspace:home' %}">
       <svg class="au-icon au-icon--espelhado" aria-hidden="true"><use href="#i-seta"></use></svg>
-      {% trans "Portal" %}
+      {% trans "Workspace" %}
     </a>
   </nav>
 

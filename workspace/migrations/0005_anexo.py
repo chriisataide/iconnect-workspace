@@ -24,7 +24,7 @@ class Migration(migrations.Migration):
                 ('tamanho', models.PositiveBigIntegerField(help_text='Bytes.')),
                 ('tipo_mime', models.CharField(blank=True, max_length=100)),
                 ('criado_em', models.DateTimeField(auto_now_add=True)),
-                ('criado_por', models.ForeignKey(on_delete=django.db.models.deletion.PROTECT, related_name='anexos_portal', to=settings.AUTH_USER_MODEL)),
+                ('criado_por', models.ForeignKey(on_delete=django.db.models.deletion.PROTECT, related_name='anexos_workspace', to=settings.AUTH_USER_MODEL)),
                 ('solicitacao', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='anexos', to='workspace.solicitacaoservico')),
             ],
             options={

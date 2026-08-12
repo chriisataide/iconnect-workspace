@@ -39,7 +39,7 @@ class PublicacaoAdmin(admin.ModelAdmin):
             {
                 "fields": ("publicado", "publicar_em", "expira_em"),
                 "description": (
-                    "O card do Portal só mostra o que está <b>publicado</b>, com "
+                    "O card do Workspace só mostra o que está <b>publicado</b>, com "
                     "<b>publicar em</b> no passado e ainda dentro da validade."
                 ),
             },
@@ -219,10 +219,10 @@ class AnexoInline(admin.TabularInline):
     """Anexos em leitura. Sem link para o arquivo, de propósito.
 
     O admin roda sob autenticação de staff, mas a autorização do anexo é a do
-    Portal — solicitante, aprovador da cadeia, ou quem aprova sobre a pessoa.
+    Workspace — solicitante, aprovador da cadeia, ou quem aprova sobre a pessoa.
     Um staff qualquer não está nessa lista, e um link aqui abriria uma segunda
     porta que não passa por `pode_baixar()`. Quem precisa auditar o conteúdo
-    entra pela tela do Portal.
+    entra pela tela do Workspace.
     """
 
     model = Anexo
@@ -232,7 +232,7 @@ class AnexoInline(admin.TabularInline):
     readonly_fields = fields
 
     def has_add_permission(self, request, obj) -> bool:
-        # Anexo nasce do formulário do Portal, que valida magic bytes. Upload
+        # Anexo nasce do formulário do Workspace, que valida magic bytes. Upload
         # pelo admin driblaria essa validação.
         return False
 

@@ -1,4 +1,4 @@
-"""App Launcher — o catálogo de sistemas do Portal (Etapa 5 §5.9)."""
+"""App Launcher — o catálogo de sistemas do Workspace (Etapa 5 §5.9)."""
 
 from __future__ import annotations
 

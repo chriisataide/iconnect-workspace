@@ -1,6 +1,6 @@
 """Views do Workspace.
 
-    home, buscar, publicacao   públicas — o Portal é a porta de entrada
+    home, buscar, publicacao   públicas — o Workspace é a porta de entrada
     modulo                     pública — a vitrine de cada departamento
     servicos, aprovacoes       área pessoal, com @login_required
 

@@ -1,4 +1,4 @@
-"""Busca do Portal."""
+"""Busca do Workspace."""
 
 from __future__ import annotations
 
@@ -163,7 +163,9 @@ def test_endpoint_escapa_a_consulta(client):
 
 @pytest.mark.django_db
 def test_resultado_de_app_com_url_direta_leva_ao_destino():
-    iconnect = next(r for r in buscar("iconnect")["Aplicativos"] if r.titulo == "iConnect")
+    iconnect = next(
+        r for r in buscar("iconnect")["Aplicativos"] if r.titulo == "iConnect Platform"
+    )
     assert iconnect.url == reverse("login")
     assert iconnect.disponivel
 

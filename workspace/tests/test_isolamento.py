@@ -85,7 +85,7 @@ def test_dominio_nao_importa_superficie_do_workspace(app):
 
 
 def test_o_provider_real_importa_so_o_contrato():
-    """`dashboard` é o primeiro domínio a se registrar no Portal.
+    """`dashboard` é o primeiro domínio a se registrar no Workspace.
 
     Substitui `test_st002_nao_acoplou_nenhum_dominio`, que fixava o ponto de
     partida (acoplamento zero) e cumpriu o papel: agora existe provider real, e
@@ -104,7 +104,7 @@ def test_o_provider_real_importa_so_o_contrato():
 
 @pytest.mark.parametrize("app", ["fsm", "km_audit", "calculo_vigilante"])
 def test_dominio_sem_provider_nao_importa_nada_do_workspace(app):
-    """Os que ainda não expõem nada ao Portal seguem em acoplamento zero."""
+    """Os que ainda não expõem nada ao Workspace seguem em acoplamento zero."""
     importadores = [
         str(caminho.relative_to(RAIZ))
         for caminho in _arquivos_python(app)

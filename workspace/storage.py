@@ -1,4 +1,4 @@
-"""Armazenamento privado dos anexos do Portal.
+"""Armazenamento privado dos anexos do Workspace.
 
 Um `FileSystemStorage` deliberadamente **sem `base_url`**. Isso faz
 `anexo.arquivo.url` levantar `ValueError` em vez de devolver um endereço
@@ -56,7 +56,7 @@ class ArmazenamentoPrivado(FileSystemStorage):
         `test_arquivo_nao_tem_url_publica` existe por causa disso.
         """
         raise ValueError(
-            "Anexo do Portal não tem URL pública — use "
+            "Anexo do Workspace não tem URL pública — use "
             "reverse('workspace:baixar_anexo', args=[anexo.pk])."
         )
 

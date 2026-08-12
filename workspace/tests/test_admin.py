@@ -1,7 +1,7 @@
 """Admin de Publicações — é por aqui que Comunicados e Notícias são alimentados.
 
 Testado porque é a *única* forma de publicar hoje. Admin quebrado significa
-Portal permanentemente vazio, e nada mais no sistema denunciaria isso.
+Workspace permanentemente vazio, e nada mais no sistema denunciaria isso.
 """
 
 from __future__ import annotations
@@ -16,7 +16,7 @@ from django.utils import timezone
 
 from workspace.admin import PublicacaoAdmin
 from workspace.models import Publicacao, TipoPublicacao
-from workspace.templatetags.portal import data_extenso
+from workspace.templatetags.wks import data_extenso
 
 
 @pytest.fixture
@@ -305,7 +305,7 @@ def test_coluna_de_campos_mostra_total_e_obrigatorios():
 def test_admin_nao_permite_subir_anexo():
     """O admin não é uma segunda porta para o upload.
 
-    O formulário do Portal valida magic bytes antes de gravar; um upload pelo
+    O formulário do Workspace valida magic bytes antes de gravar; um upload pelo
     admin driblaria essa checagem — e é o admin que um atacante com conta de
     staff usaria.
     """

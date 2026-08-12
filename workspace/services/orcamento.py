@@ -65,7 +65,7 @@ class ResumoOrcamento:
     def cabe(self, valor: Decimal) -> bool:
         """Este valor cabe no que resta?
 
-        Sem orçamento definido devolve `True`: o Portal não é quem barra por
+        Sem orçamento definido devolve `True`: o Workspace não é quem barra por
         falta de cadastro — barrar aqui esconderia o problema real, que é o CC
         sem orçamento.
         """

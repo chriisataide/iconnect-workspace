@@ -1,6 +1,6 @@
-"""Home do Portal — pública.
+"""Home do Workspace — pública.
 
-O Portal é a porta de entrada da empresa e **não exige login**: quem chega vê
+O Workspace é a porta de entrada da empresa e **não exige login**: quem chega vê
 o hub e escolhe o sistema. O tile do iConnect é o único caminho para o login do
 sistema principal — antes havia três (topbar, tile, faixa), o que faz o usuário
 hesitar sobre se levam ao mesmo lugar.

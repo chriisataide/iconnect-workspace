@@ -10,7 +10,7 @@ from decimal import Decimal
 
 import pytest
 
-from workspace.templatetags.portal import moeda
+from workspace.templatetags.wks import moeda
 
 
 @pytest.mark.parametrize(

@@ -1,6 +1,6 @@
 """Catálogo de serviços — as telas de pedir e acompanhar.
 
-Área pessoal: pedir exige saber quem pede. A home do Portal continua pública; é
+Área pessoal: pedir exige saber quem pede. A home do Workspace continua pública; é
 aqui que o login passa a ser necessário, e `@login_required` só aparece neste
 arquivo e no de aprovações.
 """

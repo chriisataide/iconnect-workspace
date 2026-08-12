@@ -4,7 +4,7 @@ Context processor e não variável passada em cada view: o rail está em todas a
 telas, e depender de cada view lembrar de preencher garante que uma esqueça.
 
 Barato de propósito. Só roda para usuário autenticado em rota de `/workspace/`
-(ADR-009: curto-circuito fora do Portal) — a home pública não paga nada por
+(ADR-009: curto-circuito fora do Workspace) — a home pública não paga nada por
 isto, e é a tela mais acessada.
 """
 

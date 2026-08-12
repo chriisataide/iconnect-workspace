@@ -10,7 +10,7 @@ tem nada a ver com ele.
 
 `CentroCusto` e `MovimentacaoFinanceira` moram em `dashboard`. O Workspace é
 folha (Etapa 5 §5.3) e não consulta model de outro domínio — se consultasse,
-mudar o cálculo de realizado exigiria mexer em dois apps, e o Portal viraria um
+mudar o cálculo de realizado exigiria mexer em dois apps, e o Workspace viraria um
 segundo lugar onde o dado financeiro mora e diverge.
 
 O `Compromisso` — aprovado e não pago — é a **única** parte que o Workspace
@@ -58,7 +58,7 @@ def registrar(provider: OrcamentoProvider) -> OrcamentoProvider:
     """Registra o provider de orçamento.
 
     Um só, não uma lista: "quanto sobrou no CC 1042" tem uma resposta. Dois
-    providers respondendo produziriam dois números, e aí o Portal não tem o que
+    providers respondendo produziriam dois números, e aí o Workspace não tem o que
     mostrar.
     """
     if not isinstance(provider, OrcamentoProvider):

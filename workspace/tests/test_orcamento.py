@@ -186,7 +186,7 @@ def test_orcamento_zero_tambem_conta_como_indefinido(com_provider):
 
 @pytest.mark.django_db
 def test_sem_orcamento_tudo_cabe(com_provider):
-    """O Portal não barra por falta de cadastro — barrar esconderia o problema
+    """O Workspace não barra por falta de cadastro — barrar esconderia o problema
     real, que é o CC sem orçamento."""
     com_provider(orcamento=None)
     assert orc.resumo("CC").cabe(Decimal("999999")) is True

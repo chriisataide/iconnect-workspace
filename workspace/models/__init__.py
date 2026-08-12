@@ -2,7 +2,7 @@
 
 Já existe (Etapa 5 §5.2):
 
-    comunicacao.py COM  Publicacao — alimenta Comunicados e Notícias no Portal
+    comunicacao.py COM  Publicacao — alimenta Comunicados e Notícias no Workspace
     aprovacao.py   APR  RegraAprovacao, SolicitacaoAprovacao, EtapaAprovacao
                         Uma bandeja para férias, reembolso e compra
     orcamento.py   FIN  Compromisso — aprovado e não pago

@@ -1,6 +1,6 @@
 {% load i18n static %}<!DOCTYPE html>
 {% comment %}
-  Casca do Portal — deliberadamente NÃO estende templates/base.html.
+  Casca do Workspace — deliberadamente NÃO estende templates/base.html.
   Decisão A-02 (Etapa 6): não herda a casca antiga. Os ~40 templates
   operacionais continuam como estão; a migração é por atração.
 
@@ -15,14 +15,18 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="color-scheme" content="light dark">
   <meta name="theme-color" content="#2e3192">
-  <title>{% block titulo %}{% trans "Portal" %}{% endblock %} · iConnect</title>
+  {% comment %}
+    O sufixo é o produto, e o bloco é a página. Antes o sufixo era "iConnect",
+    o que fazia a aba dizer "RH · iConnect" para uma tela que não é do iConnect.
+  {% endcomment %}
+  <title>{% block titulo %}{% trans "Início" %}{% endblock %} · iConnect Workspace</title>
 
   <link rel="icon" href="{% static 'workspace/img/favicon.ico' %}" sizes="any">
   <link rel="icon" type="image/png" href="{% static 'workspace/img/icodev-512.png' %}">
   <link rel="apple-touch-icon" href="{% static 'workspace/img/icodev-apple-touch.png' %}">
 
   <link rel="stylesheet" href="{% static 'workspace/src/tokens.css' %}">
-  <link rel="stylesheet" href="{% static 'workspace/src/portal.css' %}">
+  <link rel="stylesheet" href="{% static 'workspace/src/workspace.css' %}">
   {% block head %}{% endblock %}
 </head>
 <body>
@@ -35,7 +39,7 @@
       <img class="au-brand-logo" src="{% static 'workspace/img/icodev-wordmark.png' %}"
            alt="icodev" width="176" height="60">
       <span class="au-brand-divisor" aria-hidden="true"></span>
-      <span class="au-brand-produto">Portal</span>
+      <span class="au-brand-produto">Workspace</span>
     </a>
 
     {% comment %}
@@ -57,7 +61,7 @@
   <footer class="au-rodape">
     <img class="au-rodape-marca" src="{% static 'workspace/img/icodev-mark.png' %}"
          alt="" width="18" height="18" aria-hidden="true">
-    <span>{% blocktrans %}iConnect Portal · o ponto de entrada da empresa{% endblocktrans %}</span>
+    <span>{% blocktrans %}iConnect Workspace · a vida corporativa em um lugar{% endblocktrans %}</span>
   </footer>
 
   {% block scripts %}{% endblock %}

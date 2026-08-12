@@ -23,7 +23,7 @@ from dataclasses import dataclass
 from decimal import Decimal
 
 from django.db import transaction
-from django.db.models import Q
+from django.db.models import F, OuterRef, Q, Subquery
 from django.dispatch import Signal
 from django.utils import timezone
 
@@ -390,8 +390,28 @@ def pendentes_para(quem, cache: dict | None = None):
     if delegantes:
         condicao |= Q(aprovador_id__in=delegantes)
 
+    # Só a etapa DA VEZ. Todas as etapas nascem `pendente` de uma vez, então
+    # filtrar por "pendente e minha" traz também degraus futuros: com a cadeia
+    # de três faixas, a diretoria via na bandeja um pedido cuja etapa 1 ainda
+    # era do gerente — rotulado "Etapa 1 de 3 · você", e com o botão Aprovar
+    # funcionando pela válvula de escopo global de `_pode_decidir`.
+    #
+    # A bandeja estava convidando ao atalho que a cadeia por faixa de valor
+    # existe para impedir. Com um degrau só isso nunca apareceu.
+    #
+    # `Subquery` e não laço: o contrato desta função é uma query, sem N+1.
+    ordem_da_vez = (
+        EtapaAprovacao.objects.filter(
+            solicitacao_id=OuterRef("solicitacao_id"),
+            situacao=SituacaoEtapa.PENDENTE,
+        )
+        .order_by("ordem")
+        .values("ordem")[:1]
+    )
     ids = (
         EtapaAprovacao.objects.filter(condicao, situacao=SituacaoEtapa.PENDENTE)
+        .annotate(ordem_da_vez=Subquery(ordem_da_vez))
+        .filter(ordem=F("ordem_da_vez"))
         .values_list("solicitacao_id", flat=True)
     )
     return (

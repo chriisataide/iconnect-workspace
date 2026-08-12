@@ -47,14 +47,14 @@ class PublicacaoQuerySet(models.QuerySet):
 
 
 class Publicacao(models.Model):
-    """Um comunicado ou uma notícia no Portal."""
+    """Um comunicado ou uma notícia no Workspace."""
 
     tipo = models.CharField(
         max_length=20, choices=TipoPublicacao.choices, default=TipoPublicacao.COMUNICADO, db_index=True
     )
     titulo = models.CharField(max_length=200)
     resumo = models.CharField(
-        max_length=300, blank=True, help_text="Uma linha, exibida no card do Portal."
+        max_length=300, blank=True, help_text="Uma linha, exibida no card do Workspace."
     )
     corpo = models.TextField(blank=True)
 

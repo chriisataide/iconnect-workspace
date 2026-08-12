@@ -1,4 +1,4 @@
-"""Filtros de template do Portal."""
+"""Filtros de template do Workspace."""
 
 from __future__ import annotations
 

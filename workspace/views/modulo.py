@@ -32,7 +32,7 @@ def modulo(request: HttpRequest, chave: str) -> HttpResponse:
     if mod is None or not mod.tem_catalogo:
         # Módulo sem fatia de catálogo não tem página. O tile dele já aparece
         # "em breve" na home; 404 aqui evita URL adivinhada abrir tela vazia.
-        raise Http404("Módulo sem página no Portal.")
+        raise Http404("Módulo sem página no Workspace.")
 
     autenticado = request.user.is_authenticated
     pessoa = request.user if autenticado else None

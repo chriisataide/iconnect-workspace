@@ -76,7 +76,7 @@ def cenario():
     "rota", ["workspace:servicos", "workspace:minhas_solicitacoes", "workspace:aprovacoes"]
 )
 def test_area_pessoal_exige_login(client, rota):
-    """O Portal é público; pedir e aprovar exigem saber quem é."""
+    """O Workspace é público; pedir e aprovar exigem saber quem é."""
     resposta = client.get(reverse(rota))
     assert resposta.status_code == 302
     assert "/login" in resposta["Location"]
