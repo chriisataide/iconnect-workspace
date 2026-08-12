@@ -69,10 +69,23 @@ def catalogo_para(pessoa, cache: dict | None = None) -> list[ItemCatalogo]:
 
 
 def agrupado_para(pessoa, cache: dict | None = None) -> dict[str, list[ItemCatalogo]]:
-    """Catálogo por grupo de intenção, para a tela de navegação."""
-    agrupado: dict[str, list[ItemCatalogo]] = {}
+    """Catálogo por grupo de intenção, na ordem de declaração de `GrupoCatalogo`.
+
+    Ordem de declaração e NÃO alfabética: a alfabética põe "Desenvolvimento"
+    primeiro e "Equipamento e acesso" em quarto, quando equipamento é o que a
+    maioria vem pedir. A ordem do enum é a ordem de frequência de uso.
+    """
+    from workspace.models.catalogo import GrupoCatalogo
+
+    por_grupo: dict[str, list[ItemCatalogo]] = {}
     for item in catalogo_para(pessoa, cache=cache):
-        agrupado.setdefault(item.get_grupo_display(), []).append(item)
+        por_grupo.setdefault(item.grupo, []).append(item)
+
+    agrupado: dict[str, list[ItemCatalogo]] = {}
+    for grupo in GrupoCatalogo:
+        itens = por_grupo.get(grupo.value)
+        if itens:
+            agrupado[grupo.label] = itens
     return agrupado
 
 

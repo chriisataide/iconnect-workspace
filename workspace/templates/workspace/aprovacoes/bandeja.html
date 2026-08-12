@@ -1,0 +1,210 @@
+{% extends "workspace/_shell_modulo.html" %}
+{% load i18n portal %}
+
+{% block titulo %}{% trans "Aprovações" %}{% endblock %}
+
+{% block rail %}{% include "workspace/_rail_servicos.html" with aba="aprovacoes" %}{% endblock %}
+{% block trilha %}
+  <a href="{% url 'workspace:servicos' %}">{% trans "Serviços" %}</a>
+  <span>{% trans "Aprovações" %}</span>
+{% endblock %}
+{% block pagina_titulo %}{% trans "Bandeja de aprovação" %}{% endblock %}
+
+{% block pagina_descricao %}
+  <p class="au-pagina-desc">
+    {% blocktrans %}Uma fila para férias, reembolso e compra. Aprovação sem contexto é carimbo.{% endblocktrans %}
+  </p>
+{% endblock %}
+
+{% block corpo %}
+<div class="au-kpi-linha">
+  <div class="au-kpi">
+    <span class="au-kpi-rotulo">{% trans "Esperando você" %}</span>
+    <span class="au-kpi-valor">{{ resumo.quantidade }}</span>
+  </div>
+  <div class="au-kpi">
+    <span class="au-kpi-rotulo">{% trans "Valor represado" %}</span>
+    <span class="au-kpi-valor">R$ {{ resumo.valor_represado|moeda }}</span>
+  </div>
+  <div class="au-kpi {% if resumo.dias_mais_antiga >= 3 %}au-kpi--alerta{% endif %}">
+    <span class="au-kpi-rotulo">{% trans "Mais antiga" %}</span>
+    <span class="au-kpi-valor">
+      {% blocktrans count dias=resumo.dias_mais_antiga %}{{ dias }} dia{% plural %}{{ dias }} dias{% endblocktrans %}
+    </span>
+  </div>
+</div>
+
+{% if itens %}
+  <form method="post" action="{% url 'workspace:aprovar_em_lote' %}">
+    {% csrf_token %}
+
+    <ul class="au-bandeja">
+      {% for entrada in itens %}
+        {% with s=entrada.solicitacao %}
+        <li class="au-bandeja-item">
+          <div class="au-bandeja-topo">
+            <input class="au-check" type="checkbox" name="selecionadas" value="{{ s.pk }}"
+                   id="sel-{{ s.pk }}"
+                   aria-label="{% blocktrans with t=s.titulo %}Selecionar {{ t }}{% endblocktrans %}">
+
+            <div class="au-bandeja-identidade">
+              <p class="au-bandeja-titulo">
+                {{ s.titulo }}
+                <span class="au-etiqueta au-etiqueta--dominio">{{ s.dominio }}</span>
+              </p>
+              <p class="au-bandeja-meta">
+                {{ s.solicitante.get_full_name|default:s.solicitante.username }}
+                {% if s.centro_custo_codigo %}· CC {{ s.centro_custo_codigo }}{% endif %}
+                · {% blocktrans count dias=s.dias_esperando %}há {{ dias }} dia{% plural %}há {{ dias }} dias{% endblocktrans %}
+              </p>
+            </div>
+
+            <p class="au-bandeja-valor">
+              {% if s.valor %}R$ {{ s.valor|moeda }}{% else %}—{% endif %}
+            </p>
+          </div>
+
+          {% comment %}
+            O DOSSIÊ. Aprovação sem contexto orçamentário é carimbo; com a barra
+            tripla — realizado, comprometido, este pedido — é decisão. O aprovador
+            vê o efeito ANTES de decidir, não no fechamento.
+          {% endcomment %}
+          {% if entrada.resumo %}
+            <div class="au-dossie">
+              {% if entrada.resumo.tem_orcamento %}
+                <p class="au-dossie-titulo">
+                  {% blocktrans with cc=s.centro_custo_codigo %}Orçamento do CC {{ cc }}{% endblocktrans %}
+                  · {{ entrada.resumo.competencia|date:"F Y" }}
+                </p>
+
+                {% comment %}
+                  Barra em SVG: `width` é ATRIBUTO, não estilo. A CSP de
+                  produção tem nonce em style-src, e navegador moderno ignora
+                  `unsafe-inline` quando há nonce — o que bloquearia
+                  `style="width: …"`.
+                {% endcomment %}
+                <svg class="au-medidor" viewBox="0 0 100 8" preserveAspectRatio="none"
+                     role="img"
+                     aria-label="{% blocktrans with p=entrada.pct_apos %}{{ p }}% do orçamento após aprovar{% endblocktrans %}">
+                  <rect class="au-medidor-trilha" x="0" y="0" width="100" height="8" rx="1.5"/>
+                  {% for faixa in entrada.faixas %}
+                    <rect class="au-medidor-faixa au-medidor-faixa--{{ faixa.nome }}"
+                          x="{{ faixa.x }}" y="0" width="{{ faixa.largura }}" height="8"/>
+                  {% endfor %}
+                </svg>
+
+                <ul class="au-dossie-linhas">
+                  <li>
+                    <span>{% trans "realizado" %}</span>
+                    <b>R$ {{ entrada.resumo.realizado|moeda }}</b>
+                  </li>
+                  <li>
+                    <span>{% trans "comprometido" %}</span>
+                    <b>R$ {{ entrada.resumo.comprometido|moeda }}</b>
+                  </li>
+                  {% if s.valor %}
+                    <li>
+                      <span>{% trans "este pedido" %}</span>
+                      <b>R$ {{ s.valor|moeda }}</b>
+                    </li>
+                  {% endif %}
+                  <li class="au-dossie-total {% if not entrada.cabe %}au-dossie-total--estoura{% endif %}">
+                    <span>{% trans "após aprovar" %}</span>
+                    <b>
+                      {{ entrada.pct_apos }}% {% trans "de" %}
+                      R$ {{ entrada.resumo.orcamento|moeda }}
+                      {% if not entrada.cabe %} ⚠{% endif %}
+                    </b>
+                  </li>
+                </ul>
+
+                {% if not entrada.cabe %}
+                  <p class="au-dossie-alerta">
+                    {% blocktrans %}Este pedido estoura o orçamento do mês.{% endblocktrans %}
+                  </p>
+                {% endif %}
+              {% else %}
+                <p class="au-dossie-alerta">
+                  {% blocktrans with cc=s.centro_custo_codigo %}O CC {{ cc }} não tem orçamento
+                  mensal definido — não consigo calcular o impacto desta aprovação.{% endblocktrans %}
+                </p>
+              {% endif %}
+            </div>
+          {% endif %}
+
+          {% if entrada.etapa_atual %}
+            <p class="au-bandeja-cadeia">
+              <svg class="au-icon au-icon--mini" aria-hidden="true"><use href="#i-relogio"></use></svg>
+              {% trans "Etapa" %} {{ entrada.etapa_atual.ordem }} {% trans "de" %} {{ entrada.etapas|length }}
+              · {% trans "você" %}
+              {% if entrada.etapas|length > entrada.etapa_atual.ordem %}
+                → {% trans "depois" %}
+                {% for etapa in entrada.etapas %}
+                  {% if etapa.ordem > entrada.etapa_atual.ordem %}
+                    {{ etapa.aprovador|default:etapa.papel }}{% if not forloop.last %}, {% endif %}
+                  {% endif %}
+                {% endfor %}
+              {% endif %}
+            </p>
+          {% endif %}
+
+          <div class="au-bandeja-acoes">
+            <button class="au-btn au-btn--primario au-btn--pequeno" type="submit"
+                    form="aprovar-{{ s.pk }}">
+              <svg class="au-icon au-icon--mini" aria-hidden="true"><use href="#i-check"></use></svg>
+              {% trans "Aprovar" %}
+            </button>
+            <details class="au-devolver">
+              <summary class="au-btn au-btn--sutil au-btn--pequeno">
+                <svg class="au-icon au-icon--mini" aria-hidden="true"><use href="#i-devolver"></use></svg>
+                {% trans "Devolver" %}
+              </summary>
+              <div class="au-devolver-corpo">
+                <label class="au-rotulo" for="just-{{ s.pk }}">
+                  {% trans "Por que está devolvendo?" %}
+                </label>
+                <input class="au-input" id="just-{{ s.pk }}" name="justificativa"
+                       form="devolver-{{ s.pk }}" type="text" required
+                       placeholder="{% trans 'faltou a nota fiscal' %}">
+                <button class="au-btn au-btn--sutil au-btn--pequeno" type="submit"
+                        form="devolver-{{ s.pk }}">{% trans "Devolver com este motivo" %}</button>
+              </div>
+            </details>
+          </div>
+        </li>
+        {% endwith %}
+      {% endfor %}
+    </ul>
+
+    <div class="au-lote-barra">
+      <span>{% trans "Selecionadas serão aprovadas em lote." %}</span>
+      <button class="au-btn au-btn--primario" type="submit">{% trans "Aprovar selecionadas" %}</button>
+    </div>
+  </form>
+
+  {% comment %}
+    Formulários fora da tabela, referenciados por `form=`: aninhar <form> é
+    inválido em HTML e o navegador descarta o de dentro em silêncio.
+  {% endcomment %}
+  {% for entrada in itens %}
+    {% with s=entrada.solicitacao %}
+      <form id="aprovar-{{ s.pk }}" method="post"
+            action="{% url 'workspace:decidir_aprovacao' s.pk %}" hidden>
+        {% csrf_token %}<input type="hidden" name="decisao" value="aprovar">
+      </form>
+      <form id="devolver-{{ s.pk }}" method="post"
+            action="{% url 'workspace:decidir_aprovacao' s.pk %}" hidden>
+        {% csrf_token %}<input type="hidden" name="decisao" value="devolver">
+      </form>
+    {% endwith %}
+  {% endfor %}
+{% else %}
+  <div class="au-vazio">
+    <p class="au-vazio-titulo">✅ {% trans "Nada esperando por você." %}</p>
+    <p class="au-vazio-dica">
+      {% blocktrans %}Quando alguém da sua equipe pedir algo que precise da sua decisão,
+      aparece aqui.{% endblocktrans %}
+    </p>
+  </div>
+{% endif %}
+{% endblock %}

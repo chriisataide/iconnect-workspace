@@ -98,9 +98,14 @@ class Publicacao(models.Model):
         return self.expira_em is None or self.expira_em > agora
 
     @property
-    def cor(self) -> str:
-        """Token de cor do ponto de prioridade no card."""
+    def classe_prioridade(self) -> str:
+        """Sufixo de classe CSS do ponto de prioridade.
+
+        Classe e não token inline: a CSP de produção traz nonce em `style-src`,
+        e navegador moderno ignora `unsafe-inline` quando há nonce — o que
+        bloqueia atributo `style=""`. Cor via classe é a única forma segura.
+        """
         return {
-            Prioridade.URGENTE: "var(--au-danger)",
-            Prioridade.ATENCAO: "var(--au-warning)",
-        }.get(self.prioridade, "var(--au-accent)")
+            Prioridade.URGENTE: "urgente",
+            Prioridade.ATENCAO: "atencao",
+        }.get(self.prioridade, "normal")

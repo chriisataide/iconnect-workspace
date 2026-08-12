@@ -1,0 +1,93 @@
+{% extends "workspace/_shell_modulo.html" %}
+{% load i18n portal %}
+
+{% block titulo %}{% trans "Minhas solicitações" %}{% endblock %}
+
+{% block rail %}{% include "workspace/_rail_servicos.html" with aba="minhas" %}{% endblock %}
+{% block trilha %}
+  <a href="{% url 'workspace:servicos' %}">{% trans "Serviços" %}</a>
+  <span>{% trans "Minhas solicitações" %}</span>
+{% endblock %}
+{% block pagina_titulo %}{% trans "Minhas solicitações" %}{% endblock %}
+
+{% block pagina_descricao %}
+  <p class="au-pagina-desc">
+    {% blocktrans count total=abertas %}{{ total }} em aberto.{% plural %}{{ total }} em aberto.{% endblocktrans %}
+  </p>
+{% endblock %}
+
+{% block corpo %}
+{% if solicitacoes %}
+  <div class="au-tabela">
+    <table>
+      <thead>
+        <tr>
+          <th>{% trans "Serviço" %}</th>
+          <th>{% trans "Pedido em" %}</th>
+          <th class="num">{% trans "Valor" %}</th>
+          <th>{% trans "Situação" %}</th>
+          <th>{% trans "Esperando" %}</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for s in solicitacoes %}
+          <tr>
+            <td>
+              <span class="au-list-titulo">{{ s.item.nome }}</span>
+              {% if s.motivo_devolucao %}
+                {% comment %}
+                  Devolução sem motivo obriga o solicitante a adivinhar, e
+                  adivinhar gera um segundo envio igualmente errado.
+                {% endcomment %}
+                <span class="au-list-resumo au-list-resumo--alerta">
+                  {{ s.motivo_devolucao }}
+                </span>
+              {% endif %}
+            </td>
+            <td>{{ s.criado_em|date:"d/m/Y" }}</td>
+            <td class="num">
+              {% if s.valor %}R$ {{ s.valor|moeda }}{% else %}—{% endif %}
+            </td>
+            <td>
+              <span class="au-etiqueta au-etiqueta--{{ s.situacao }}">
+                {{ s.get_situacao_display }}
+              </span>
+              {% if s.auto_aprovada %}
+                <span class="au-selo au-selo--medido">{% trans "automática" %}</span>
+              {% endif %}
+            </td>
+            <td>
+              {% if s.aprovacao and s.aprovacao.etapa_atual %}
+                {{ s.aprovacao.etapa_atual.aprovador|default:s.aprovacao.etapa_atual.papel }}
+              {% else %}
+                —
+              {% endif %}
+            </td>
+            <td>
+              {% if s.em_aberto %}
+                <form method="post" action="{% url 'workspace:cancelar_solicitacao' s.pk %}">
+                  {% csrf_token %}
+                  <button class="au-btn au-btn--sutil au-btn--pequeno" type="submit">
+                    {% trans "Cancelar" %}
+                  </button>
+                </form>
+              {% endif %}
+            </td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+{% else %}
+  <div class="au-vazio">
+    <p class="au-vazio-titulo">{% trans "Você ainda não pediu nada." %}</p>
+    <p class="au-vazio-dica">
+      {% blocktrans %}Suas férias, reembolsos e requisições aparecem aqui.{% endblocktrans %}
+    </p>
+    <p><a class="au-btn au-btn--primario" href="{% url 'workspace:servicos' %}">
+      {% trans "Ver o catálogo" %}
+    </a></p>
+  </div>
+{% endif %}
+{% endblock %}

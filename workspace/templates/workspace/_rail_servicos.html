@@ -1,0 +1,27 @@
+{% load i18n %}
+<p class="au-rail-grupo">{% trans "Pedir" %}</p>
+<a class="au-rail-item {% if aba == 'catalogo' %}au-rail-item--ativo{% endif %}"
+   href="{% url 'workspace:servicos' %}">
+  <svg class="au-icon" aria-hidden="true"><use href="#i-grid"></use></svg>
+  {% trans "Catálogo" %}
+</a>
+<a class="au-rail-item {% if aba == 'minhas' %}au-rail-item--ativo{% endif %}"
+   href="{% url 'workspace:minhas_solicitacoes' %}">
+  <svg class="au-icon" aria-hidden="true"><use href="#i-file"></use></svg>
+  {% trans "Minhas solicitações" %}
+  {% if abertas %}<span class="au-rail-contagem">{{ abertas }}</span>{% endif %}
+</a>
+
+{% comment %}
+  "Aprovar" só aparece para quem tem algo esperando. Rail com item vazio ensina
+  o usuário a ignorar o rail.
+{% endcomment %}
+{% if pendentes_aprovacao %}
+  <p class="au-rail-grupo">{% trans "Aprovar" %}</p>
+  <a class="au-rail-item {% if aba == 'aprovacoes' %}au-rail-item--ativo{% endif %}"
+     href="{% url 'workspace:aprovacoes' %}">
+    <svg class="au-icon" aria-hidden="true"><use href="#i-check"></use></svg>
+    {% trans "Bandeja" %}
+    <span class="au-rail-contagem au-rail-contagem--alerta">{{ pendentes_aprovacao }}</span>
+  </a>
+{% endif %}

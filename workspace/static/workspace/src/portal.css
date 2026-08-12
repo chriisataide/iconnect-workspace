@@ -632,3 +632,395 @@ body {
   .au-atalho { display: none; }
   .au-busca-campo { padding-right: var(--au-4); }
 }
+
+/* ═══════════════════════════════════════════════════════════════
+   Casca de módulo — rail + breadcrumb + área principal
+   A home é hub e não tem rail. Módulo com várias telas precisa de
+   navegação persistente, senão vira caça ao breadcrumb.
+   ═══════════════════════════════════════════════════════════════ */
+
+.au-modulo {
+  display: grid;
+  grid-template-columns: var(--au-sidebar-w) minmax(0, 1fr);
+  gap: var(--au-8);
+  align-items: start;
+}
+
+.au-rail {
+  position: sticky;
+  top: calc(var(--au-topbar-h) + var(--au-5));
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding-right: var(--au-4);
+  border-right: 1px solid var(--au-border);
+}
+
+.au-rail-grupo {
+  margin: var(--au-4) 0 var(--au-1);
+  font-size: var(--au-t-2xs);
+  font-weight: 700;
+  letter-spacing: .09em;
+  text-transform: uppercase;
+  color: var(--au-text-subtle);
+}
+.au-rail-grupo:first-child { margin-top: 0; }
+
+.au-rail-item {
+  display: flex;
+  align-items: center;
+  gap: var(--au-2);
+  padding: var(--au-2) var(--au-3);
+  border-radius: var(--au-r-sm);
+  font-size: var(--au-t-base);
+  font-weight: 500;
+  color: var(--au-text-muted);
+  text-decoration: none;
+  transition: background var(--au-dur-fast) var(--au-ease),
+              color var(--au-dur-fast) var(--au-ease);
+}
+.au-rail-item:hover { background: var(--au-surface-sunken); color: var(--au-text); }
+.au-rail-item .au-icon { color: var(--au-text-subtle); }
+
+.au-rail-item--ativo {
+  background: var(--au-accent-bg);
+  color: var(--au-accent-text);
+  font-weight: 600;
+}
+.au-rail-item--ativo .au-icon { color: var(--au-accent-text); }
+
+.au-rail-contagem {
+  margin-left: auto;
+  min-width: 20px;
+  padding: 1px 6px;
+  font-size: var(--au-t-2xs);
+  font-weight: 650;
+  text-align: center;
+  color: var(--au-text-muted);
+  background: var(--au-surface-sunken);
+  border-radius: var(--au-r-full);
+}
+.au-rail-contagem--alerta { color: var(--au-btn-fg); background: var(--au-btn-bg); }
+
+.au-modulo-corpo { min-width: 0; }
+
+.au-breadcrumb {
+  display: flex;
+  align-items: center;
+  gap: var(--au-2);
+  margin-bottom: var(--au-5);
+  font-size: var(--au-t-sm);
+  color: var(--au-text-subtle);
+}
+.au-breadcrumb a { color: var(--au-text-muted); text-decoration: none; }
+.au-breadcrumb a:hover { color: var(--au-accent-text); text-decoration: underline; }
+.au-breadcrumb > * + *::before { content: "/"; margin-right: var(--au-2); opacity: .5; }
+
+.au-pagina-cabeca { margin-bottom: var(--au-6); }
+.au-pagina-titulo {
+  margin: 0 0 var(--au-1);
+  font-size: var(--au-t-2xl);
+  font-weight: 680;
+  letter-spacing: -0.02em;
+  line-height: 1.2;
+}
+.au-pagina-desc { margin: 0; color: var(--au-text-muted); }
+
+/* ── Avisos ─────────────────────────────────────────────────── */
+
+.au-avisos { display: flex; flex-direction: column; gap: var(--au-2); margin-bottom: var(--au-5); }
+
+.au-aviso {
+  margin: 0;
+  padding: var(--au-3) var(--au-4);
+  border-left: 3px solid var(--au-accent);
+  border-radius: 0 var(--au-r-sm) var(--au-r-sm) 0;
+  background: var(--au-accent-bg);
+  font-size: var(--au-t-base);
+}
+.au-aviso--success { border-left-color: var(--au-success); background: var(--au-success-bg); }
+.au-aviso--error   { border-left-color: var(--au-danger);  background: var(--au-danger-bg); }
+.au-aviso--warning { border-left-color: var(--au-warning); background: var(--au-warning-bg); }
+
+.au-lista-simples { margin: var(--au-2) 0 0; padding-left: var(--au-5); }
+
+/* ── KPI ────────────────────────────────────────────────────── */
+
+.au-kpi-linha {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: var(--au-3);
+  margin-bottom: var(--au-6);
+}
+
+.au-kpi {
+  display: flex;
+  flex-direction: column;
+  gap: var(--au-1);
+  padding: var(--au-4);
+  background: var(--au-surface);
+  border: 1px solid var(--au-border);
+  border-radius: var(--au-r-md);
+}
+.au-kpi--alerta { border-color: var(--au-warning); }
+
+.au-kpi-rotulo {
+  font-size: var(--au-t-2xs);
+  font-weight: 650;
+  letter-spacing: .07em;
+  text-transform: uppercase;
+  color: var(--au-text-subtle);
+}
+.au-kpi-valor {
+  font-size: var(--au-t-xl);
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ── Prazo no card do catálogo ──────────────────────────────── */
+
+.au-app-prazo {
+  display: flex;
+  align-items: center;
+  gap: var(--au-1);
+  margin-top: var(--au-2);
+  padding-top: var(--au-2);
+  border-top: 1px solid var(--au-border);
+  font-size: var(--au-t-sm);
+  color: var(--au-text-subtle);
+}
+.au-icon--mini { width: 13px; height: 13px; }
+.au-selo--medido { color: var(--au-accent-text); background: var(--au-accent-bg); }
+
+/* ── Formulário ─────────────────────────────────────────────── */
+
+.au-colunas--assimetrica { grid-template-columns: minmax(0, 1.6fr) minmax(260px, 1fr); }
+
+.au-form { display: flex; flex-direction: column; gap: var(--au-5); }
+.au-lateral { display: flex; flex-direction: column; gap: var(--au-4); }
+
+.au-campo { display: flex; flex-direction: column; gap: var(--au-1); }
+
+.au-rotulo {
+  font-size: var(--au-t-base);
+  font-weight: 600;
+  color: var(--au-text);
+}
+.au-obrigatorio { color: var(--au-danger); }
+
+.au-input {
+  width: 100%;
+  min-height: var(--au-control-h);
+  padding: var(--au-2) var(--au-3);
+  font-family: inherit;
+  font-size: var(--au-t-md);
+  color: var(--au-text);
+  background: var(--au-surface);
+  border: 1px solid var(--au-border);
+  border-radius: var(--au-r-sm);
+  transition: border-color var(--au-dur-fast) var(--au-ease),
+              box-shadow var(--au-dur-fast) var(--au-ease);
+}
+.au-input:hover { border-color: var(--au-border-strong); }
+.au-input:focus {
+  outline: none;
+  border-color: var(--au-accent);
+  box-shadow: 0 0 0 3px var(--au-accent-bg);
+}
+.au-campo--erro .au-input { border-color: var(--au-danger); }
+
+.au-input-prefixo {
+  display: flex;
+  align-items: center;
+  gap: var(--au-2);
+}
+.au-input-prefixo > span {
+  font-size: var(--au-t-md);
+  color: var(--au-text-subtle);
+  font-variant-numeric: tabular-nums;
+}
+
+.au-ajuda { margin: 0; font-size: var(--au-t-sm); color: var(--au-text-subtle); }
+.au-ajuda--alerta { color: var(--au-warning-text); margin-top: var(--au-3); }
+.au-erro { margin: 0; font-size: var(--au-t-sm); color: var(--au-danger); font-weight: 550; }
+
+.au-form-acoes {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--au-2);
+  padding-top: var(--au-4);
+  border-top: 1px solid var(--au-border);
+}
+
+/* ── Tabela ─────────────────────────────────────────────────── */
+
+.au-etiqueta {
+  display: inline-block;
+  padding: 2px 8px;
+  font-size: var(--au-t-2xs);
+  font-weight: 650;
+  border-radius: var(--au-r-full);
+  white-space: nowrap;
+  color: var(--au-neutral-text);
+  background: var(--au-neutral-bg);
+}
+.au-etiqueta--aguardando_aprovacao { color: var(--au-warning-text); background: var(--au-warning-bg); }
+.au-etiqueta--aprovada             { color: var(--au-success-text); background: var(--au-success-bg); }
+.au-etiqueta--concluida            { color: var(--au-success-text); background: var(--au-success-bg); }
+.au-etiqueta--devolvida            { color: var(--au-danger-text);  background: var(--au-danger-bg); }
+.au-etiqueta--dominio {
+  font-family: var(--au-mono);
+  font-weight: 500;
+  letter-spacing: 0;
+}
+
+.au-list-resumo--alerta { color: var(--au-danger-text); white-space: normal; }
+.au-btn--pequeno { height: 28px; padding: 0 var(--au-3); font-size: var(--au-t-sm); }
+
+/* ── Ponto de prioridade (classe, não style inline — ver CSP) ── */
+
+.au-ponto--normal  { background: var(--au-accent); }
+.au-ponto--atencao { background: var(--au-warning); }
+.au-ponto--urgente { background: var(--au-danger); }
+
+/* ── Bandeja de aprovação ───────────────────────────────────── */
+
+.au-bandeja { list-style: none; margin: 0 0 var(--au-12); padding: 0;
+              display: flex; flex-direction: column; gap: var(--au-3); }
+
+.au-bandeja-item {
+  padding: var(--au-4);
+  background: var(--au-surface);
+  border: 1px solid var(--au-border);
+  border-radius: var(--au-r-md);
+}
+
+.au-bandeja-topo { display: flex; align-items: flex-start; gap: var(--au-3); }
+.au-check { width: 16px; height: 16px; margin-top: 3px; accent-color: var(--au-btn-bg); }
+.au-bandeja-identidade { min-width: 0; flex: 1; }
+
+.au-bandeja-titulo {
+  display: flex; align-items: center; gap: var(--au-2); flex-wrap: wrap;
+  margin: 0 0 2px;
+  font-size: var(--au-t-md); font-weight: 650;
+}
+.au-bandeja-meta { margin: 0; font-size: var(--au-t-sm); color: var(--au-text-muted); }
+.au-bandeja-valor {
+  margin: 0;
+  font-size: var(--au-t-lg); font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+/* ── Dossiê e a barra tripla ────────────────────────────────── */
+
+.au-dossie {
+  margin-top: var(--au-4);
+  padding: var(--au-4);
+  background: var(--au-surface-sunken);
+  border-radius: var(--au-r-sm);
+}
+.au-dossie-titulo {
+  margin: 0 0 var(--au-3);
+  font-size: var(--au-t-2xs); font-weight: 700;
+  letter-spacing: .07em; text-transform: uppercase;
+  color: var(--au-text-subtle);
+}
+
+/* SVG: largura vem de ATRIBUTO, não de style — a CSP de produção tem nonce em
+   style-src, e navegador moderno ignora unsafe-inline quando há nonce. */
+.au-medidor { display: block; width: 100%; height: 10px; margin-bottom: var(--au-3); }
+.au-medidor-trilha { fill: var(--au-border); }
+.au-medidor-faixa--realizado    { fill: var(--au-accent-700); }
+.au-medidor-faixa--comprometido { fill: var(--au-accent-400); }
+.au-medidor-faixa--pedido       { fill: var(--au-warning); }
+
+.au-dossie-linhas { list-style: none; margin: 0; padding: 0; }
+.au-dossie-linhas li {
+  display: flex; justify-content: space-between; gap: var(--au-4);
+  padding: 3px 0;
+  font-size: var(--au-t-base);
+  color: var(--au-text-muted);
+}
+.au-dossie-linhas b { font-variant-numeric: tabular-nums; color: var(--au-text); font-weight: 600; }
+
+.au-dossie-total {
+  margin-top: var(--au-2); padding-top: var(--au-2) !important;
+  border-top: 1px solid var(--au-border-strong);
+  font-weight: 650;
+}
+.au-dossie-total--estoura b { color: var(--au-danger); }
+
+.au-dossie-alerta {
+  margin: var(--au-3) 0 0;
+  font-size: var(--au-t-sm);
+  color: var(--au-warning-text);
+  font-weight: 550;
+}
+
+.au-bandeja-cadeia {
+  display: flex; align-items: center; gap: var(--au-1);
+  margin: var(--au-3) 0 0;
+  font-size: var(--au-t-sm); color: var(--au-text-subtle);
+}
+
+.au-bandeja-acoes {
+  display: flex; align-items: flex-start; gap: var(--au-2);
+  margin-top: var(--au-4); padding-top: var(--au-3);
+  border-top: 1px solid var(--au-border);
+  flex-wrap: wrap;
+}
+
+.au-devolver summary { cursor: pointer; list-style: none; }
+.au-devolver summary::-webkit-details-marker { display: none; }
+.au-devolver-corpo {
+  display: flex; flex-direction: column; gap: var(--au-2);
+  margin-top: var(--au-3); padding: var(--au-3);
+  background: var(--au-surface-sunken);
+  border-radius: var(--au-r-sm);
+  min-width: 280px;
+}
+
+/* Fixa no rodapé da viewport, não sticky. Sticky dentro do <form> gruda no
+   meio da lista quando o form é mais alto que a tela — que é o caso normal de
+   uma bandeja com 6 itens. O padding no fim da lista reserva o espaço. */
+.au-lote-barra {
+  position: fixed; left: 50%; transform: translateX(-50%);
+  bottom: var(--au-4); z-index: 40; width: min(760px, calc(100vw - var(--au-8)));
+  display: flex; align-items: center; justify-content: space-between;
+  gap: var(--au-4); flex-wrap: wrap;
+  padding: var(--au-3) var(--au-4);
+  background: color-mix(in srgb, var(--au-surface) 92%, transparent);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid var(--au-border-strong);
+  border-radius: var(--au-r-md);
+  box-shadow: var(--au-e-2);
+  font-size: var(--au-t-base);
+  color: var(--au-text-muted);
+}
+
+.au-faixa--alerta { background: var(--au-warning-bg); border-color: transparent; }
+
+/* ── Responsivo do módulo ───────────────────────────────────── */
+
+@media (max-width: 1080px) {
+  .au-modulo { grid-template-columns: 1fr; gap: var(--au-5); }
+  .au-rail {
+    position: static;
+    flex-direction: row; flex-wrap: wrap;
+    padding: 0 0 var(--au-4);
+    border-right: 0; border-bottom: 1px solid var(--au-border);
+  }
+  .au-rail-grupo { display: none; }
+  .au-colunas--assimetrica { grid-template-columns: 1fr; }
+}
+
+@media (max-width: 640px) {
+  .au-bandeja-topo { flex-wrap: wrap; }
+  .au-bandeja-valor { width: 100%; }
+  /* Lote no celular é erro esperando acontecer — quem aprova no celular está
+     entre reuniões e precisa decidir um a um. */
+  .au-check, .au-lote-barra { display: none; }
+}

@@ -682,3 +682,24 @@ def test_item_com_valor_mas_sem_centro_de_custo_auto_aprova(equipe):
     assert s.auto_aprovada is True
     assert s.centro_custo_codigo == ""
     assert Compromisso.objects.count() == 0, "sem CC, nada a comprometer"
+
+
+@pytest.mark.django_db
+def test_grupos_seguem_a_ordem_de_frequencia_nao_a_alfabetica(equipe):
+    """Alfabética põe "Desenvolvimento" primeiro e "Equipamento e acesso" em
+    quarto — quando equipamento é o que a maioria vem pedir."""
+    item(chave="a", grupo=GrupoCatalogo.JURIDICO)
+    item(chave="b", grupo=GrupoCatalogo.EQUIPAMENTO)
+    item(chave="c", grupo=GrupoCatalogo.DINHEIRO)
+    item(chave="d", grupo=GrupoCatalogo.DESENVOLVIMENTO)
+
+    rotulos = list(svc.agrupado_para(equipe["ana"]))
+    assert rotulos == [
+        "Equipamento e acesso", "Dinheiro", "Desenvolvimento", "Jurídico",
+    ]
+
+
+@pytest.mark.django_db
+def test_grupo_sem_item_nao_aparece(equipe):
+    item(chave="so_um", grupo=GrupoCatalogo.VIAGEM)
+    assert list(svc.agrupado_para(equipe["ana"])) == ["Viagem"]

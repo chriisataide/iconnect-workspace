@@ -1,0 +1,44 @@
+{% extends "workspace/_shell.html" %}
+{% load i18n %}
+
+{% comment %}
+  Casca de módulo: rail de navegação + breadcrumb + área principal.
+
+  A home do Portal é um hub e não tem rail. Um módulo com várias telas precisa
+  de navegação persistente, senão vira caça ao breadcrumb.
+
+  O rail é dividido por AUDIÊNCIA, não por assunto — duas pessoas com crachás
+  diferentes usam o mesmo módulo para coisas que não se parecem. E grupo sem
+  permissão NÃO aparece cinza: não existe. Item desabilitado ensina o usuário a
+  ignorar a interface.
+{% endcomment %}
+
+{% block conteudo %}
+<div class="au-modulo">
+  <nav class="au-rail" aria-label="{% trans 'Navegação do módulo' %}">
+    {% block rail %}{% endblock %}
+  </nav>
+
+  <div class="au-modulo-corpo">
+    <nav class="au-breadcrumb" aria-label="{% trans 'Trilha' %}">
+      <a href="{% url 'workspace:home' %}">{% trans "Portal" %}</a>
+      {% block trilha %}{% endblock %}
+    </nav>
+
+    {% if messages %}
+      <div class="au-avisos">
+        {% for mensagem in messages %}
+          <p class="au-aviso au-aviso--{{ mensagem.tags|default:'info' }}">{{ mensagem }}</p>
+        {% endfor %}
+      </div>
+    {% endif %}
+
+    <header class="au-pagina-cabeca">
+      <h1 class="au-pagina-titulo">{% block pagina_titulo %}{% endblock %}</h1>
+      {% block pagina_descricao %}{% endblock %}
+    </header>
+
+    {% block corpo %}{% endblock %}
+  </div>
+</div>
+{% endblock %}

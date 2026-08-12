@@ -1,0 +1,140 @@
+{% extends "workspace/_shell_modulo.html" %}
+{% load i18n portal %}
+
+{% block titulo %}{{ item.nome }}{% endblock %}
+
+{% block rail %}{% include "workspace/_rail_servicos.html" with aba="catalogo" %}{% endblock %}
+{% block trilha %}
+  <a href="{% url 'workspace:servicos' %}">{% trans "Serviços" %}</a>
+  <span>{{ item.nome }}</span>
+{% endblock %}
+{% block pagina_titulo %}{{ item.nome }}{% endblock %}
+
+{% block pagina_descricao %}
+  <p class="au-pagina-desc">{{ item.descricao_curta }}</p>
+{% endblock %}
+
+{% block corpo %}
+<div class="au-colunas au-colunas--assimetrica">
+  <form method="post" class="au-form" novalidate>
+    {% csrf_token %}
+
+    {% if impedimentos %}
+      <div class="au-aviso au-aviso--error" role="alert">
+        <b>{% trans "Corrija antes de enviar:" %}</b>
+        <ul class="au-lista-simples">
+          {% for impedimento in impedimentos %}<li>{{ impedimento.motivo }}</li>{% endfor %}
+        </ul>
+      </div>
+    {% endif %}
+
+    {% for campo in campos %}
+      <div class="au-campo {% if campo.erro %}au-campo--erro{% endif %}">
+        <label class="au-rotulo" for="c-{{ campo.chave }}">
+          {{ campo.rotulo|default:campo.chave }}
+          {% if campo.obrigatorio %}<span class="au-obrigatorio" aria-hidden="true">*</span>{% endif %}
+        </label>
+
+        {% if campo.tipo == "texto_longo" %}
+          <textarea class="au-input" id="c-{{ campo.chave }}" name="{{ campo.chave }}"
+                    rows="4">{{ campo.valor }}</textarea>
+        {% elif campo.tipo == "data" %}
+          <input class="au-input" id="c-{{ campo.chave }}" name="{{ campo.chave }}"
+                 type="date" value="{{ campo.valor }}">
+        {% elif campo.tipo == "numero" %}
+          <input class="au-input" id="c-{{ campo.chave }}" name="{{ campo.chave }}"
+                 type="number" inputmode="numeric" value="{{ campo.valor }}">
+        {% elif campo.tipo == "arquivo" %}
+          {% comment %}
+            Upload real é ST-0xx (precisa de storage e antivírus). Aqui é o nome
+            do arquivo, para o fluxo fechar ponta a ponta sem prometer o que
+            ainda não existe.
+          {% endcomment %}
+          <input class="au-input" id="c-{{ campo.chave }}" name="{{ campo.chave }}"
+                 type="text" value="{{ campo.valor }}"
+                 placeholder="{% trans 'nome do arquivo (upload em breve)' %}">
+        {% else %}
+          <input class="au-input" id="c-{{ campo.chave }}" name="{{ campo.chave }}"
+                 type="text" value="{{ campo.valor }}">
+        {% endif %}
+
+        {% if campo.ajuda %}<p class="au-ajuda">{{ campo.ajuda }}</p>{% endif %}
+        {% if campo.erro %}<p class="au-erro">{{ campo.erro }}</p>{% endif %}
+      </div>
+    {% endfor %}
+
+    {% if item.exige_valor %}
+      <div class="au-campo {% if erro_valor %}au-campo--erro{% endif %}">
+        <label class="au-rotulo" for="valor">
+          {% trans "Valor" %} <span class="au-obrigatorio" aria-hidden="true">*</span>
+        </label>
+        <div class="au-input-prefixo">
+          <span aria-hidden="true">R$</span>
+          <input class="au-input" id="valor" name="valor" type="text" inputmode="decimal"
+                 placeholder="0,00" value="{{ valor|default_if_none:'' }}">
+        </div>
+        {% if erro_valor %}<p class="au-erro">{{ erro_valor }}</p>{% endif %}
+      </div>
+    {% endif %}
+
+    <div class="au-form-acoes">
+      <a class="au-btn au-btn--sutil" href="{% url 'workspace:servicos' %}">{% trans "Cancelar" %}</a>
+      <button class="au-btn au-btn--primario" type="submit">{% trans "Enviar solicitação" %}</button>
+    </div>
+  </form>
+
+  <aside class="au-lateral">
+    <article class="au-card">
+      <header class="au-card-cabeca">
+        <span class="au-card-icone">
+          <svg class="au-icon" aria-hidden="true"><use href="#i-relogio"></use></svg>
+        </span>
+        <h3 class="au-card-titulo">{% trans "O que esperar" %}</h3>
+      </header>
+
+      <ul class="au-lista">
+        <li class="au-list-row">
+          <span class="au-list-titulo">{% trans "Prazo" %}</span>
+          <span class="au-list-meta">
+            {% blocktrans count dias=prazo.0 %}{{ dias }} dia{% plural %}{{ dias }} dias{% endblocktrans %}
+            {% if prazo.1 %}· {% trans "medido" %}{% else %}· {% trans "estimado" %}{% endif %}
+          </span>
+        </li>
+        {% if item.exige_centro_custo %}
+          <li class="au-list-row">
+            <span class="au-list-titulo">{% trans "Centro de custo" %}</span>
+            <span class="au-list-meta">{{ centro_custo|default:"—" }}</span>
+          </li>
+        {% endif %}
+        <li class="au-list-row">
+          <span class="au-list-titulo">{% trans "Aprovação" %}</span>
+          <span class="au-list-meta">
+            {% if item.limite_auto_aprovacao == None %}
+              {% trans "sempre necessária" %}
+            {% elif item.limite_auto_aprovacao == 0 %}
+              {% trans "não necessária" %}
+            {% else %}
+              {% blocktrans with limite=item.limite_auto_aprovacao|moeda %}acima de R$ {{ limite }}{% endblocktrans %}
+            {% endif %}
+          </span>
+        </li>
+      </ul>
+
+      {% if item.exige_centro_custo and not centro_custo %}
+        <p class="au-ajuda au-ajuda--alerta">
+          {% blocktrans %}Você não tem centro de custo na sua lotação. Peça ao RH para cadastrar
+          antes de enviar.{% endblocktrans %}
+        </p>
+      {% endif %}
+    </article>
+
+    <article class="au-card">
+      <h3 class="au-card-titulo">{% trans "Por que poucos campos" %}</h3>
+      <p class="au-ajuda">
+        {% blocktrans %}Unidade, centro de custo e quem aprova vêm da sua lotação — você não
+        precisa digitar nada que o sistema já sabe.{% endblocktrans %}
+      </p>
+    </article>
+  </aside>
+</div>
+{% endblock %}

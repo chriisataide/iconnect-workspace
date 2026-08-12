@@ -10,7 +10,7 @@
     <ul class="au-lista">
       {% for pub in itens %}
         <li class="au-list-row">
-          <span class="au-ponto" style="--au-cor: {{ pub.cor }}" aria-hidden="true"></span>
+          <span class="au-ponto au-ponto--{{ pub.classe_prioridade }}" aria-hidden="true"></span>
           <a class="au-list-link" href="{% url 'workspace:publicacao_detalhe' pub.pk %}">
             <span class="au-list-titulo">
               {% if pub.fixado %}<svg class="au-list-pin" aria-hidden="true"><use href="#i-pin"></use></svg>{% endif %}

@@ -40,8 +40,7 @@
         <li>
           {% if app.disponivel %}
             <a class="au-app au-app--ativo{% if app.destaque %} au-app--destaque{% endif %}"
-               href="{{ app.destino }}"
-               style="--au-cor: {{ app.cor }}; --au-cor-bg: {{ app.cor_bg }};">
+               href="{{ app.destino }}">
               <span class="au-app-topo">
                 <span class="au-app-icone"><svg class="au-icon" aria-hidden="true"><use href="#i-{{ app.icone }}"></use></svg></span>
                 <svg class="au-app-seta" aria-hidden="true"><use href="#i-seta"></use></svg>

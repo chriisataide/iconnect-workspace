@@ -140,15 +140,25 @@ def test_detalhe_inexistente_da_404(client):
 
 @pytest.mark.django_db
 @pytest.mark.parametrize(
-    ("prioridade", "token"),
+    ("prioridade", "classe"),
     [
-        (Prioridade.URGENTE, "var(--au-danger)"),
-        (Prioridade.ATENCAO, "var(--au-warning)"),
-        (Prioridade.NORMAL, "var(--au-accent)"),
+        (Prioridade.URGENTE, "urgente"),
+        (Prioridade.ATENCAO, "atencao"),
+        (Prioridade.NORMAL, "normal"),
     ],
 )
-def test_cor_segue_a_prioridade(prioridade, token):
-    assert cria(prioridade=prioridade).cor == token
+def test_classe_de_prioridade_segue_a_prioridade(prioridade, classe):
+    """Classe CSS e não token inline: a CSP de produção tem nonce em style-src,
+    e navegador moderno ignora `unsafe-inline` quando há nonce — o que bloqueia
+    atributo `style=""`."""
+    assert cria(prioridade=prioridade).classe_prioridade == classe
+
+
+@pytest.mark.django_db
+def test_home_renderiza_a_classe_de_prioridade(client):
+    cria(titulo="Urgente", prioridade=Prioridade.URGENTE)
+    corpo = client.get(reverse("workspace:home")).content.decode()
+    assert "au-ponto--urgente" in corpo
 
 
 # ── Formatação de data em português ──────────────────────────────

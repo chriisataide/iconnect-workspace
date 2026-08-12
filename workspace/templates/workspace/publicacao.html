@@ -13,7 +13,7 @@
 
   <article class="au-artigo">
     <p class="au-artigo-tipo">
-      <span class="au-ponto" style="--au-cor: {{ publicacao.cor }}" aria-hidden="true"></span>
+      <span class="au-ponto au-ponto--{{ publicacao.classe_prioridade }}" aria-hidden="true"></span>
       {{ publicacao.get_tipo_display }}
       {% if publicacao.prioridade %}· {{ publicacao.get_prioridade_display }}{% endif %}
     </p>
