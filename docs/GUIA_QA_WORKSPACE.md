@@ -1,0 +1,845 @@
+# Guia do iConnect Workspace — para quem vai testar
+
+> **Para quem é este documento.** Para o QA que precisa entender *o que cada tela
+> promete* antes de decidir se ela cumpriu. Não é um roteiro de cliques: é o
+> contrato de cada aba — para que serve, em que momento da vida do colaborador
+> ela aparece, o que é comportamento correto e o que é defeito.
+>
+> Leia a seção 1 antes de abrir o navegador. Ela evita as duas horas perdidas
+> mais comuns: testar contra um banco sem dados, e abrir bug em cima de uma
+> decisão de produto.
+
+---
+
+## 0. Antes de tudo: são dois produtos, não um
+
+Isto é a coisa mais importante do documento e a que mais gera falso-positivo.
+
+| | **iConnect Workspace** | **iConnect Platform** |
+|---|---|---|
+| Organiza | a vida corporativa da **empresa** | a operação de **atendimento aos clientes** |
+| Usuário | o colaborador da icodev | o técnico, o operador, o cliente |
+| Onde vive | `/workspace/…` | `/login/`, `/dashboard/…`, `/fsm/…` |
+| Pessoas | organograma (`identidade.Lotacao`) | papéis do iConnect (`UserRole`, ~1.432 registros) |
+
+**Consequência prática para o teste:** as pessoas dos dois produtos **não são as
+mesmas**. Um usuário do iConnect não é colaborador do Workspace, e vice-versa. Se
+uma tela do Workspace não lista alguém, a primeira pergunta é "essa pessoa tem
+lotação?" — não "sumiu o usuário".
+
+E o inverso: **bug de tela do iConnect não é bug do Workspace**. O tile
+"iConnect Platform" na home leva para `/login/` e ali começa outro produto, com
+outro dono e outra suíte de testes. O único contrato do Workspace ali é: o tile
+existe, aponta para `/login/`, e é o **único** caminho de login na home.
+
+---
+
+## 1. Preparar o ambiente (faça isto primeiro)
+
+### 1.1 O banco precisa estar migrado
+
+O Workspace ganhou 8 migrações nas ondas recentes. Um banco de desenvolvimento
+antigo quebra com `no such column: workspace_itemcatalogo.termos` — que **não é
+bug**, é migração pendente.
+
+```bash
+python manage.py migrate
+python manage.py showmigrations workspace   # tudo com [X]
+```
+
+### 1.2 Semear o que tem semeadora
+
+```bash
+python manage.py semear_papeis --aplicar              # os 13 papéis e suas permissões
+python manage.py semear_catalogo --aplicar            # os 19 serviços do catálogo
+python manage.py semear_regras_aprovacao --aplicar    # a cadeia 0 → 50k → 300k
+python manage.py importar_organograma docs/exemplos/organograma-inicial.csv --criar-usuarios --aplicar
+python manage.py reindexar_busca                      # popula o índice da ⌘K
+```
+
+Todos rodam em **simulação por padrão**: sem `--aplicar` eles só relatam. Isso é
+deliberado e vale testar — rodar sem a flag não pode gravar nada.
+
+O organograma de exemplo cria **6 pessoas por cargo** (não são pessoas reais: o
+arquivo vai para o git). Elas nascem com `set_unusable_password()`, então para
+entrar você precisa definir senha:
+
+```bash
+python manage.py shell -c "
+from django.contrib.auth.models import User
+for u in User.objects.filter(lotacao__isnull=False):
+    u.set_password('teste12345'); u.save(); print(u.username, u.lotacao)
+"
+```
+
+### 1.3 O que **não** tem semeadora — e como criar
+
+Três módulos não têm comando de semente. Os dados vêm pelo admin:
+
+| Falta | Onde criar | Sem isso, a tela mostra |
+|---|---|---|
+| Documentos (POP, políticas) | `/admin/workspace/documento/` | acervo vazio |
+| Recursos (salas, veículos) | `/admin/workspace/recurso/` | "nenhum recurso" |
+| Correspondências | a própria tela, com perfil de recepção | fila vazia |
+| Comunicados e notícias | `/admin/workspace/publicacao/` | cards vazios na home |
+
+> ⚠️ **Isto é uma lacuna real, não uma pegadinha do guia.** Não existe
+> `semear_workspace`, então cada QA monta a massa à mão e testa contra dados
+> diferentes. Se isso atrapalhar, peça o comando — é meia hora de trabalho e
+> torna o ambiente reproduzível.
+
+### 1.4 Como testar as três camadas de permissão
+
+Você vai precisar de **três sessões diferentes**, e o guia inteiro assume isso:
+
+| Sessão | Como obter | Serve para |
+|---|---|---|
+| **Anônima** (janela privada) | não logar | provar que o hub é público |
+| **Colaborador** | qualquer usuário com lotação | 90% das telas |
+| **Gestor / Diretoria** | usuário com papel `gestor` ou `diretoria` | bandeja de aprovação |
+| **Recepção** | usuário com papel `logistica` | fila de correspondência |
+
+Papéis se atribuem em `/admin/identidade/` (ou pelo `semear_papeis` + vínculo).
+
+---
+
+## 2. As regras que valem em TODA tela
+
+Antes das telas, sete invariantes. Cada uma delas já foi quebrada uma vez, e cada
+uma vale um caso de teste em qualquer aba que você abrir.
+
+### 2.1 O hub é público; a área pessoal exige login
+
+> *"Quem estiver na rede da empresa tem acesso ao portal, não precisa de senha."*
+
+Público (abre em janela anônima, sem redirecionar para login):
+`/workspace/`, `/workspace/buscar/`, `/workspace/m/<modulo>/`,
+`/workspace/documentacao/`, `/workspace/reservas/`, `/workspace/publicacao/<id>/`.
+
+Exige login (redireciona para `/login/?next=…`):
+`meu-dia`, `notificacoes`, `servicos`, `minhas-solicitacoes`, `aprovacoes`,
+`correspondencias`, `reservas/minhas`, `anexo/<id>`, e todo POST.
+
+**Defeito se:** uma tela pública redirecionar para login, **ou** uma tela pessoal
+abrir sem sessão. As duas metades importam.
+
+### 2.2 Não existe botão de login na topbar
+
+Havia três portas para o mesmo lugar (topbar, tile, faixa). Sobrou **uma**: o
+tile "iConnect Platform", na faixa Aplicativos. Se aparecer um "Entrar" na
+topbar, é regressão.
+
+### 2.3 A casca é igual em toda tela
+
+Toda tela do Workspace tem: marca icodev + "Workspace" à esquerda; lupa à
+direita; **sino e nome do usuário só quando logado**; rodapé "a vida corporativa
+em um lugar".
+
+**Este é o teste de regressão mais rentável do produto.** Já aconteceu: uma tela
+nova entrou e a topbar perdeu o sino *e* o nome do usuário sem quebrar nada
+visível. Passe pelas 6 telas principais logado e confira que o sino e o nome
+aparecem em **todas**.
+
+### 2.4 O sino só conta o que existe
+
+Sem notificações não lidas, o sino aparece **sem número**. Sino com "0"
+permanente é a coisa que se aprende a não olhar — se aparecer, é defeito.
+
+O contador vem de um *context processor* que só roda dentro de `/workspace/` e
+só para usuário autenticado. Fora do Workspace, ele não deve custar nada.
+
+### 2.5 ⌘K funciona em toda tela
+
+`⌘K` (ou `Ctrl+K`) abre a paleta de busca em **qualquer** tela do Workspace.
+`Esc` fecha. Mínimo de 2 letras.
+
+Já falhou duas vezes: o atalho procurava um campo que só a home tinha, e o `Esc`
+era engolido pelo `<input type="search">` do Chrome. **Teste ⌘K e Esc em pelo
+menos três telas diferentes**, não só na home.
+
+### 2.6 Nenhum bloco nasce vazio
+
+Regra de produto (ADR-012): bloco sem dado **não desenha moldura**. Ele
+desaparece. Se você vê um cartão com título e nada dentro, é defeito — não é
+"estado vazio".
+
+A exceção são os cards de Comunicados e Notícias na home, que têm mensagem
+explícita ("Nenhum comunicado no ar.").
+
+### 2.7 Nada de estilo inline
+
+A CSP de produção usa nonce em `style-src`, e navegador moderno **ignora
+`unsafe-inline` quando há nonce**. Isso significa que qualquer `style="…"` num
+template do Workspace é bloqueado silenciosamente em produção.
+
+**Como testar:** abra o console do navegador em cada tela. Zero erro de CSP,
+zero aviso de recurso bloqueado. O console é fonte de verdade aqui — ele já
+pegou uma barra SVG que não desenhava por causa de vírgula decimal, e uma tabela
+inteira sem CSS.
+
+---
+
+## 3. Tela por tela
+
+### 3.1 Home — `/workspace/`
+
+**Para que serve.** É a porta da empresa. Responde três perguntas em ordem: *o
+que exige você hoje*, *o que a empresa está dizendo*, *para onde você vai*.
+
+**Quando é útil.** Ao abrir o navegador pela manhã. É a página inicial pretendida.
+
+**A ordem das faixas é a mensagem, e é testável:**
+
+1. **Hero** — data em português, saudação
+2. **Meu dia** — os cartões de trabalho
+3. **Minha empresa** — comunicados e notícias
+4. **Aplicativos** — os sistemas, **por último**
+
+> Aplicativos em último lugar é decisão de produto, não descuido. Até 12/08/2026
+> a home abria por Aplicativos com o iConnect como tile herói, e isso a tornava
+> um *app launcher*: a primeira coisa que o colaborador via era uma lista de
+> sistemas, e o trabalho dele vinha depois. **Não abra bug pedindo o iConnect de
+> volta ao topo.**
+
+**O que testar:**
+
+- Anônimo: a home abre, diz "Bem-vindo ao Workspace.", sem sino e sem nome.
+- Logado: diz "Olá, `<primeiro nome>`." — **só o primeiro nome**.
+- A data: `"Sexta-feira, 7 de agosto"`. Uma maiúscula só, no começo. Se vier
+  "Sexta-Feira, 7 De Agosto" ou "Agosto", é defeito de locale.
+- O cartão "Pedir um serviço" promete um número concreto ("19 serviços"). Confira
+  que bate com `ItemCatalogo` ativos.
+- O cartão **"Esperando você"** só aparece para quem tem aprovação pendente.
+  Colaborador comum não deve vê-lo. Card de aprovação sempre visível e sempre
+  zerado ensina o aprovador a ignorá-lo.
+- "Minhas solicitações" mostra um selo com a contagem de pedidos abertos, ou uma
+  seta quando não há nenhum.
+- Os 10 tiles de módulo levam a algum lugar. **Nenhum pode dar 404.**
+- O tile de Correspondências pede login — isso é correto, é dado pessoal. O
+  invariante é "não dá 404", não "responde 200".
+- A lupa (⌘K) fica **antes** do sino, e é visível para todos.
+
+**Armadilha histórica:** nove dos dez tiles não levavam a lugar nenhum, e o
+catálogo — a única área real — não tinha porta na home. Vale reconferir a cada
+release: **todo tile leva a uma tela real, ou está marcado "Em breve"**.
+
+---
+
+### 3.2 Busca universal e paleta ⌘K — `/workspace/buscar/`
+
+**Para que serve.** Um campo para o Workspace inteiro. Acha serviço, documento,
+comunicado e sistema — e, quando a frase é um pedido, **oferece a ação**.
+
+**Quando é útil.** Quando a pessoa sabe o problema mas não sabe o nome da tela.
+É o caminho de quem não quer aprender o menu.
+
+**Como funciona (importa para o teste).** O endpoint devolve **fragmento HTML**,
+não JSON — de propósito: o consumidor é o próprio navegador, e HTML pronto
+elimina montagem de string no cliente e o XSS que vem com ela. Se você vê JSON
+na aba Network, algo mudou.
+
+**O recorte por permissão está no WHERE, não na tela.** O índice guarda os
+*sujeitos* de cada entrada (`*`, `pessoa:N`, `unidade:N`, `depto:N`,
+`papel:chave`) e a consulta filtra pelos sujeitos de quem busca. Anônimo tem só
+`["*"]`.
+
+**O que testar:**
+
+| Digite | Resultado esperado |
+|---|---|
+| `a` (1 letra) | "digite ao menos 2 letras", sem consulta |
+| `reembolso` | o serviço Reembolso nos resultados. **Sem** bloco de ação — palavra solta é consulta, não intenção |
+| `quero solicitar férias` | bloco de ação **"Pedir: Férias"** no topo |
+| `qual a política de viagens` | a política nos resultados. **Nenhum** bloco de ação |
+| `preciso ver a política de férias` | a política. **Nenhum** pedido de férias oferecido |
+| `laptop` | Notebook (termo curado) |
+| `minha nr-35 está vencendo` | Reciclagem de NR |
+| `meu equipamento parou de funcionar` | "Meu equipamento parou de funcionar" |
+| `quero acesso` | **nenhuma** ação — empate entre VPN e sistema é ambiguidade |
+| `ace` | **nenhuma** ação — é alguém no meio de digitar |
+| `RH` | resultados, **sem erro 500** |
+
+As quatro últimas linhas são as mais valiosas. O erro mais caro deste módulo é
+oferecer um pedido a quem só queria ler a regra: a pessoa sai com um pedido
+aberto e gera trabalho para outra. Por isso "preciso **ver**…" e "**qual** a…"
+barram a ação, e empate não vira ação.
+
+**Também deliberado:** `quero 3 dias de férias em setembro` abre o formulário de
+férias **em branco**. O assistente não extrai valor da frase — pedido de férias
+com data errada é pior que pedido vazio, porque o formulário mostra o que vai ser
+enviado e o palpite não. **Não é bug.**
+
+**Sobre a paleta:** o campo dentro dela é um campo limpo. Se aparecer borda dupla,
+sombra ou um espaço vazio à esquerda onde deveria ter lupa, é o CSS da home
+vazando — já aconteceu.
+
+---
+
+### 3.3 Meu dia — `/workspace/meu-dia/`
+
+**Para que serve.** Responde **uma** pergunta: *o que exige você*. Só acionável.
+
+**Quando é útil.** Todo dia, antes de qualquer sistema. É a tela que substitui
+"abrir cinco abas para ver se tem algo meu".
+
+**A distinção com Notificações é o desenho, e é testável:** Meu dia responde *o
+que exige você*; Notificações responde *o que aconteceu*. Item resolvido sai do
+Meu dia e **continua** no histórico de notificações.
+
+**A ordem dos blocos é deliberada** — primeiro o que bloqueia outra pessoa,
+depois o que bloqueia você, depois o que você deveria cobrar:
+
+| # | Bloco | Aparece quando | Urgente |
+|---|---|---|---|
+| 1 | Esperando sua decisão | você é o aprovador da vez | ✅ sempre |
+| 2 | Leitura obrigatória | há documento obrigatório não confirmado | ✅ sempre |
+| 3 | Correspondência para retirar | chegou algo para você | ✅ se prazo legal |
+| 4 | Precisam da sua correção | seu pedido foi devolvido | ✅ sempre |
+| 5 | Passaram do prazo | seu pedido estourou o prazo prometido | — |
+| 6 | Seus documentos precisam de revisão | você é **dono** de documento vencendo | ✅ só se vencido |
+| 7 | Suas reservas de hoje | você tem reserva começando hoje | — |
+| 8+ | Blocos dos domínios | um provider registrado tem pendência sua | — |
+
+**O que testar:**
+
+- **Blocos vazios não aparecem.** Com o banco limpo, a tela toda deve dizer que
+  não há nada — não desenhar 7 molduras zeradas.
+- A ordem acima. Ordenar por data faria a aprovação de ontem cair abaixo do
+  pedido atrasado de anteontem — se você vê isso, é regressão.
+- Máximo **6 itens por bloco**, com indicação de quantos ficaram fora. Quem tem
+  40 pendências precisa da tela do domínio, não do resumo.
+- "Esperando sua decisão" traz o valor represado em reais.
+- Bloco 6 aparece **só para o dono do documento**. Ninguém mais precisa ver isso.
+- **Degradação, não erro:** se um provider de domínio falhar, o bloco dele
+  desaparece e o resto da tela continua. Para forçar, quebre o provider do
+  dashboard e recarregue — a tela **não pode** dar 500. Falha de agregador é
+  degradação.
+
+---
+
+### 3.4 Central de Notificações — `/workspace/notificacoes/`
+
+**Para que serve.** O histórico do que aconteceu com você — incluindo o que já
+foi resolvido.
+
+**Quando é útil.** "Recebi um aviso ontem e não sei mais qual era."
+
+**Tipos de notificação:** vez de aprovar, pedido aprovado, pedido devolvido,
+pedido cancelado, correspondência recebida.
+
+**O que testar:**
+
+- **Abrir a tela NÃO marca tudo como lido.** Isto é a regra central desta tela.
+  Marcar em massa ao abrir é o padrão que faz a pessoa perder o aviso que ela
+  ainda não leu: ela entrou para ver um item e apagou o rastro dos outros. A
+  marcação é ação explícita, com botão.
+- O sino leva para cá e **não abre painel dropdown**.
+- Marcar como lida a partir de outra tela devolve você **para onde você estava** —
+  não para a Central. Quem clicou no sino só para limpar o contador não quer
+  mudar de tela.
+- Limite de 60 itens, com indicação de truncamento.
+- **Aviso repetido não é bug.** Não existe constraint de unicidade em
+  notificação, de propósito: o modo de falha escolhe a si mesmo — constraint em
+  aviso falha *silenciando* a pessoa, o que é pior que avisar duas vezes.
+
+---
+
+### 3.5 Catálogo de serviços — `/workspace/servicos/`
+
+**Para que serve.** Os 19 serviços que a empresa presta ao próprio colaborador,
+agrupados por **intenção** — não por departamento.
+
+**Quando é útil.** "Preciso de alguma coisa da empresa e não sei com quem falar."
+
+**Por que por intenção.** A pessoa procura "meu notebook quebrou", não "TI →
+Hardware → Manutenção". Os grupos são: Equipamento e acesso, Trabalho e ausência,
+Dinheiro, Viagem, Espaço e material, Desenvolvimento, Jurídico.
+
+**O que testar:**
+
+- Cada item mostra um **prazo**. Ele é *prometido* até haver 5 pedidos
+  concluídos daquele item; a partir daí passa a ser a **mediana medida**. A tela
+  deve distinguir os dois — prazo medido é o que dá credibilidade ao catálogo.
+- Contadores de "abertas" e "devolvidas" no topo.
+- **Item fora do seu alcance aparece marcado, não escondido.** Saber que o
+  serviço existe é o que faz a pessoa parar de mandar e-mail. A recusa acontece
+  na tela do pedido, com o motivo à vista.
+
+---
+
+### 3.6 Pedir um serviço — `/workspace/servicos/<chave>/`
+
+**Para que serve.** O formulário. **No máximo 3 campos obrigatórios** por item —
+o resto (unidade, centro de custo, gestor aprovador, matrícula) vem da
+identidade. Formulário com 8 campos livres é o que faz o usuário desistir e
+mandar e-mail.
+
+**Quando é útil.** É o ato central do Workspace. Se esta tela falha, o produto
+falha.
+
+**O que testar — validação:**
+
+- Envie vazio. Devem aparecer **todas** as mensagens por campo, de uma vez. Uma
+  por vez é o que faz o usuário desistir no terceiro envio.
+- Erro fica **junto do campo**, não numa faixa no topo.
+- **Centro de custo não é digitado** — vem da lotação. Usuário sem centro de
+  custo em item que exige um recebe: "Você não tem centro de custo na sua
+  lotação. Peça ao RH para cadastrar." Isso é comportamento correto.
+- O campo de valor aceita `1.234,56` **e** `1234.56`. O usuário digita como
+  aprendeu.
+- Campo de arquivo se satisfaz com **arquivo**, não com texto. Já passou:
+  digitar "cupom.jpg" num campo de texto validava o pedido sem comprovante.
+
+**O que testar — anexos:**
+
+- Máximo **5 arquivos por campo**. Não é limite técnico: fila de aprovação com
+  40 arquivos por pedido não é revisada, é carimbada.
+- Máximo **10 MB** por arquivo.
+- Extensões: jpg, jpeg, png, gif, pdf, doc, docx, xls, xlsx, csv, txt.
+- **Magic bytes são conferidos.** Renomeie um `.exe` para `.pdf` e envie: tem de
+  ser recusado. Extensão e `Content-Type` não bastam.
+- O nome original é preservado. Se aparecer `c3599522_2036a287_cupom.jpg`, é
+  regressão — a validação prefixava um uuid a cada passagem, e o arquivo era
+  validado duas vezes.
+
+**O que testar — auto-aprovação:**
+
+| Item | Limite | Comportamento |
+|---|---|---|
+| Reembolso | R$ 200 | ≤ 200 **e** cabendo no orçamento → aprovado na hora |
+| Material de trabalho | R$ 300 | idem |
+| EPI, atestado, declaração, chamado de TI, manutenção predial, reciclagem de NR, análise de contrato | 0, sem valor | aprovado na hora |
+| Notebook, VPN, férias, home office, adiantamento, compra, viagem, veículo, treinamento | sem limite | **sempre** passa pela cadeia humana |
+
+Auto-aprovado mostra: *"… aprovado automaticamente — está dentro da política."*
+Os casos de EPI e reciclagem de NR são decisões de segurança, não de custo: negar
+EPI é risco, não economia, e habilitação vencida bloqueia despacho.
+
+---
+
+### 3.7 Minhas solicitações — `/workspace/minhas-solicitacoes/`
+
+**Para que serve.** Onde o pedido está, e quem está com a bola.
+
+**Quando é útil.** "Pedi reembolso semana passada e não sei se andou."
+
+**O que testar:**
+
+- Situações: aguardando aprovação, aprovada, em atendimento, devolvida,
+  concluída, cancelada.
+- **Devolvida mostra o motivo.** Devolução sem motivo é a pessoa refazendo às
+  cegas.
+- Cancelar funciona e só para os próprios pedidos.
+- Anexos são baixáveis pelo dono.
+
+---
+
+### 3.8 Baixar anexo — `/workspace/anexo/<id>/`
+
+**Para que serve.** O **único** caminho até um arquivo do Workspace.
+
+**Por que isso importa.** Os anexos moram **fora de `MEDIA_ROOT`**, porque o
+nginx serve `/media/` sem autenticação nenhuma (`docker/nginx.conf`:
+`location /media/ { alias /app/media/; expires 7d; }`). Não existe URL pública
+para eles. Se esta view negar, **não há segunda porta**.
+
+**O que testar:**
+
+- O dono do pedido baixa.
+- Outra pessoa recebe **403**, não 404. Quem chegou aqui tem o id de um anexo que
+  existe; mentir sobre a existência não protege nada que o 403 já não proteja.
+- O download vem sempre como **anexo** (`Content-Disposition: attachment`), nunca
+  renderizado inline. SVG e HTML inline abrem porta para XSS na nossa origem.
+- Arquivo ausente no disco com metadado na tabela → **404 com mensagem**, não 500.
+- **Tente adivinhar a URL do arquivo em `/media/…`.** Deve dar 404. Se um anexo
+  do Workspace aparecer sob `/media/`, é vazamento — e é grave.
+
+---
+
+### 3.9 Bandeja de aprovação — `/workspace/aprovacoes/`
+
+**Para que serve.** Transformar carimbo em decisão. Aprovação sem contexto
+financeiro é carimbo; com a barra tripla — realizado, comprometido, este pedido —
+é decisão.
+
+**Quando é útil.** Para o gestor, diretor ou sócio, quando algo espera assinatura.
+
+**A cadeia, semeada por `semear_regras_aprovacao`:**
+
+| Ordem | A partir de | Quem decide |
+|---|---|---|
+| 10 | R$ 0 | gestor direto |
+| 20 | R$ 50.000 | diretoria |
+| 30 | R$ 300.000 | sócios |
+
+É **cumulativa**: um pedido de R$ 420.000 passa por gestor → diretoria → sócios,
+nessa ordem.
+
+**O que testar — o defeito mais grave já encontrado aqui:**
+
+> Todas as etapas nascem `PENDENTE`. A bandeja mostrava **etapas futuras**: a
+> diretoria via um pedido de R$ 420.000 cuja etapa 1 ainda era do gestor,
+> rotulado "Etapa 1 de 3 · você" — **e o botão Aprovar funcionava**, por uma
+> brecha de escopo global.
+
+Reteste isso a cada release. Com um pedido de R$ 420.000 recém-criado:
+
+- o **gestor** vê o pedido na bandeja;
+- a **diretoria** e os **sócios** **não** o veem ainda;
+- depois que o gestor aprova, ele aparece para a diretoria;
+- o rótulo de etapa mostra a etapa correta ("Etapa 2 de 3").
+
+**O que testar — o dossiê:**
+
+- Barra tripla desenhada, com as três faixas. Se a barra **não desenha**,
+  abra o console: já aconteceu por vírgula decimal (`8,42`) num atributo SVG,
+  que é inválido e faz o navegador descartar o retângulo em silêncio.
+- Pedido que estoura o orçamento: a barra **trunca** no fim e o alerta textual
+  comunica o estouro. A barra não desenha fora do gráfico.
+- Percentual antes e depois do pedido.
+- **Os anexos abrem daqui.** Aprovar reembolso sem poder abrir o comprovante é
+  exatamente o carimbo que esta tela existe para evitar.
+- Histórico de etapas, com quem decidiu e quando.
+- Aprovação **sem** centro de custo (férias, por exemplo) não mostra barra e
+  **não quebra** a tela.
+
+**O que testar — decisão:**
+
+- Aprovar, devolver (exige justificativa), cancelar.
+- Devolver gera notificação "vez de" / "pedido devolvido" para o solicitante.
+- **Lote:** selecione várias e aprove. Se uma falhar, as outras **passam** e você
+  vê o motivo específico de cada falha. Abortar tudo porque uma falhou é o
+  comportamento errado.
+
+**Questão de produto ainda aberta** (não abra bug, pergunte): a etapa do gestor
+**não é intransponível** hoje — um aprovador com escopo global consegue assiná-la,
+e isso fica auditado em `decidido_por`. Se deve ou não ser intransponível é
+decisão pendente do dono do produto.
+
+---
+
+### 3.10 Módulos por departamento — `/workspace/m/<chave>/`
+
+**Para que serve.** A vitrine de um departamento: a fatia do catálogo que ele
+atende, mais os seus pedidos dentro dessa fatia.
+
+**Quando é útil.** Departamento é onde a pessoa vai quando **já sabe com quem
+quer falar**. Intenção (`/workspace/servicos/`) é onde ela vai quando **só sabe do
+problema**. São dois caminhos para o mesmo lugar, de propósito.
+
+**Um módulo não é um sistema novo** — é uma vista sobre o que já existe.
+
+| Módulo | Domínios | Tela |
+|---|---|---|
+| RH | `rh.*` | catálogo |
+| Financeiro | `fin.*` | catálogo |
+| Operações | `ops.*` | catálogo |
+| Logística | `log.*` | catálogo |
+| Redes | `ti.acesso` | catálogo |
+| Compras | `com.*` | catálogo |
+| Universidade | `hab.*` | catálogo |
+| Reservas | — | **própria** |
+| Correspondências | — | **própria** |
+| Documentação | — | **própria** |
+
+**O que testar:**
+
+- Cada módulo lista **só** os serviços dos seus domínios.
+- Anônimo vê a vitrine e, no lugar de "Pedir", vê "Entrar".
+- Módulo sem domínio e sem tela própria fica **"Em breve"** — e não abre página
+  vazia. O honesto é dizer "em breve".
+- A navegação por intenção cobre 100% do catálogo; a por departamento **não**.
+  `jur.analise` (Análise de contrato) não tem tile nenhum hoje. **Isso é
+  conhecido, não é bug.**
+
+---
+
+### 3.11 Documentação — `/workspace/documentacao/` e `/workspace/documentacao/<slug>/`
+
+**Para que serve.** O acervo normativo com **vigência** e **trilha de leitura**.
+Comunicado sem retorno é e-mail; documento com confirmação por versão é trilha de
+auditoria.
+
+**Quando é útil.** "Qual é a política de viagem?" — e, do outro lado, "quem já
+leu a nova versão da NR?"
+
+**Tipos:** POP, Política, Norma, Instrução de trabalho, Manual.
+**Situações:** rascunho, vigente, revogado.
+
+**O que testar — visibilidade:**
+
+- **Público.** Quem está na rede vê a política de viagens sem senha.
+- Documento com alvo de departamento **não** aparece para anônimo — os sujeitos
+  de quem não está logado são só `["*"]`.
+- Documento **vencido** e **revogado** ainda **abrem**, com aviso. Sumir com o
+  texto faz a pessoa procurar no e-mail antigo, que é pior.
+- **Revogado mostra o substituto.** Documento revogado sem para onde ir é um
+  beco: a pessoa descobre que o texto não vale e não sabe qual vale.
+
+**O que testar — confirmação de leitura:**
+
+- Confirmar exige **login**. Confirmação sem identidade não é trilha de
+  auditoria, é linha em branco.
+- **Só POST.** Acesse a URL de confirmar por GET: deve redirecionar sem gravar.
+  Sem isso, o pré-carregamento de link do navegador registraria conformidade que
+  a pessoa nunca declarou — e é esse registro que se leva a uma audiência.
+- A confirmação é **por versão**. Publique a v2 de um documento já confirmado: ele
+  volta a aparecer como pendente em Meu dia.
+- **Clique duas vezes rápido em "Confirmo que li".** Não pode dar 500. Já dava:
+  `IntegrityError` capturado dentro de `transaction.atomic` quebra a transação.
+- Cobertura de leitura ("quantos confirmaram a versão atual") visível para o dono.
+- Aviso de vencimento: **30 dias** antes, no Meu dia do **dono**.
+
+---
+
+### 3.12 Reservas — `/workspace/reservas/`, `/reservas/<codigo>/`, `/reservas/minhas/`
+
+**Para que serve.** Ocupar uma janela de tempo num recurso: sala, veículo,
+equipamento.
+
+**Quando é útil.** "Preciso da sala de reunião amanhã às 14h." Reserva **não** é
+pedido que entra em fila de aprovação — é por isso que tem tela própria em vez de
+formulário de catálogo.
+
+**A decisão de desenho mais importante:** a tela mostra **a agenda antes do
+formulário**. Formulário que aceita qualquer hora e responde "conflito" depois do
+envio faz a pessoa tentar por adivinhação.
+
+**O que testar — a vitrine:**
+
+- Pública: anônimo vê os recursos e a agenda do dia.
+- Navegação ontem / hoje / amanhã.
+- `?dia=abacaxi` mostra **hoje**, não erro 500. O parâmetro é editável na barra
+  de endereço.
+- **Sem filtro por unidade, de propósito.** Quem está em Salvador pode precisar
+  reservar a sala da matriz. A unidade aparece como informação, não como
+  barreira.
+
+**O que testar — reservar:**
+
+- Exige login.
+- Fim antes do início → recusa.
+- **Horário no passado → recusa.** Reservar no passado não bloqueia nada e suja a
+  agenda.
+- Mais de **180 dias** de antecedência → recusa. O limite existe para pegar erro
+  de digitação de ano ("2027" no lugar de "2026"), que é o caso real.
+- Acima da duração máxima do recurso → recusa, dizendo o limite.
+- **Choque de horário diz QUEM e QUANDO:** *"Sala Aurora já está reservada por
+  Marina de 14:00 a 16:00 em 12/08."* "Horário indisponível" faz a pessoa tentar
+  de novo às cegas; com o nome, ela resolve por conversa.
+- **Encostadas passam.** 14:00–15:00 e 15:00–16:00 não conflitam. A checagem é
+  estrita (`início < fim_existente` **e** `fim > início_existente`).
+- **Concorrência:** duas pessoas reservando a mesma sala no mesmo segundo — só
+  uma passa. A garantia é um `select_for_update()` na linha do **recurso**, dentro
+  de transação. (Em SQLite o lock é no-op, mas o banco serializa escritas — os
+  dois caminhos são corretos por razões diferentes.) Salas **diferentes** seguem
+  em paralelo: travar a tabela faria a empresa inteira esperar por quem está
+  marcando uma sala.
+- Cancelar: só quem reservou, ou quem tem `res.admin.global` (papel `logistica`).
+- Cancelar reserva já terminada → recusa com o motivo certo ("cancelar não muda
+  nada"), diferente de "já cancelada".
+
+---
+
+### 3.13 Correspondências — `/workspace/correspondencias/`
+
+**Para que serve.** Registrar o que chega na recepção **e avisar o destinatário**.
+O aviso é o produto: registrar sem notificar troca a pilha na mesa por uma pilha
+no banco de dados — e a segunda é pior, porque ninguém passa por ela sem querer.
+
+**Quando é útil.** Intimação parada na recepção é o caso que este módulo existe
+para evitar.
+
+**Uma tela, dois públicos.** Quem tem `cor.registrar.global` (papel `logistica`)
+vê a fila e o formulário; todo mundo vê o que chegou para si. Duas telas
+separadas fariam a recepção decorar duas URLs e o resto da empresa tropeçar na
+fila.
+
+**Tipos, e a urgência é derivada do tipo:**
+
+| Tipo | Urgente |
+|---|---|
+| Intimação ou notificação judicial | ✅ prazo legal |
+| Multa ou autuação | ✅ prazo legal |
+| Documento, Encomenda, Carta | — |
+
+A urgência **não** depende de quem registrou marcar uma caixinha — a recepção não
+tem como saber o que é urgente, e o remetente também não avisa.
+
+**O que testar:**
+
+- Tudo autenticado. É dado de pessoa.
+- **Colaborador comum NÃO vê a fila** nem os não identificados. Correspondência
+  revela quem recebe intimação e de quem, o que é informação sensível sobre a
+  vida da pessoa — a fila não é pública nem para gestores.
+- Registrar com destinatário conhecido → notificação **na hora**, e a mensagem
+  diz "O destinatário foi avisado."
+- Registrar **sem** destinatário e **sem** nome no envelope → recusa. Sem FK e sem
+  nome, ninguém se reconhece na fila.
+- **Destinatário não identificado é caso normal.** Registre com só o nome do
+  envelope: entra na fila de não identificados, sem notificação. Carta endereçada
+  à empresa, nome escrito errado, encomenda sem etiqueta — fingir que isso não
+  acontece produz um cadastro obrigatório que a recepção preenche com qualquer
+  nome, e aí a correspondência chega à pessoa errada.
+- **Identificar depois avisa na hora.** É o único momento em que a pessoa pode
+  saber que algo chegou para ela.
+- Identificar o que já tem destinatário → recusa.
+- Registrar entrega: `retirado_por` **pode ser outra pessoa** (secretária, colega,
+  motoboy). Forçar que seja o destinatário faria a recepção registrar mentira
+  para fechar a fila — e aí a trilha deixa de valer.
+- Entregar duas vezes → recusa dizendo a situação atual.
+- **A lista de destinatários é o organograma, não a tabela de usuários.** Só
+  pessoas com lotação. Se aparecerem 1.432 nomes, é regressão: aqueles são
+  técnicos e clientes do iConnect, que não trabalham aqui.
+
+---
+
+### 3.14 Comunicados e notícias — `/workspace/publicacao/<id>/`
+
+**Para que serve.** O que a empresa está dizendo. Aparece em cards na home,
+abre em tela própria.
+
+**Quando é útil.** É o mural. Substitui o e-mail para todos.
+
+**O que testar:** só publicações **publicadas** aparecem; até 4 por card na home;
+sem publicação, o card diz "Nenhum comunicado no ar." (este é o estado vazio
+declarado, e é correto).
+
+---
+
+## 4. Matriz perfil × tela
+
+Use como plano de cobertura. **A coluna "Anônimo" é a mais esquecida e a que mais
+esconde defeito** — nos dois sentidos.
+
+| Tela | Anônimo | Colaborador | Gestor / Diretoria | Recepção (`logistica`) |
+|---|---|---|---|---|
+| Home | ✅ | ✅ + nome | ✅ + card "Esperando você" | ✅ |
+| Busca ⌘K | ✅ só `*` | ✅ com seus sujeitos | ✅ | ✅ |
+| Módulos | ✅ ("Entrar") | ✅ ("Pedir") | ✅ | ✅ |
+| Documentação | ✅ só público | ✅ + do depto | ✅ | ✅ |
+| Reservas (vitrine) | ✅ | ✅ | ✅ | ✅ |
+| Meu dia | ➜ login | ✅ | ✅ + aprovações | ✅ |
+| Notificações | ➜ login | ✅ | ✅ | ✅ |
+| Catálogo / Pedir | ➜ login | ✅ | ✅ | ✅ |
+| Minhas solicitações | ➜ login | ✅ | ✅ | ✅ |
+| **Bandeja de aprovação** | ➜ login | ✅ **vazia** | ✅ **com itens** | ✅ vazia |
+| Reservar / Minhas reservas | ➜ login | ✅ | ✅ | ✅ + cancelar de terceiros |
+| Correspondências | ➜ login | ✅ **só as minhas** | ✅ **só as minhas** | ✅ **fila completa** |
+
+As três células em negrito são os testes de autorização que valem mais: bandeja
+vazia para colaborador, fila invisível para gestor, e cancelamento de terceiros
+só para quem administra recurso.
+
+---
+
+## 5. Roteiros de ponta a ponta
+
+### Roteiro A — reembolso auto-aprovado (o caminho felizinho)
+
+1. Colaborador, ⌘K: `gastei com uber` → o assistente oferece **Reembolso**
+2. Anexa uma foto de cupom, valor **R$ 80**
+3. Envia → *"Reembolso aprovado automaticamente — está dentro da política."*
+4. Minhas solicitações: situação **aprovada**
+5. Meu dia: **não** aparece em "Esperando sua decisão" de ninguém
+
+### Roteiro B — a cadeia inteira (o roteiro mais valioso do produto)
+
+1. Colaborador pede **Compra** de **R$ 420.000**
+2. Sino do **gestor**: 1 não lida, "vez de aprovar"
+3. Bandeja do gestor: o pedido aparece, "Etapa 1 de 3", barra tripla desenhada
+4. **Bandeja da diretoria: o pedido NÃO aparece** ← o defeito histórico
+5. **Bandeja dos sócios: NÃO aparece**
+6. Gestor aprova → agora aparece para a **diretoria**, "Etapa 2 de 3"
+7. Diretoria aprova → aparece para os **sócios**
+8. Sócios aprovam → solicitante recebe "pedido aprovado"
+9. Minhas solicitações: **aprovada**, com o histórico das três decisões
+
+### Roteiro C — devolução
+
+1. Colaborador pede **Viagem**
+2. Gestor devolve com justificativa
+3. Sino do colaborador: "pedido devolvido"
+4. Meu dia do colaborador: bloco **"Precisam da sua correção"**, com o motivo
+5. Notificações: o aviso continua no histórico depois de resolvido
+
+### Roteiro D — leitura obrigatória com versão
+
+1. Admin cria documento **vigente**, com **leitura obrigatória**
+2. Colaborador: Meu dia mostra **"Leitura obrigatória"**
+3. Abre e confirma → sai do Meu dia
+4. Admin publica a **v2**
+5. Colaborador: volta a aparecer como pendente ← o teste que importa
+6. Dono do documento: vê a cobertura de leitura da versão atual
+
+### Roteiro E — intimação
+
+1. Recepção registra **Intimação** para o colaborador
+2. Marcada **urgente** automaticamente, sem ninguém pedir
+3. Sino do colaborador: "Intimação para você · com prazo legal"
+4. Meu dia: bloco **"Correspondência para retirar"**, com etiqueta "prazo legal"
+5. Colaborador retira; recepção registra a entrega
+6. Sai do Meu dia; **continua** no histórico de notificações
+
+### Roteiro F — choque de reserva
+
+1. Colaborador A reserva a Sala Aurora, **14:00–16:00** de amanhã
+2. Colaborador B tenta **15:00–17:00** → recusa **com o nome de A e o horário**
+3. Colaborador B tenta **16:00–17:00** → **passa** (encostadas não conflitam)
+4. A cancela a sua; B tenta 14:00–16:00 → passa
+5. Meu dia de B, no dia: bloco "Suas reservas de hoje"
+
+---
+
+## 6. O que ainda NÃO existe — não abra bug
+
+| Não existe | Por quê |
+|---|---|
+| **Assistente de conhecimento (RAG)** | Bloqueado por dados: existem 5 documentos, todos de demonstração. A onda F precisa dos POPs e normativos reais. Não é código que falta. |
+| Habilitações / certificações | O modelo vive no iConnect **Platform** (`fsm.Skill`), com **zero registros**. Não é módulo do Workspace. |
+| Analytics pessoal | Decisão tomada (visível **só para a própria pessoa**, escopo `proprio`), não implementada. |
+| Integração com M365 / HRIS | Suíte definida, integração não construída. |
+| `semear_workspace` | Não existe. Documentos, recursos e correspondências entram pelo admin (ver 1.3). |
+| Monitor de rede (viabilidade do módulo TI) | Pergunta aberta ao dono do produto. |
+| 14 dos 24 módulos previstos | Marcados "Em breve" de propósito — ver 3.10. |
+
+---
+
+## 7. Lista de regressão — as 11 armadilhas já corridas
+
+Cada linha abaixo é um defeito **real**, encontrado e corrigido. Elas são a
+melhor lista de regressão que este produto tem, porque cada uma passou por uma
+suíte verde uma vez.
+
+| # | O defeito | Como ele se manifesta de novo |
+|---|---|---|
+| 1 | Bandeja mostrava etapas **futuras**, e o Aprovar funcionava | Diretoria vê pedido cuja etapa 1 é do gestor |
+| 2 | Nove de dez tiles da home levavam a nada | Tile dá 404 |
+| 3 | Topbar perdia sino **e** nome numa tela nova | Uma tela logada sem sino |
+| 4 | ⌘K só funcionava na home | Atalho morto fora da home |
+| 5 | `Esc` não fechava a paleta (Chrome consome no `type="search"`) | Modal preso |
+| 6 | Campo da paleta herdava o CSS do hero | Campo dentro de campo, lupa escondida |
+| 7 | `.au-tabela` **nunca** teve CSS, em 4 telas | Tabela sem estilo — invisível quando vazia |
+| 8 | Barra SVG não desenhava por vírgula decimal (`8,42`) | Barra tripla ausente, só no console |
+| 9 | Anexos com URL pública em `/media/` | Arquivo do Workspace acessível sem login |
+| 10 | Duplo clique em "Confirmo que li" → 500 | `IntegrityError` dentro de `atomic` |
+| 11 | Busca por `RH` dava `NoReverseMatch` e matava a busca inteira | Busca 500 em termo específico |
+
+**Se você só tiver uma hora**, teste: o Roteiro B (linha 1), a passagem pelas 6
+telas logado (linha 3), ⌘K + Esc em três telas (linhas 4 e 5), e o console aberto
+em todas (linhas 7, 8 e 11).
+
+---
+
+## 8. Onde reclamar de quê
+
+| Sintoma | É bug de |
+|---|---|
+| Tela `/workspace/…` errada | **Workspace** — abra o bug |
+| Tela `/dashboard/…`, `/fsm/…`, `/login/` | **iConnect Platform** — outro produto, outra suíte |
+| `no such column` / `OperationalError` | migração pendente (seção 1.1) |
+| Tela vazia sem dado | massa de teste faltando (seção 1.2 e 1.3) |
+| "Você não tem acesso" | papel/lotação faltando (seção 1.4) |
+| Módulo "Em breve" | decisão de produto (seção 6) |
+| iConnect não é o tile principal | decisão de produto (seção 3.1) |
+| Pedido não pré-preenchido pela frase da busca | decisão de produto (seção 3.2) |
