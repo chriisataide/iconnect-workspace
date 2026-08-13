@@ -1,9 +1,4 @@
-"""URLs do Workspace, montadas sob `/workspace/`.
-
-A home é pública. Tudo sob `servicos/` e `aprovacoes/` é área pessoal —
-`@login_required` mora nas views, não aqui, para que a regra fique junto do
-código que a aplica.
-"""
+"""URLs do Workspace, montadas sob `/workspace/`."""
 
 from django.urls import path
 
@@ -21,18 +16,18 @@ urlpatterns = [
     # "buscar" ou "servicos" sequestraria uma rota existente, e o erro só
     # apareceria no dia em que alguém acrescentasse a chave errada.
     path("m/<slug:chave>/", views.modulo, name="modulo"),
-    # Documentação — pública. Confirmar leitura exige login (ver a view).
+    # Documentação.
     path("documentacao/", views.documentacao, name="documentacao"),
     path("documentacao/<slug:slug>/", views.documento, name="documento"),
     path("documentacao/<slug:slug>/confirmar/", views.confirmar_leitura,
          name="confirmar_leitura"),
-    # Reservas — a vitrine é pública; reservar exige login.
+    # Reservas.
     path("reservas/", views.reservas, name="reservas"),
     path("reservas/minhas/", views.minhas_reservas, name="minhas_reservas"),
     path("reservas/<slug:codigo>/", views.reservar, name="reservar"),
     path("reserva/<int:pk>/cancelar/", views.cancelar_reserva,
          name="cancelar_reserva"),
-    # Correspondências — tudo autenticado: é dado de pessoa.
+    # Correspondências.
     path("correspondencias/", views.correspondencias, name="correspondencias"),
     path("correspondencias/registrar/", views.registrar_correspondencia,
          name="registrar_correspondencia"),
@@ -40,11 +35,11 @@ urlpatterns = [
          name="entregar_correspondencia"),
     path("correspondencia/<int:pk>/identificar/",
          views.identificar_correspondencia, name="identificar_correspondencia"),
-    # Meu dia e notificações — área pessoal
+    # Meu dia e notificações.
     path("meu-dia/", views.meu_dia, name="meu_dia"),
     path("notificacoes/", views.notificacoes, name="notificacoes"),
     path("notificacoes/lidas/", views.marcar_lidas, name="marcar_lidas"),
-    # Serviços — área pessoal
+    # Serviços.
     path("servicos/", views.catalogo, name="servicos"),
     path("servicos/<slug:chave>/", views.pedir, name="pedir"),
     path("minhas-solicitacoes/", views.minhas_solicitacoes, name="minhas_solicitacoes"),

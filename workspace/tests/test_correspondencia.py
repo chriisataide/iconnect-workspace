@@ -15,7 +15,6 @@ from datetime import timedelta
 import pytest
 from django.urls import reverse
 from django.utils import timezone
-from django.conf import settings
 
 from identidade.tests import fabricas as f
 from workspace.models import Notificacao, TipoNotificacao
@@ -325,11 +324,10 @@ def test_dias_esperando_para_do_que_foi_retirado(cenario):
 # ── As telas ────────────────────────────────────────────────────────
 
 
-def test_tela_exige_login(client, cenario):
+def test_tela_e_aberta(client, cenario):
     resposta = client.get(reverse("workspace:correspondencias"))
 
-    assert resposta.status_code == 302
-    assert settings.LOGIN_URL in resposta["Location"]
+    assert resposta.status_code == 200
 
 
 def test_quem_nao_opera_nao_ve_o_formulario(client, cenario):

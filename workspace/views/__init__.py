@@ -1,14 +1,14 @@
 """Views do Workspace.
 
-    home, buscar, publicacao   públicas — o Workspace é a porta de entrada
-    meu_dia, notificacoes      área pessoal — o que exige você, e o que aconteceu
-    documentacao, documento    públicas — o acervo normativo da empresa
-    reservas                   pública — a agenda dos recursos
-    correspondencias           área pessoal — a minha, e a fila da recepção
-    modulo                     pública — a vitrine de cada departamento
-    servicos, aprovacoes       área pessoal, com @login_required
+    home, buscar, publicacao   porta de entrada
+    meu_dia, notificacoes      o que exige você, e o que aconteceu
+    documentacao, documento    acervo normativo da empresa
+    reservas                   agenda dos recursos
+    correspondencias           a minha, e a fila da recepção
+    modulo                     vitrine de cada departamento
+    servicos, aprovacoes       pedidos e decisões
 
-As demais entram nas ondas seguintes: `widget`, `conteudo`, `perfil`.
+O Workspace é aberto; views que precisam de pessoa usam `workspace.acesso`.
 """
 
 from .aprovacoes import bandeja, decidir as decidir_aprovacao, decidir_em_lote as aprovar_em_lote

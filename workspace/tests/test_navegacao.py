@@ -56,16 +56,9 @@ def test_todo_tile_disponivel_leva_a_pagina_que_responde(client):
             continue
         destino = reverse(spec.url_name, args=spec.url_args)
         assert destino in _href(corpo), f"tile {spec.chave} não está na home"
-        # 200 (público) ou 302 para o login (área pessoal). O que o tile NÃO
-        # pode devolver é 404: Correspondências exige login porque é dado
-        # pessoal, e exigir 200 aqui obrigaria a tornar a fila da recepção
-        # pública para o teste passar.
+        # O Workspace é aberto: tile disponível precisa responder.
         resposta = client.get(destino)
-        assert resposta.status_code in (200, 302), f"{destino} não responde"
-        if resposta.status_code == 302:
-            assert settings.LOGIN_URL in resposta["Location"], (
-                f"{destino} redireciona para fora do login"
-            )
+        assert resposta.status_code == 200, f"{destino} não responde"
 
 
 def test_modulo_disponivel_tem_tile_e_destino():
@@ -127,7 +120,6 @@ def test_modulo_e_publico(client, item_rh):
     assert resposta.status_code == 200
     corpo = resposta.content.decode()
     assert "Férias" in corpo
-    assert settings.LOGIN_URL not in resposta.get("Location", "")
 
 
 def test_modulo_mostra_so_a_propria_fatia(client, item_rh):
@@ -144,12 +136,12 @@ def test_modulo_mostra_so_a_propria_fatia(client, item_rh):
     assert "Reembolso" not in corpo
 
 
-def test_anonimo_ve_o_item_mas_nao_o_link_de_pedir(client, item_rh):
-    """Ver que o serviço existe é o que faz a pessoa parar de mandar e-mail."""
+def test_anonimo_ve_o_item_e_o_link_de_pedir(client, item_rh):
+    """O Workspace é aberto: ver o serviço e pedir usam o mesmo fluxo."""
     corpo = client.get(reverse("workspace:modulo", args=("rh",))).content.decode()
 
     assert "Férias" in corpo
-    assert reverse("workspace:pedir", args=("ferias",)) not in _href(corpo)
+    assert reverse("workspace:pedir", args=("ferias",)) in _href(corpo)
 
 
 def test_autenticado_pode_pedir_direto_do_modulo(client, pessoa, item_rh):

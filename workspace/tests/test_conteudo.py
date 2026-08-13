@@ -164,8 +164,8 @@ def test_publico_alvo_por_papel(pessoas):
     assert cnt.visiveis_para(pessoas["ana"]).count() == 0
 
 
-def test_anonimo_ve_so_o_que_e_de_todos(client, pessoas):
-    """Política geral não é segredo; documento de área exige saber quem é."""
+def test_anonimo_usa_a_pessoa_aberta_para_ver_documentos(client, pessoas):
+    """Sem login, a vitrine usa a pessoa aberta do Workspace."""
     doc(dono=pessoas["dono"], slug="geral", titulo="Política geral")
     doc(dono=pessoas["dono"], slug="so-ti", titulo="Norma de TI",
         publico_alvo=[f"depto:{pessoas['ti'].pk}"])
@@ -173,14 +173,14 @@ def test_anonimo_ve_so_o_que_e_de_todos(client, pessoas):
     corpo = client.get(reverse("workspace:documentacao")).content.decode()
 
     assert "Política geral" in corpo
-    assert "Norma de TI" not in corpo
+    assert "Norma de TI" in corpo
 
 
-def test_anonimo_recebe_403_em_documento_restrito(client, pessoas):
+def test_anonimo_abre_documento_restrito_da_pessoa_aberta(client, pessoas):
     doc(dono=pessoas["dono"], slug="restrito", publico_alvo=[f"depto:{pessoas['ti'].pk}"])
 
     resposta = client.get(reverse("workspace:documento", args=("restrito",)))
-    assert resposta.status_code == 403
+    assert resposta.status_code == 200
 
 
 def test_lista_vazia_de_publico_vale_como_todos(pessoas):

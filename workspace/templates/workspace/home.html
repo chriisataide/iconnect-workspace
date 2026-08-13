@@ -29,32 +29,30 @@
     <p class="au-hero-sub">{% trans "Busque um serviço, um comunicado ou um sistema." %}</p>
 
     {% comment %}
-      BOTÃO, não campo. O campo de busca mora na paleta, em `_shell.html`, e
-      existe UM em toda a aplicação.
-
-      Antes havia um campo só aqui — então ⌘K, que está no JS desde o começo,
-      não funcionava em nenhuma outra tela: o atalho procurava um `#busca` que
-      só a home tinha. Dois campos com o mesmo id resolveriam isso criando um
-      problema pior.
-
-      Visualmente segue parecendo um campo, porque é isso que a pessoa reconhece.
+      Campo inline da home. A paleta global continua existindo na casca para as
+      outras telas, mas aqui a busca aparece no lugar em que a pessoa clicou:
+      resultados logo abaixo do campo, sem modal.
     {% endcomment %}
-    <button class="au-busca au-busca--gatilho" type="button" data-abre-busca
-            aria-label="{% trans 'Buscar no Workspace' %}">
+    <div class="au-busca au-busca--home">
       <svg class="au-busca-icone" aria-hidden="true"><use href="#i-search"></use></svg>
-      <span class="au-busca-placeholder">{% trans "Buscar…" %}</span>
+      <label class="au-sr" for="busca-home">{% trans "Buscar no Workspace" %}</label>
+      <input class="au-busca-campo" id="busca-home" type="search" autocomplete="off"
+             role="combobox" aria-expanded="false" aria-controls="busca-home-resultados"
+             placeholder="{% trans 'Buscar…' %}"
+             data-busca-inline>
       <span class="au-atalho" aria-hidden="true">
         <kbd class="au-tecla">⌘</kbd><kbd class="au-tecla">K</kbd>
       </span>
-    </button>
+      <div class="au-busca-painel" id="busca-home-resultados" role="listbox" hidden
+           data-url="{% url 'workspace:buscar' %}"></div>
+    </div>
   </section>
 
   {% comment %}
     MEU DIA — só o que exige a pessoa hoje.
 
-    A faixa não é bloco de login: o Workspace segue aberto a quem está na rede.
-    São links de navegação, e o login aparece só se a pessoa clicar — a regra
-    "público, com login apenas na área pessoal".
+    O Workspace é aberto. A faixa concentra os links de navegação para o
+    trabalho do dia.
   {% endcomment %}
   <section class="au-secao">
     <div class="au-secao-cabeca">

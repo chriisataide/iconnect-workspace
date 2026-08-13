@@ -7,12 +7,12 @@ comprometido, este pedido — é decisão.
 from __future__ import annotations
 
 from django.contrib import messages
-from django.contrib.auth.decorators import login_required
 from django.core.exceptions import ObjectDoesNotExist
 from django.http import HttpRequest, HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 
+from workspace.acesso import pessoa_da_requisicao
 from workspace.models.aprovacao import SolicitacaoAprovacao
 from workspace.services import aprovacao as apr
 from workspace.services import orcamento as orc
@@ -112,10 +112,9 @@ def _dossie(solicitacao: SolicitacaoAprovacao) -> dict:
     }
 
 
-@login_required
 def bandeja(request: HttpRequest) -> HttpResponse:
     cache = _cache(request)
-    resumo = apr.resumo_da_bandeja(request.user, cache=cache)
+    resumo = apr.resumo_da_bandeja(pessoa_da_requisicao(request), cache=cache)
     return render(
         request,
         "workspace/aprovacoes/bandeja.html",
@@ -126,19 +125,19 @@ def bandeja(request: HttpRequest) -> HttpResponse:
     )
 
 
-@login_required
 def decidir(request: HttpRequest, pk: int) -> HttpResponse:
     """Registra a decisão. Toda regra está no serviço, não aqui."""
     if request.method != "POST":
         return redirect(reverse("workspace:aprovacoes"))
 
     solicitacao = get_object_or_404(SolicitacaoAprovacao, pk=pk)
+    pessoa = pessoa_da_requisicao(request)
     decisao = request.POST.get("decisao", "")
     justificativa = (request.POST.get("justificativa") or "").strip()
 
     try:
         apr.decidir(
-            solicitacao, request.user, decisao, justificativa, cache=_cache(request)
+            solicitacao, pessoa, decisao, justificativa, cache=_cache(request)
         )
     except apr.AprovacaoError as erro:
         messages.error(request, str(erro))
@@ -153,7 +152,6 @@ def decidir(request: HttpRequest, pk: int) -> HttpResponse:
     return redirect(reverse("workspace:aprovacoes"))
 
 
-@login_required
 def decidir_em_lote(request: HttpRequest) -> HttpResponse:
     """Aprova as selecionadas. Não aborta tudo quando uma falha."""
     if request.method != "POST":
@@ -165,8 +163,9 @@ def decidir_em_lote(request: HttpRequest) -> HttpResponse:
         return redirect(reverse("workspace:aprovacoes"))
 
     solicitacoes = list(SolicitacaoAprovacao.objects.filter(pk__in=ids))
+    pessoa = pessoa_da_requisicao(request)
     decididas, falhas = apr.decidir_em_lote(
-        solicitacoes, request.user, apr.Decisao.APROVAR, cache=_cache(request)
+        solicitacoes, pessoa, apr.Decisao.APROVAR, cache=_cache(request)
     )
 
     if decididas:

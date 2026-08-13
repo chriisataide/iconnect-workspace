@@ -18,7 +18,6 @@ from datetime import timedelta
 import pytest
 from django.urls import reverse
 from django.utils import timezone
-from django.conf import settings
 
 from identidade.models import Papel
 from identidade.tests import fabricas as f
@@ -297,18 +296,17 @@ def test_em_curso_e_passou(cenario):
 
 
 def test_vitrine_e_publica(client, cenario):
-    """A agenda é aberta na rede da empresa; reservar exige login."""
+    """A agenda e a reserva são abertas na rede da empresa."""
     resposta = client.get(reverse("workspace:reservas"))
 
     assert resposta.status_code == 200
     assert "Sala de reunião" in resposta.content.decode()
 
 
-def test_reservar_exige_login(client, cenario):
+def test_reservar_e_aberto(client, cenario):
     resposta = client.get(reverse("workspace:reservar", args=("sala-reuniao",)))
 
-    assert resposta.status_code == 302
-    assert settings.LOGIN_URL in resposta["Location"]
+    assert resposta.status_code == 200
 
 
 def test_dia_invalido_na_url_mostra_hoje(client, cenario):

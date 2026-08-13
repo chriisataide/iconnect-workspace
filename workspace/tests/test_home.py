@@ -115,40 +115,25 @@ def test_tile_de_modulo_pronto_leva_a_pagina(client):
     assert rh.destino == reverse("workspace:modulo", args=("rh",))
 
 
-# ── Personalização progressiva ───────────────────────────────────
+# ── Saudação aberta ───────────────────────────────────────────────
 
 
 @pytest.mark.django_db
-def test_autenticado_e_cumprimentado_pelo_primeiro_nome(client, django_user_model):
+def test_mesmo_autenticado_ve_saudacao_neutra(client, django_user_model):
     usuario = django_user_model.objects.create_user(
         "cataide@icodev.com.br", password="x", nome="Christopher Ataide"
     )
     client.force_login(usuario)
     resposta = client.get(reverse("workspace:home"))
 
-    assert resposta.context["nome"] == "Christopher"
-    assert "Olá, Christopher." in resposta.content.decode()
+    assert resposta.context["nome"] == ""
+    assert "Bem-vindo ao Workspace." in resposta.content.decode()
 
 
 @pytest.mark.django_db
 def test_anonimo_ve_saudacao_neutra(client):
     corpo = client.get(reverse("workspace:home")).content.decode()
     assert "Bem-vindo ao Workspace." in corpo
-
-
-@pytest.mark.django_db
-def test_nome_cai_para_a_parte_local_do_email_sem_nome(client, django_user_model):
-    """Sem nome, cumprimenta pela parte local — não pelo e-mail inteiro.
-
-    "Olá, semnome@icodev.com.br." é pior que não cumprimentar. Conta criada pelo
-    SSO sempre traz `displayName`; a que cai aqui é conta de serviço ou
-    importação incompleta.
-    """
-    usuario = django_user_model.objects.create_user(
-        "semnome@icodev.com.br", password="x"
-    )
-    client.force_login(usuario)
-    assert client.get(reverse("workspace:home")).context["nome"] == "semnome"
 
 
 # ── Marca ────────────────────────────────────────────────────────

@@ -11,12 +11,13 @@ from __future__ import annotations
 from django.http import HttpRequest, HttpResponse
 from django.shortcuts import render
 
+from workspace.acesso import pessoa_da_requisicao
 from workspace.services.busca import MIN_CARACTERES, buscar
 
 
 def buscar_view(request: HttpRequest) -> HttpResponse:
     consulta = (request.GET.get("q") or "").strip()
-    pessoa = request.user if request.user.is_authenticated else None
+    pessoa = pessoa_da_requisicao(request)
     grupos = buscar(consulta, pessoa)
 
     return render(

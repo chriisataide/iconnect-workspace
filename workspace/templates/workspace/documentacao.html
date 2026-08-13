@@ -17,23 +17,6 @@
 {% endblock %}
 
 {% block corpo %}
-{% if not autenticado %}
-  {% comment %}
-    Política geral não é segredo, então a vitrine é pública. O que exige login é
-    documento de departamento — `subjects_de()` de anônimo devolve só `["*"]` —
-    e a confirmação de leitura, que sem identidade não é trilha de auditoria.
-  {% endcomment %}
-  <div class="au-faixa">
-    <span class="au-faixa-texto">
-      {% blocktrans %}Você está vendo os documentos abertos a toda a empresa. Entre para ver os
-      da sua área e confirmar leitura.{% endblocktrans %}
-    </span>
-    <a class="au-btn au-btn--primario" href="{% url 'workspace:meu_dia' %}">
-      {% trans "Entrar" %}
-    </a>
-  </div>
-{% endif %}
-
 {% if grupos %}
   {% for grupo in grupos %}
     <section class="au-secao">

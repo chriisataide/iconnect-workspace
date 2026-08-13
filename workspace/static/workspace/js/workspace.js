@@ -17,13 +17,133 @@
   var painel = document.getElementById('busca-resultados');
   if (!paleta || !campo || !painel) return;
 
-  var url = painel.dataset.url;
+  var campoInline = document.querySelector('[data-busca-inline]');
+  var painelInline = campoInline
+    ? document.getElementById(campoInline.getAttribute('aria-controls'))
+    : null;
   var atraso = 200;
-  var timer = null;
-  var requisicao = null;
-  var ultimaConsulta = '';
+
+  function prepararBusca(campoBusca, painelBusca) {
+    var url = painelBusca.dataset.url;
+    var timer = null;
+    var requisicao = null;
+    var ultimaConsulta = '';
+
+    function abrirPainel() {
+      painelBusca.hidden = false;
+      campoBusca.setAttribute('aria-expanded', 'true');
+    }
+
+    function fecharPainel() {
+      painelBusca.hidden = true;
+      campoBusca.setAttribute('aria-expanded', 'false');
+    }
+
+    function limparBusca() {
+      if (requisicao) requisicao.abort();
+      clearTimeout(timer);
+      campoBusca.value = '';
+      ultimaConsulta = '';
+      painelBusca.innerHTML = '';
+      fecharPainel();
+    }
+
+    function buscar(termo) {
+      // AbortController evita a corrida clássica: uma resposta lenta de "fer"
+      // chegando depois da de "ferias" e sobrescrevendo o resultado certo.
+      if (requisicao) requisicao.abort();
+      requisicao = new AbortController();
+
+      fetch(url + '?q=' + encodeURIComponent(termo), {
+        signal: requisicao.signal,
+        headers: { 'X-Requested-With': 'fetch' },
+      })
+        .then(function (r) {
+          if (!r.ok) throw new Error(r.status);
+          return r.text();
+        })
+        .then(function (html) {
+          painelBusca.innerHTML = html;
+          abrirPainel();
+        })
+        .catch(function (e) {
+          if (e.name !== 'AbortError') fecharPainel();
+        });
+    }
+
+    campoBusca.addEventListener('input', function () {
+      var termo = campoBusca.value.trim();
+      if (termo === ultimaConsulta) return;
+      ultimaConsulta = termo;
+
+      clearTimeout(timer);
+      if (termo.length < 2) {
+        if (requisicao) requisicao.abort();
+        fecharPainel();
+        return;
+      }
+      timer = setTimeout(function () {
+        buscar(termo);
+      }, atraso);
+    });
+
+    campoBusca.addEventListener('keydown', function (e) {
+      if (e.key === 'Escape') {
+        if (campoBusca === campo) {
+          e.preventDefault();
+          e.stopPropagation();
+          fecharPaleta();
+          return;
+        }
+        if (painelBusca.hidden && !campoBusca.value) return;
+        e.preventDefault();
+        e.stopPropagation();
+        limparBusca();
+        return;
+      }
+
+      if (e.key !== 'ArrowDown' || painelBusca.hidden) return;
+      var primeiro = painelBusca.querySelector('a');
+      if (primeiro) {
+        e.preventDefault();
+        primeiro.focus();
+      }
+    });
+
+    painelBusca.addEventListener('keydown', function (e) {
+      if (e.key !== 'ArrowDown' && e.key !== 'ArrowUp') return;
+      var itens = Array.prototype.slice.call(painelBusca.querySelectorAll('a'));
+      var i = itens.indexOf(document.activeElement);
+      if (i === -1) return;
+      e.preventDefault();
+      var proximo = e.key === 'ArrowDown' ? itens[i + 1] : itens[i - 1] || campoBusca;
+      if (proximo) proximo.focus();
+    });
+
+    return {
+      fecharPainel: fecharPainel,
+      limpar: limparBusca,
+      abortar: function () {
+        if (requisicao) requisicao.abort();
+        clearTimeout(timer);
+      },
+    };
+  }
+
+  var buscaPaleta = prepararBusca(campo, painel);
+  var buscaHome = painelInline ? prepararBusca(campoInline, painelInline) : null;
+
+  function focoBuscaPrincipal() {
+    if (campoInline) {
+      campoInline.focus();
+      campoInline.select();
+      return true;
+    }
+    return false;
+  }
 
   function abrirPaleta() {
+    if (focoBuscaPrincipal()) return;
     if (paleta.open) return;
     // `showModal` e não `show`: só o modal traz o fundo inerte e o Esc nativo.
     paleta.showModal();
@@ -35,37 +155,23 @@
     if (paleta.open) paleta.close();
   }
 
-  function abrirPainel() {
-    painel.hidden = false;
-    campo.setAttribute('aria-expanded', 'true');
-  }
+  document.addEventListener('click', function (e) {
+    if (
+      buscaHome &&
+      !e.target.closest('.au-busca--home') &&
+      !e.target.closest('[data-abre-busca]')
+    ) {
+      buscaHome.fecharPainel();
+    }
+  });
 
-  function fecharPainel() {
-    painel.hidden = true;
-    campo.setAttribute('aria-expanded', 'false');
-  }
-
-  function buscar(termo) {
-    // AbortController evita a corrida clássica: uma resposta lenta de "fer"
-    // chegando depois da de "ferias" e sobrescrevendo o resultado certo.
-    if (requisicao) requisicao.abort();
-    requisicao = new AbortController();
-
-    fetch(url + '?q=' + encodeURIComponent(termo), {
-      signal: requisicao.signal,
-      headers: { 'X-Requested-With': 'fetch' },
-    })
-      .then(function (r) {
-        if (!r.ok) throw new Error(r.status);
-        return r.text();
-      })
-      .then(function (html) {
-        painel.innerHTML = html;
-        abrirPainel();
-      })
-      .catch(function (e) {
-        if (e.name !== 'AbortError') fecharPainel();
-      });
+  if (campoInline) {
+    campoInline.addEventListener('focus', function () {
+      if (campoInline.value.trim().length >= 2 && painelInline.innerHTML.trim()) {
+        painelInline.hidden = false;
+        campoInline.setAttribute('aria-expanded', 'true');
+      }
+    });
   }
 
   // ── Abrir e fechar ──────────────────────────────────────────────
@@ -113,50 +219,6 @@
   // Limpa ao fechar. Reabrir com o resultado velho na tela faz a pessoa clicar
   // num item que ela buscou dez minutos antes.
   paleta.addEventListener('close', function () {
-    if (requisicao) requisicao.abort();
-    clearTimeout(timer);
-    campo.value = '';
-    ultimaConsulta = '';
-    painel.innerHTML = '';
-    fecharPainel();
-  });
-
-  // ── Digitação ───────────────────────────────────────────────────
-
-  campo.addEventListener('input', function () {
-    var termo = campo.value.trim();
-    if (termo === ultimaConsulta) return;
-    ultimaConsulta = termo;
-
-    clearTimeout(timer);
-    if (termo.length < 2) {
-      if (requisicao) requisicao.abort();
-      fecharPainel();
-      return;
-    }
-    timer = setTimeout(function () {
-      buscar(termo);
-    }, atraso);
-  });
-
-  // ── Teclado nos resultados ──────────────────────────────────────
-
-  campo.addEventListener('keydown', function (e) {
-    if (e.key !== 'ArrowDown' || painel.hidden) return;
-    var primeiro = painel.querySelector('a');
-    if (primeiro) {
-      e.preventDefault();
-      primeiro.focus();
-    }
-  });
-
-  painel.addEventListener('keydown', function (e) {
-    if (e.key !== 'ArrowDown' && e.key !== 'ArrowUp') return;
-    var itens = Array.prototype.slice.call(painel.querySelectorAll('a'));
-    var i = itens.indexOf(document.activeElement);
-    if (i === -1) return;
-    e.preventDefault();
-    var proximo = e.key === 'ArrowDown' ? itens[i + 1] : itens[i - 1] || campo;
-    if (proximo) proximo.focus();
+    buscaPaleta.limpar();
   });
 })();

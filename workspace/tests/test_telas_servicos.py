@@ -1,4 +1,4 @@
-"""As telas da área pessoal — catálogo, pedido, minhas solicitações, bandeja.
+"""As telas operacionais — catálogo, pedido, minhas solicitações, bandeja.
 
 É onde as quatro fundações aparecem juntas: `pode()` filtra o catálogo, APR monta
 a cadeia, `Compromisso` alimenta a barra tripla e SVC amarra tudo.
@@ -11,7 +11,6 @@ from decimal import Decimal
 
 import pytest
 from django.urls import reverse
-from django.conf import settings
 
 from identidade.tests import fabricas as f
 from workspace.models.orcamento import competencia_de
@@ -69,18 +68,17 @@ def cenario():
     return {"ana": ana, "gestor": gestor, "diretor": diretor, "item": item}
 
 
-# ── A fronteira público / pessoal ───────────────────────────────────
+# ── Acesso aberto ───────────────────────────────────────────────────
 
 
 @pytest.mark.django_db
 @pytest.mark.parametrize(
     "rota", ["workspace:servicos", "workspace:minhas_solicitacoes", "workspace:aprovacoes"]
 )
-def test_area_pessoal_exige_login(client, rota):
-    """O Workspace é público; pedir e aprovar exigem saber quem é."""
+def test_telas_operacionais_sao_abertas(client, rota):
+    """O Workspace é aberto; as telas operacionais não redirecionam para login."""
     resposta = client.get(reverse(rota))
-    assert resposta.status_code == 302
-    assert settings.LOGIN_URL in resposta["Location"]
+    assert resposta.status_code == 200
 
 
 @pytest.mark.django_db
@@ -525,7 +523,7 @@ def test_contexto_do_rail_nao_roda_fora_do_portal(client, cenario):
 
 
 @pytest.mark.django_db
-def test_contexto_do_rail_ignora_anonimo():
+def test_contexto_do_rail_usa_pessoa_aberta_para_anonimo():
     from django.contrib.auth.models import AnonymousUser
 
     from workspace.context import rail
@@ -534,7 +532,11 @@ def test_contexto_do_rail_ignora_anonimo():
         path = "/workspace/"
         user = AnonymousUser()
 
-    assert rail(Req()) == {}
+    assert rail(Req()) == {
+        "abertas": 0,
+        "pendentes_aprovacao": 0,
+        "nao_lidas": 0,
+    }
 
 
 # ── CSP: nenhum estilo inline ───────────────────────────────────────
