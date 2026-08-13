@@ -3,12 +3,12 @@
     python manage.py importar_organograma organograma.csv            # simula
     python manage.py importar_organograma organograma.csv --aplicar
 
-Colunas lidas (`username` é a única obrigatória):
+Colunas lidas (`email` é a única obrigatória):
 
-    username  nome  email  matricula  cargo
+    email  nome  matricula  cargo
     unidade_codigo  unidade_nome
     departamento_codigo  departamento_nome
-    gestor_username  centro_custo_codigo  situacao
+    gestor_email  centro_custo_codigo  situacao
 
 ## Duas passadas, de propósito
 
@@ -18,7 +18,7 @@ uma planilha que RH vai ordenar por departamento, não por hierarquia.
 
 ## Por que `--criar-usuarios` é desligado por padrão
 
-Criar conta a partir de planilha é ação de segurança: um `username` digitado
+Criar conta a partir de planilha é ação de segurança: um e-mail digitado
 errado não gera erro, gera **conta fantasma** — que passa a existir, aparecer no
 organograma e receber etapa de aprovação que ninguém decide.
 
@@ -43,7 +43,7 @@ from __future__ import annotations
 import csv
 from pathlib import Path
 
-from django.contrib.auth.models import User
+from django.contrib.auth import get_user_model
 from django.core.exceptions import ValidationError
 from django.core.management.base import BaseCommand, CommandError
 from django.db import transaction
@@ -54,7 +54,7 @@ SITUACOES = {s.value for s in Situacao}
 
 
 class Command(BaseCommand):
-    help = "Importa o organograma de um CSV (username, gestor_username, unidade…)."
+    help = "Importa o organograma de um CSV (email, gestor_email, unidade…)."
 
     def add_arguments(self, parser):
         parser.add_argument("arquivo", type=str)
@@ -89,7 +89,7 @@ class Command(BaseCommand):
 
         linhas = self._ler(caminho)
         if not linhas:
-            raise CommandError("CSV vazio ou sem coluna `username`.")
+            raise CommandError("CSV vazio ou sem coluna `email`.")
 
         try:
             with transaction.atomic():
@@ -111,33 +111,32 @@ class Command(BaseCommand):
     def _ler(self, caminho: Path) -> list[dict]:
         with caminho.open(encoding="utf-8-sig", newline="") as arquivo:
             leitor = csv.DictReader(arquivo)
-            if not leitor.fieldnames or "username" not in leitor.fieldnames:
+            if not leitor.fieldnames or "email" not in leitor.fieldnames:
                 return []
             return [
                 {k: (v or "").strip() for k, v in linha.items() if k}
                 for linha in leitor
-                if (linha.get("username") or "").strip()
+                if (linha.get("email") or "").strip()
             ]
 
-    def _criar_usuario(self, linha: dict) -> User:
+    def _criar_usuario(self, linha: dict):
         """Conta sem senha utilizável — autentica só por SSO.
 
-        `nome` do CSV é uma coluna só; parte no primeiro espaço porque `User` do
-        Django separa em dois campos. Nome composto vai inteiro para
-        `last_name`, que é o comportamento certo em português: "Maria Clara
-        Souza Lima" tem primeiro nome "Maria" e o resto é sobrenome.
+        `nome` vai inteiro para um campo só. Antes era partido no primeiro espaço
+        entre `first_name` e `last_name`, porque o `User` do Django separa em
+        dois — e aquela heurística existia só para servir ao modelo, não à
+        realidade: em português "Maria Clara Souza Lima" não tem um "primeiro
+        nome" e um "sobrenome" úteis de separar. Com `contas.Pessoa` o problema
+        deixou de existir.
         """
-        nome = (linha.get("nome") or "").strip()
-        primeiro, _, resto = nome.partition(" ")
-        user = User(
-            username=linha["username"],
-            first_name=primeiro[:150],
-            last_name=resto[:150],
-            email=linha.get("email", ""),
+        Pessoa = get_user_model()
+        pessoa = Pessoa(
+            email=(linha["email"] or "").strip().lower(),
+            nome=(linha.get("nome") or "").strip()[:160],
         )
-        user.set_unusable_password()
-        user.save()
-        return user
+        pessoa.set_unusable_password()
+        pessoa.save()
+        return pessoa
 
     # ── Importação ──────────────────────────────────────────────────
 
@@ -148,7 +147,7 @@ class Command(BaseCommand):
         criar_estrutura: bool,
         criar_usuarios: bool = False,
     ) -> dict:
-        usuarios = {u.get_username(): u for u in User.objects.all()}
+        usuarios = {u.get_username(): u for u in get_user_model().objects.all()}
         rel = {
             "criadas": 0,
             "atualizadas": 0,
@@ -163,19 +162,19 @@ class Command(BaseCommand):
 
         # ── Passada 1 · lotação sem gestor ──
         for linha in linhas:
-            username = linha["username"]
-            user = usuarios.get(username)
+            email = linha["email"]
+            user = usuarios.get(email)
             if user is None and criar_usuarios:
                 user = self._criar_usuario(linha)
-                usuarios[username] = user
-                rel["usuarios_criados"].append(username)
+                usuarios[email] = user
+                rel["usuarios_criados"].append(email)
             if user is None:
-                rel["sem_usuario"].append(username)
+                rel["sem_usuario"].append(email)
                 continue
 
             situacao = linha.get("situacao") or Situacao.ATIVO
             if situacao not in SITUACOES:
-                rel["situacao_invalida"].append((username, situacao))
+                rel["situacao_invalida"].append((email, situacao))
                 situacao = Situacao.ATIVO
 
             unidade = self._resolver_unidade(linha, aplicar, criar_estrutura, rel)
@@ -205,15 +204,15 @@ class Command(BaseCommand):
         # ── Passada 2 · gestores ──
         # Separada para que a ordem das linhas não importe.
         for linha in linhas:
-            gestor_username = linha.get("gestor_username", "")
-            if not gestor_username:
+            gestor_email = linha.get("gestor_email", "")
+            if not gestor_email:
                 continue
-            user = usuarios.get(linha["username"])
-            gestor = usuarios.get(gestor_username)
+            user = usuarios.get(linha["email"])
+            gestor = usuarios.get(gestor_email)
             if user is None:
                 continue
             if gestor is None:
-                rel["gestor_ausente"].append((linha["username"], gestor_username))
+                rel["gestor_ausente"].append((linha["email"], gestor_email))
                 continue
 
             rel["gestores_amarrados"] += 1
@@ -292,7 +291,7 @@ class Command(BaseCommand):
             )
 
         for chave, titulo, dica in [
-            ("sem_usuario", "USERNAME INEXISTENTE", "Confira a grafia ou crie o usuário."),
+            ("sem_usuario", "E-MAIL INEXISTENTE", "Confira a grafia ou crie o usuário."),
             ("gestor_ausente", "GESTOR INEXISTENTE", "A lotação foi criada SEM gestor."),
             ("situacao_invalida", "SITUAÇÃO INVÁLIDA", f"Use uma de: {sorted(SITUACOES)}"),
         ]:

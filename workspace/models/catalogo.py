@@ -234,7 +234,7 @@ class SolicitacaoServico(models.Model):
         ]
 
     def __str__(self) -> str:
-        return f"{self.item.nome} · {self.solicitante.get_username()}"
+        return f"{self.item.nome} · {self.solicitante.get_full_name()}"
 
     @property
     def dias_para_concluir(self) -> int | None:

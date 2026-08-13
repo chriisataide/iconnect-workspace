@@ -295,5 +295,5 @@ def test_cadeia_mais_profunda_que_o_teto_nao_trava():
         f.lotar(u, gestor=anterior)
         anterior = u
 
-    folha = Lotacao.objects.get(user__username="n065")
+    folha = Lotacao.objects.get(user__email="n065@icodev.com.br")
     assert folha._cria_ciclo() is False

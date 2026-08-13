@@ -18,6 +18,7 @@ from datetime import timedelta
 import pytest
 from django.urls import reverse
 from django.utils import timezone
+from django.conf import settings
 
 from identidade.models import Papel
 from identidade.tests import fabricas as f
@@ -307,7 +308,7 @@ def test_reservar_exige_login(client, cenario):
     resposta = client.get(reverse("workspace:reservar", args=("sala-reuniao",)))
 
     assert resposta.status_code == 302
-    assert "/login" in resposta["Location"]
+    assert settings.LOGIN_URL in resposta["Location"]
 
 
 def test_dia_invalido_na_url_mostra_hoje(client, cenario):

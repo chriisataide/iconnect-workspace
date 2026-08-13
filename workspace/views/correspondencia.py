@@ -9,7 +9,7 @@ from __future__ import annotations
 
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
-from django.contrib.auth.models import User
+from django.contrib.auth import get_user_model
 from django.http import HttpRequest, HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
@@ -44,8 +44,8 @@ def correspondencias(request: HttpRequest) -> HttpResponse:
             "tipos": TipoCorrespondencia.choices,
             # Só quem tem lotação: a lista de destinatários é o organograma, não
             # a tabela de usuários — os 1432 do iConnect não trabalham aqui.
-            "pessoas": User.objects.filter(lotacao__isnull=False).order_by(
-                "first_name", "username"
+            "pessoas": get_user_model().objects.filter(lotacao__isnull=False).order_by(
+                "nome", "email"
             ),
         },
     )
@@ -58,7 +58,7 @@ def registrar_correspondencia(request: HttpRequest) -> HttpResponse:
 
     destinatario = None
     if request.POST.get("destinatario"):
-        destinatario = User.objects.filter(pk=request.POST["destinatario"]).first()
+        destinatario = get_user_model().objects.filter(pk=request.POST["destinatario"]).first()
 
     try:
         registro = cor.registrar(
@@ -106,7 +106,7 @@ def identificar_correspondencia(request: HttpRequest, pk: int) -> HttpResponse:
         return redirect(reverse("workspace:correspondencias"))
 
     registro = get_object_or_404(Correspondencia, pk=pk)
-    destinatario = User.objects.filter(pk=request.POST.get("destinatario")).first()
+    destinatario = get_user_model().objects.filter(pk=request.POST.get("destinatario")).first()
     if destinatario is None:
         messages.error(request, "Escolha o destinatário.")
         return redirect(reverse("workspace:correspondencias"))

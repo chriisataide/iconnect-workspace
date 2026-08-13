@@ -100,7 +100,7 @@
                       aria-label="{% trans 'Destinatário' %}">
                 <option value="">{% trans "quem é?" %}</option>
                 {% for p in pessoas %}
-                  <option value="{{ p.pk }}">{{ p.get_full_name|default:p.username }}</option>
+                  <option value="{{ p.pk }}">{{ p.get_full_name|default:p.get_username }}</option>
                 {% endfor %}
               </select>
               <button class="au-btn au-btn--primario au-btn--pequeno" type="submit">
@@ -142,7 +142,7 @@
                 </td>
                 <td>
                   {% if c.destinatario %}
-                    {{ c.destinatario.get_full_name|default:c.destinatario.username }}
+                    {{ c.destinatario.get_full_name|default:c.destinatario.get_username }}
                   {% else %}
                     <span class="au-list-resumo au-list-resumo--alerta">
                       {{ c.nome_no_envelope|default:_("não identificado") }}
@@ -202,7 +202,7 @@
           <select class="au-input" id="destinatario" name="destinatario">
             <option value="">{% trans "não identificado" %}</option>
             {% for p in pessoas %}
-              <option value="{{ p.pk }}">{{ p.get_full_name|default:p.username }}</option>
+              <option value="{{ p.pk }}">{{ p.get_full_name|default:p.get_username }}</option>
             {% endfor %}
           </select>
         </div>

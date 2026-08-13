@@ -29,7 +29,7 @@ class DepartamentoAdmin(admin.ModelAdmin):
 class LotacaoAdmin(admin.ModelAdmin):
     list_display = ("user", "cargo", "unidade", "departamento", "gestor", "situacao")
     list_filter = ("situacao", "unidade", "departamento")
-    search_fields = ("user__username", "user__first_name", "user__last_name", "matricula", "cargo")
+    search_fields = ("user__username", "user__nome", "user__email", "matricula", "cargo")
     autocomplete_fields = ("user", "gestor")
     list_select_related = ("user", "unidade", "departamento", "gestor")
     fieldsets = (
@@ -66,7 +66,7 @@ class AtribuicaoPapelAdmin(admin.ModelAdmin):
         "vigencia_inicio", "vigencia_fim", "situacao",
     )
     list_filter = ("escopo", "papel", "unidade", "departamento")
-    search_fields = ("user__username", "user__first_name", "user__last_name")
+    search_fields = ("user__username", "user__nome", "user__email")
     autocomplete_fields = ("user", "concedido_por")
     list_select_related = ("user", "papel", "unidade", "departamento")
     date_hierarchy = "vigencia_inicio"

@@ -180,7 +180,7 @@ class Lotacao(models.Model):
         ]
 
     def __str__(self) -> str:
-        return f"{self.user.get_username()} · {self.cargo or 'sem cargo'}"
+        return f"{self.user.get_full_name()} · {self.cargo or 'sem cargo'}"
 
     def clean(self) -> None:
         if self.gestor_id and self.gestor_id == self.user_id:
@@ -335,7 +335,7 @@ class AtribuicaoPapel(models.Model):
         ]
 
     def __str__(self) -> str:
-        return f"{self.user.get_username()} · {self.papel.chave} · {self.escopo}"
+        return f"{self.user.get_full_name()} · {self.papel.chave} · {self.escopo}"
 
     def clean(self) -> None:
         if self.vigencia_fim and self.vigencia_fim < self.vigencia_inicio:
@@ -396,7 +396,7 @@ class Delegacao(models.Model):
         ]
 
     def __str__(self) -> str:
-        return f"{self.de_user.get_username()} → {self.para_user.get_username()}"
+        return f"{self.de_user.get_full_name()} → {self.para_user.get_full_name()}"
 
     def clean(self) -> None:
         if self.de_user_id == self.para_user_id:

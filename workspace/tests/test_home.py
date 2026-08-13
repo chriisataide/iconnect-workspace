@@ -7,6 +7,7 @@ import re
 import pytest
 from django.test import Client
 from django.urls import resolve, reverse
+from django.conf import settings
 
 
 @pytest.mark.django_db
@@ -40,7 +41,9 @@ def test_existe_exatamente_um_link_para_o_login(client):
     """Antes havia três (topbar, tile, faixa). Três caminhos para o mesmo
     destino fazem o usuário parar para decidir se são a mesma coisa."""
     corpo = client.get(reverse("workspace:home")).content.decode()
-    links = re.findall(r'href="%s"' % re.escape(reverse("login")), corpo)
+    links = re.findall(
+        r'href="%s"' % re.escape(settings.ICONNECT_URL), corpo
+    )
     assert len(links) == 1, f"esperado 1 acesso ao iConnect, achei {len(links)}"
 
 
@@ -57,7 +60,13 @@ def test_tile_do_iconnect_e_o_acesso(client):
     iconnect = next(a for a in resposta.context["apps"] if a.chave == "iconnect")
 
     assert iconnect.disponivel
-    assert iconnect.destino == reverse("login")
+    # URL ABSOLUTA e de configuração: o tile sai desta aplicação. Era
+    # `reverse("login")` enquanto os dois produtos moravam no mesmo projeto.
+    assert iconnect.destino == settings.ICONNECT_URL
+    assert iconnect.destino.startswith("http"), (
+        "o acesso ao iConnect tem de sair do Workspace; caminho relativo cairia "
+        "no login do próprio Workspace, que é outro cadastro"
+    )
 
 
 # ── Grade de aplicativos ─────────────────────────────────────────
@@ -112,7 +121,7 @@ def test_tile_de_modulo_pronto_leva_a_pagina(client):
 @pytest.mark.django_db
 def test_autenticado_e_cumprimentado_pelo_primeiro_nome(client, django_user_model):
     usuario = django_user_model.objects.create_user(
-        username="cataide", password="x", first_name="Christopher", last_name="Ataide"
+        "cataide@icodev.com.br", password="x", nome="Christopher Ataide"
     )
     client.force_login(usuario)
     resposta = client.get(reverse("workspace:home"))
@@ -128,8 +137,16 @@ def test_anonimo_ve_saudacao_neutra(client):
 
 
 @pytest.mark.django_db
-def test_nome_cai_para_username_sem_nome_completo(client, django_user_model):
-    usuario = django_user_model.objects.create_user(username="semnome", password="x")
+def test_nome_cai_para_a_parte_local_do_email_sem_nome(client, django_user_model):
+    """Sem nome, cumprimenta pela parte local — não pelo e-mail inteiro.
+
+    "Olá, semnome@icodev.com.br." é pior que não cumprimentar. Conta criada pelo
+    SSO sempre traz `displayName`; a que cai aqui é conta de serviço ou
+    importação incompleta.
+    """
+    usuario = django_user_model.objects.create_user(
+        "semnome@icodev.com.br", password="x"
+    )
     client.force_login(usuario)
     assert client.get(reverse("workspace:home")).context["nome"] == "semnome"
 

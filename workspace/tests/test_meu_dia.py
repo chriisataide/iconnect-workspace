@@ -18,6 +18,7 @@ from decimal import Decimal
 import pytest
 from django.urls import reverse
 from django.utils import timezone
+from django.conf import settings
 
 from identidade.tests import fabricas as f
 from workspace.models import Notificacao, TipoNotificacao
@@ -477,7 +478,7 @@ def test_central_exige_login(client):
     for rota in ("workspace:meu_dia", "workspace:notificacoes"):
         resposta = client.get(reverse(rota))
         assert resposta.status_code == 302
-        assert "/login" in resposta["Location"]
+        assert settings.LOGIN_URL in resposta["Location"]
 
 
 def test_criar_sem_destinatario_e_ignorado():

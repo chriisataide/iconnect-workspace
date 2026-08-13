@@ -75,7 +75,7 @@ def test_save_model_carimba_o_autor(admin_publicacao, pedido, admin_user):
 def test_save_model_nao_sobrescreve_autor_existente(
     admin_publicacao, pedido, admin_user, django_user_model
 ):
-    outro = django_user_model.objects.create_user(username="outro", password="x")
+    outro = django_user_model.objects.create_user("outro@icodev.com.br", password="x")
     pub = Publicacao(titulo="De outra pessoa", autor=outro)
     admin_publicacao.save_model(pedido, pub, form=None, change=True)
     assert pub.autor == outro

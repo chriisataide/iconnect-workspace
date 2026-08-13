@@ -5,14 +5,16 @@ Dois gates, porque são duas falhas diferentes:
 
 1. **Cobertura por app** — pega *código novo sem teste*.
    O pytest-cov só aceita um ``--cov-fail-under`` global, e um piso global
-   permite que um app regrida enquanto outro sobe: a média esconde. Foi assim
-   que ``fsm`` (núcleo do field service) e ``km_audit`` ficaram sem proteção
-   nenhuma enquanto ``dashboard`` subia.
+   permite que um app regrida enquanto outro sobe: a média esconde. No projeto
+   anterior foi assim que ``fsm`` (núcleo do field service) e ``km_audit``
+   ficaram sem proteção nenhuma enquanto ``dashboard`` subia — os dois eram
+   apps grandes, e a média global nunca acusou.
 
 2. **Contagem de testes** — pega *teste que sumiu*.
-   Cobertura NÃO detecta remoção de teste. Medido em 2026-08-07: apagar um
-   arquivo inteiro de ``km_audit`` (16 testes) derrubou a cobertura em 0,15
-   ponto — menos que o ruído de medição. Os testes se sobrepõem demais.
+   Cobertura NÃO detecta remoção de teste. Medido em 2026-08-07, ainda no
+   projeto anterior: apagar um arquivo inteiro com 16 testes derrubou a
+   cobertura em 0,15 ponto — menos que o ruído de medição. Os testes se
+   sobrepõem demais para a cobertura sozinha servir de gate contra remoção.
 
 Uso:
     pytest                                   # gera coverage.json e junit.xml

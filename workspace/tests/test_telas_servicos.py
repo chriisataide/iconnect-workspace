@@ -11,6 +11,7 @@ from decimal import Decimal
 
 import pytest
 from django.urls import reverse
+from django.conf import settings
 
 from identidade.tests import fabricas as f
 from workspace.models.orcamento import competencia_de
@@ -79,7 +80,7 @@ def test_area_pessoal_exige_login(client, rota):
     """O Workspace é público; pedir e aprovar exigem saber quem é."""
     resposta = client.get(reverse(rota))
     assert resposta.status_code == 302
-    assert "/login" in resposta["Location"]
+    assert settings.LOGIN_URL in resposta["Location"]
 
 
 @pytest.mark.django_db

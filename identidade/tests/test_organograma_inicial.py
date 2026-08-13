@@ -16,7 +16,7 @@ from pathlib import Path
 
 import pytest
 from django.conf import settings
-from django.contrib.auth.models import User
+from django.contrib.auth import get_user_model
 from django.core.management import call_command
 
 from identidade.models import Departamento, Lotacao, Unidade
@@ -52,12 +52,12 @@ def test_contas_criadas_nao_autenticam_por_senha(importado):
     Conta semeada com senha conhecida é a porta que fica aberta depois que todos
     esqueceram que ela existe.
     """
-    for user in User.objects.filter(username__contains="."):
-        assert not user.has_usable_password(), user.username
+    for user in get_user_model().objects.filter(email__contains="@"):
+        assert not user.has_usable_password(), user.email
 
 
 def test_o_topo_nao_tem_gestor(importado):
-    socio = Lotacao.objects.get(user__username="socio.fundador")
+    socio = Lotacao.objects.get(user__email="socio.fundador@icodev.com.br")
 
     assert socio.gestor is None
     assert socio.cargo == "Sócio"
@@ -67,16 +67,16 @@ def test_a_hierarquia_tem_quatro_niveis(importado):
     """Quatro níveis porque a cadeia tem quatro degraus. Com três, o teste de
     R$ 300.000 não teria quem assinar."""
     caminho = []
-    atual = Lotacao.objects.get(user__username="tecnico.campo")
+    atual = Lotacao.objects.get(user__email="tecnico.campo@icodev.com.br")
     while atual is not None:
-        caminho.append(atual.user.get_username())
+        caminho.append(atual.user.email)
         atual = Lotacao.objects.filter(user=atual.gestor).first() if atual.gestor else None
 
     assert caminho == [
-        "tecnico.campo",
-        "gerente.campo",
-        "diretor.operacoes",
-        "socio.fundador",
+        "tecnico.campo@icodev.com.br",
+        "gerente.campo@icodev.com.br",
+        "diretor.operacoes@icodev.com.br",
+        "socio.fundador@icodev.com.br",
     ]
 
 
@@ -87,18 +87,18 @@ def test_escopo_de_equipe_atravessa_dois_niveis(importado):
     INDIRETAMENTE — se a consulta recursiva parasse no primeiro nível, ele não
     aprovaria o pedido do técnico, que é o caso mais comum.
     """
-    diretor = User.objects.get(username="diretor.operacoes")
+    diretor = get_user_model().objects.get(email="diretor.operacoes@icodev.com.br")
     liderados = set(liderados_recursivos(diretor.pk))
 
     assert {
-        User.objects.get(username=u).pk
+        get_user_model().objects.get(email=f"{u}@icodev.com.br").pk
         for u in ("gerente.suporte", "gerente.campo", "analista.suporte", "tecnico.campo")
     } == liderados
 
 
 def test_duas_unidades_para_exercitar_escopo_de_unidade(importado):
     assert {u.codigo for u in Unidade.objects.all()} == {"MTZ", "BA1"}
-    tecnico = Lotacao.objects.get(user__username="tecnico.campo")
+    tecnico = Lotacao.objects.get(user__email="tecnico.campo@icodev.com.br")
     assert tecnico.unidade.codigo == "BA1", "a ponta de campo não fica na matriz"
 
 
@@ -122,32 +122,41 @@ def test_reimportar_nao_duplica(importado):
     )
 
     assert Lotacao.objects.count() == 6
-    assert User.objects.filter(username="socio.fundador").count() == 1
+    assert get_user_model().objects.filter(email="socio.fundador@icodev.com.br").count() == 1
 
 
 def test_sem_a_flag_nao_cria_conta():
-    """O padrão é não criar: username digitado errado geraria conta fantasma."""
+    """O padrão é não criar: e-mail digitado errado geraria conta fantasma."""
     saida = StringIO()
     call_command("importar_organograma", str(CSV), "--aplicar", stdout=saida)
 
     assert Lotacao.objects.count() == 0
-    assert "USERNAME INEXISTENTE" in saida.getvalue()
+    assert "E-MAIL INEXISTENTE" in saida.getvalue()
 
 
 def test_simulacao_nao_grava_nada():
     call_command("importar_organograma", str(CSV), "--criar-usuarios", stdout=StringIO())
 
     assert Lotacao.objects.count() == 0
-    assert not User.objects.filter(username="socio.fundador").exists()
+    assert not get_user_model().objects.filter(email="socio.fundador@icodev.com.br").exists()
 
 
-def test_nome_composto_vai_inteiro_para_sobrenome(importado):
-    """`User` do Django tem dois campos e o CSV tem uma coluna. Em português o
-    primeiro nome é o primeiro token e o resto é sobrenome."""
-    diretor = User.objects.get(username="diretor.operacoes")
+def test_nome_composto_vai_inteiro_para_um_campo(importado):
+    """O nome não é partido — e essa é a mudança que `contas.Pessoa` trouxe.
 
-    assert diretor.first_name == "Diretor"
-    assert diretor.last_name == "de Operações"
+    O `User` do Django tem `first_name` e `last_name`, e o CSV tem uma coluna. A
+    importação resolvia partindo no primeiro espaço: "Diretor" e "de Operações".
+    A heurística servia ao modelo, não à realidade — em português não há divisão
+    útil entre primeiro nome e sobrenome de "Maria Clara Souza Lima".
+
+    `Pessoa.nome` é um campo só, e a exibição decide o recorte: `get_short_name()`
+    devolve o primeiro token para a saudação, e o nome inteiro fica intacto.
+    """
+    diretor = get_user_model().objects.get(email="diretor.operacoes@icodev.com.br")
+
+    assert diretor.nome == "Diretor de Operações"
+    assert diretor.get_full_name() == "Diretor de Operações"
+    assert diretor.get_short_name() == "Diretor", "a saudação usa só o primeiro"
 
 
 def test_o_exemplo_nao_carrega_dado_pessoal_real():

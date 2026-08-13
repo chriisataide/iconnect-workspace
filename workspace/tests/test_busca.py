@@ -7,6 +7,7 @@ from datetime import timedelta
 import pytest
 from django.urls import reverse
 from django.utils import timezone
+from django.conf import settings
 
 from workspace.models import Publicacao, TipoPublicacao
 from workspace.services.busca import buscar, normalizar
@@ -169,7 +170,7 @@ def test_resultado_de_app_com_url_direta_leva_ao_destino():
     iconnect = next(
         r for r in buscar("iconnect")["Aplicativos"] if r.titulo == "iConnect Platform"
     )
-    assert iconnect.url == reverse("login")
+    assert iconnect.url == settings.ICONNECT_URL
     assert iconnect.disponivel
 
 

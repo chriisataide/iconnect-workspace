@@ -1,0 +1,32 @@
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+*.egg-info/
+
+# Banco e mídia locais
+db.sqlite3
+db.sqlite3-journal
+/media/
+/staticfiles/
+
+# Anexos do Workspace. Fora de MEDIA_ROOT por decisão de segurança, e fora do
+# git pelo motivo óbvio: são comprovantes e atestados de pessoas reais.
+/arquivos_privados/
+
+# Cobertura e relatórios
+.coverage
+coverage.json
+htmlcov/
+junit.xml
+.pytest_cache/
+
+# Ambiente
+.env
+.env.*
+!.env.example
+
+# Editores e SO
+.DS_Store
+.idea/
+.vscode/

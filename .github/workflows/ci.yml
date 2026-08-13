@@ -1,0 +1,73 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  testes:
+    runs-on: ubuntu-latest
+
+    # PostgreSQL e não SQLite, porque é o banco de produção. O projeto anterior
+    # media cobertura em SQLite e convivia com 16 falhas "conhecidas de SQLite"
+    # que ninguém mais lia — falha permanente na suíte deixa de ser sinal.
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_DB: iconnect_workspace
+          POSTGRES_USER: workspace
+          POSTGRES_PASSWORD: workspace
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports: ["5432:5432"]
+
+    env:
+      DJANGO_SETTINGS_MODULE: iconnect_workspace.settings.dev
+      DATABASE_URL: postgres://workspace:workspace@localhost:5432/iconnect_workspace
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.13"
+          cache: pip
+
+      - name: Instalar dependências
+        run: pip install -r requirements-dev.txt
+
+      - name: Checar o projeto
+        run: python manage.py check
+
+      - name: Nenhuma migração pendente
+        # Model alterado sem migração passa em todo teste e quebra no deploy.
+        run: python manage.py makemigrations --check --dry-run
+
+      - name: Suíte
+        run: python -m pytest
+
+      - name: Ratchet de cobertura e de contagem
+        # Dois instrumentos para falhas diferentes: cobertura pega "código novo
+        # sem teste"; contagem pega "teste que sumiu". Apagar um arquivo com 16
+        # testes já derrubou a cobertura em 0,15 ponto — os testes se sobrepõem
+        # demais para a cobertura sozinha detectar remoção.
+        run: python scripts/check_coverage_ratchet.py
+
+      - name: Nenhum estilo inline escapou
+        # A CSP de produção não tem `unsafe-inline`. Um `style=` que entre aqui
+        # não desenha em produção e não avisa em lugar nenhum — o navegador
+        # descarta em silêncio. Este gate é o que mantém a política estrita
+        # possível.
+        run: python -m pytest workspace/tests/test_telas_servicos.py -k atributo_style -q
+
+      - name: A separação com o iConnect continua de pé
+        run: python -m pytest workspace/tests/test_isolamento.py -q

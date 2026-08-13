@@ -15,6 +15,7 @@ Esses exigem o modelo de identidade (IDN), que ainda não existe.
 
 from __future__ import annotations
 
+from django.conf import settings
 from django.db import models
 from django.utils import timezone
 
@@ -70,7 +71,15 @@ class Publicacao(models.Model):
     )
 
     autor = models.ForeignKey(
-        "auth.User", null=True, blank=True, on_delete=models.SET_NULL, related_name="publicacoes_workspace"
+        # `settings.AUTH_USER_MODEL` e não `"auth.User"` literal. Era literal, e
+        # passava porque as duas coisas coincidiam — o dia em que o projeto ganhou
+        # modelo de usuário próprio, este campo foi o único do repositório a
+        # quebrar o `check`. FK para usuário nunca deve nomear o model direto.
+        settings.AUTH_USER_MODEL,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="publicacoes_workspace",
     )
     criado_em = models.DateTimeField(auto_now_add=True)
     atualizado_em = models.DateTimeField(auto_now=True)

@@ -18,20 +18,19 @@ from __future__ import annotations
 import csv
 import sys
 
-from django.contrib.auth.models import User
+from django.contrib.auth import get_user_model
 from django.core.management.base import BaseCommand
 
 COLUNAS = [
-    "username",
-    "nome",
     "email",
+    "nome",
     "matricula",
     "cargo",
     "unidade_codigo",
     "unidade_nome",
     "departamento_codigo",
     "departamento_nome",
-    "gestor_username",
+    "gestor_email",
     "centro_custo_codigo",
     "situacao",
 ]
@@ -58,7 +57,7 @@ class Command(BaseCommand):
         )
 
     def handle(self, *args, **opcoes):
-        usuarios = User.objects.all().order_by("username")
+        usuarios = get_user_model().objects.all().order_by("email")
         if opcoes["ativos"]:
             usuarios = usuarios.filter(is_active=True)
         if opcoes["com_lotacao"]:
@@ -78,23 +77,20 @@ class Command(BaseCommand):
             lot = getattr(user, "lotacao", None)
             escritor.writerow(
                 {
-                    "username": user.get_username(),
-                    "nome": user.get_full_name(),
                     "email": user.email,
+                    "nome": user.get_full_name(),
                     "matricula": lot.matricula if lot else "",
-                    "cargo": (lot.cargo if lot else "") or self._cargo_legado(user),
+                    "cargo": lot.cargo if lot else "",
                     "unidade_codigo": lot.unidade.codigo if lot and lot.unidade else "",
                     "unidade_nome": lot.unidade.nome if lot and lot.unidade else "",
                     "departamento_codigo": (
                         lot.departamento.codigo if lot and lot.departamento else ""
                     ),
                     "departamento_nome": (
-                        lot.departamento.nome
-                        if lot and lot.departamento
-                        else self._departamento_legado(user)
+                        lot.departamento.nome if lot and lot.departamento else ""
                     ),
-                    "gestor_username": (
-                        lot.gestor.get_username() if lot and lot.gestor else ""
+                    "gestor_email": (
+                        lot.gestor.email if lot and lot.gestor else ""
                     ),
                     "centro_custo_codigo": lot.centro_custo_codigo if lot else "",
                     "situacao": lot.situacao if lot else "ativo",
@@ -105,12 +101,13 @@ class Command(BaseCommand):
         # No stderr para não sujar o CSV quando redirecionado.
         print(f"{total} linha(s) exportada(s).", file=sys.stderr)
 
-    def _cargo_legado(self, user) -> str:
-        """`PerfilUsuario.cargo` como sugestão inicial, se houver."""
-        perfil = getattr(user, "perfil", None)
-        return (perfil.cargo or "") if perfil else ""
-
-    def _departamento_legado(self, user) -> str:
-        """`PerfilUsuario.departamento` é texto livre. Vira sugestão de nome."""
-        perfil = getattr(user, "perfil", None)
-        return (perfil.departamento or "") if perfil else ""
+    # `_cargo_legado` e `_departamento_legado` saíram na separação dos produtos.
+    #
+    # Elas liam `PerfilUsuario.cargo` e `.departamento` do iConnect para
+    # pré-preencher o CSV e o RH não redigitar. Aquele model ficou no outro
+    # repositório, e aqui o acesso era por `getattr(user, "perfil", None)` — que
+    # nunca mais encontraria nada e devolveria string vazia em silêncio. Código
+    # morto que parece funcionar é pior que ausência de código.
+    #
+    # A sugestão inicial de cargo volta pelo SSO, de `jobTitle` do Entra ID, que
+    # é uma fonte melhor: mantida por RH no diretório, e não digitada uma vez.

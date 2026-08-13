@@ -96,7 +96,7 @@
             <li class="au-agenda-item {% if r.em_curso %}au-agenda-item--agora{% endif %}">
               <span class="au-agenda-hora">{{ r.inicio|time:"H:i" }}–{{ r.fim|time:"H:i" }}</span>
               <span class="au-agenda-quem">
-                {{ r.solicitante.get_short_name|default:r.solicitante.username }}
+                {{ r.solicitante.get_short_name|default:r.solicitante.get_username }}
               </span>
             </li>
           {% endfor %}

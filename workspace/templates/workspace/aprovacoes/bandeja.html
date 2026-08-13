@@ -53,7 +53,7 @@
                 <span class="au-etiqueta au-etiqueta--dominio">{{ s.dominio }}</span>
               </p>
               <p class="au-bandeja-meta">
-                {{ s.solicitante.get_full_name|default:s.solicitante.username }}
+                {{ s.solicitante.get_full_name|default:s.solicitante.get_username }}
                 {% if s.centro_custo_codigo %}· CC {{ s.centro_custo_codigo }}{% endif %}
                 · {% blocktrans count dias=s.dias_esperando %}há {{ dias }} dia{% plural %}há {{ dias }} dias{% endblocktrans %}
               </p>

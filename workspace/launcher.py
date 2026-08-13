@@ -20,6 +20,8 @@ from __future__ import annotations
 import threading
 from dataclasses import dataclass
 
+from django.conf import settings
+
 
 @dataclass(frozen=True)
 class AppSpec:
@@ -142,7 +144,14 @@ def catalogo_semente() -> list[AppSpec]:
             nome="iConnect Platform",
             descricao="Chamados, ordens de serviço, clientes e contratos",
             icone="cube",
-            url_direta="/login/",
+            # URL ABSOLUTA, de configuração. Este tile é a **única** ligação
+            # entre os dois produtos: ele sai desta aplicação.
+            #
+            # Era `/login/` enquanto os dois rodavam no mesmo projeto Django.
+            # Depois da separação, o login do iConnect não é uma rota daqui — e
+            # deixar um caminho relativo faria o tile cair no login do próprio
+            # Workspace, que é um cadastro diferente.
+            url_direta=settings.ICONNECT_URL,
             # SEM `destaque` e com ordem alta, de propósito.
             #
             # Até 12/08/2026 este tile era o herói da home: primeiro, com borda
@@ -150,10 +159,6 @@ def catalogo_semente() -> list[AppSpec]:
             # levá-lo ao iConnect. São dois produtos — o Workspace organiza a
             # vida corporativa, a Platform organiza o atendimento ao cliente —
             # e aqui a Platform é um destino entre outros.
-            #
-            # A relação de PROVEDOR é outra coisa e continua: o `dashboard`
-            # alimenta o Workspace com orçamento e realizado via
-            # `workspace/providers/`. Tile não é a única ponte entre os dois.
             #
             # Ordem 110/120: as duas entradas que levam à Platform ficam juntas
             # no fim da faixa. Com dez tiles numa grade sem rolagem, a posição é

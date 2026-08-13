@@ -15,6 +15,7 @@ from datetime import timedelta
 import pytest
 from django.urls import reverse
 from django.utils import timezone
+from django.conf import settings
 
 from identidade.tests import fabricas as f
 from workspace.models import Notificacao, TipoNotificacao
@@ -328,7 +329,7 @@ def test_tela_exige_login(client, cenario):
     resposta = client.get(reverse("workspace:correspondencias"))
 
     assert resposta.status_code == 302
-    assert "/login" in resposta["Location"]
+    assert settings.LOGIN_URL in resposta["Location"]
 
 
 def test_quem_nao_opera_nao_ve_o_formulario(client, cenario):
@@ -473,14 +474,14 @@ def test_get_nao_muda_estado(client, cenario, rota):
 def test_lista_de_destinatarios_e_o_organograma(client, cenario):
     """Os 1432 usuários do iConnect não trabalham aqui — a lista vem de quem
     tem lotação."""
-    from django.contrib.auth.models import User
+    from django.contrib.auth import get_user_model
 
-    User.objects.create_user(username="tecnico-do-iconnect", password="x")
+    get_user_model().objects.create_user("tecnico-do-iconnect@exemplo.com", password="x")
     client.force_login(cenario["recepcao"])
 
     pessoas = client.get(reverse("workspace:correspondencias")).context["pessoas"]
 
-    assert "tecnico-do-iconnect" not in [p.username for p in pessoas]
+    assert "tecnico-do-iconnect" not in [p.email for p in pessoas]
     assert cenario["ana"] in list(pessoas)
 
 

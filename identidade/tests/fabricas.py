@@ -6,7 +6,7 @@ extra não se paga.
 
 from __future__ import annotations
 
-from django.contrib.auth.models import User
+from django.contrib.auth import get_user_model
 from django.utils import timezone
 
 from identidade.models import (
@@ -19,8 +19,22 @@ from identidade.models import (
 )
 
 
-def pessoa(username: str, **kwargs) -> User:
-    return User.objects.create_user(username=username, password="x", **kwargs)
+def pessoa(identificador: str, **kwargs):
+    """Uma conta de teste. `identificador` pode ser um apelido ou um e-mail.
+
+    Deriva o e-mail quando recebe apelido — `pessoa("ana")` vira
+    `ana@icodev.com.br`. Isso mantém os ~200 chamadores desta fábrica intactos
+    depois de o identificador da conta passar de `username` para e-mail, e é o
+    motivo de a troca de modelo de usuário ter custado uma função e não uma
+    varredura na suíte.
+    """
+    Pessoa = get_user_model()
+    email = (
+        identificador
+        if "@" in identificador
+        else f"{identificador}@icodev.com.br"
+    )
+    return Pessoa.objects.create_user(email, password="x", **kwargs)
 
 
 def unidade(codigo="SP", nome="Matriz SP") -> Unidade:

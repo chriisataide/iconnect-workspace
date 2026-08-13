@@ -82,7 +82,7 @@
                       {{ r.inicio|time:"H:i" }}–{{ r.fim|time:"H:i" }}
                     </span>
                     <span class="au-agenda-quem">
-                      {{ r.solicitante.get_short_name|default:r.solicitante.username }}
+                      {{ r.solicitante.get_short_name|default:r.solicitante.get_username }}
                       {% if r.motivo %}<span class="au-agenda-motivo">{{ r.motivo }}</span>{% endif %}
                     </span>
                   </li>

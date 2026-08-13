@@ -20,6 +20,7 @@ import pytest
 from django.core.exceptions import SuspiciousFileOperation
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.urls import reverse
+from django.conf import settings
 
 from identidade.tests import fabricas as f
 from workspace.models import (
@@ -201,7 +202,7 @@ def test_anonimo_nao_baixa(client, cenario):
     resposta = client.get(reverse("workspace:baixar_anexo", args=(anexo.pk,)))
 
     assert resposta.status_code == 302
-    assert "/login" in resposta["Location"]
+    assert settings.LOGIN_URL in resposta["Location"]
 
 
 @pytest.mark.django_db

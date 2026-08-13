@@ -48,9 +48,9 @@ def test_superusuario_pode_tudo():
 
 @pytest.mark.django_db
 def test_usuario_sem_pk_nao_pode():
-    from django.contrib.auth.models import User
+    from django.contrib.auth import get_user_model
 
-    assert pode(User(username="nao_salvo"), "rh.ler") is False
+    assert pode(get_user_model()(email="nao_salvo@icodev.com.br"), "rh.ler") is False
 
 
 @pytest.mark.django_db
@@ -468,9 +468,9 @@ def test_escopo_de_anonimo_e_none():
 
 @pytest.mark.django_db
 def test_escopo_de_usuario_sem_pk_e_none():
-    from django.contrib.auth.models import User
+    from django.contrib.auth import get_user_model
 
-    assert escopo_de(User(username="nao_salvo"), "rh.ler") is None
+    assert escopo_de(get_user_model()(email="nao_salvo@icodev.com.br"), "rh.ler") is None
 
 
 # ── subjects_de ─────────────────────────────────────────────────────

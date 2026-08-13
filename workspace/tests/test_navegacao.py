@@ -13,6 +13,7 @@ import re
 import pytest
 from django.contrib.auth import get_user_model
 from django.urls import reverse
+from django.conf import settings
 
 from workspace.launcher import catalogo_semente
 from workspace.modulos import MODULOS
@@ -23,7 +24,7 @@ pytestmark = pytest.mark.django_db
 
 @pytest.fixture
 def pessoa(db):
-    return get_user_model().objects.create_user("ana", password="x")
+    return get_user_model().objects.create_user("ana@icodev.com.br", password="x")
 
 
 def _href(html: str) -> set[str]:
@@ -62,7 +63,7 @@ def test_todo_tile_disponivel_leva_a_pagina_que_responde(client):
         resposta = client.get(destino)
         assert resposta.status_code in (200, 302), f"{destino} não responde"
         if resposta.status_code == 302:
-            assert "/login" in resposta["Location"], (
+            assert settings.LOGIN_URL in resposta["Location"], (
                 f"{destino} redireciona para fora do login"
             )
 
@@ -126,7 +127,7 @@ def test_modulo_e_publico(client, item_rh):
     assert resposta.status_code == 200
     corpo = resposta.content.decode()
     assert "Férias" in corpo
-    assert "/login" not in resposta.get("Location", "")
+    assert settings.LOGIN_URL not in resposta.get("Location", "")
 
 
 def test_modulo_mostra_so_a_propria_fatia(client, item_rh):
@@ -179,7 +180,7 @@ def test_modulo_lista_os_pedidos_da_pessoa_naquela_fatia(client, pessoa, item_rh
 def test_pedido_de_outra_pessoa_nao_aparece(client, pessoa, item_rh):
     from workspace.models.catalogo import SolicitacaoServico
 
-    alheio = get_user_model().objects.create_user("bruno", password="x")
+    alheio = get_user_model().objects.create_user("bruno@icodev.com.br", password="x")
     SolicitacaoServico.objects.create(item=item_rh, solicitante=alheio)
 
     client.force_login(pessoa)

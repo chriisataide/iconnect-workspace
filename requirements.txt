@@ -1,0 +1,21 @@
+# iConnect Workspace — dependências de execução.
+#
+# Curto de propósito, e o tamanho é um resultado e não uma meta: o código do
+# Workspace não importa nenhuma biblioteca de terceiros. Só Django e stdlib.
+# Foi assim que ele foi escrito desde a primeira onda, e é o que permite este
+# arquivo caber numa tela.
+#
+# O requirements do projeto anterior tinha 57 entradas — DRF, Celery, Axes,
+# compressor, storages, JWT, nltk. Nenhuma delas é usada aqui.
+
+Django==6.0.7
+
+# Banco de produção. Em desenvolvimento e teste é SQLite, que vem com o Python.
+psycopg2-binary==2.9.12
+
+# Cache de produção (`django.core.cache.backends.redis.RedisCache`). Não é
+# importado por código nosso — é infraestrutura, escolhida em settings/prod.py.
+redis==8.1.0
+
+# Servidor WSGI de produção.
+gunicorn==26.0.0

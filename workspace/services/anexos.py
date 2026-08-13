@@ -2,18 +2,18 @@
 
 Duas decisões que valem explicação.
 
-**A validação é reusada, não reescrita.** `dashboard.utils.security.
-validate_file_upload` já confere extensão, `Content-Type` e *magic bytes*.
-Escrever um segundo validador aqui produziria dois caminhos de upload no mesmo
-sistema com regras diferentes — e é sempre o mais novo que esquece os magic
-bytes. `dashboard` não está na lista de apps proibidos do teste de isolamento
-(só `fsm`, `km_audit` e `calculo_vigilante` estão), e o que se importa aqui é
-utilitário de segurança, não model de domínio.
+**A validação é reusada, não reescrita.** `validacao_arquivo.
+validate_file_upload` confere extensão, `Content-Type` e *magic bytes*. Veio
+copiada verbatim do iConnect na separação dos produtos — a procedência e o motivo
+de copiar em vez de reescrever estão na docstring dela. Escrever um segundo
+validador aqui produziria dois caminhos de upload no mesmo sistema com regras
+diferentes, e é sempre o mais novo que esquece os magic bytes.
 
-**A autorização é do Workspace, não do iConnect.** `dashboard/views/
-media_protegida.py` autoriza por `get_user_role`, que são os papéis do iConnect.
-Um colaborador do Workspace não tem papel de iConnect, então aquela regra negaria
-a ele o próprio comprovante. Quem decide aqui é a identidade do Workspace.
+**A autorização é do Workspace, e agora não há outra.** No projeto anterior
+existia uma segunda porta: `dashboard/views/media_protegida.py`, que autorizava
+por papel do iConnect — e negaria a um colaborador do Workspace o próprio
+comprovante, porque ele não tem papel de iConnect. Aqui só existe um caminho até
+o arquivo, `workspace:baixar_anexo`, e quem decide é `pode_baixar()` logo abaixo.
 """
 
 from __future__ import annotations
@@ -61,7 +61,7 @@ def validar(arquivo) -> str:
       usuário como `c3599522_2036a287_cupom.jpg`. Cada revalidação faria o nome
       crescer 9 caracteres até truncar em 255.
     """
-    from dashboard.utils.security import validate_file_upload
+    from workspace.services.validacao_arquivo import validate_file_upload
 
     nome = getattr(arquivo, "name", "")
     try:

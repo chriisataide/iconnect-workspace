@@ -24,7 +24,7 @@
 
     <p class="au-artigo-meta">
       <time datetime="{{ publicacao.publicar_em|date:'c' }}">{{ publicacao.publicar_em|data_extenso }}</time>
-      {% if publicacao.autor %}· {{ publicacao.autor.get_full_name|default:publicacao.autor.username }}{% endif %}
+      {% if publicacao.autor %}· {{ publicacao.autor.get_full_name|default:publicacao.autor.get_username }}{% endif %}
     </p>
 
     {% if publicacao.corpo %}

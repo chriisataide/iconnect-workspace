@@ -94,7 +94,7 @@
             <span class="au-sr">{% trans "Notificações" %}</span>
           {% endif %}
         </a>
-        <span class="au-usuario">{{ request.user.get_full_name|default:request.user.username }}</span>
+        <span class="au-usuario">{{ request.user.get_full_name|default:request.user.email }}</span>
       {% endif %}
     </div>
   </header>

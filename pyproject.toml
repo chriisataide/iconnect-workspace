@@ -1,0 +1,79 @@
+[project]
+name = "iconnect-workspace"
+version = "1.0.0"
+description = "iConnect Workspace — a vida corporativa da empresa em um lugar"
+requires-python = ">=3.13"
+
+[tool.pytest.ini_options]
+DJANGO_SETTINGS_MODULE = "iconnect_workspace.settings.dev"
+python_files = ["test_*.py"]
+testpaths = ["workspace", "identidade", "contas", "financas"]
+
+# `--cov-fail-under` global existe só como rede: o gate que vale é o piso POR APP
+# em [tool.coverage_ratchet], verificado por scripts/check_coverage_ratchet.py.
+# Um único piso global deixa um app regredir enquanto outro sobe, e foi assim que
+# apps inteiros ficaram sem proteção nenhuma no projeto anterior.
+addopts = """
+    -v --tb=short --strict-markers
+    --cov=workspace --cov=identidade --cov=contas --cov=financas
+    --cov-report=term-missing --cov-report=json:coverage.json
+    --cov-fail-under=90.0
+    --junitxml=junit.xml
+"""
+
+markers = [
+    "slow: marca testes lentos (desmarque com -m 'not slow')",
+]
+
+[tool.coverage.run]
+omit = [
+    "*/migrations/*",
+    "*/tests/*",
+    "manage.py",
+    "iconnect_workspace/wsgi.py",
+    "iconnect_workspace/asgi.py",
+]
+
+[tool.coverage_ratchet]
+# Piso de cobertura POR APP. Ratchet: só sobe, nunca desce.
+# Baixar qualquer valor exige justificativa explícita no PR.
+#
+# Herdado do projeto anterior, com uma diferença importante: lá o piso global era
+# 65% porque `dashboard` e `fsm` puxavam a média para baixo. Aqui não existe esse
+# lastro — todo app deste repositório nasceu com gate, e o número reflete isso.
+#
+# A lição que fixou estes valores: `dashboard` ficou em 66% justamente porque
+# nasceu sem gate, e cobertura perdida não se recupera depois. Segurar 95% desde
+# a primeira linha custa pouco; voltar de 60% para 95% nunca acontece.
+#
+# Medido em SQLite local. O CI roda PostgreSQL e tende a medir um pouco MAIS.
+identidade = 99.0  # medido 100.00 · IDN — pode(), organograma, delegação
+workspace = 95.0   # medido 100.00 · WKS — superfície + contrato de provider
+
+# Apps novos da separação, medidos em 100,00% — models, admin e provider.
+# Piso em 95 pela mesma razão do `workspace`: são apps pequenos hoje, e é agora
+# que segurar cobertura custa pouco.
+contas = 95.0      # medido 100.00 · modelo de usuário, manager e admin
+financas = 95.0    # medido 100.00 · centro de custo, lançamento, provider
+
+[tool.test_count_ratchet]
+# Piso de QUANTIDADE de testes coletados. Existe porque cobertura NÃO detecta
+# remoção de teste: no projeto anterior, apagar um arquivo inteiro com 16 testes
+# derrubou a cobertura em 0,15 ponto — os testes se sobrepõem demais. Cobertura
+# pega "código novo sem teste"; contagem pega "teste que sumiu". São instrumentos
+# diferentes para falhas diferentes.
+#
+# A contagem é de testes COLETADOS, não aprovados — independe de o ambiente ser
+# SQLite ou PostgreSQL.
+#
+# O piso do projeto anterior era 1939, dos quais 975 eram de `workspace` e
+# `identidade` — os que vieram. Os outros 964 ficaram lá com `dashboard`, `fsm` e
+# `km_audit`, e por isso o número cai aqui sem que nada tenha sido perdido.
+#
+# 975 → 974: saiu `test_exporta_cargo_legado_como_sugestao`, que verificava o
+#   pré-preenchimento de cargo a partir de `dashboard.PerfilUsuario`. A
+#   funcionalidade foi embora com o model, e o teste com ela — a nota de por quê
+#   ficou no lugar dele, em `test_organograma_csv.py`.
+# 974 → 1001: os 27 testes de `contas` e `financas`, os dois apps que a separação
+#   criou. Sem subir o piso junto, apagá-los não reprovaria nada.
+minimo = 1001

@@ -46,7 +46,7 @@ class ProviderFalso(OrcamentoProvider):
 
 @pytest.fixture
 def sem_provider():
-    """O provider é estado de processo, registrado no ready() do dashboard."""
+    """O provider é estado de processo, registrado no ready() do `financas`."""
     anterior = provedor.obter()
     provedor.limpar()
     yield
@@ -67,11 +67,11 @@ def com_provider(sem_provider):
 
 
 @pytest.mark.django_db
-def test_dashboard_registra_o_provider_no_boot():
-    """O provider real é registrado pelo ready() do dashboard."""
+def test_financas_registra_o_provider_no_boot():
+    """O provider real é registrado pelo ready() do app `financas`."""
     provider = provedor.obter()
     assert provider is not None
-    assert provider.key == "dashboard"
+    assert provider.key == "financas"
 
 
 def test_registro_recusa_objeto_que_nao_e_provider(sem_provider):
@@ -508,19 +508,24 @@ def test_queryset_total_de_vazio_e_zero():
     assert Compromisso.objects.none().total() == Decimal("0")
 
 
-# ── O provider real do dashboard ────────────────────────────────────
+# ── O provider real: financas ───────────────────────────────────────
+#
+# Era `dashboard.workspace_provider.OrcamentoDoDashboard`, lendo `CentroCusto` e
+# `MovimentacaoFinanceira` do iConnect. Na separação dos produtos o orçamento
+# passou a ser do Workspace — orçamento por centro de custo é vida corporativa,
+# não operação de atendimento. O CONTRATO não mudou, e é isso que estes testes
+# fixam: a bandeja continua recebendo os mesmos três números.
 
 
 @pytest.mark.django_db
 def test_provider_real_le_o_orcamento_do_centro_de_custo():
-    from dashboard.models import CentroCusto
-    from dashboard.workspace_provider import OrcamentoDoDashboard
+    from financas.models import CentroCusto
+    from financas.providers import OrcamentoLocal
 
     CentroCusto.objects.create(
-        codigo="1042", nome="Comercial", departamento="Comercial",
-        orcamento_mensal=Decimal("38000"), status="ativo",
+        codigo="1042", nome="Comercial", orcamento_mensal=Decimal("38000")
     )
-    provider = OrcamentoDoDashboard()
+    provider = OrcamentoLocal()
 
     assert provider.orcamento_mensal("1042") == Decimal("38000")
     assert provider.centro_custo_existe("1042") is True
@@ -528,85 +533,108 @@ def test_provider_real_le_o_orcamento_do_centro_de_custo():
 
 
 @pytest.mark.django_db
-def test_provider_real_trata_cc_inexistente_e_sem_orcamento():
-    from dashboard.models import CentroCusto
-    from dashboard.workspace_provider import OrcamentoDoDashboard
+def test_cc_inexistente_nao_tem_orcamento():
+    from financas.providers import OrcamentoLocal
 
-    CentroCusto.objects.create(
-        codigo="ZERO", nome="Sem orçamento", departamento="X",
-        orcamento_mensal=Decimal("0"), status="ativo",
-    )
-    provider = OrcamentoDoDashboard()
+    assert OrcamentoLocal().orcamento_mensal("INEXISTENTE") is None
 
-    assert provider.orcamento_mensal("INEXISTENTE") is None
-    assert provider.orcamento_mensal("ZERO") is None, "zero é 'não definido'"
+
+@pytest.mark.django_db
+def test_orcamento_vazio_e_diferente_de_zero():
+    """A distinção que o provider anterior não conseguia fazer.
+
+    No iConnect o campo era obrigatório, então "não definido" era gravado como
+    zero e o provider traduzia `0 → None` para não mostrar 0% ao aprovador. Aqui o
+    campo é nulo, e as duas coisas passam a ser dizíveis: `None` é "ninguém
+    definiu", `0` é "definiram zero". Nos dois casos `tem_orcamento` é falso, que
+    é o que a tela consome — mas agora o dado não mente sobre a intenção.
+    """
+    from financas.models import CentroCusto
+    from financas.providers import OrcamentoLocal
+
+    CentroCusto.objects.create(codigo="NULO", nome="Sem definir")
+    CentroCusto.objects.create(codigo="ZERO", nome="Zero", orcamento_mensal=Decimal("0"))
+    provider = OrcamentoLocal()
+
+    assert provider.orcamento_mensal("NULO") is None
+    assert provider.orcamento_mensal("ZERO") == Decimal("0")
+    assert orc.resumo("NULO").tem_orcamento is False
+    assert orc.resumo("ZERO").tem_orcamento is False
 
 
 @pytest.mark.django_db
 def test_provider_real_ignora_cc_inativo():
-    from dashboard.models import CentroCusto
-    from dashboard.workspace_provider import OrcamentoDoDashboard
+    from financas.models import CentroCusto
+    from financas.providers import OrcamentoLocal
 
     CentroCusto.objects.create(
-        codigo="MORTO", nome="Encerrado", departamento="X",
-        orcamento_mensal=Decimal("5000"), status="inativo",
+        codigo="MORTO", nome="Encerrado", orcamento_mensal=Decimal("5000"), ativo=False
     )
-    assert OrcamentoDoDashboard().orcamento_mensal("MORTO") is None
+    assert OrcamentoLocal().orcamento_mensal("MORTO") is None
+    assert OrcamentoLocal().centro_custo_existe("MORTO") is False
 
 
 @pytest.mark.django_db
 def test_provider_real_soma_realizado_do_mes():
-    from dashboard.models import CategoriaFinanceira, CentroCusto, MovimentacaoFinanceira
-    from dashboard.workspace_provider import OrcamentoDoDashboard
+    from financas.models import CentroCusto, Lancamento
+    from financas.providers import OrcamentoLocal
 
     cc = CentroCusto.objects.create(
-        codigo="1008", nome="TI", departamento="TI",
-        orcamento_mensal=Decimal("38000"), status="ativo",
+        codigo="1008", nome="TI", orcamento_mensal=Decimal("38000")
     )
-    categoria = CategoriaFinanceira.objects.create(nome="Material", tipo="despesa")
-    usuario = f.pessoa("lancador")
-    hoje = timezone.localdate()
-    mes = hoje.replace(day=1)
+    mes = timezone.localdate().replace(day=1)
 
     for dia, valor in [(1, "1000"), (15, "2000")]:
-        MovimentacaoFinanceira.objects.create(
-            categoria=categoria, descricao="compra", tipo="despesa",
-            valor=Decimal(valor), data_movimentacao=mes.replace(day=dia),
-            usuario=usuario, centro_custo=cc,
+        Lancamento.objects.create(
+            centro_custo=cc, valor=Decimal(valor),
+            competencia=mes.replace(day=dia), descricao="compra",
         )
     # Mês anterior não entra.
-    MovimentacaoFinanceira.objects.create(
-        categoria=categoria, descricao="antiga", tipo="despesa",
-        valor=Decimal("9999"), data_movimentacao=mes - timedelta(days=1),
-        usuario=usuario, centro_custo=cc,
+    Lancamento.objects.create(
+        centro_custo=cc, valor=Decimal("9999"),
+        competencia=mes - timedelta(days=1), descricao="antiga",
     )
 
-    assert OrcamentoDoDashboard().realizado_no_mes("1008", mes) == Decimal("3000")
+    assert OrcamentoLocal().realizado_no_mes("1008", mes) == Decimal("3000")
 
 
 @pytest.mark.django_db
-def test_provider_real_sem_movimentacao_e_zero():
-    from dashboard.workspace_provider import OrcamentoDoDashboard
+def test_provider_real_sem_lancamento_e_zero():
+    """`Sum` devolve None sem linha, e None quebraria a soma da barra."""
+    from financas.providers import OrcamentoLocal
 
-    assert OrcamentoDoDashboard().realizado_no_mes("VAZIO", date(2026, 8, 1)) == Decimal("0")
+    assert OrcamentoLocal().realizado_no_mes("VAZIO", date(2026, 8, 1)) == Decimal("0")
 
 
 @pytest.mark.django_db
 @pytest.mark.parametrize(
-    ("competencia", "ultimo_dia"),
+    ("informada", "normalizada"),
     [
-        (date(2026, 1, 1), date(2026, 1, 31)),
-        (date(2026, 2, 1), date(2026, 2, 28)),
-        (date(2024, 2, 1), date(2024, 2, 29)),
-        (date(2026, 4, 1), date(2026, 4, 30)),
-        (date(2026, 12, 1), date(2026, 12, 31)),
+        (date(2026, 1, 31), date(2026, 1, 1)),
+        (date(2026, 2, 28), date(2026, 2, 1)),
+        (date(2024, 2, 29), date(2024, 2, 1)),
+        (date(2026, 12, 31), date(2026, 12, 1)),
     ],
 )
-def test_fim_do_mes_cobre_dezembro_e_ano_bissexto(competencia, ultimo_dia):
-    """Dezembro e fevereiro bissexto são onde cálculo de fim de mês quebra."""
-    from dashboard.workspace_provider import _fim_do_mes
+def test_competencia_normaliza_para_o_dia_um_na_gravacao(informada, normalizada, db):
+    """Onde o risco de virada de mês passou a morar.
 
-    assert _fim_do_mes(competencia) == ultimo_dia
+    O provider anterior calculava o último dia do mês para montar um intervalo, e
+    tinha teste para dezembro e fevereiro bissexto — os dois lugares onde esse
+    cálculo quebra. Aqui não existe intervalo: a competência é normalizada na
+    gravação. O risco mudou de lugar, e o teste foi com ele. Sem isto, duas linhas
+    do mesmo mês com dias diferentes somam em buckets distintos e o realizado sai
+    menor do que é.
+    """
+    from financas.models import CentroCusto, Lancamento
+
+    cc = CentroCusto.objects.create(codigo=f"CC{informada:%Y%m%d}", nome="X")
+    lancamento = Lancamento.objects.create(
+        centro_custo=cc, valor=Decimal("10"), competencia=informada
+    )
+
+    lancamento.refresh_from_db()
+    assert lancamento.competencia == normalizada
 
 
 # ── Ponta a ponta ───────────────────────────────────────────────────
@@ -615,11 +643,10 @@ def test_fim_do_mes_cobre_dezembro_e_ano_bissexto(competencia, ultimo_dia):
 @pytest.mark.django_db
 def test_fluxo_completo_com_o_provider_real(equipe):
     """Aprovar → comprometer → ver a barra tripla → baixar."""
-    from dashboard.models import CentroCusto
+    from financas.models import CentroCusto
 
     CentroCusto.objects.create(
-        codigo="1008", nome="TI", departamento="TI",
-        orcamento_mensal=Decimal("38000"), status="ativo",
+        codigo="1008", nome="TI", orcamento_mensal=Decimal("38000")
     )
 
     s = apr.criar(
