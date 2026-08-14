@@ -467,10 +467,17 @@ def test_ninguem_ve_notificacao_de_outro(equipe, item):
     assert Notificacao.objects.de(equipe["gestor"]).count() == 1
 
 
-def test_central_e_aberta(client, equipe):
+def test_o_dia_e_os_avisos_sao_de_quem_esta_identificado(client, equipe):
+    """Substitui um teste que exigia estas duas telas abertas.
+
+    "Meu dia" e a Central não têm nada institucional: são o que exige VOCÊ hoje
+    e os avisos endereçados a VOCÊ. Sem sessão, mostravam os da primeira pessoa
+    do organograma — inclusive o resumo do que espera a decisão dela.
+    """
     for rota in ("workspace:meu_dia", "workspace:notificacoes"):
         resposta = client.get(reverse(rota))
-        assert resposta.status_code == 200
+        assert resposta.status_code == 302, rota
+        assert resposta["Location"].startswith("/entrar/"), rota
 
 
 def test_criar_sem_destinatario_e_ignorado():

@@ -136,9 +136,18 @@ def _dossie(solicitacao: SolicitacaoAprovacao) -> dict:
     }
 
 
+@login_required
 def bandeja(request: HttpRequest) -> HttpResponse:
+    """Fechada junto com "Meu dia", e pela mesma razão.
+
+    Esta fila é *o que espera a decisão de uma pessoa*: pedidos de terceiros com
+    valor, centro de custo, solicitante e comprovação. Aberta, mostrava a fila
+    da primeira pessoa do organograma — e "Meu dia" resume exatamente esta
+    mesma lista, então fechar um e deixar o outro seria trancar a porta e
+    esquecer a janela.
+    """
     cache = _cache(request)
-    resumo = apr.resumo_da_bandeja(pessoa_da_requisicao(request), cache=cache)
+    resumo = apr.resumo_da_bandeja(request.user, cache=cache)
     return render(
         request,
         "workspace/aprovacoes/bandeja.html",

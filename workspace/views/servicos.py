@@ -32,7 +32,17 @@ def _cache(request: HttpRequest) -> dict:
 
 
 def catalogo(request: HttpRequest) -> HttpResponse:
-    """O catálogo agrupado por intenção, com prazo real medido."""
+    """O catálogo agrupado por intenção, com prazo real medido.
+
+    A ÚNICA das telas pessoais que não fechou, e de propósito: a lista de
+    serviços é institucional — quais existem, quanto demoram, o que exige
+    aprovação. Fechá-la poria uma parede de login na frente do formulário que
+    acabou de ser deixado aberto, e a pessoa descobriria o catálogo pelo
+    WhatsApp de novo.
+
+    O que era de alguém e saiu são os CONTADORES do trilho ("3 em aberto",
+    "1 devolvida"): sem sessão, eles vinham da primeira pessoa do organograma.
+    """
     cache = _cache(request)
     pessoa = pessoa_da_requisicao(request)
     grupos = []
@@ -46,12 +56,15 @@ def catalogo(request: HttpRequest) -> HttpResponse:
             }
         )
 
-    minhas = svc.minhas(pessoa)
+    minhas = svc.minhas(request.user)
     return render(
         request,
         "workspace/servicos/catalogo.html",
         {
             "grupos": grupos,
+            # `svc.minhas()` devolve vazio para anônimo, então os contadores
+            # zeram sozinhos — e o trilho já esconde contador zerado (ADR-012:
+            # bloco sem dado não desenha moldura).
             "abertas": minhas.filter(situacao__in=_ABERTAS).count(),
             "devolvidas": minhas.filter(situacao="devolvida").count(),
         },
@@ -308,8 +321,9 @@ def _valor_de(bruto: str | None) -> Decimal | None:
     return rmb.valor_de(bruto)
 
 
+@login_required
 def minhas_solicitacoes(request: HttpRequest) -> HttpResponse:
-    solicitacoes = svc.minhas(pessoa_da_requisicao(request))
+    solicitacoes = svc.minhas(request.user)
     return render(
         request,
         "workspace/servicos/minhas.html",

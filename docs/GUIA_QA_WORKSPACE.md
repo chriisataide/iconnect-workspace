@@ -112,13 +112,22 @@ uma vale um caso de teste em qualquer aba que você abrir.
 
 > *"Quem estiver na rede da empresa tem acesso ao portal, não precisa de senha."*
 
-**Aberto** (abre em janela anônima, sem redirecionar): praticamente tudo —
-`/workspace/`, a busca, os módulos, a documentação, as reservas, as
-publicações, **e também** `servicos`, `minhas-solicitacoes`, `aprovacoes`,
-`meu-dia` e `notificacoes`. Pedir um serviço não exige login.
+**Aberto** (abre em janela anônima, sem redirecionar) — tudo que é
+**institucional**, isto é, igual para qualquer pessoa da empresa:
+`/workspace/`, a busca, os módulos, a documentação, a agenda das reservas, as
+publicações, **o catálogo de serviços e o formulário de cada um deles**.
 
-**Exige identidade** (302 para `/entrar/?next=…`) — os atos que assinam em nome
-de alguém, e a leitura do que é de uma pessoa:
+**Exige identidade** (302 para `/entrar/?next=…`) — as telas cujo conteúdo
+inteiro é de **uma pessoa**, e os atos que assinam em nome dela:
+
+| Tela | O que ela mostra |
+|---|---|
+| `meu-dia` e `notificacoes` | o que exige você hoje, e os avisos endereçados a você |
+| `minhas-solicitacoes` e `reservas/minhas` | os seus pedidos e as suas reservas |
+| `aprovacoes` | a fila que espera a **sua** decisão — pedidos de terceiros, com valor e comprovação |
+| `correspondencias` | quem recebeu intimação, de quem e quando |
+
+E os atos:
 
 | Rota | Por quê |
 |---|---|
@@ -132,12 +141,17 @@ de alguém, e a leitura do que é de uma pessoa:
 | `correspondencias/` e seus três POSTs | a tela responde quem recebeu intimação, de quem e quando |
 | `anexo/<id>/` | atestado médico, comprovante, contrato — de uma pessoa |
 
-O motivo é um só: **sem sessão, o produto atribui a ação à primeira pessoa ativa
-com lotação** (`workspace/acesso.py`). Ver as telas com essa pessoa é a decisão
-de produto; assinar por ela não é.
+O motivo é um só: **sem sessão, o produto assume a primeira pessoa ativa com
+lotação** (`workspace/acesso.py`). Isso é aceitável para desenhar uma tela
+institucional; não é para mostrar a vida de alguém, nem para assinar por ela.
 
-**Defeito se:** uma tela aberta redirecionar para `/entrar/`, **ou** um dos atos
-da tabela acontecer sem sessão. As duas metades importam.
+A régua, em uma linha: **institucional é aberto; o que é de uma pessoa, e todo
+ato feito em nome dela, exige identidade.** Quando o mesmo endereço faz as duas
+coisas — pedir um serviço, reservar uma sala — a fronteira passa entre o GET e
+o POST, e não na porta.
+
+**Defeito se:** uma tela institucional redirecionar para `/entrar/`, **ou**
+qualquer coisa das duas tabelas abrir sem sessão. As duas metades importam.
 
 `/entrar/` existe só para isso — **nenhum link do produto leva até lá**, e não
 deve aparecer botão de login em tela nenhuma (ver 2.2). Sem essa rota seria

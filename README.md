@@ -59,10 +59,12 @@ python manage.py reindexar_busca
 python manage.py runserver
 ```
 
-Abra <http://127.0.0.1:8000/workspace/>. **O Workspace é aberto** — quem está na
-rede da empresa usa o hub e as telas operacionais sem login. Identificar-se é
-exigido só para **assinar**: aprovar, fechar o acerto de um adiantamento,
-cancelar, e abrir o anexo de alguém.
+Abra <http://127.0.0.1:8000/workspace/>. **O Workspace é aberto** para tudo que
+é institucional — o hub, a busca, o catálogo, a documentação, a agenda das
+salas e o formulário de qualquer serviço. Identificar-se é exigido para ver o
+que é **de uma pessoa** ("Meu dia", "Minhas solicitações", a bandeja, a
+correspondência) e para **assinar** em nome dela: enviar, aprovar, acertar,
+cancelar, confirmar leitura, baixar anexo.
 
 Todos os comandos `semear_*` rodam em **simulação por padrão**: sem `--aplicar`
 eles só relatam o que fariam.
@@ -101,8 +103,9 @@ casa, que era o ponto de existir um contrato.
 
 | O que se estranha | Por quê |
 |---|---|
-| O Workspace abre sem login | Decisão de produto: quem está na rede usa o hub e as telas operacionais sem barreira de autenticação. |
-| …mas assinar pede login | Ver é aberto; **assinar em nome de alguém, não**. Sem sessão, o produto atribui a ação à primeira pessoa do organograma — e o histórico registraria o nome de quem não fez nada. Vale para enviar um pedido, aprovar, acertar, cancelar, marcar reserva, confirmar leitura, correspondências e baixar anexo — sempre no envio, nunca na consulta: o formulário abre para qualquer um. A tela `/entrar/` existe só para isso: nenhum link leva até ela. |
+| O Workspace abre sem login | Decisão de produto: quem está na rede usa o hub, o catálogo, a documentação, a agenda das salas e **o formulário de qualquer serviço** sem barreira de autenticação. |
+| …mas "Meu dia", "Minhas solicitações" e a bandeja pedem | O que é **de uma pessoa** não é institucional: o dia dela, os pedidos dela, a fila que espera a decisão dela, a correspondência dela. Sem sessão o produto assume a primeira pessoa do organograma, e essas telas mostrariam a vida dela a quem passasse pela URL. |
+| …e enviar qualquer coisa também | **Assinar em nome de alguém** exige identidade: enviar pedido, aprovar, acertar, cancelar, marcar reserva, confirmar leitura, baixar anexo. Sempre no envio, nunca na consulta — quando o mesmo endereço faz as duas coisas, a fronteira passa entre o GET e o POST. A tela `/entrar/` existe só para isso: nenhum link leva até ela. |
 | "Aplicativos" é a última faixa da home | A home abria por lá, com o iConnect como tile herói — o que a fazia um *app launcher*, com o trabalho da pessoa em segundo lugar. |
 | Anexos moram fora de `MEDIA_ROOT` | Segurança, não organização de pasta: servidor web serve `MEDIA_ROOT` sem passar por view. No projeto anterior o nginx expôs `/media/` sem autenticação. |
 | Nenhum `style=` em template | A CSP não tem `unsafe-inline`. Navegador ignora `unsafe-inline` quando há nonce, e nonce não se aplica a atributo `style` — o estilo é descartado **em silêncio**. Por isso a barra da bandeja é SVG, onde `width` é atributo. |

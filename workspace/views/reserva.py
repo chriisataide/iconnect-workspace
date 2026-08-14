@@ -150,8 +150,9 @@ def _janela_do_post(request: HttpRequest):
     return inicio, fim, ""
 
 
+@login_required
 def minhas_reservas(request: HttpRequest) -> HttpResponse:
-    consulta = res.minhas(pessoa_da_requisicao(request))
+    consulta = res.minhas(request.user)
     return render(
         request,
         "workspace/minhas_reservas.html",

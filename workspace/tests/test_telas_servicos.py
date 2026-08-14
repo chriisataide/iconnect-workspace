@@ -72,13 +72,26 @@ def cenario():
 
 
 @pytest.mark.django_db
-@pytest.mark.parametrize(
-    "rota", ["workspace:servicos", "workspace:minhas_solicitacoes", "workspace:aprovacoes"]
-)
-def test_telas_operacionais_sao_abertas(client, rota):
-    """O Workspace é aberto; as telas operacionais não redirecionam para login."""
-    resposta = client.get(reverse(rota))
+def test_o_catalogo_e_aberto(client):
+    """A lista de serviços é institucional — quais existem, quanto demoram, o
+    que exige aprovação. Fechá-la poria uma parede de login na frente do
+    formulário que fica aberto de propósito.
+
+    "Minhas solicitações" e a bandeja saíram desta lista: o conteúdo inteiro
+    delas é de UMA pessoa, e sem sessão era o da primeira do organograma.
+    """
+    resposta = client.get(reverse("workspace:servicos"))
     assert resposta.status_code == 200
+
+
+@pytest.mark.django_db
+def test_catalogo_anonimo_nao_conta_pedido_de_ninguem(client, cenario):
+    """Os contadores do trilho ("3 em aberto") são de quem está identificado."""
+    svc.solicitar(cenario["item"], cenario["ana"], {"o_que": "x"}, Decimal("10"))
+
+    resposta = client.get(reverse("workspace:servicos"))
+    assert resposta.context["abertas"] == 0
+    assert resposta.context["devolvidas"] == 0
 
 
 @pytest.mark.django_db
@@ -114,6 +127,27 @@ def test_ato_em_nome_de_alguem_exige_identidade(client, rota, args):
 
     assert resposta.status_code == 302, f"{rota} respondeu sem sessão"
     assert resposta["Location"].startswith("/entrar/"), resposta["Location"]
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize(
+    "rota",
+    [
+        "workspace:minhas_solicitacoes",
+        "workspace:minhas_reservas",
+        "workspace:aprovacoes",
+        "workspace:meu_dia",
+        "workspace:notificacoes",
+    ],
+)
+def test_tela_que_e_de_uma_pessoa_exige_identidade(client, rota):
+    """Estas cinco não têm conteúdo institucional nenhum: são os pedidos, as
+    reservas, a fila de decisão, o dia e os avisos DE ALGUÉM. Sem sessão,
+    mostravam os da primeira pessoa do organograma."""
+    resposta = client.get(reverse(rota))
+
+    assert resposta.status_code == 302, rota
+    assert resposta["Location"].startswith("/entrar/"), rota
 
 
 @pytest.mark.django_db
