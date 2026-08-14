@@ -10,25 +10,26 @@
   Ela NÃO é a porta do produto: o Workspace é aberto, e ninguém chega aqui
   navegando. Só se cai nesta tela ao tentar um ato que assina em nome de
   alguém — aprovar, fechar acerto, cancelar — ou ao abrir o que é de outra
-  pessoa. Por isso o texto fala de "identificar-se" e não de "entrar": a pessoa
-  já estava usando o produto.
+  pessoa. Por isso o texto fala de "identificar-se" e não de "entrar".
 
-  O VOCABULÁRIO É O DO DESIGN SYSTEM. Esta tela nasceu com classes de um
-  projeto anterior (`au-form-entrar`, `au-campo-entrada`, `au-botao`) que nunca
-  existiram neste CSS — e por isso aparecia sem estilo nenhum, com as caixas
-  cruas do navegador, no meio de um produto inteiro estilizado. Formulário
-  aqui é `au-form` + `au-campo` + `au-rotulo` + `au-input`, e botão é `au-btn`,
-  como em todas as outras telas.
+  DOIS PAINÉIS, como a referência: formulário à esquerda sobre a cor da marca,
+  ilustração à direita. Duas diferenças conscientes em relação ao modelo:
 
-  Provisória: quando o SSO entrar, a pessoa chega já identificada pelo M365 e
-  esta tela sai do caminho normal — sobra para conta de serviço e para quem não
-  está no tenant.
+  - a ilustração é SVG inline, desenhado aqui. A CSP não permite imagem de
+    terceiros, e um PNG de banco de imagens é peso e licença para um adorno;
+  - o azul é o `--au-btn-bg` do projeto (o navy do logo), e não o azul do
+    exemplo. A tela é da icodev, não da referência.
+
+  O "Remember" e o "Forgot password" do modelo ficaram de fora de propósito: a
+  sessão já dura o suficiente, e recuperação de senha não existe enquanto a
+  conta não nasce do Entra ID (ADR-013) — botão que leva a lugar nenhum é pior
+  que botão ausente.
 {% endcomment %}
 {% block conteudo %}
-  <section class="au-secao au-entrar">
-    <article class="au-card au-entrar-cartao">
-      <h1 class="au-pagina-titulo">{% trans "Identifique-se para continuar" %}</h1>
-      <p class="au-pagina-desc">
+  <section class="au-entrar">
+    <div class="au-entrar-painel">
+      <h1 class="au-entrar-titulo">{% trans "Identifique-se para continuar" %}</h1>
+      <p class="au-entrar-sub">
         {% trans "O Workspace é aberto. Decidir em nome de alguém — aprovar, fechar um acerto, cancelar — e abrir o que é de outra pessoa exigem saber quem é você." %}
       </p>
 
@@ -47,43 +48,83 @@
         {% endif %}
 
         <div class="au-campo">
-          <label class="au-rotulo" for="id_username">
+          <label class="au-rotulo au-entrar-rotulo" for="id_username">
             {% trans "E-mail corporativo" %}
-            <span class="au-obrigatorio" aria-hidden="true">*</span>
           </label>
-          <input class="au-input" id="id_username" type="email" name="username"
-                 autocomplete="username" required autofocus>
+          <input class="au-input au-entrar-input" id="id_username" type="email"
+                 name="username" autocomplete="username" required autofocus
+                 placeholder="nome@icodev.com.br">
         </div>
 
         <div class="au-campo">
-          <label class="au-rotulo" for="id_password">
+          <label class="au-rotulo au-entrar-rotulo" for="id_password">
             {% trans "Senha" %}
-            <span class="au-obrigatorio" aria-hidden="true">*</span>
           </label>
-          <input class="au-input" id="id_password" type="password" name="password"
-                 autocomplete="current-password" required>
+          <input class="au-input au-entrar-input" id="id_password" type="password"
+                 name="password" autocomplete="current-password" required
+                 placeholder="••••••••">
         </div>
 
-        <div class="au-form-acoes">
-          {% comment %}
-            "Voltar ao Workspace" e não "Cancelar": não há nada a cancelar — o
-            produto continua aberto do outro lado desta tela, e quem chegou
-            aqui por engano precisa de uma saída óbvia.
-          {% endcomment %}
-          <a class="au-btn au-btn--sutil" href="{% url 'workspace:home' %}">
-            {% trans "Voltar ao Workspace" %}
-          </a>
-          <button class="au-btn au-btn--primario" type="submit">
-            {% trans "Continuar" %}
-          </button>
-        </div>
+        <button class="au-btn au-entrar-enviar" type="submit">
+          {% trans "Continuar" %}
+        </button>
 
         <input type="hidden" name="next" value="{{ next }}">
       </form>
 
-      <p class="au-ajuda au-entrar-nota">
+      <p class="au-entrar-nota">
         {% trans "Sua conta é a do Workspace, e não a do iConnect Platform — são dois cadastros." %}
+        <a class="au-entrar-volta" href="{% url 'workspace:home' %}">
+          {% trans "Voltar ao Workspace" %}
+        </a>
       </p>
-    </article>
+    </div>
+
+    {% comment %}
+      A ilustração é decorativa: `aria-hidden`, sem texto alternativo. Ela não
+      carrega informação que o painel da esquerda já não diga — leitor de tela
+      anunciando "desenho de duas pessoas ao lado de um celular" só atrasa
+      quem quer chegar ao campo de e-mail.
+
+      `currentColor` e os tokens fazem ela acompanhar o tema escuro sem uma
+      segunda cópia do desenho.
+    {% endcomment %}
+    <div class="au-entrar-arte" aria-hidden="true">
+      <svg viewBox="0 0 320 260" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <!-- avião de papel e o rastro, como no modelo -->
+        <path d="M232 30 L266 44 L240 52 L236 70 L228 52 Z" class="au-arte-marca"/>
+        <path d="M240 56 C268 78 268 96 244 104 C220 112 214 124 226 136"
+              class="au-arte-tracejado" stroke-dasharray="5 7"/>
+
+        <!-- o "celular" com o cartão de identidade -->
+        <rect x="112" y="52" width="96" height="164" rx="14" class="au-arte-tela"/>
+        <circle cx="160" cy="92" r="18" class="au-arte-avatar"/>
+        <path d="M160 86a6 6 0 100 12 6 6 0 000-12zM148 108c2-7 6-10 12-10s10 3 12 10z"
+              class="au-arte-avatar-fig"/>
+        <rect x="128" y="126" width="64" height="12" rx="6" class="au-arte-linha"/>
+        <rect x="128" y="146" width="64" height="12" rx="6" class="au-arte-linha"/>
+        <rect x="128" y="170" width="64" height="14" rx="7" class="au-arte-botao"/>
+
+        <!-- a pessoa em pé, apresentando a tela -->
+        <circle cx="72" cy="96" r="16" class="au-arte-pele"/>
+        <path d="M56 96c0-14 7-22 16-22s16 8 16 22c0 8-4 10-4 18h-24c0-8-4-10-4-18z"
+              class="au-arte-cabelo"/>
+        <path d="M60 118h26l6 34H56z" class="au-arte-roupa"/>
+        <path d="M86 128c12 2 18 8 22 16" class="au-arte-braco"/>
+        <path d="M58 152h28l-2 56h-10l-2-34-4 34H58z" class="au-arte-calca"/>
+
+        <!-- a pessoa sentada com o notebook -->
+        <circle cx="242" cy="164" r="13" class="au-arte-pele"/>
+        <path d="M229 162c0-11 6-16 13-16s13 5 13 16c-4-4-9-5-13-3s-9 2-13 3z"
+              class="au-arte-cabelo"/>
+        <path d="M230 180h24l4 26h-32z" class="au-arte-roupa"/>
+        <path d="M224 206h40l-2 8h-38z" class="au-arte-notebook"/>
+
+        <!-- planta -->
+        <path d="M286 214c-10-8-12-22-6-34 8 6 12 20 6 34z" class="au-arte-folha"/>
+        <path d="M286 214c8-10 20-12 30-8-6 8-18 12-30 8z" class="au-arte-folha"/>
+        <path d="M276 214h26l-4 26h-18z" class="au-arte-vaso"/>
+      </svg>
+    </div>
   </section>
 {% endblock %}

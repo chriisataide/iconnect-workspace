@@ -8,7 +8,8 @@
   que não existe e desconfiar do resto da tela.
 {% endcomment %}
 {% if adiantamentos %}
-  <fieldset class="au-campo au-fieldset">
+  {# `data-passo`: esta seção é o passo 2 da prestação de contas. #}
+  <fieldset class="au-campo au-fieldset" data-passo="{{ campo.passo }}">
     <legend class="au-rotulo">{{ campo.rotulo|default:_("Adiantamento a prestar contas") }}</legend>
     {% if campo.ajuda %}<p class="au-ajuda">{{ campo.ajuda }}</p>{% endif %}
 

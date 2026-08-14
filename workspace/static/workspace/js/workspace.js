@@ -344,18 +344,33 @@
 
     Array.prototype.forEach.call(blocos(), function (bloco) {
       var doPasso = parseInt(bloco.dataset.passo, 10) === atual;
-      var visivel = doPasso && noRamo(bloco, mapa);
-      bloco.hidden = !visivel;
-      // `disabled` junto com `hidden`: campo escondido continua sendo enviado,
-      // e um `required` invisível trava o envio sem mostrar onde.
+      var doRamo = noRamo(bloco, mapa);
+      // Dois modos para o campo fora do ramo. `sumir` é o padrão — quatro
+      // campos do cenário que a pessoa não escolheu são ruído. `cinza` é para
+      // o campo que É a consequência da escolha ao lado: ver "até quando"
+      // apagado ensina o que "definitivo" significa, e a tela não pula.
+      var cinza = bloco.dataset.quandoModo === 'cinza';
+
+      bloco.hidden = !doPasso || (!doRamo && !cinza);
+      bloco.classList.toggle('au-campo--inativo', !doRamo && cinza);
+
+      // `disabled` sempre que está fora do ramo: campo escondido continua
+      // sendo enviado, e um `required` invisível trava o envio sem mostrar
+      // onde. Desabilitado, o navegador nem manda — e o servidor descarta o
+      // que sobrar, de qualquer jeito.
       Array.prototype.forEach.call(bloco.querySelectorAll('input, select, textarea'),
-        function (campo) { campo.disabled = !noRamo(bloco, mapa); });
+        function (campo) { campo.disabled = !doRamo; });
     });
 
     if (trilha) {
       Array.prototype.forEach.call(trilha.querySelectorAll('[data-trilha-passo]'),
         function (item) {
           var numero = parseInt(item.dataset.trilhaPasso, 10);
+          // Passo sem conteúdo some da trilha — mas o `apos_envio` fica: ele
+          // acontece em outra tela e não tem bloco nenhum aqui, e some-lo
+          // esconderia justamente a etapa que a pessoa não pode esquecer.
+          var doFormulario = numero <= ultimo;
+          item.hidden = doFormulario && !temConteudo(numero);
           item.classList.toggle('au-trilha-passo--atual', numero === atual);
           item.classList.toggle('au-trilha-passo--feito', numero < atual);
           if (numero === atual) item.setAttribute('aria-current', 'step');
@@ -371,8 +386,24 @@
     if (enviar) enviar.hidden = atual < ultimo;
   }
 
-  function irPara(numero) {
-    atual = Math.min(Math.max(numero, 1), ultimo);
+  // Um passo pode ficar VAZIO por decisão do servidor: o passo do adiantamento
+  // só existe para quem tem adiantamento pendente, e a seção inteira não é
+  // renderizada quando não há nenhum. "Continuar" para uma tela em branco faz a
+  // pessoa achar que a página quebrou — então o passo vazio é pulado, e some da
+  // trilha.
+  function temConteudo(numero) {
+    return Array.prototype.some.call(blocos(), function (bloco) {
+      return parseInt(bloco.dataset.passo, 10) === numero;
+    });
+  }
+
+  function irPara(numero, direcao) {
+    var destino = Math.min(Math.max(numero, 1), ultimo);
+    var passo = direcao || (destino > atual ? 1 : -1);
+    while (destino > 1 && destino < ultimo && !temConteudo(destino)) {
+      destino += passo;
+    }
+    atual = Math.min(Math.max(destino, 1), ultimo);
     desenhar();
     form.scrollIntoView({ block: 'start' });
   }
@@ -392,4 +423,101 @@
   if (comErro) atual = parseInt(comErro.dataset.passo, 10) || 1;
 
   desenhar();
+})();
+
+/* Formatação de valor enquanto se digita.
+ *
+ * Dinheiro em português tem ponto de milhar e vírgula decimal: `1.234,56`. A
+ * pessoa digita só os números e o campo se encarrega do resto — porque a
+ * alternativa é cada um digitar de um jeito, e a leitura do servidor ter de
+ * adivinhar se `1.234` são mil duzentos e trinta e quatro ou um e vinte e três.
+ * Essa adivinhação já causou um defeito real aqui: `1234.56` lido como cento e
+ * vinte e três mil.
+ *
+ * O servidor continua sendo quem decide (`services/reembolso.valor_de`): isto é
+ * conforto de digitação, não validação. Sem JS, o campo aceita os dois formatos
+ * como sempre aceitou.
+ *
+ * Data e hora não precisam de máscara: `type="date"` e `type="time"` já trazem
+ * o traço e os dois-pontos do próprio navegador, no formato local — e um
+ * calendário de brinde.
+ */
+(function () {
+  'use strict';
+
+  var campos = document.querySelectorAll('[data-moeda]');
+  if (!campos.length) return;
+
+  function formatar(bruto) {
+    var digitos = String(bruto).replace(/\D/g, '').replace(/^0+/, '');
+    if (!digitos) return '';
+    while (digitos.length < 3) digitos = '0' + digitos;
+
+    var centavos = digitos.slice(-2);
+    var inteiros = digitos.slice(0, -2);
+    // Milhar de trás para frente: `1234567` → `1.234.567`.
+    inteiros = inteiros.replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+    return inteiros + ',' + centavos;
+  }
+
+  Array.prototype.forEach.call(campos, function (campo) {
+    campo.addEventListener('input', function () {
+      var antes = campo.value;
+      var formatado = formatar(antes);
+      if (formatado === antes) return;
+      campo.value = formatado;
+      // O cursor vai para o fim: a máscara reescreve o valor inteiro, e tentar
+      // preservar a posição no meio de um número que muda de tamanho é como se
+      // ganha o cursor pulando para trás a cada dígito.
+      campo.setSelectionRange(formatado.length, formatado.length);
+    });
+
+    campo.addEventListener('blur', function () {
+      if (campo.value) campo.value = formatar(campo.value);
+    });
+  });
+})();
+
+/* Resumo de um pedido, em modal.
+ *
+ * O conteúdo já vem pronto do servidor — este arquivo só abre e fecha. Nenhum
+ * dado do usuário vira HTML aqui, então não há superfície de XSS.
+ *
+ * `<dialog>` de novo, pelo mesmo motivo da paleta: Esc, foco preso e fundo
+ * inerte são do navegador. Sem JS, o modal simplesmente não abre e a tabela
+ * continua mostrando tudo que ela já mostrava — o resumo é atalho, não a única
+ * forma de ver o pedido.
+ */
+(function () {
+  'use strict';
+
+  if (!document.querySelector('[data-abre-resumo]')) return;
+
+  function abrir(id) {
+    var modal = document.getElementById(id);
+    if (modal && typeof modal.showModal === 'function' && !modal.open) modal.showModal();
+  }
+
+  document.addEventListener('click', function (e) {
+    if (e.target.closest('[data-fecha-modal]')) {
+      var aberto = e.target.closest('dialog');
+      if (aberto) aberto.close();
+      return;
+    }
+
+    // Clique no fundo escuro: o alvo é o próprio <dialog>, porque o conteúdo
+    // está em filhos.
+    if (e.target.matches('dialog.au-modal')) {
+      e.target.close();
+      return;
+    }
+
+    // A ação nunca rouba um clique que já tinha dono: dentro da linha existem
+    // o link do anexo e o botão de cancelar, e abrir o resumo por cima deles
+    // faria o cancelar virar roleta.
+    if (e.target.closest('a, button:not([data-abre-resumo]), form')) return;
+
+    var gatilho = e.target.closest('[data-abre-resumo]');
+    if (gatilho) abrir(gatilho.dataset.abreResumo);
+  });
 })();

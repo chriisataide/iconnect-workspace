@@ -10,7 +10,14 @@
   troca o marcador e insere; sem ele, a página continua funcionando com a linha
   que já veio pronta do servidor — uma compra por envio, mas nada quebra.
 {% endcomment %}
-<div class="au-campo {% if erro_despesas %}au-campo--erro{% endif %}">
+{% comment %}
+  `data-passo` também aqui: sem ele o stepper não sabia onde esta seção mora, e
+  ela ficava visível em todos os passos — o defeito de "o passo 1 e o 2 são
+  iguais". O bloco é montado por include, mas para a navegação ele é um bloco
+  como qualquer outro.
+{% endcomment %}
+<div class="au-campo {% if erro_despesas %}au-campo--erro{% endif %}"
+     data-passo="{{ campo.passo }}">
   <span class="au-rotulo">
     {{ campo.rotulo|default:_("Compras") }}
     <span class="au-obrigatorio" aria-hidden="true">*</span>
@@ -32,7 +39,7 @@
                 <input class="au-input" id="d-valor-{{ despesa.indice }}"
                        name="despesa_valor_{{ despesa.indice }}" type="text"
                        inputmode="decimal" placeholder="0,00"
-                       data-despesa-valor value="{{ despesa.valor }}">
+                       data-despesa-valor data-moeda value="{{ despesa.valor }}">
               </div>
             </div>
             <div class="au-despesa-campo">
@@ -78,7 +85,7 @@
               <div class="au-input-prefixo">
                 <span aria-hidden="true">R$</span>
                 <input class="au-input" id="d-valor-0" name="despesa_valor_0" type="text"
-                       inputmode="decimal" placeholder="0,00" data-despesa-valor>
+                       inputmode="decimal" placeholder="0,00" data-despesa-valor data-moeda>
               </div>
             </div>
             <div class="au-despesa-campo">
@@ -129,7 +136,7 @@
             <div class="au-input-prefixo">
               <span aria-hidden="true">R$</span>
               <input class="au-input" id="d-valor-__i__" name="despesa_valor___i__" type="text"
-                     inputmode="decimal" placeholder="0,00" data-despesa-valor>
+                     inputmode="decimal" placeholder="0,00" data-despesa-valor data-moeda>
             </div>
           </div>
           <div class="au-despesa-campo">

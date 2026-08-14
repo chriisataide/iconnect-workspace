@@ -189,6 +189,10 @@ def pedir(request: HttpRequest, chave: str) -> HttpResponse:
             # servidor, em `limpar_fora_do_ramo()`.
             "quando_campo": (campo.get("quando") or {}).get("campo", ""),
             "quando_igual": _quando_igual(campo),
+            # `cinza` deixa o campo na tela, apagado, em vez de sumir. Serve
+            # para o campo que É a consequência da escolha ao lado: ver "até
+            # quando" desabilitado ensina o que "definitivo" significa.
+            "quando_modo": campo.get("quando_modo", "sumir"),
         }
         for campo in item.campos
     ]

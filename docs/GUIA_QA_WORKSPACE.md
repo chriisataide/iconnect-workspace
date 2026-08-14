@@ -420,7 +420,7 @@ tela continua sendo uma só, com todos os campos — e isso é o certo.
 |---|---|---|
 | **Escolha** (`<select>`) | Acesso a um sistema, VPN, treinamento, abertura de vaga | Lista fechada, com "Selecione…" em branco no topo. Valor forjado no POST é recusado com "Escolha uma opção de…" |
 | **Ramo** (`quando`) | VPN (só temporário pede "até quando"), reciclagem (dados do técnico terceiro), treinamento (interno × externo), abertura de vaga (só reposição pergunta "quem saiu") | O campo do outro ramo **não é exigido** e **não é gravado**, mesmo se tiver sido preenchido |
-| **Passo** (trilha) | Reciclagem (2), treinamento (3), prestação de contas (3), abertura de vaga (2) | Trilha no topo, "Continuar"/"Voltar", e o **enviar só no último passo** |
+| **Passo** (trilha) | Reciclagem (2), treinamento (3), prestação de contas (3), abertura de vaga (2) | Trilha no topo, "Continuar"/"Voltar", e o **enviar só no último passo**. Passo que ficou sem conteúdo é pulado e sai da trilha — o do adiantamento só existe para quem tem um pendente |
 
 - **Desligue o JavaScript e refaça um deles.** Todos os passos e todos os ramos
   aparecem de uma vez, e o formulário continua enviável. Quem separa o ramo é o
@@ -431,6 +431,14 @@ tela continua sendo uma só, com todos os campos — e isso é o certo.
 - Erro no passo 2 traz a tela de volta **no passo 2**, não no 1.
 - Campo de outro ramo fica `disabled` além de escondido: campo escondido
   continua sendo enviado pelo navegador.
+- **Um campo pode ficar CINZA em vez de sumir** (`quando_modo: cinza`): é o
+  caso do "até quando" da VPN quando o período é definitivo. Ele fica na
+  tela, apagado e desabilitado, porque vê-lo assim ensina o que "definitivo"
+  significa — e a tela não pula. Sumir é o padrão para os outros.
+- **Regressão já corrida:** os passos apareciam todos ao mesmo tempo, com
+  "Continuar" e "Enviar" lado a lado. `[hidden] { display: none }` mora na
+  folha do navegador, e `.au-campo { display: flex }` ganhava dela. Se um
+  stepper voltar a mostrar dois passos juntos, é aqui que se olha.
 
 **O que testar — cada item que mudou:**
 
@@ -442,6 +450,17 @@ tela continua sendo uma só, com todos os campos — e isso é o certo.
 | Treinamento ou curso | passo 1 interno ou externo; interno só escolhe o curso da lista; externo pede instituição, curso, início, período e **valor** — que não aparece no interno |
 | Inscrição em vaga interna | qual vaga, por que quer, currículo opcional. **Não passa pelo gestor** — a cadeia normal faria o pedido de mudar de área ser avaliado por quem perde a pessoa |
 | Abertura de vaga | cargo, quantidade (opcional, 1 por padrão), motivo da abertura e justificativa; "quem saiu" só na reposição |
+
+**O que testar — formatação de cada tipo de dado:**
+
+| Dado | Como tem de aparecer |
+|---|---|
+| Valor | `1.234,56` — ponto no milhar, vírgula no decimal, formatado **enquanto se digita** |
+| Data | campo de data do navegador, com traço e calendário |
+| Horário | campo de hora, com dois-pontos (o atestado tem dois: "saiu às" e "voltou às") |
+| Dias | campo numérico, sem letra |
+
+A máscara de valor é conforto de digitação: quem decide o número continua sendo o servidor, e sem JavaScript o campo aceita `1.234,56` e `1234.56` como sempre aceitou.
 
 **O que testar — validação:**
 
@@ -568,6 +587,20 @@ com o comprovante de cada valor, no lugar do bloco de anexos soltos.
 ---
 
 ### 3.7 Minhas solicitações — `/workspace/minhas-solicitacoes/`
+
+**Resumo em modal.** Clicar numa linha — ou no nome do serviço, que é um
+botão de verdade — abre um `<dialog>` com o essencial: situação, valor,
+centro de custo, quem decide agora, o que foi respondido no formulário, as
+compras e os anexos. Esc fecha, o fundo fica inerte, e o foco não escapa —
+é o mesmo elemento da paleta ⌘K, pelo mesmo motivo.
+
+- O resumo mostra a **pergunta**, não a chave do banco: "Responsável por
+  ele, e como falar com ele", nunca `tecnico_responsavel`.
+- Clicar no link do anexo ou no botão Cancelar **não** abre o modal: ação
+  que já tem dono não é roubada pela linha.
+- Sem JavaScript o modal não abre, e a tabela continua mostrando tudo que
+  ela já mostrava. O resumo é atalho, não a única forma de ver o pedido.
+
 
 **Para que serve.** Onde o pedido está, e quem está com a bola.
 

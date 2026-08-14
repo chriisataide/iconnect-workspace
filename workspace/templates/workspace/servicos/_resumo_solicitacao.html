@@ -1,0 +1,121 @@
+{% load i18n wks %}
+{% comment %}
+  O resumo de UM pedido, em modal.
+
+  "Breve" é requisito, não economia: quem abre isto quer responder "em que pé
+  está o meu pedido?" em dois segundos. Situação, quem decide agora, o que foi
+  pedido e os comprovantes. O que não couber aqui não vira mais linha no
+  modal — vira motivo para abrir a tela cheia, quando ela existir.
+{% endcomment %}
+<dialog class="au-modal" id="resumo-{{ s.pk }}" aria-labelledby="resumo-{{ s.pk }}-titulo">
+  <article class="au-modal-caixa">
+    <header class="au-modal-cabeca">
+      <div>
+        <h2 class="au-modal-titulo" id="resumo-{{ s.pk }}-titulo">{{ s.item.nome }}</h2>
+        <p class="au-ajuda">
+          {% blocktrans with data=s.criado_em|date:"d/m/Y" hora=s.criado_em|date:"H:i" %}Pedido em {{ data }} às {{ hora }}{% endblocktrans %}
+        </p>
+      </div>
+      <button class="au-btn au-btn--sutil au-btn--pequeno" type="button" data-fecha-modal
+              aria-label="{% trans 'Fechar' %}">
+        <svg class="au-icon" aria-hidden="true"><use href="#i-x"></use></svg>
+      </button>
+    </header>
+
+    <ul class="au-lista">
+      <li class="au-list-row">
+        <span class="au-list-titulo">{% trans "Situação" %}</span>
+        <span class="au-list-meta">
+          <span class="au-etiqueta au-etiqueta--{{ s.situacao }}">
+            {{ s.get_situacao_display }}
+          </span>
+          {% if s.auto_aprovada %}
+            <span class="au-selo au-selo--medido">{% trans "automática" %}</span>
+          {% endif %}
+        </span>
+      </li>
+      {% if s.valor %}
+        <li class="au-list-row">
+          <span class="au-list-titulo">{% trans "Valor" %}</span>
+          <span class="au-list-meta">R$ {{ s.valor|moeda }}</span>
+        </li>
+      {% endif %}
+      {% if s.centro_custo_codigo %}
+        <li class="au-list-row">
+          <span class="au-list-titulo">{% trans "Centro de custo" %}</span>
+          <span class="au-list-meta">{{ s.centro_custo_codigo }}</span>
+        </li>
+      {% endif %}
+      <li class="au-list-row">
+        <span class="au-list-titulo">{% trans "Esperando" %}</span>
+        <span class="au-list-meta">
+          {% if s.aprovacao and s.aprovacao.etapa_atual %}
+            {{ s.aprovacao.etapa_atual.aprovador|default:s.aprovacao.etapa_atual.papel }}
+          {% else %}
+            {% trans "ninguém — o pedido não está em fila de aprovação" %}
+          {% endif %}
+        </span>
+      </li>
+    </ul>
+
+    {% if s.motivo_devolucao %}
+      {% comment %}
+        Em destaque e não numa linha da lista: é a única informação desta tela
+        sobre a qual a pessoa PRECISA fazer alguma coisa.
+      {% endcomment %}
+      <div class="au-aviso au-aviso--warning" role="note">
+        <b>{% trans "Devolvido:" %}</b> {{ s.motivo_devolucao }}
+      </div>
+    {% endif %}
+
+    {% if s.dados %}
+      <div class="au-modal-secao">
+        <p class="au-dossie-rotulo">{% trans "O que você pediu" %}</p>
+        <ul class="au-lista">
+          {% for chave, valor in s.dados.items %}
+            {% if valor %}
+              <li class="au-list-row">
+                <span class="au-list-titulo">{{ chave|rotulo_do_campo:s.item }}</span>
+                <span class="au-list-meta">{{ valor }}</span>
+              </li>
+            {% endif %}
+          {% endfor %}
+        </ul>
+      </div>
+    {% endif %}
+
+    {% if s.despesas.all %}
+      <div class="au-modal-secao">
+        <p class="au-dossie-rotulo">{% trans "Compras" %}</p>
+        <table class="au-tabela-simples">
+          <tbody>
+            {% for despesa in s.despesas.all %}
+              <tr>
+                <td>{{ despesa.motivo }}</td>
+                <td class="num">R$ {{ despesa.valor|moeda }}</td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    {% endif %}
+
+    {% if s.anexos.all %}
+      <div class="au-modal-secao">
+        <p class="au-dossie-rotulo">{% trans "Anexos" %}</p>
+        {% include "workspace/_anexos.html" with anexos=s.anexos.all %}
+      </div>
+    {% endif %}
+
+    <footer class="au-form-acoes">
+      {% if s.adiantamento_id %}
+        <a class="au-btn au-btn--sutil" href="{% url 'workspace:acerto' s.pk %}">
+          {% trans "Ver o acerto" %}
+        </a>
+      {% endif %}
+      <button class="au-btn au-btn--primario" type="button" data-fecha-modal>
+        {% trans "Fechar" %}
+      </button>
+    </footer>
+  </article>
+</dialog>

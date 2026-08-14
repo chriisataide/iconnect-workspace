@@ -320,3 +320,134 @@ def test_reembolso_virou_prestacao_de_contas_sem_perder_a_busca():
     assert spec["nome"] == "Prestação de contas"
     assert "reembolso" in spec["termos"]
     assert [p.get("apos_envio", False) for p in spec["passos"]] == [False, False, True]
+
+
+# ── As cinco correções apontadas na revisão ─────────────────────────
+
+
+def test_hidden_esconde_de_verdade():
+    """O defeito que fazia "o passo 1 e o 2 serem iguais".
+
+    `[hidden] { display: none }` mora na folha do NAVEGADOR, e qualquer regra
+    nossa com `display` ganha dela — `.au-campo { display: flex }` e
+    `.au-btn { display: inline-flex }` ganhavam. O JS marcava `hidden` e o CSS
+    mandava desenhar assim mesmo: todos os passos na tela, "Continuar" e
+    "Enviar" lado a lado.
+    """
+    from pathlib import Path
+
+    css = (Path(__file__).resolve().parent.parent
+           / "static" / "workspace" / "src" / "workspace.css").read_text()
+
+    assert "[hidden] { display: none !important; }" in css
+
+
+@pytest.mark.django_db
+def test_cada_secao_da_prestacao_declara_o_seu_passo(client, ana):
+    """As compras no passo 1, o adiantamento no 2. Sem `data-passo` nos dois
+    includes, o stepper não sabia onde eles moravam e mostrava os dois em
+    todos os passos — o defeito de "o passo 1 e o 2 são iguais"."""
+    from datetime import date
+    from decimal import Decimal
+    from io import StringIO
+
+    from django.core.management import call_command
+
+    from workspace.models import SituacaoServico, SolicitacaoServico
+
+    call_command("semear_catalogo", "--aplicar", stdout=StringIO())
+    # O passo 2 só existe para quem tem adiantamento a prestar contas — sem
+    # nenhum, a seção não é renderizada e o stepper pula o passo vazio.
+    SolicitacaoServico.objects.create(
+        item=ItemCatalogo.objects.get(chave="adiantamento"),
+        solicitante=ana, valor=Decimal("100"),
+        situacao=SituacaoServico.APROVADA,
+        dados={"motivo": "Viagem", "data_pagamento": str(date(2026, 9, 1))},
+    )
+
+    client.force_login(ana)
+    html = client.get(
+        reverse("workspace:pedir", args=["prestacao-contas"])
+    ).content.decode()
+
+    assert "data-despesas" in html
+    assert html.count('data-passo="1"') >= 1
+    assert html.count('data-passo="2"') >= 1
+
+
+def test_vpn_deixa_a_data_cinza_em_vez_de_sumir():
+    """Ver "até quando" apagado ensina o que "definitivo" significa. Sumir
+    ensinaria menos e ainda faria a tela pular."""
+    from workspace.catalogo_inicial import CATALOGO_INICIAL
+
+    campos = {
+        c["chave"]: c
+        for s in CATALOGO_INICIAL if s["chave"] == "acesso-vpn"
+        for c in s["campos"]
+    }
+    assert campos["ate_quando"]["quando_modo"] == "cinza"
+
+
+def test_horario_do_atestado_e_campo_de_hora():
+    """Texto livre chegava como "das 14 as 16", "14h-16h" e "2 da tarde" para a
+    mesma ausência. O R.H. lança hora, não frase."""
+    from workspace.catalogo_inicial import CATALOGO_INICIAL
+
+    campos = {
+        c["chave"]: c
+        for s in CATALOGO_INICIAL if s["chave"] == "atestado"
+        for c in s["campos"]
+    }
+    assert campos["horario_inicio"]["tipo"] == TipoCampo.HORA
+    assert campos["horario_fim"]["tipo"] == TipoCampo.HORA
+    assert "horario" not in campos, "o campo de texto livre saiu"
+
+
+@pytest.mark.django_db
+def test_a_tela_desenha_input_de_hora_e_marca_o_campo_de_dinheiro(client, ana):
+    """`type="time"` traz os dois-pontos; `type="date"`, o traço. O valor é
+    marcado com `data-moeda` para a máscara de milhar e vírgula."""
+    from django.core.management import call_command
+    from io import StringIO
+
+    call_command("semear_catalogo", "--aplicar", stdout=StringIO())
+    client.force_login(ana)
+
+    atestado = client.get(reverse("workspace:pedir", args=["atestado"])).content.decode()
+    assert 'type="time"' in atestado
+    assert 'type="date"' in atestado
+
+    compra = client.get(reverse("workspace:pedir", args=["compra"])).content.decode()
+    assert "data-moeda" in compra
+
+
+@pytest.mark.django_db
+def test_minhas_solicitacoes_traz_o_resumo_de_cada_pedido(client, curso, ana):
+    """Um `<dialog>` por linha, montado no servidor: os dados já estão nesta
+    página, e uma rota nova só para o resumo seria mais uma superfície para
+    autorizar."""
+    pedido = svc.solicitar(curso, ana, {"origem": "interno", "aplicacao": "x"})
+
+    client.force_login(ana)
+    html = client.get(reverse("workspace:minhas_solicitacoes")).content.decode()
+
+    assert f'id="resumo-{pedido.pk}"' in html
+    assert f'data-abre-resumo="resumo-{pedido.pk}"' in html
+    # O resumo mostra a PERGUNTA, não a chave do banco.
+    assert "Aplicação" in html
+    assert "aplicacao</span>" not in html
+
+
+@pytest.mark.django_db
+def test_o_resumo_de_um_pedido_nao_vaza_para_outra_pessoa(client, curso, ana):
+    """O modal é montado a partir de `svc.minhas()`, que já filtra por pessoa —
+    este teste é o que impede alguém de "otimizar" isso para uma consulta
+    global sem perceber."""
+    outra = f.pessoa("bruno")
+    f.lotar(outra)
+    alheio = svc.solicitar(curso, outra, {"origem": "interno", "aplicacao": "x"})
+
+    client.force_login(ana)
+    html = client.get(reverse("workspace:minhas_solicitacoes")).content.decode()
+
+    assert f'id="resumo-{alheio.pk}"' not in html

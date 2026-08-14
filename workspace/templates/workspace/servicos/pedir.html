@@ -54,7 +54,8 @@
       <div class="au-campo {% if campo.erro %}au-campo--erro{% endif %}"
            data-passo="{{ campo.passo }}"
            {% if campo.quando_campo %}data-quando-campo="{{ campo.quando_campo }}"
-           data-quando-igual="{{ campo.quando_igual }}"{% endif %}>
+           data-quando-igual="{{ campo.quando_igual }}"
+           data-quando-modo="{{ campo.quando_modo }}"{% endif %}>
         <label class="au-rotulo" for="c-{{ campo.chave }}">
           {{ campo.rotulo|default:campo.chave }}
           {% if campo.obrigatorio %}<span class="au-obrigatorio" aria-hidden="true">*</span>{% endif %}
@@ -82,8 +83,20 @@
           <textarea class="au-input" id="c-{{ campo.chave }}" name="{{ campo.chave }}"
                     rows="4">{{ campo.valor }}</textarea>
         {% elif campo.tipo == "data" %}
+          {# `type="date"`: o traço, o formato local e o calendário são do navegador. #}
           <input class="au-input" id="c-{{ campo.chave }}" name="{{ campo.chave }}"
                  type="date" value="{{ campo.valor }}">
+        {% elif campo.tipo == "hora" %}
+          {% comment %}
+            `type="time"`: os dois-pontos vêm do navegador, e o celular abre o
+            teclado de hora. Texto livre virava "das 14 as 16" e "2 da tarde".
+
+            `{% comment %}` e não `{# #}`: a forma curta só vale em UMA linha.
+            Escrita em duas, ela não é comentário — o Django imprime o texto na
+            página, e foi o que aconteceu aqui antes desta correção.
+          {% endcomment %}
+          <input class="au-input" id="c-{{ campo.chave }}" name="{{ campo.chave }}"
+                 type="time" value="{{ campo.valor }}">
         {% elif campo.tipo == "numero" %}
           <input class="au-input" id="c-{{ campo.chave }}" name="{{ campo.chave }}"
                  type="number" inputmode="numeric" value="{{ campo.valor }}">
@@ -133,7 +146,8 @@
         <div class="au-input-prefixo">
           <span aria-hidden="true">R$</span>
           <input class="au-input" id="valor" name="valor" type="text" inputmode="decimal"
-                 placeholder="0,00" value="{{ valor|default_if_none:'' }}">
+                 placeholder="0,00" value="{{ valor|default_if_none:'' }}"
+                 data-moeda>
         </div>
         {% if erro_valor %}<p class="au-erro">{{ erro_valor }}</p>{% endif %}
       </div>

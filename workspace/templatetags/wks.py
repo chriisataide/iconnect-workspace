@@ -25,6 +25,24 @@ def data_extenso(valor, com_ano: bool = True) -> str:
 
 
 @register.filter
+def rotulo_do_campo(chave: str, item) -> str:
+    """A pergunta que a pessoa respondeu, e não a chave que o banco guarda.
+
+    `dados` é um JSON de `{chave: resposta}`, e mostrar a chave crua faria o
+    resumo dizer "tecnico_responsavel" em vez de "Responsável por ele, e como
+    falar com ele". Quem sabe o rótulo é o item do catálogo — que é justamente
+    onde ele pode ter mudado desde que o pedido foi feito. Neste caso o rótulo
+    novo é o certo: a pergunta é a mesma, só está mais bem escrita.
+    """
+    for campo in getattr(item, "campos", None) or []:
+        if campo.get("chave") == chave:
+            return campo.get("rotulo") or chave
+    # Campo que saiu do catálogo depois do pedido: sem rótulo a que recorrer, a
+    # chave legível é melhor que sumir com a resposta.
+    return str(chave).replace("_", " ").capitalize()
+
+
+@register.filter
 def moeda(valor) -> str:
     """`12400` → `12.400,00`. Sem separador de milhar, coluna de dinheiro não
     se lê: `R$ 13720,00` exige contar dígitos.

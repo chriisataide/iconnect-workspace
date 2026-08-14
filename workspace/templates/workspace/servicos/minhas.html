@@ -32,9 +32,19 @@
       </thead>
       <tbody>
         {% for s in solicitacoes %}
-          <tr>
+          {% comment %}
+            A linha inteira abre o resumo, mas quem carrega a ação é um
+            `<button>` de verdade no nome do serviço: linha clicável com
+            `onclick` no `<tr>` não recebe foco, não responde a Enter e não é
+            anunciada como clicável — e esta tela é lida por quem quer saber
+            "e o meu pedido?", que é gente com pressa e às vezes no teclado.
+          {% endcomment %}
+          <tr data-abre-resumo="resumo-{{ s.pk }}">
             <td>
-              <span class="au-list-titulo">{{ s.item.nome }}</span>
+              <button class="au-link-tabela" type="button"
+                      data-abre-resumo="resumo-{{ s.pk }}">
+                {{ s.item.nome }}
+              </button>
               {% include "workspace/_anexos.html" with anexos=s.anexos.all %}
               {% if s.motivo_devolucao %}
                 {% comment %}
@@ -80,6 +90,23 @@
       </tbody>
     </table>
   </div>
+
+  {% comment %}
+    Um `<dialog>` por linha, com o resumo já montado pelo servidor.
+
+    `<dialog>` e não `<div>`: o navegador entrega Esc, foco preso e fundo
+    inerte — reimplementar isso é a origem mais comum de armadilha de foco, e a
+    paleta de busca já usa o mesmo elemento pelo mesmo motivo.
+
+    Montado no servidor e não buscado por fetch: os dados já estão nesta página,
+    e uma rota nova só para o resumo seria mais uma superfície para autorizar.
+    Fora do `<table>`, porque HTML só aceita `<tr>` e `<td>` dentro de tbody —
+    um `<dialog>` ali dentro é movido pelo parser para fora da tabela, e o
+    conteúdo aparece solto no meio da tela.
+  {% endcomment %}
+  {% for s in solicitacoes %}
+    {% include "workspace/servicos/_resumo_solicitacao.html" %}
+  {% endfor %}
 {% else %}
   <div class="au-vazio">
     <p class="au-vazio-titulo">{% trans "Você ainda não pediu nada." %}</p>

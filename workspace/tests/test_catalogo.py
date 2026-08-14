@@ -160,9 +160,15 @@ def _campos(chave_item: str) -> dict[str, dict]:
 
 def test_atestado_pergunta_horario_motivo_e_chefe_ciente():
     """Declaração de comparecimento sem horário não diz quanto tempo a pessoa
-    faltou, que é a única coisa que o R.H. precisa saber para lançar."""
+    faltou, que é a única coisa que o R.H. precisa saber para lançar.
+
+    O horário virou DOIS campos de hora — "saiu às" e "voltou às" —, e os dois
+    são opcionais: faltar o dia inteiro é caso normal, e um horário obrigatório
+    obrigaria a inventar "00:00 às 23:59".
+    """
     campos = _campos("atestado")
-    assert campos["horario"]["obrigatorio"] is True
+    assert campos["horario_inicio"]["tipo"] == TipoCampo.HORA
+    assert campos["horario_fim"]["tipo"] == TipoCampo.HORA
     for chave in ("motivo", "chefe_ciente"):
         assert chave in campos, chave
 

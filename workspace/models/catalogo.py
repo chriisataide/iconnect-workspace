@@ -47,6 +47,10 @@ class TipoCampo(models.TextChoices):
     TEXTO_LONGO = "texto_longo", "Texto longo"
     NUMERO = "numero", "Número"
     DATA = "data", "Data"
+    # `<input type="time">`: o navegador entrega os dois-pontos, o formato local
+    # e o teclado certo no celular. Texto livre virava "das 14 as 16", "14h-16h"
+    # e "2 da tarde" para a mesma ausência — e o R.H. lança hora, não frase.
+    HORA = "hora", "Hora"
     ESCOLHA = "escolha", "Escolha"
     ARQUIVO = "arquivo", "Arquivo"
 

@@ -84,9 +84,14 @@ CATALOGO_INICIAL = [
                  {"valor": "temporario", "rotulo": "Temporário"},
                  {"valor": "definitivo", "rotulo": "Definitivo"},
              ]},
+            # `quando_modo: cinza` — fica na tela, apagado, em vez de sumir.
+            # Aqui o campo é a consequência da escolha ao lado, e vê-lo
+            # desabilitado ensina o que "definitivo" significa: não tem data
+            # para sair. Sumir ensinaria menos e ainda faria a tela pular.
             {"chave": "ate_quando", "rotulo": "Até quando", "tipo": TipoCampo.DATA,
              "obrigatorio": True,
              "quando": {"campo": "periodo", "igual": "temporario"},
+             "quando_modo": "cinza",
              "ajuda": "O acesso é removido nesta data."},
         ],
     },
@@ -156,9 +161,17 @@ CATALOGO_INICIAL = [
         "campos": [
             {"chave": "data", "rotulo": "Data da ausência", "tipo": TipoCampo.DATA,
              "obrigatorio": True},
-            {"chave": "horario", "rotulo": "Horário", "tipo": TipoCampo.TEXTO,
-             "obrigatorio": True,
-             "ajuda": "Das 14h às 16h, ou o dia todo."},
+            # Dois campos de hora, e não um texto "das 14h às 16h": o R.H.
+            # lança HORA, e o texto livre chegava como "das 14 as 16", "14h-16h"
+            # e "2 da tarde" para a mesma ausência. `type="time"` traz os
+            # dois-pontos e o teclado certo de graça.
+            # Opcionais os dois: faltar o dia inteiro é caso normal, e um
+            # horário obrigatório obrigaria a inventar "00:00 às 23:59".
+            {"chave": "horario_inicio", "rotulo": "Saiu às",
+             "tipo": TipoCampo.HORA, "obrigatorio": False,
+             "ajuda": "Em branco quando a ausência foi o dia todo."},
+            {"chave": "horario_fim", "rotulo": "Voltou às",
+             "tipo": TipoCampo.HORA, "obrigatorio": False},
             {"chave": "arquivo", "rotulo": "Atestado", "tipo": TipoCampo.ARQUIVO,
              "obrigatorio": True},
             # Opcionais para não estourar o teto de 3 obrigatórios: o atestado

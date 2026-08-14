@@ -6,6 +6,18 @@
 
 *, *::before, *::after { box-sizing: border-box; }
 
+/* `hidden` tem de esconder. Parece óbvio e não é: `[hidden] { display: none }`
+   mora na folha do NAVEGADOR, e qualquer regra nossa que declare `display`
+   ganha dela — inclusive `.au-campo { display: flex }` e
+   `.au-btn { display: inline-flex }`.
+   O sintoma foi um stepper que mostrava todos os passos ao mesmo tempo, com
+   "Continuar" e "Enviar" lado a lado: o JS marcava `hidden` e o CSS mandava
+   desenhar assim mesmo. O projeto já tinha tropeçado nisto uma vez e remendado
+   só o painel da busca (`.au-busca-painel[hidden]`); aqui a regra vale para
+   tudo, que é onde ela devia estar desde o começo.
+   `!important` de propósito: `hidden` é do HTML, não é opinião de layout. */
+[hidden] { display: none !important; }
+
 html { -webkit-text-size-adjust: 100%; }
 
 body {
@@ -1812,6 +1824,179 @@ a.au-notif-titulo:hover { color: var(--au-accent-text); text-decoration: underli
 }
 
 /* ── Identificar-se ─────────────────────────────────────────────────
+   Dois painéis: formulário sobre a cor da marca à esquerda, ilustração à
+   direita. Não é a porta do produto — o Workspace continua aberto atrás —,
+   então o cartão é uma parada no caminho, e não uma tela cheia de login.
+
+   No celular a arte sai: ela é adorno, e adorno não empurra o campo de senha
+   para baixo da dobra. */
+
+.au-entrar {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  max-width: 60rem;
+  margin: var(--au-6) auto;
+  border-radius: var(--au-r-lg);
+  overflow: hidden;
+  box-shadow: var(--au-e-3);
+  background: var(--au-surface);
+}
+
+.au-entrar-painel {
+  padding: var(--au-8);
+  background: var(--au-btn-bg);
+  color: var(--au-btn-fg);
+}
+
+.au-entrar-titulo {
+  margin: 0 0 var(--au-2);
+  font-size: var(--au-t-2xl);
+  font-weight: 700;
+  letter-spacing: -.02em;
+}
+
+.au-entrar-sub {
+  margin: 0;
+  font-size: var(--au-t-sm);
+  /* Sobre o navy, o texto de apoio é o mesmo branco com transparência: um
+     cinza dos tokens seria calculado para fundo claro e sumiria aqui. */
+  color: rgb(255 255 255 / .82);
+}
+
+.au-entrar-form { margin-top: var(--au-6); gap: var(--au-4); }
+.au-entrar-rotulo { color: rgb(255 255 255 / .9); }
+
+/* Campo branco e arredondado, como na referência — e com contorno próprio,
+   porque o `--au-border` dos tokens é calculado para fundo claro. */
+.au-entrar-input {
+  border-radius: var(--au-r-full);
+  border-color: transparent;
+  padding: var(--au-3) var(--au-5);
+}
+.au-entrar-input:focus-visible {
+  box-shadow: 0 0 0 3px rgb(255 255 255 / .45);
+}
+
+.au-entrar-enviar {
+  margin-top: var(--au-2);
+  width: 100%;
+  justify-content: center;
+  border-radius: var(--au-r-full);
+  padding: var(--au-3) var(--au-5);
+  background: var(--au-success);
+  border-color: var(--au-success);
+  color: #ffffff;
+  font-weight: 650;
+  letter-spacing: .02em;
+}
+.au-entrar-enviar:hover { filter: brightness(.94); }
+
+.au-entrar-nota {
+  margin: var(--au-6) 0 0;
+  padding-top: var(--au-4);
+  border-top: 1px solid rgb(255 255 255 / .22);
+  font-size: var(--au-t-xs);
+  color: rgb(255 255 255 / .82);
+}
+
+.au-entrar-volta { color: #ffffff; text-decoration: underline; }
+
+.au-entrar-arte {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--au-6);
+  background: var(--au-surface);
+}
+.au-entrar-arte svg { width: 100%; height: auto; max-width: 22rem; }
+
+.au-arte-marca  { fill: var(--au-accent); }
+.au-arte-tela   { fill: var(--au-accent); }
+.au-arte-avatar { fill: var(--au-surface); }
+.au-arte-avatar-fig { fill: var(--au-accent); }
+.au-arte-linha  { fill: var(--au-surface); opacity: .85; }
+.au-arte-botao  { fill: var(--au-success); }
+.au-arte-tracejado { stroke: var(--au-text-subtle); stroke-width: 2; fill: none; }
+.au-arte-pele   { fill: var(--au-warning-bg); }
+.au-arte-cabelo { fill: var(--au-text); }
+.au-arte-roupa  { fill: var(--au-success); }
+.au-arte-braco  { stroke: var(--au-warning-bg); stroke-width: 7; stroke-linecap: round; fill: none; }
+.au-arte-calca  { fill: var(--au-text); }
+.au-arte-notebook { fill: var(--au-text-subtle); }
+.au-arte-folha  { fill: var(--au-success); opacity: .55; }
+.au-arte-vaso   { fill: var(--au-text-subtle); opacity: .5; }
+
+@media (max-width: 46rem) {
+  .au-entrar { grid-template-columns: minmax(0, 1fr); margin: 0; }
+  .au-entrar-painel { padding: var(--au-6); }
+  /* A arte é adorno: no celular ela só empurraria a senha para fora da tela. */
+  .au-entrar-arte { display: none; }
+}
+
+/* ── Stepper: trilha e passos ───────────────────────────────────────
+   A trilha mostra onde a pessoa está e quanto falta — a única razão de dividir
+   um formulário em passos. O passo que acontece depois do envio aparece igual,
+   em cinza: esconder que ainda falta uma etapa faz a pessoa achar que acabou. */
+
+.au-trilha {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--au-3);
+  list-style: none;
+  margin: 0 0 var(--au-4);
+  padding: 0 0 var(--au-3);
+  border-bottom: 1px solid var(--au-border);
+}
+
+.au-trilha-passo {
+  display: flex;
+  align-items: center;
+  gap: var(--au-2);
+  font-size: var(--au-t-sm);
+  color: var(--au-text-subtle);
+}
+
+.au-trilha-num {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border-radius: var(--au-r-full);
+  border: 1px solid var(--au-border);
+  background: var(--au-surface);
+  font-size: var(--au-t-xs);
+  font-weight: 650;
+  font-variant-numeric: tabular-nums;
+}
+
+.au-trilha-passo--atual { color: var(--au-text); font-weight: 600; }
+.au-trilha-passo--atual .au-trilha-num {
+  background: var(--au-btn-bg);
+  border-color: var(--au-btn-bg);
+  color: var(--au-btn-fg);
+}
+
+.au-trilha-passo--feito .au-trilha-num {
+  background: var(--au-accent-bg);
+  border-color: var(--au-accent-bg);
+  color: var(--au-accent-text);
+}
+
+/* O que ainda vai acontecer em outra tela: presente, mas claramente não agora. */
+.au-trilha-passo--depois { opacity: .65; }
+.au-trilha-nota { font-size: var(--au-t-xs); }
+
+/* O nome do passo. Some em tela estreita: a numeração sozinha já situa, e a
+   trilha quebrando em quatro linhas empurra o formulário para baixo da dobra. */
+.au-trilha-titulo { white-space: nowrap; }
+
+@media (max-width: 640px) {
+  .au-trilha-titulo { display: none; }
+  .au-trilha-passo--atual .au-trilha-titulo { display: inline; }
+}
+
+/* ── Identificar-se ─────────────────────────────────────────────────
    Cartão estreito e centrado. Não é a porta do produto — ninguém chega aqui
    navegando —, então ela não ocupa a tela inteira como o login de um sistema
    fechado: é uma parada no meio do caminho, e o Workspace continua atrás. */
@@ -1837,6 +2022,76 @@ a.au-notif-titulo:hover { color: var(--au-accent-text); text-decoration: underli
 
 .au-entrar-nota {
   margin-top: var(--au-5);
+  padding-top: var(--au-4);
+  border-top: 1px solid var(--au-border);
+}
+
+/* ── Campo fora do ramo, em modo cinza ──────────────────────────────
+   Fica na tela, apagado, quando ver o campo desabilitado ENSINA a escolha ao
+   lado: "definitivo" não tem data para sair, e é isso que o campo cinza diz.
+   O outro modo — sumir — continua sendo o padrão, porque quatro campos de um
+   cenário que a pessoa não escolheu são ruído, não ensinamento. */
+
+.au-campo--inativo { opacity: .5; }
+.au-campo--inativo .au-input { background: var(--au-bg); cursor: not-allowed; }
+
+/* ── Linha de tabela que abre resumo ────────────────────────────────
+   Botão de verdade, e não `<tr onclick>`: linha clicável não recebe foco, não
+   responde a Enter e não é anunciada como clicável. */
+
+.au-link-tabela {
+  padding: 0;
+  border: none;
+  background: none;
+  font: inherit;
+  font-weight: 600;
+  color: var(--au-text);
+  text-align: left;
+  cursor: pointer;
+}
+.au-link-tabela:hover { color: var(--au-accent-text); text-decoration: underline; }
+
+tr[data-abre-resumo] { cursor: pointer; }
+tr[data-abre-resumo]:hover { background: var(--au-surface-sunken); }
+
+/* ── Modal ──────────────────────────────────────────────────────────
+   Mesmo `<dialog>` da paleta: Esc, foco preso e fundo inerte de graça. */
+
+.au-modal {
+  padding: 0;
+  border: none;
+  border-radius: var(--au-r-lg);
+  background: transparent;
+  max-width: 34rem;
+  width: calc(100% - var(--au-8));
+}
+.au-modal::backdrop { background: rgb(15 23 42 / .45); }
+
+.au-modal-caixa {
+  display: flex;
+  flex-direction: column;
+  gap: var(--au-4);
+  padding: var(--au-6);
+  background: var(--au-surface);
+  border: 1px solid var(--au-border);
+  border-radius: var(--au-r-lg);
+  box-shadow: var(--au-e-3);
+}
+
+.au-modal-cabeca {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--au-4);
+}
+
+.au-modal-titulo {
+  margin: 0;
+  font-size: var(--au-t-lg);
+  font-weight: 680;
+}
+
+.au-modal-secao {
   padding-top: var(--au-4);
   border-top: 1px solid var(--au-border);
 }

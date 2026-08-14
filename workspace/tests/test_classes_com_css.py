@@ -73,3 +73,29 @@ def test_o_teste_enxerga_os_templates_de_todos_os_apps():
     assert any(t.startswith("workspace/templates/") for t in templates)
     assert any(t.startswith("contas/templates/") for t in templates)
     assert sum(len(c) for c in templates.values()) > 100
+
+
+def test_nenhum_comentario_curto_vazou_para_a_pagina():
+    """`{# … #}` só é comentário em UMA linha.
+
+    Escrito em duas, o Django não o reconhece e imprime o texto na página. Foi
+    o que aconteceu com a explicação do `type="time"`: a frase sobre os
+    dois-pontos apareceu dentro do formulário de atestado, entre dois campos,
+    e só foi notada porque um teste de fumaça contou os campos de hora e achou
+    quatro onde deviam existir dois.
+
+    Comentário de mais de uma linha usa `{% comment %}`.
+    """
+    vazados: list[str] = []
+    for template in RAIZ.glob("**/templates/**/*.html"):
+        if ".venv" in template.parts:
+            continue
+        linhas = template.read_text(encoding="utf-8").splitlines()
+        for numero, linha in enumerate(linhas, start=1):
+            if "{#" in linha and "#}" not in linha:
+                vazados.append(f"{template.relative_to(RAIZ)}:{numero}")
+
+    assert not vazados, (
+        "comentário `{# #}` aberto numa linha e fechado em outra — o Django "
+        "imprime isso na tela:\n  " + "\n  ".join(vazados)
+    )
