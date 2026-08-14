@@ -204,3 +204,14 @@ CSRF_COOKIE_NAME = "wks_csrf"
 # Um link, e nada mais. É o destino do tile no launcher da home; não há API,
 # banco ou sessão em comum. Mudou o endereço do iConnect? Muda esta variável.
 ICONNECT_URL = _env("ICONNECT_URL", "https://app.icodev.com.br/login/")
+
+# ── Financeiro ──────────────────────────────────────────────────────
+
+# Para onde a pessoa devolve o que sobrou de um adiantamento. Em `settings` e
+# não no banco de propósito: conta bancária editável por qualquer um com acesso
+# ao admin é um convite a fraude — aqui, trocar a conta exige deploy.
+#
+# Vazio em desenvolvimento. A tela de acerto diz "peça a conta ao Financeiro"
+# em vez de mostrar um número inventado, que é o erro que faria o dinheiro ir
+# para o lugar errado.
+CONTA_BANCARIA_EMPRESA = _env("CONTA_BANCARIA_EMPRESA", "")

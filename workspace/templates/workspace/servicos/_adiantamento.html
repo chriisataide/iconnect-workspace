@@ -1,0 +1,44 @@
+{% load i18n wks %}
+{% comment %}
+  Atrelar o gasto a um adiantamento pendente.
+
+  A lista vem do servidor já filtrada pelos adiantamentos DESTA pessoa que ainda
+  não foram prestados contas — não é um campo de digitar número de pedido. Se
+  não há nenhum, a seção não aparece: um seletor vazio faz a pessoa procurar o
+  que não existe e desconfiar do resto da tela.
+{% endcomment %}
+{% if adiantamentos %}
+  <fieldset class="au-campo au-fieldset">
+    <legend class="au-rotulo">{{ campo.rotulo|default:_("Adiantamento a prestar contas") }}</legend>
+    {% if campo.ajuda %}<p class="au-ajuda">{{ campo.ajuda }}</p>{% endif %}
+
+    <div class="au-escolhas">
+      <label class="au-escolha">
+        <input type="radio" name="adiantamento" value=""
+               {% if not adiantamento_escolhido %}checked{% endif %}>
+        <span class="au-escolha-texto">
+          <b>{% trans "Nenhum" %}</b>
+          <span class="au-ajuda">{% trans "Gastei do meu bolso; a empresa devolve." %}</span>
+        </span>
+      </label>
+
+      {% for adiantamento in adiantamentos %}
+        <label class="au-escolha">
+          <input type="radio" name="adiantamento" value="{{ adiantamento.pk }}"
+                 {% if adiantamento_escolhido == adiantamento.pk|stringformat:"s" %}checked{% endif %}>
+          <span class="au-escolha-texto">
+            <b>R$ {{ adiantamento.valor|moeda }}</b>
+            <span class="au-ajuda">
+              {% blocktrans with data=adiantamento.criado_em|date:"d/m/Y" %}pedido em {{ data }}{% endblocktrans %}
+              {% if adiantamento.dados.motivo %}· {{ adiantamento.dados.motivo }}{% endif %}
+            </span>
+          </span>
+        </label>
+      {% endfor %}
+    </div>
+
+    <p class="au-ajuda">
+      {% trans "Ao atrelar, o passo seguinte fecha a conta: você devolve o que sobrou, ou a empresa paga o que faltou." %}
+    </p>
+  </fieldset>
+{% endif %}

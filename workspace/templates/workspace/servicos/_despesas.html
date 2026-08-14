@@ -1,0 +1,160 @@
+{% load i18n %}
+{% comment %}
+  As compras, uma a uma: comprovante, valor e motivo por linha.
+
+  A lista é um `<ol>` porque a numeração é do navegador — as mensagens de erro
+  falam em "Compra 3", e renumerar à mão em JS depois de remover uma linha é
+  onde essa contagem começaria a divergir da que o servidor usa.
+
+  O `<template>` traz a linha em branco com `__i__` no lugar do índice. O JS
+  troca o marcador e insere; sem ele, a página continua funcionando com a linha
+  que já veio pronta do servidor — uma compra por envio, mas nada quebra.
+{% endcomment %}
+<div class="au-campo {% if erro_despesas %}au-campo--erro{% endif %}">
+  <span class="au-rotulo">
+    {{ campo.rotulo|default:_("Compras") }}
+    <span class="au-obrigatorio" aria-hidden="true">*</span>
+  </span>
+  {% if campo.ajuda %}<p class="au-ajuda">{{ campo.ajuda }}</p>{% endif %}
+
+  <div class="au-despesas" data-despesas data-maximo="{{ maximo_despesas }}">
+    <ol class="au-despesa-lista" data-despesa-lista>
+      {% for despesa in despesas %}
+        <li class="au-despesa" data-despesa>
+          <input type="hidden" name="despesa_indice" value="{{ despesa.indice }}">
+          <div class="au-despesa-linha">
+            <div class="au-despesa-campo au-despesa-campo--valor">
+              <label class="au-rotulo au-rotulo--menor" for="d-valor-{{ despesa.indice }}">
+                {% trans "Valor" %}
+              </label>
+              <div class="au-input-prefixo">
+                <span aria-hidden="true">R$</span>
+                <input class="au-input" id="d-valor-{{ despesa.indice }}"
+                       name="despesa_valor_{{ despesa.indice }}" type="text"
+                       inputmode="decimal" placeholder="0,00"
+                       data-despesa-valor value="{{ despesa.valor }}">
+              </div>
+            </div>
+            <div class="au-despesa-campo">
+              <label class="au-rotulo au-rotulo--menor" for="d-motivo-{{ despesa.indice }}">
+                {% trans "Motivo da compra" %}
+              </label>
+              <input class="au-input" id="d-motivo-{{ despesa.indice }}"
+                     name="despesa_motivo_{{ despesa.indice }}" type="text"
+                     value="{{ despesa.motivo }}">
+            </div>
+          </div>
+          <div class="au-despesa-linha">
+            <div class="au-despesa-campo">
+              <label class="au-rotulo au-rotulo--menor" for="d-anexo-{{ despesa.indice }}">
+                {% trans "Comprovante" %}
+              </label>
+              <input class="au-input au-input--arquivo" id="d-anexo-{{ despesa.indice }}"
+                     name="despesa_anexo_{{ despesa.indice }}" type="file">
+              {% if despesa.tinha_arquivo %}
+                {% comment %}
+                  Nenhum navegador repopula `<input type=file>` — é proteção
+                  contra uma página roubar arquivo do disco. Dizer isso é o
+                  mínimo: sem o aviso, a pessoa reenvia achando que o cupom
+                  continua anexado e o pedido volta a ser recusado.
+                {% endcomment %}
+                <p class="au-ajuda au-ajuda--alerta">
+                  {% trans "Escolha o comprovante de novo — o navegador não guarda o arquivo." %}
+                </p>
+              {% endif %}
+            </div>
+            <button class="au-btn au-btn--sutil au-despesa-remover" type="button"
+                    data-despesa-remover>
+              {% trans "Remover" %}
+            </button>
+          </div>
+        </li>
+      {% empty %}
+        <li class="au-despesa" data-despesa>
+          <input type="hidden" name="despesa_indice" value="0">
+          <div class="au-despesa-linha">
+            <div class="au-despesa-campo au-despesa-campo--valor">
+              <label class="au-rotulo au-rotulo--menor" for="d-valor-0">{% trans "Valor" %}</label>
+              <div class="au-input-prefixo">
+                <span aria-hidden="true">R$</span>
+                <input class="au-input" id="d-valor-0" name="despesa_valor_0" type="text"
+                       inputmode="decimal" placeholder="0,00" data-despesa-valor>
+              </div>
+            </div>
+            <div class="au-despesa-campo">
+              <label class="au-rotulo au-rotulo--menor" for="d-motivo-0">
+                {% trans "Motivo da compra" %}
+              </label>
+              <input class="au-input" id="d-motivo-0" name="despesa_motivo_0" type="text">
+            </div>
+          </div>
+          <div class="au-despesa-linha">
+            <div class="au-despesa-campo">
+              <label class="au-rotulo au-rotulo--menor" for="d-anexo-0">
+                {% trans "Comprovante" %}
+              </label>
+              <input class="au-input au-input--arquivo" id="d-anexo-0"
+                     name="despesa_anexo_0" type="file">
+            </div>
+            <button class="au-btn au-btn--sutil au-despesa-remover" type="button"
+                    data-despesa-remover>
+              {% trans "Remover" %}
+            </button>
+          </div>
+        </li>
+      {% endfor %}
+    </ol>
+
+    <div class="au-despesa-rodape">
+      <button class="au-btn au-btn--sutil" type="button" data-despesa-adicionar>
+        {% trans "Adicionar outra compra" %}
+      </button>
+      {% comment %}
+        Prévia, e a palavra está na tela: quem soma de verdade é o servidor, a
+        partir dos valores gravados. Um total do navegador apresentado como
+        oficial seria uma segunda conta, e duas contas divergem.
+      {% endcomment %}
+      <p class="au-despesa-total" data-despesa-total hidden>
+        {% trans "Total das compras (prévia):" %}
+        <b data-despesa-total-valor>R$ 0,00</b>
+      </p>
+    </div>
+
+    <template data-despesa-modelo>
+      <li class="au-despesa" data-despesa>
+        <input type="hidden" name="despesa_indice" value="__i__">
+        <div class="au-despesa-linha">
+          <div class="au-despesa-campo au-despesa-campo--valor">
+            <label class="au-rotulo au-rotulo--menor" for="d-valor-__i__">{% trans "Valor" %}</label>
+            <div class="au-input-prefixo">
+              <span aria-hidden="true">R$</span>
+              <input class="au-input" id="d-valor-__i__" name="despesa_valor___i__" type="text"
+                     inputmode="decimal" placeholder="0,00" data-despesa-valor>
+            </div>
+          </div>
+          <div class="au-despesa-campo">
+            <label class="au-rotulo au-rotulo--menor" for="d-motivo-__i__">
+              {% trans "Motivo da compra" %}
+            </label>
+            <input class="au-input" id="d-motivo-__i__" name="despesa_motivo___i__" type="text">
+          </div>
+        </div>
+        <div class="au-despesa-linha">
+          <div class="au-despesa-campo">
+            <label class="au-rotulo au-rotulo--menor" for="d-anexo-__i__">
+              {% trans "Comprovante" %}
+            </label>
+            <input class="au-input au-input--arquivo" id="d-anexo-__i__"
+                   name="despesa_anexo___i__" type="file">
+          </div>
+          <button class="au-btn au-btn--sutil au-despesa-remover" type="button"
+                  data-despesa-remover>
+            {% trans "Remover" %}
+          </button>
+        </div>
+      </li>
+    </template>
+  </div>
+
+  {% if erro_despesas %}<p class="au-erro">{{ erro_despesas }}</p>{% endif %}
+</div>

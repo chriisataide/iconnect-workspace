@@ -1597,3 +1597,160 @@ a.au-notif-titulo:hover { color: var(--au-accent-text); text-decoration: underli
 .au-tabela thead th.num { text-align: right; }
 /* Célula com formulário de ação não deve esticar a linha. */
 .au-tabela tbody td form { margin: 0; }
+
+/* ── Reembolso item a item ──────────────────────────────────────────
+   A lista de compras e a tela de acerto do adiantamento. Sem `style=` em
+   nenhum template, como o resto: a CSP não tem `unsafe-inline`, e atributo
+   `style` é descartado em silêncio quando há nonce. */
+
+.au-despesas { display: flex; flex-direction: column; gap: var(--au-3); }
+
+.au-despesa-lista {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--au-3);
+  /* Contador próprio: a numeração nativa some junto com `list-style: none`, e
+     é ela que liga a linha à mensagem "Compra 3: informe o valor". */
+  counter-reset: despesa;
+}
+
+.au-despesa {
+  counter-increment: despesa;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: var(--au-2);
+  padding: var(--au-3);
+  padding-left: calc(var(--au-3) + 28px);
+  background: var(--au-surface-sunken);
+  border: 1px solid var(--au-border);
+  border-radius: var(--au-r-md);
+}
+
+.au-despesa::before {
+  content: counter(despesa);
+  position: absolute;
+  left: var(--au-3);
+  top: var(--au-3);
+  width: 20px;
+  height: 20px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--au-r-full);
+  background: var(--au-accent-bg);
+  color: var(--au-accent-text);
+  font-size: var(--au-t-xs);
+  font-weight: 650;
+  font-variant-numeric: tabular-nums;
+}
+
+.au-despesa-linha {
+  display: flex;
+  gap: var(--au-3);
+  align-items: flex-end;
+  flex-wrap: wrap;
+}
+
+.au-despesa-campo {
+  display: flex;
+  flex-direction: column;
+  gap: var(--au-1);
+  flex: 1 1 220px;
+  min-width: 0;
+}
+
+/* O valor não precisa de metade da linha, e sozinho num campo largo parece
+   pedir um número maior do que pede. */
+.au-despesa-campo--valor { flex: 0 1 160px; }
+
+.au-despesa-remover { flex: 0 0 auto; }
+
+.au-despesa-rodape {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--au-3);
+  flex-wrap: wrap;
+}
+
+.au-despesa-total {
+  margin: 0;
+  font-size: var(--au-t-sm);
+  color: var(--au-text-subtle);
+  font-variant-numeric: tabular-nums;
+}
+.au-despesa-total b { color: var(--au-text); }
+
+.au-rotulo--menor {
+  font-size: var(--au-t-xs);
+  color: var(--au-text-subtle);
+  font-weight: 550;
+}
+
+/* ── Escolha do adiantamento ─────────────────────────────────────── */
+
+.au-fieldset { border: none; margin: 0; padding: 0; }
+
+.au-escolhas { display: flex; flex-direction: column; gap: var(--au-2); }
+
+.au-escolha {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--au-2);
+  padding: var(--au-2) var(--au-3);
+  background: var(--au-surface);
+  border: 1px solid var(--au-border);
+  border-radius: var(--au-r-md);
+  cursor: pointer;
+}
+.au-escolha:hover { border-color: var(--au-accent); }
+/* `:has` marca a opção escolhida sem JS. Onde não houver suporte, o radio
+   continua marcado — perde-se o destaque, não a informação. */
+.au-escolha:has(input:checked) {
+  border-color: var(--au-accent);
+  background: var(--au-accent-bg);
+}
+.au-escolha-texto { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+
+/* ── Acerto ──────────────────────────────────────────────────────── */
+
+.au-acerto { margin-bottom: var(--au-4); }
+
+.au-list-row--forte {
+  border-top: 1px solid var(--au-border);
+  padding-top: var(--au-2);
+  font-weight: 650;
+}
+.au-list-row--forte .au-list-meta { color: var(--au-text); font-weight: 650; }
+
+.au-dado-forte {
+  margin: 0;
+  padding: var(--au-2) var(--au-3);
+  background: var(--au-surface-sunken);
+  border-radius: var(--au-r-sm);
+  font-variant-numeric: tabular-nums;
+  white-space: pre-line;
+}
+
+.au-tabela-simples {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: var(--au-3);
+  font-size: var(--au-t-sm);
+}
+.au-tabela-simples th,
+.au-tabela-simples td {
+  text-align: left;
+  padding: var(--au-2) 0;
+  border-bottom: 1px solid var(--au-border);
+}
+.au-tabela-simples th { color: var(--au-text-subtle); font-weight: 550; }
+.au-tabela-simples .num {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}

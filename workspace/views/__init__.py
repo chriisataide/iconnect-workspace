@@ -31,6 +31,7 @@ from .reserva import (
 )
 from .publicacao import detalhe as publicacao_detalhe
 from .servicos import (
+    acerto,
     baixar_anexo,
     cancelar as cancelar_solicitacao,
     catalogo,
@@ -39,6 +40,7 @@ from .servicos import (
 )
 
 __all__ = [
+    "acerto",
     "reservas",
     "reservar",
     "registrar_correspondencia",

@@ -12,6 +12,8 @@ Já existe (Etapa 5 §5.2):
     conteudo.py    CNT  Documento, ConfirmacaoLeitura — acervo normativo
     busca.py       SRC  EntradaIndice, SujeitoIndice — índice com ACL no WHERE
     reserva.py     RES  Recurso, Reserva — sem choque de horário
+    reembolso.py   RMB  DespesaReembolso, AcertoAdiantamento — uma linha por
+                        compra, e a conta do adiantamento fechada
     correspondencia.py COR  Correspondencia — o que chega na recepção
 
 Entram nas ondas seguintes:
@@ -46,6 +48,7 @@ from .correspondencia import (
     TipoCorrespondencia,
 )
 from .reserva import Recurso, Reserva, SituacaoReserva, TipoRecurso
+from .reembolso import AcertoAdiantamento, DespesaReembolso, SentidoAcerto
 from .conteudo import (
     ConfirmacaoLeitura,
     Documento,
@@ -56,6 +59,9 @@ from .comunicacao import Prioridade, Publicacao, TipoPublicacao
 from .orcamento import Compromisso, SituacaoCompromisso, competencia_de
 
 __all__ = [
+    "AcertoAdiantamento",
+    "DespesaReembolso",
+    "SentidoAcerto",
     "TipoRecurso",
     "TipoCorrespondencia",
     "SituacaoReserva",

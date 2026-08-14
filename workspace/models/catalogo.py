@@ -50,6 +50,13 @@ class TipoCampo(models.TextChoices):
     ESCOLHA = "escolha", "Escolha"
     ARQUIVO = "arquivo", "Arquivo"
 
+    # Os dois abaixo não são caixas de digitar: são pedaços de tela que o item
+    # LIGA. Ficam aqui, e não numa flag booleana do item, porque a ordem deles
+    # no formulário é a ordem da lista `campos` — e "onde aparece" é justamente
+    # o que uma flag não consegue dizer.
+    DESPESAS = "despesas", "Despesas item a item"
+    ADIANTAMENTO = "adiantamento", "Adiantamento a prestar contas"
+
 
 class ItemCatalogo(models.Model):
     """Um serviço que se pode pedir."""
@@ -219,6 +226,20 @@ class SolicitacaoServico(models.Model):
     auto_aprovada = models.BooleanField(default=False)
     motivo_devolucao = models.TextField(blank=True)
 
+    # O adiantamento do qual ESTE pedido presta contas. FK para a própria
+    # tabela porque adiantamento e reembolso são o mesmo tipo de coisa — um
+    # pedido do catálogo — e um campo de texto "adiantamento nº 12" não fecha
+    # conta nenhuma. `PROTECT` para não apagar o adiantamento por baixo de uma
+    # prestação de contas já feita.
+    adiantamento = models.ForeignKey(
+        "self",
+        null=True,
+        blank=True,
+        on_delete=models.PROTECT,
+        related_name="prestacoes",
+        help_text="Preenchido quando este reembolso presta contas de um adiantamento.",
+    )
+
     criado_em = models.DateTimeField(auto_now_add=True, db_index=True)
     concluido_em = models.DateTimeField(null=True, blank=True)
 
@@ -246,6 +267,21 @@ class SolicitacaoServico(models.Model):
     @property
     def em_aberto(self) -> bool:
         return self.situacao not in (SituacaoServico.CONCLUIDA, SituacaoServico.CANCELADA)
+
+    @property
+    def total_despesas(self):
+        """A soma das compras. `None` quando o pedido não é item a item.
+
+        `None` e não zero: zero diria "somei e deu nada", quando a verdade é
+        que não há o que somar — e é essa diferença que a tela usa para decidir
+        entre mostrar a lista de compras e mostrar o campo de valor.
+        """
+        from decimal import Decimal
+
+        linhas = list(self.despesas.all())
+        if not linhas:
+            return None
+        return sum((linha.valor for linha in linhas), Decimal("0"))
 
     def concluir(self) -> None:
         self.situacao = SituacaoServico.CONCLUIDA

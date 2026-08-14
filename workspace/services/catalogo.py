@@ -152,6 +152,7 @@ def verificar(
     valor: Decimal | None = None,
     cache: dict | None = None,
     arquivos: dict | None = None,
+    linhas=None,
 ) -> list[Impedimento]:
     """O que impede este pedido de ser enviado. Vazio = pode enviar.
 
@@ -159,9 +160,18 @@ def verificar(
     e de novo dentro de `solicitar()` — a tela não é a fonte de verdade.
     """
     from workspace.services import anexos as anx
+    from workspace.services import reembolso as rmb
 
     impedimentos: list[Impedimento] = []
     dados = dados or {}
+
+    # Item que pede as compras uma a uma não tem valor digitado: o total é a
+    # soma das linhas. Calcular aqui, e não confiar no que a tela mandou, é o
+    # que impede o total de divergir dos comprovantes.
+    if rmb.tem_despesas(item):
+        for motivo in rmb.verificar_linhas(linhas or []):
+            impedimentos.append(Impedimento("despesas", motivo))
+        valor = rmb.total(linhas or [])
     # Campos de arquivo se satisfazem com arquivo, não com texto. Antes desta
     # distinção, `dados["comprovantes"] = "cupom.jpg"` passava a validação — o
     # usuário digitava o nome do arquivo e o pedido seguia sem comprovante.
@@ -174,7 +184,18 @@ def verificar(
     if item.permissao and not pode(pessoa, item.permissao, cache=cache):
         impedimentos.append(Impedimento("item", "Você não tem acesso a este serviço."))
 
+    # Despesas e adiantamento não são caixas de digitar, e a checagem genérica
+    # de "campo obrigatório vazio" não os alcança: quem valida a lista de
+    # compras é `verificar_linhas()`, logo acima.
+    de_secao = {
+        c["chave"]
+        for c in item.campos
+        if c.get("tipo") in (TipoCampo.DESPESAS, TipoCampo.ADIANTAMENTO)
+    }
+
     for chave in item.campos_obrigatorios:
+        if chave in de_secao:
+            continue
         rotulo = next(
             (c.get("rotulo", chave) for c in item.campos if c["chave"] == chave), chave
         )
@@ -233,13 +254,24 @@ def solicitar(
     valor: Decimal | None = None,
     cache: dict | None = None,
     arquivos: dict | None = None,
+    linhas=None,
+    adiantamento: SolicitacaoServico | None = None,
 ) -> SolicitacaoServico:
     """Cria o pedido e o roteia — auto-aprovado ou para a cadeia de aprovação."""
     from workspace.services import anexos as anx
+    from workspace.services import reembolso as rmb
 
-    impedimentos = verificar(item, pessoa, dados, valor, cache=cache, arquivos=arquivos)
+    impedimentos = verificar(
+        item, pessoa, dados, valor, cache=cache, arquivos=arquivos, linhas=linhas
+    )
     if impedimentos:
         raise SolicitacaoError("; ".join(i.motivo for i in impedimentos))
+
+    # O total do pedido item a item é a soma das compras, e é ele que segue
+    # para o limite de auto-aprovação, para o orçamento e para a bandeja — o
+    # que a tela mandou no campo `valor` não entra na conta.
+    if rmb.tem_despesas(item):
+        valor = rmb.total(linhas or [])
 
     centro_custo = _centro_custo_de(pessoa) if item.exige_centro_custo else ""
     auto = pode_auto_aprovar(item, valor, centro_custo)
@@ -251,6 +283,7 @@ def solicitar(
         valor=valor,
         centro_custo_codigo=centro_custo,
         auto_aprovada=auto,
+        adiantamento=adiantamento,
         situacao=(
             SituacaoServico.APROVADA if auto else SituacaoServico.AGUARDANDO_APROVACAO
         ),
@@ -260,6 +293,8 @@ def solicitar(
     # pedido não existe. Aprovador recebendo reembolso sem comprovante porque o
     # disco encheu é pior que o pedido não ter sido criado.
     anx.guardar(solicitacao, arquivos, pessoa)
+    if linhas:
+        rmb.gravar_linhas(solicitacao, linhas, pessoa)
 
     if auto:
         # Automático não pode significar invisível: o compromisso é escriturado

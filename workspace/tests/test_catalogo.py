@@ -22,12 +22,21 @@ from workspace.models import (
     SituacaoServico,
     SolicitacaoServico,
     TipoAprovador,
+    TipoCampo,
 )
 from workspace.providers import orcamento as provedor
 from workspace.providers.orcamento import OrcamentoProvider
 from workspace.services import aprovacao as apr
 from workspace.services import catalogo as svc
+from workspace.services import reembolso as rmb
 from workspace.services.catalogo import SolicitacaoError
+
+
+def _cupom(nome: str) -> SimpleUploadedFile:
+    """Um JPEG de verdade — os magic bytes, que é o que o validador confere."""
+    return SimpleUploadedFile(
+        nome, b"\xff\xd8\xff\xe0" + b"0" * 32, content_type="image/jpeg"
+    )
 
 
 def item(**kwargs) -> ItemCatalogo:
@@ -126,6 +135,51 @@ def test_epi_e_reciclagem_nao_passam_por_aprovacao():
     por_chave = {s["chave"]: s for s in CATALOGO_INICIAL}
     for chave in ("epi", "reciclagem-nr"):
         assert por_chave[chave]["limite_auto_aprovacao"] == Decimal("0")
+
+
+# ── O que cada formulário de R.H. e de dinheiro precisa perguntar ───
+#
+# Testados pela CHAVE do campo, e não pela contagem: o que o R.H. e o
+# Financeiro pediram foi a informação, e um teste de contagem passa a valer
+# quando alguém troca um campo por outro.
+
+
+def _campos(chave_item: str) -> dict[str, dict]:
+    por_chave = {s["chave"]: s for s in CATALOGO_INICIAL}
+    return {c["chave"]: c for c in por_chave[chave_item]["campos"]}
+
+
+def test_atestado_pergunta_horario_motivo_e_chefe_ciente():
+    """Declaração de comparecimento sem horário não diz quanto tempo a pessoa
+    faltou, que é a única coisa que o R.H. precisa saber para lançar."""
+    campos = _campos("atestado")
+    assert campos["horario"]["obrigatorio"] is True
+    for chave in ("motivo", "chefe_ciente"):
+        assert chave in campos, chave
+
+
+def test_trabalho_remoto_pergunta_dias_e_motivo():
+    campos = _campos("home-office")
+    assert campos["dias"]["tipo"] == TipoCampo.NUMERO
+    assert campos["dias"]["obrigatorio"] is True
+    assert campos["motivo"]["obrigatorio"] is True
+
+
+def test_declaracao_aceita_anexo_sem_exigir():
+    """Aqui a pessoa PEDE um documento. Exigir anexo inverteria o serviço."""
+    anexo = _campos("declaracao")["anexo"]
+    assert anexo["tipo"] == TipoCampo.ARQUIVO
+    assert anexo.get("obrigatorio", False) is False
+
+
+def test_adiantamento_pergunta_data_conta_supervisor_e_orcamento():
+    campos = _campos("adiantamento")
+    assert campos["data_pagamento"]["tipo"] == TipoCampo.DATA
+    assert campos["dados_bancarios"]["obrigatorio"] is True
+    assert "supervisor_ciente" in campos
+    # "caso já haja um documento de orçamento" — opcional é o pedido, não uma
+    # concessão ao teto de 3 obrigatórios.
+    assert campos["orcamento"].get("obrigatorio", False) is False
 
 
 # ── Validação do item ───────────────────────────────────────────────
@@ -653,18 +707,21 @@ def test_do_catalogo_ate_a_conclusao(equipe, provider_temporario):
     assert "Dinheiro" in grupos
 
     reembolso = ItemCatalogo.objects.get(chave="reembolso")
-    # Arquivo de verdade, não o nome dele: o campo `comprovantes` é do tipo
-    # `arquivo`, e desde os anexos reais um texto não satisfaz mais a
+    # Arquivo de verdade, não o nome dele: o comprovante de cada compra é do
+    # tipo arquivo, e desde os anexos reais um texto não satisfaz mais a
     # obrigatoriedade. Era esse o ponto.
+    #
+    # E o valor NÃO é passado: item a item, quem soma é o serviço. 500 + 340 é
+    # o que tem de chegar à aprovação e ao compromisso lá embaixo.
     s = svc.solicitar(
         reembolso, equipe["ana"],
-        valor=Decimal("840"),
-        arquivos={"comprovantes": [
-            SimpleUploadedFile("cupom.jpg", b"\xff\xd8\xff\xe0" + b"0" * 32,
-                               content_type="image/jpeg")
-        ]},
+        linhas=[
+            rmb.Linha(valor=Decimal("500"), motivo="Hotel", arquivo=_cupom("hotel.jpg")),
+            rmb.Linha(valor=Decimal("340"), motivo="Táxi", arquivo=_cupom("taxi.jpg")),
+        ],
     )
-    assert s.anexos.get().nome_original == "cupom.jpg"
+    assert s.valor == Decimal("840")
+    assert [a.nome_original for a in s.anexos.all()] == ["hotel.jpg", "taxi.jpg"]
 
     assert s.situacao == SituacaoServico.AGUARDANDO_APROVACAO, "840 > limite de 200"
     assert s.aprovacao.etapa_atual.aprovador == equipe["gestor"]

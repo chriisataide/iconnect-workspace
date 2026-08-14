@@ -7,7 +7,7 @@ arquivo e no de aprovações.
 
 from __future__ import annotations
 
-from decimal import Decimal, InvalidOperation
+from decimal import Decimal
 
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
@@ -20,8 +20,10 @@ from workspace.models.anexo import Anexo
 from workspace.models.catalogo import ItemCatalogo, TipoCampo
 from workspace.services import anexos as anx
 from workspace.services import catalogo as svc
+from workspace.services import reembolso as rmb
 from workspace.services.anexos import AnexoError
 from workspace.services.catalogo import SolicitacaoError
+from workspace.services.reembolso import ReembolsoError
 
 
 def _cache(request: HttpRequest) -> dict:
@@ -72,12 +74,14 @@ def pedir(request: HttpRequest, chave: str) -> HttpResponse:
     arquivos = {}
     valor = None
     impedimentos = []
+    linhas = []
+    adiantamento = None
 
     if request.method == "POST":
         dados = {
             campo["chave"]: (request.POST.get(campo["chave"]) or "").strip()
             for campo in item.campos
-            if campo.get("tipo") != TipoCampo.ARQUIVO
+            if campo.get("tipo") not in _NAO_SAO_TEXTO
         }
         arquivos = {
             campo["chave"]: request.FILES.getlist(campo["chave"])
@@ -85,17 +89,34 @@ def pedir(request: HttpRequest, chave: str) -> HttpResponse:
             if campo.get("tipo") == TipoCampo.ARQUIVO
         }
         valor = _valor_de(request.POST.get("valor"))
+        linhas = _linhas_de(request)
 
         try:
-            solicitacao = svc.solicitar(
-                item, request.user, dados, valor, cache=cache, arquivos=arquivos
+            adiantamento = rmb.adiantamento_escolhido(
+                request.user, request.POST.get("adiantamento")
             )
-        except (SolicitacaoError, AnexoError) as erro:
+            solicitacao = svc.solicitar(
+                item,
+                request.user,
+                dados,
+                valor,
+                cache=cache,
+                arquivos=arquivos,
+                linhas=linhas,
+                adiantamento=adiantamento,
+            )
+        except (SolicitacaoError, AnexoError, ReembolsoError) as erro:
             # Revalida para devolver a lista completa por campo, e não só a
             # primeira mensagem: corrigir um erro por vez é o que faz o usuário
             # desistir no terceiro envio.
             impedimentos = svc.verificar(
-                item, request.user, dados, valor, cache=cache, arquivos=arquivos
+                item,
+                request.user,
+                dados,
+                valor,
+                cache=cache,
+                arquivos=arquivos,
+                linhas=linhas,
             )
             if not impedimentos:
                 # A revalidação não reproduziu a falha — só acontece se algo
@@ -110,6 +131,13 @@ def pedir(request: HttpRequest, chave: str) -> HttpResponse:
                 )
             else:
                 messages.success(request, f"{item.nome} enviado para aprovação.")
+
+            # Prestação de contas não termina no envio: falta a diferença
+            # contra o adiantamento, e é ela que o Financeiro cobra depois.
+            # Mandar para "minhas solicitações" aqui deixaria a conta aberta
+            # sem que a pessoa soubesse que faltava um passo.
+            if solicitacao.adiantamento_id:
+                return redirect(reverse("workspace:acerto", args=[solicitacao.pk]))
             return redirect(reverse("workspace:minhas_solicitacoes"))
 
     # Campos já montados com valor e erro. O template não faz busca por chave
@@ -123,6 +151,8 @@ def pedir(request: HttpRequest, chave: str) -> HttpResponse:
             # O template não compara string de tipo: a view resolve, como manda
             # o design system.
             "e_arquivo": campo.get("tipo") == TipoCampo.ARQUIVO,
+            "e_despesas": campo.get("tipo") == TipoCampo.DESPESAS,
+            "e_adiantamento": campo.get("tipo") == TipoCampo.ADIANTAMENTO,
         }
         for campo in item.campos
     ]
@@ -139,8 +169,74 @@ def pedir(request: HttpRequest, chave: str) -> HttpResponse:
             "impedimentos": impedimentos,
             "centro_custo": svc._centro_custo_de(request.user),
             "maximo_anexos": anx.MAXIMO_POR_CAMPO,
+            # Item a item: o valor deixa de ser digitado e passa a ser somado.
+            "por_despesa": rmb.tem_despesas(item),
+            "despesas": _despesas_para_tela(linhas),
+            "erro_despesas": por_campo.get("despesas"),
+            "maximo_despesas": rmb.MAXIMO_DESPESAS,
+            "adiantamentos": (
+                rmb.adiantamentos_pendentes(request.user)
+                if rmb.aceita_adiantamento(item)
+                else []
+            ),
+            "adiantamento_escolhido": (
+                str(adiantamento.pk) if adiantamento else request.POST.get("adiantamento", "")
+            ),
         },
     )
+
+
+# Tipos que não são texto no POST: arquivo vem em `request.FILES`, e despesas e
+# adiantamento têm leitura própria.
+_NAO_SAO_TEXTO = (TipoCampo.ARQUIVO, TipoCampo.DESPESAS, TipoCampo.ADIANTAMENTO)
+
+
+def _linhas_de(request: HttpRequest) -> list[rmb.Linha]:
+    """Lê as compras do POST.
+
+    Os campos são NUMERADOS (`despesa_valor_3`) e a lista de índices vem num
+    hidden. Sem isso, `getlist` desalinharia valores e arquivos na primeira
+    linha em que a pessoa esquecesse o comprovante: `<input type=file>` vazio
+    não é enviado pelo navegador, e a compra 3 herdaria o cupom da 4.
+    """
+    linhas: list[rmb.Linha] = []
+    for indice in request.POST.getlist("despesa_indice")[: rmb.MAXIMO_DESPESAS]:
+        valor = request.POST.get(f"despesa_valor_{indice}")
+        motivo = request.POST.get(f"despesa_motivo_{indice}") or ""
+        arquivo = request.FILES.get(f"despesa_anexo_{indice}")
+        # Linha em branco é linha que a pessoa abriu e não usou — ignorar é o
+        # certo; recusar o envio por causa dela seria punir um clique a mais.
+        if not (valor or motivo.strip() or arquivo):
+            continue
+        linhas.append(
+            rmb.Linha(valor=rmb.valor_de(valor), motivo=motivo, arquivo=arquivo)
+        )
+    return linhas
+
+
+def _despesas_para_tela(linhas) -> list[dict]:
+    """Devolve o que a pessoa digitou, para o formulário não voltar vazio.
+
+    O arquivo NÃO volta — nenhum navegador aceita repopular `<input type=file>`,
+    por segurança. A tela diz isso com todas as letras em vez de fingir que o
+    anexo continua lá.
+    """
+    return [
+        {
+            "indice": indice,
+            "valor": _texto_do_valor(linha.valor),
+            "motivo": linha.motivo,
+            "tinha_arquivo": linha.arquivo is not None,
+        }
+        for indice, linha in enumerate(linhas)
+    ]
+
+
+def _texto_do_valor(valor) -> str:
+    """De volta para a tela no formato em que foi digitado: `1234,56`."""
+    if valor is None:
+        return ""
+    return f"{valor:.2f}".replace(".", ",")
 
 
 @login_required
@@ -175,14 +271,15 @@ def baixar_anexo(request: HttpRequest, pk: int) -> HttpResponse:
 
 
 def _valor_de(bruto: str | None) -> Decimal | None:
-    """Aceita `1.234,56` e `1234.56` — o usuário digita como aprendeu."""
-    if not bruto:
-        return None
-    texto = bruto.strip().replace(".", "").replace(",", ".")
-    try:
-        return Decimal(texto)
-    except (InvalidOperation, ValueError):
-        return None
+    """Aceita `1.234,56` e `1234.56` — o usuário digita como aprendeu.
+
+    Uma leitura só para todo o Workspace, em `services/reembolso`. Havia duas —
+    esta e a das linhas de despesa — e a daqui lia `1234.56` como cento e vinte
+    e três mil, porque apagava todo ponto antes de trocar a vírgula. Duas
+    funções que interpretam dinheiro divergem; é sempre a menos usada que fica
+    com o bug.
+    """
+    return rmb.valor_de(bruto)
 
 
 @login_required
@@ -194,6 +291,58 @@ def minhas_solicitacoes(request: HttpRequest) -> HttpResponse:
         {
             "solicitacoes": solicitacoes,
             "abertas": solicitacoes.filter(situacao__in=_ABERTAS).count(),
+        },
+    )
+
+
+@login_required
+def acerto(request: HttpRequest, pk: int) -> HttpResponse:
+    """O segundo passo da prestação de contas: o que fazer com a diferença.
+
+    Tela própria, e não um bloco no fim do formulário, porque o valor da
+    diferença só existe DEPOIS que as compras foram somadas — mostrar antes
+    exigiria calcular no navegador, e aí a conta que a pessoa vê e a conta que
+    o sistema grava seriam duas.
+    """
+    prestacao = get_object_or_404(
+        svc.minhas(request.user).select_related("adiantamento"), pk=pk
+    )
+    conta = rmb.calcular_acerto(prestacao)
+    if conta is None:
+        raise Http404("Este pedido não presta contas de um adiantamento.")
+
+    ja_feito = rmb.AcertoAdiantamento.objects.filter(prestacao=prestacao).first()
+    erro = None
+
+    if request.method == "POST" and ja_feito is None:
+        try:
+            rmb.confirmar_acerto(
+                prestacao,
+                request.user,
+                dados_bancarios=request.POST.get("dados_bancarios", ""),
+                comprovante=request.FILES.get("comprovante"),
+            )
+        except (ReembolsoError, AnexoError) as falha:
+            erro = str(falha)
+        else:
+            messages.success(request, "Prestação de contas fechada.")
+            return redirect(reverse("workspace:minhas_solicitacoes"))
+
+    return render(
+        request,
+        "workspace/servicos/acerto.html",
+        {
+            "prestacao": prestacao,
+            "adiantamento": prestacao.adiantamento,
+            "conta": conta,
+            "despesas": prestacao.despesas.all(),
+            "ja_feito": ja_feito,
+            "erro": erro,
+            "conta_empresa": rmb.conta_da_empresa(),
+            "conta_sugerida": (
+                request.POST.get("dados_bancarios")
+                or rmb.conta_sugerida(prestacao)
+            ),
         },
     )
 

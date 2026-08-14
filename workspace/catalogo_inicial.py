@@ -126,8 +126,20 @@ CATALOGO_INICIAL = [
         "campos": [
             {"chave": "data", "rotulo": "Data da ausência", "tipo": TipoCampo.DATA,
              "obrigatorio": True},
+            {"chave": "horario", "rotulo": "Horário", "tipo": TipoCampo.TEXTO,
+             "obrigatorio": True,
+             "ajuda": "Das 14h às 16h, ou o dia todo."},
             {"chave": "arquivo", "rotulo": "Atestado", "tipo": TipoCampo.ARQUIVO,
              "obrigatorio": True},
+            # Opcionais para não estourar o teto de 3 obrigatórios: o atestado
+            # já traz o motivo, e o gestor da lotação já é conhecido. Estes dois
+            # existem para o caso em que a realidade diverge do cadastro.
+            {"chave": "motivo", "rotulo": "Motivo", "tipo": TipoCampo.TEXTO_LONGO,
+             "obrigatorio": False,
+             "ajuda": "Consulta, exame, acompanhamento de familiar."},
+            {"chave": "chefe_ciente", "rotulo": "Qual chefe estava ciente",
+             "tipo": TipoCampo.TEXTO, "obrigatorio": False,
+             "ajuda": "Quem você avisou. Em branco, entende-se o gestor da sua lotação."},
         ],
         "limite_auto_aprovacao": Decimal("0"),
     },
@@ -142,6 +154,10 @@ CATALOGO_INICIAL = [
         "prazo_prometido_dias": 2,
         "campos": [
             {"chave": "periodo", "rotulo": "Período", "tipo": TipoCampo.TEXTO,
+             "obrigatorio": True, "ajuda": "De 10/09 a 14/09, ou toda quarta-feira."},
+            {"chave": "dias", "rotulo": "Dias", "tipo": TipoCampo.NUMERO,
+             "obrigatorio": True, "ajuda": "Quantos dias de trabalho remoto."},
+            {"chave": "motivo", "rotulo": "Motivo", "tipo": TipoCampo.TEXTO_LONGO,
              "obrigatorio": True},
         ],
     },
@@ -157,6 +173,12 @@ CATALOGO_INICIAL = [
         "campos": [
             {"chave": "tipo", "rotulo": "Qual declaração", "tipo": TipoCampo.TEXTO,
              "obrigatorio": True},
+            # Opcional porque aqui a pessoa PEDE um documento — o anexo serve
+            # para o caso em que ela já tem um modelo, um formulário do banco
+            # ou a versão anterior a renovar.
+            {"chave": "anexo", "rotulo": "Anexo", "tipo": TipoCampo.ARQUIVO,
+             "obrigatorio": False,
+             "ajuda": "Modelo exigido por quem pediu a declaração, se houver."},
         ],
         # Documento próprio da pessoa: nada a aprovar.
         "limite_auto_aprovacao": Decimal("0"),
@@ -173,11 +195,18 @@ CATALOGO_INICIAL = [
         "icone": "wallet",
         "dominio": "fin.reembolso",
         "prazo_prometido_dias": 5,
+        # `exige_valor` continua True porque o reembolso TEM valor — ele só não
+        # é digitado. Quem soma é `services/reembolso.total()`, a partir das
+        # linhas, e é essa soma que vai para o limite e para o orçamento.
         "exige_valor": True,
         "exige_centro_custo": True,
         "campos": [
-            {"chave": "comprovantes", "rotulo": "Comprovantes", "tipo": TipoCampo.ARQUIVO,
-             "obrigatorio": True, "ajuda": "Fotografe os cupons — nós lemos o resto."},
+            {"chave": "despesas", "rotulo": "Compras", "tipo": TipoCampo.DESPESAS,
+             "obrigatorio": True,
+             "ajuda": "Um comprovante por compra, com o valor e o motivo dela."},
+            {"chave": "adiantamento", "rotulo": "Adiantamento a prestar contas",
+             "tipo": TipoCampo.ADIANTAMENTO, "obrigatorio": False,
+             "ajuda": "Se este gasto saiu de um adiantamento, atrele aqui."},
         ],
         "limite_auto_aprovacao": Decimal("200"),
     },
@@ -195,6 +224,21 @@ CATALOGO_INICIAL = [
         "campos": [
             {"chave": "motivo", "rotulo": "Motivo", "tipo": TipoCampo.TEXTO,
              "obrigatorio": True},
+            {"chave": "data_pagamento", "rotulo": "Data de pagamento",
+             "tipo": TipoCampo.DATA, "obrigatorio": True,
+             "ajuda": "Quando você precisa do dinheiro na conta."},
+            {"chave": "dados_bancarios", "rotulo": "Conta do beneficiário",
+             "tipo": TipoCampo.TEXTO_LONGO, "obrigatorio": True,
+             "ajuda": "Banco, agência, conta e chave PIX, se houver."},
+            # Opcionais para respeitar o teto de 3 obrigatórios. O supervisor
+            # ciente é informação, não autorização: quem aprova continua sendo
+            # a cadeia de `RegraAprovacao`, e não o nome digitado aqui.
+            {"chave": "supervisor_ciente", "rotulo": "Supervisor ciente",
+             "tipo": TipoCampo.TEXTO, "obrigatorio": False,
+             "ajuda": "Quem você combinou o adiantamento."},
+            {"chave": "orcamento", "rotulo": "Orçamento", "tipo": TipoCampo.ARQUIVO,
+             "obrigatorio": False,
+             "ajuda": "Anexe se já houver orçamento ou proposta."},
         ],
     },
     {

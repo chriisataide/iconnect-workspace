@@ -1,0 +1,177 @@
+{% extends "workspace/_shell_modulo.html" %}
+{% load i18n wks %}
+
+{% block titulo %}{% trans "Acerto do adiantamento" %}{% endblock %}
+
+{% block rail %}{% include "workspace/_rail_servicos.html" with aba="minhas" %}{% endblock %}
+{% block trilha %}
+  <a href="{% url 'workspace:servicos' %}">{% trans "Serviços" %}</a>
+  <a href="{% url 'workspace:minhas_solicitacoes' %}">{% trans "Minhas solicitações" %}</a>
+  <span>{% trans "Acerto" %}</span>
+{% endblock %}
+{% block pagina_titulo %}{% trans "Fechar a conta do adiantamento" %}{% endblock %}
+
+{% block pagina_descricao %}
+  <p class="au-pagina-desc">
+    {% blocktrans with data=adiantamento.criado_em|date:"d/m/Y" %}Prestação de contas do adiantamento pedido em {{ data }}.{% endblocktrans %}
+  </p>
+{% endblock %}
+
+{% block corpo %}
+<div class="au-colunas au-colunas--assimetrica">
+  <div>
+    {% comment %}
+      A conta antes do formulário: a pessoa precisa ver de onde saiu o número
+      antes de ser perguntada o que fazer com ele. Pedir o comprovante de
+      devolução primeiro e explicar depois é o que faz alguém depositar o valor
+      errado.
+    {% endcomment %}
+    <article class="au-card au-acerto">
+      <ul class="au-lista">
+        <li class="au-list-row">
+          <span class="au-list-titulo">{% trans "Adiantado" %}</span>
+          <span class="au-list-meta">R$ {{ conta.total_adiantado|moeda }}</span>
+        </li>
+        <li class="au-list-row">
+          <span class="au-list-titulo">{% trans "Gasto comprovado" %}</span>
+          <span class="au-list-meta">R$ {{ conta.total_gasto|moeda }}</span>
+        </li>
+        <li class="au-list-row au-list-row--forte">
+          <span class="au-list-titulo">
+            {% if conta.devolver %}{% trans "Sobrou — você devolve" %}
+            {% elif conta.receber %}{% trans "Faltou — a empresa paga" %}
+            {% else %}{% trans "Nada a acertar" %}{% endif %}
+          </span>
+          <span class="au-list-meta">R$ {{ conta.diferenca|moeda }}</span>
+        </li>
+      </ul>
+
+      {% if despesas %}
+        <table class="au-tabela-simples">
+          <thead>
+            <tr>
+              <th>{% trans "Compra" %}</th>
+              <th class="num">{% trans "Valor" %}</th>
+              <th>{% trans "Comprovante" %}</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for despesa in despesas %}
+              <tr>
+                <td>{{ despesa.motivo }}</td>
+                <td class="num">R$ {{ despesa.valor|moeda }}</td>
+                <td>
+                  {% if despesa.anexo %}
+                    <a href="{% url 'workspace:baixar_anexo' despesa.anexo.pk %}">
+                      {{ despesa.anexo.nome_original }}
+                    </a>
+                  {% else %}—{% endif %}
+                </td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      {% endif %}
+    </article>
+
+    {% if ja_feito %}
+      <div class="au-aviso au-aviso--success" role="status">
+        <b>{% trans "Conta fechada." %}</b>
+        {% blocktrans with quando=ja_feito.confirmado_em|date:"d/m/Y H:i" %}Confirmado em {{ quando }}.{% endblocktrans %}
+        {% if ja_feito.comprovante %}
+          <a href="{% url 'workspace:baixar_anexo' ja_feito.comprovante.pk %}">
+            {% trans "Ver comprovante da devolução" %}
+          </a>
+        {% endif %}
+      </div>
+    {% else %}
+      <form method="post" class="au-form" enctype="multipart/form-data" novalidate>
+        {% csrf_token %}
+
+        {% if erro %}
+          <div class="au-aviso au-aviso--error" role="alert">{{ erro }}</div>
+        {% endif %}
+
+        {% if conta.devolver %}
+          <div class="au-campo">
+            <span class="au-rotulo">{% trans "Conta da empresa" %}</span>
+            {% if conta_empresa %}
+              <p class="au-dado-forte">{{ conta_empresa }}</p>
+            {% else %}
+              {% comment %}
+                Sem conta configurada a tela NÃO inventa um número: pedir para
+                confirmar com o Financeiro é lento; depositar na conta errada é
+                irreversível.
+              {% endcomment %}
+              <p class="au-ajuda au-ajuda--alerta">
+                {% trans "A conta da empresa não está configurada aqui. Peça os dados ao Financeiro antes de depositar." %}
+              </p>
+            {% endif %}
+          </div>
+
+          <div class="au-campo">
+            <label class="au-rotulo" for="comprovante">
+              {% trans "Comprovante da devolução" %}
+              <span class="au-obrigatorio" aria-hidden="true">*</span>
+            </label>
+            <input class="au-input au-input--arquivo" id="comprovante"
+                   name="comprovante" type="file">
+            <p class="au-ajuda">{% trans "JPG, PNG ou PDF · até 10 MB" %}</p>
+          </div>
+        {% elif conta.receber %}
+          <div class="au-campo">
+            <label class="au-rotulo" for="dados_bancarios">
+              {% trans "Sua conta para receber" %}
+              <span class="au-obrigatorio" aria-hidden="true">*</span>
+            </label>
+            <textarea class="au-input" id="dados_bancarios" name="dados_bancarios"
+                      rows="3">{{ conta_sugerida }}</textarea>
+            <p class="au-ajuda">
+              {% trans "Banco, agência, conta e chave PIX. Veio do seu adiantamento — confira antes de enviar." %}
+            </p>
+          </div>
+        {% else %}
+          <p class="au-ajuda">
+            {% trans "O gasto bateu com o adiantamento. Confirme para encerrar a prestação de contas." %}
+          </p>
+        {% endif %}
+
+        <div class="au-form-acoes">
+          <a class="au-btn au-btn--sutil" href="{% url 'workspace:minhas_solicitacoes' %}">
+            {% trans "Depois" %}
+          </a>
+          <button class="au-btn au-btn--primario" type="submit">
+            {% if conta.devolver %}{% trans "Registrar devolução" %}
+            {% elif conta.receber %}{% trans "Enviar dados e fechar" %}
+            {% else %}{% trans "Confirmar" %}{% endif %}
+          </button>
+        </div>
+      </form>
+    {% endif %}
+  </div>
+
+  <aside class="au-lateral">
+    <article class="au-card">
+      <header class="au-card-cabeca">
+        <span class="au-card-icone">
+          <svg class="au-icon" aria-hidden="true"><use href="#i-wallet"></use></svg>
+        </span>
+        <h3 class="au-card-titulo">{% trans "O pedido" %}</h3>
+      </header>
+      <ul class="au-lista">
+        <li class="au-list-row">
+          <span class="au-list-titulo">{% trans "Reembolso" %}</span>
+          <span class="au-list-meta">{{ prestacao.get_situacao_display }}</span>
+        </li>
+        <li class="au-list-row">
+          <span class="au-list-titulo">{% trans "Compras" %}</span>
+          <span class="au-list-meta">{{ despesas|length }}</span>
+        </li>
+      </ul>
+      <p class="au-ajuda">
+        {% trans "A conta fica aberta até ser confirmada — você pode voltar aqui por “Minhas solicitações”." %}
+      </p>
+    </article>
+  </aside>
+</div>
+{% endblock %}

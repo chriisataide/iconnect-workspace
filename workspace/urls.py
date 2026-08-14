@@ -49,6 +49,10 @@ urlpatterns = [
     path("servicos/<slug:chave>/", views.pedir, name="pedir"),
     path("minhas-solicitacoes/", views.minhas_solicitacoes, name="minhas_solicitacoes"),
     path("solicitacao/<int:pk>/cancelar/", views.cancelar_solicitacao, name="cancelar_solicitacao"),
+    # O segundo passo do reembolso que presta contas de um adiantamento: para
+    # onde corre a diferença. Rota própria porque a pessoa volta a ela — a
+    # conta fica aberta até ser confirmada.
+    path("solicitacao/<int:pk>/acerto/", views.acerto, name="acerto"),
     # Anexos — o único caminho até o arquivo. Não há URL pública: eles moram
     # fora de MEDIA_ROOT, que o nginx serve sem autenticação.
     path("anexo/<int:pk>/", views.baixar_anexo, name="baixar_anexo"),

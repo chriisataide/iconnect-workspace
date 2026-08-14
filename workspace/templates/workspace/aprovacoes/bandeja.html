@@ -132,7 +132,34 @@
             </div>
           {% endif %}
 
-          {% if entrada.anexos %}
+          {% comment %}
+            As compras uma a uma, quando o pedido foi item a item. Quem decide
+            precisa ver o que foi comprado, não só o total — era a soma feita à
+            mão, com cinco imagens soltas ao lado, que fazia a bandeja virar
+            carimbo. Com a lista, o comprovante de cada valor está a um clique.
+          {% endcomment %}
+          {% if entrada.despesas %}
+            <div class="au-dossie-anexos">
+              <p class="au-dossie-rotulo">{% trans "Compras" %}</p>
+              <table class="au-tabela-simples">
+                <tbody>
+                  {% for despesa in entrada.despesas %}
+                    <tr>
+                      <td>{{ despesa.motivo }}</td>
+                      <td class="num">R$ {{ despesa.valor|moeda }}</td>
+                      <td>
+                        {% if despesa.anexo %}
+                          <a href="{% url 'workspace:baixar_anexo' despesa.anexo.pk %}">
+                            {{ despesa.anexo.nome_original }}
+                          </a>
+                        {% else %}—{% endif %}
+                      </td>
+                    </tr>
+                  {% endfor %}
+                </tbody>
+              </table>
+            </div>
+          {% elif entrada.anexos %}
             <div class="au-dossie-anexos">
               <p class="au-dossie-rotulo">{% trans "Comprovação" %}</p>
               {% include "workspace/_anexos.html" with anexos=entrada.anexos %}

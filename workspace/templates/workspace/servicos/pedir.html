@@ -34,6 +34,11 @@
     {% endif %}
 
     {% for campo in campos %}
+      {% if campo.e_despesas %}
+        {% include "workspace/servicos/_despesas.html" %}
+      {% elif campo.e_adiantamento %}
+        {% include "workspace/servicos/_adiantamento.html" %}
+      {% else %}
       <div class="au-campo {% if campo.erro %}au-campo--erro{% endif %}">
         <label class="au-rotulo" for="c-{{ campo.chave }}">
           {{ campo.rotulo|default:campo.chave }}
@@ -75,9 +80,16 @@
         {% endif %}
         {% if campo.erro %}<p class="au-erro">{{ campo.erro }}</p>{% endif %}
       </div>
+      {% endif %}
     {% endfor %}
 
-    {% if item.exige_valor %}
+    {% comment %}
+      No pedido item a item o valor NÃO é digitado: ele é a soma das compras,
+      feita no servidor. Um campo de total editável ao lado da lista seria a
+      volta do problema que a lista veio resolver — o total que diverge dos
+      comprovantes, e só é conferido semanas depois.
+    {% endcomment %}
+    {% if item.exige_valor and not por_despesa %}
       <div class="au-campo {% if erro_valor %}au-campo--erro{% endif %}">
         <label class="au-rotulo" for="valor">
           {% trans "Valor" %} <span class="au-obrigatorio" aria-hidden="true">*</span>
@@ -140,14 +152,6 @@
           antes de enviar.{% endblocktrans %}
         </p>
       {% endif %}
-    </article>
-
-    <article class="au-card">
-      <h3 class="au-card-titulo">{% trans "Por que poucos campos" %}</h3>
-      <p class="au-ajuda">
-        {% blocktrans %}Unidade, centro de custo e quem aprova vêm da sua lotação — você não
-        precisa digitar nada que o sistema já sabe.{% endblocktrans %}
-      </p>
     </article>
   </aside>
 </div>

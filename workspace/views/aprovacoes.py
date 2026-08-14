@@ -74,19 +74,41 @@ def _faixas(resumo, valor) -> list[dict] | None:
     return faixas
 
 
+def _servico_de(solicitacao: SolicitacaoAprovacao):
+    """O pedido de catálogo ligado a esta aprovação, ou `None`.
+
+    `try` e não `getattr(..., None)`: acessor reverso de OneToOne levanta
+    `DoesNotExist`, que não é `AttributeError` — o default do `getattr` não
+    captura, e a bandeja quebraria em toda aprovação que não vem do catálogo
+    (férias lançadas direto pelo RH, por exemplo).
+    """
+    try:
+        return solicitacao.servico
+    except ObjectDoesNotExist:
+        return None
+
+
+def _despesas_de(solicitacao: SolicitacaoAprovacao) -> list:
+    """As compras, uma a uma, quando o pedido foi item a item.
+
+    É o que transforma "R$ 340,00 e cinco imagens" em uma lista conferível. Sem
+    isto, itemizar teria melhorado só o lado de quem pede — e quem aprova
+    continuaria refazendo a soma à mão para saber se o total bate.
+    """
+    servico = _servico_de(solicitacao)
+    if servico is None:
+        return []
+    return list(servico.despesas.select_related("anexo"))
+
+
 def _anexos_de(solicitacao: SolicitacaoAprovacao) -> list:
     """Anexos do pedido de serviço ligado a esta aprovação.
 
     A aprovação não conhece o catálogo — é a direção que mantém APR reusável
     por férias, reembolso e compra. Então a busca vem do outro lado.
     """
-    # `try` e não `getattr(..., None)`: acessor reverso de OneToOne levanta
-    # `DoesNotExist`, que não é `AttributeError` — o default do `getattr` não
-    # captura, e a bandeja quebraria em toda aprovação que não vem do catálogo
-    # (férias lançadas direto pelo RH, por exemplo).
-    try:
-        servico = solicitacao.servico
-    except ObjectDoesNotExist:
+    servico = _servico_de(solicitacao)
+    if servico is None:
         return []
     return list(servico.anexos.all())
 
@@ -102,6 +124,7 @@ def _dossie(solicitacao: SolicitacaoAprovacao) -> dict:
         # Aprovar reembolso sem poder abrir o comprovante é exatamente o
         # carimbo que esta tela existe para evitar.
         "anexos": _anexos_de(solicitacao),
+        "despesas": _despesas_de(solicitacao),
         "resumo": resumo,
         "faixas": _faixas(resumo, solicitacao.valor),
         "pct_atual": resumo.percentual() if resumo else None,
