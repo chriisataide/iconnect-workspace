@@ -39,6 +39,26 @@ def _base():
     )
 
 
+def na_agenda(hora: int):
+    """Um horário do PRÓXIMO dia útil, dentro dos `HORARIOS` do formulário.
+
+    Só para os testes que passam pela TELA. Eles usavam `daqui(n)`, e isso os
+    fazia depender da hora em que alguém rodasse a suíte: a partir das 13h,
+    `daqui(4)` caía depois das 17:00 — fora da agenda que o formulário oferece —
+    e o teste de conflito reprovava com "horário inválido", que não é o defeito
+    que ele procura. De manhã, passava.
+
+    É o segundo flake por relógio desta suíte; o outro publicava com data de
+    hoje às 08:00 e falhava de madrugada. Teste que depende da hora do dia não
+    é teste, é sorte — e o serviço continua sendo exercitado com `daqui()`,
+    porque ali a agenda comercial não entra na conta.
+    """
+    dia = timezone.localtime() + timedelta(days=1)
+    while dia.weekday() >= 5:  # sábado e domingo não têm agenda
+        dia += timedelta(days=1)
+    return dia.replace(hour=hora, minute=0, second=0, microsecond=0)
+
+
 def daqui(horas: float):
     """Deslocamento a partir da próxima hora cheia.
 
@@ -320,7 +340,9 @@ def test_dia_invalido_na_url_mostra_hoje(client, cenario):
 
 def test_reserva_pela_tela(client, cenario):
     client.force_login(cenario["ana"])
-    inicio = daqui(3)
+    # `na_agenda` e não `daqui`: o formulário só oferece 08:00–17:00, e rodar a
+    # suíte às 15h fazia `daqui(3)` cair fora dela.
+    inicio = na_agenda(9)
 
     resposta = client.post(
         reverse("workspace:reservar", args=("sala-reuniao",)),
@@ -339,9 +361,12 @@ def test_reserva_pela_tela(client, cenario):
 
 
 def test_conflito_pela_tela_mostra_o_motivo(client, cenario):
-    res.reservar(cenario["sala"], cenario["bruno"], daqui(3), daqui(5), motivo="Visita")
+    res.reservar(
+        cenario["sala"], cenario["bruno"],
+        na_agenda(9), na_agenda(11), motivo="Visita",
+    )
     client.force_login(cenario["ana"])
-    inicio = daqui(4)
+    inicio = na_agenda(10)
 
     corpo = client.post(
         reverse("workspace:reservar", args=("sala-reuniao",)),

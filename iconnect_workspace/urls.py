@@ -11,6 +11,8 @@ from django.contrib.auth import views as auth
 from django.urls import include, path
 from django.views.generic import RedirectView
 
+from contas.entrada import LoginComFreio
+
 urlpatterns = [
     path("", RedirectView.as_view(pattern_name="workspace:home", permanent=False)),
     path("workspace/", include("workspace.urls")),
@@ -23,11 +25,10 @@ urlpatterns = [
     # porta. Exigir identidade para decidir só é possível se houver onde provar
     # quem se é. Isto não reabre o login na frente do hub — nenhum link leva
     # aqui; só se chega por um ato que precisa de assinatura.
-    path(
-        "entrar/",
-        auth.LoginView.as_view(template_name="contas/entrar.html"),
-        name="entrar",
-    ),
+    # Com freio de tentativas: um formulário de senha sem limite, contra contas
+    # reais, é o alvo mais óbvio que um produto interno oferece. Ver
+    # `contas/entrada.py` para as duas contagens e por que não há uma terceira.
+    path("entrar/", LoginComFreio.as_view(), name="entrar"),
     path("sair/", auth.LogoutView.as_view(), name="sair"),
     path("admin/", admin.site.urls),
 ]

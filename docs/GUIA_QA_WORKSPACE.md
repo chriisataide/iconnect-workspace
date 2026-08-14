@@ -639,6 +639,50 @@ para eles. Se esta view negar, **não há segunda porta**.
 
 ---
 
+### 3.8.1 Fila de atendimento — `/workspace/fila/`
+
+**Para que serve.** O passo que faltava DEPOIS da aprovação. Até esta tela
+existir, `EM_ATENDIMENTO` e `CONCLUIDA` eram estados que nada no produto usava:
+o pedido era aprovado e parava ali para sempre, a não ser que alguém editasse
+pelo `/admin/`.
+
+**Quando é útil.** Para quem atende — R.H., Financeiro, TI, Compras, Logística,
+Operações, SESMT. É a tela de trabalho deles.
+
+**O que testar — quem vê o quê:**
+
+- A fila mostra os pedidos dos **domínios que a pessoa pode atender**
+  (`rh.atender`, `fin.atender`, `ti.atender`…). Quem não atende nada recebe
+  **403** — e isso é correto: "sua fila está vazia" para quem não atende nada é
+  mentira, e faz a pessoa esperar por trabalho que nunca vem.
+- Pedido **ainda em aprovação não aparece**: não há o que atender enquanto
+  ninguém decidiu.
+- Ordem: **mais antigo primeiro**, sempre. Nunca por valor, nunca por urgência
+  declarada — fila que se reordena sozinha é fila em que o pedido pequeno de
+  janeiro nunca é atendido.
+- O item "Atender" só aparece no trilho para quem tem fila.
+
+**O que testar — os três verbos:**
+
+| Ação | O que acontece |
+|---|---|
+| **Assumir** | põe o seu nome, situação vira "em atendimento", e quem pediu é avisado. O pedido **continua na fila** — sumir faria a pessoa perder de vista o próprio trabalho |
+| **Concluir** | fecha, grava `concluido_em` e avisa. Pode ser feito sem assumir antes (o pedido de dois minutos), e o nome fica registrado do mesmo jeito |
+| **Devolver** | volta para quem pediu, **com motivo obrigatório**. NÃO é reprovar: a aprovação continua valendo. É "não consigo atender assim" |
+
+- Assumir o que outra pessoa já assumiu é recusado, com o nome dela na mensagem.
+- Atender pedido de outra fila é recusado **mesmo pelo POST direto** — a tela
+  não é a fonte de verdade.
+
+**O que testar — e é a razão de a tela existir:**
+
+Conclua **cinco** pedidos do mesmo item e volte ao catálogo. O card tem de
+trocar "prazo estimado" por **"prazo medido"**. Antes desta fila isso era
+impossível: `prazo_medido()` lê as conclusões, e nada no produto concluía nada —
+o número na tela seria um chute para sempre.
+
+---
+
 ### 3.9 Bandeja de aprovação — `/workspace/aprovacoes/`
 
 **Para que serve.** Transformar carimbo em decisão. Aprovação sem contexto

@@ -36,14 +36,21 @@
       <form method="post" class="au-form au-entrar-form">
         {% csrf_token %}
 
-        {% if form.errors %}
+        {% if form.errors or bloqueado %}
           {% comment %}
             Uma mensagem só, e sem dizer QUAL dos dois está errado: "este
             e-mail não existe" transforma a tela num verificador de quem
             trabalha aqui.
+
+            O bloqueio acrescenta uma frase e não troca a mensagem: dizer
+            "bloqueado por tentativas" com precisão, ou contar quantas faltam,
+            ensina o atacante a esperar o mínimo necessário.
           {% endcomment %}
           <div class="au-aviso au-aviso--error" role="alert">
             {% trans "E-mail ou senha não conferem." %}
+            {% if bloqueado %}
+              {% trans "Houve tentativas demais daqui — aguarde alguns minutos antes de tentar de novo." %}
+            {% endif %}
           </div>
         {% endif %}
 

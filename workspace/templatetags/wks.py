@@ -25,6 +25,21 @@ def data_extenso(valor, com_ano: bool = True) -> str:
 
 
 @register.filter
+def dias_desde(quando) -> int:
+    """Quantos dias corridos desde então.
+
+    `timesince` do Django diria "3 dias, 4 horas", e a fila precisa do NÚMERO
+    para comparar com o prazo prometido do item — "3" ao lado de "prazo: 5" se
+    lê de relance; "3 dias, 4 horas" ao lado de "5 dias" não.
+    """
+    if not quando:
+        return 0
+    from django.utils import timezone
+
+    return max(0, (timezone.now() - quando).days)
+
+
+@register.filter
 def rotulo_do_campo(chave: str, item) -> str:
     """A pergunta que a pessoa respondeu, e não a chave que o banco guarda.
 

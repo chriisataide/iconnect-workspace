@@ -51,6 +51,10 @@ urlpatterns = [
     # Anexos — o único caminho até o arquivo. Não há URL pública: eles moram
     # fora de MEDIA_ROOT, que o nginx serve sem autenticação.
     path("anexo/<int:pk>/", views.baixar_anexo, name="baixar_anexo"),
+    # A fila de quem ATENDE — o passo que faltava depois da aprovação. Sem ela,
+    # o pedido parava em "aprovado" para sempre e o prazo REAL nunca era medido.
+    path("fila/", views.fila, name="fila"),
+    path("fila/<int:pk>/", views.atender, name="atender"),
     # Aprovações
     path("aprovacoes/", views.bandeja, name="aprovacoes"),
     path("aprovacoes/<int:pk>/decidir/", views.decidir_aprovacao, name="decidir_aprovacao"),

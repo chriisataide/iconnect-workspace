@@ -258,6 +258,17 @@ class SolicitacaoServico(models.Model):
     auto_aprovada = models.BooleanField(default=False)
     motivo_devolucao = models.TextField(blank=True)
 
+    # Quem ASSUMIU o atendimento depois da aprovação. Sem dono, o pedido fica
+    # esperando "o setor" — e setor nenhum atende nada. `SET_NULL` porque a
+    # pessoa pode sair da empresa sem que o histórico do pedido se perca.
+    atendente = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="atendimentos",
+    )
+
     # O adiantamento do qual ESTE pedido presta contas. FK para a própria
     # tabela porque adiantamento e reembolso são o mesmo tipo de coisa — um
     # pedido do catálogo — e um campo de texto "adiantamento nº 12" não fecha

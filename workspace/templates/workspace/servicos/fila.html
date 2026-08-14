@@ -1,0 +1,127 @@
+{% extends "workspace/_shell_modulo.html" %}
+{% load i18n wks %}
+
+{% block titulo %}{% trans "Fila de atendimento" %}{% endblock %}
+
+{% block rail %}{% include "workspace/_rail_servicos.html" with aba="fila" %}{% endblock %}
+{% block trilha %}
+  <a href="{% url 'workspace:servicos' %}">{% trans "Serviços" %}</a>
+  <span>{% trans "Fila de atendimento" %}</span>
+{% endblock %}
+{% block pagina_titulo %}{% trans "Fila de atendimento" %}{% endblock %}
+
+{% block pagina_descricao %}
+  <p class="au-pagina-desc">
+    {% blocktrans count total=resumo.total %}{{ total }} pedido aprovado esperando atendimento.{% plural %}{{ total }} pedidos aprovados esperando atendimento.{% endblocktrans %}
+  </p>
+{% endblock %}
+
+{% block corpo %}
+{% comment %}
+  A tela que faltava depois da aprovação.
+
+  Ordem: MAIS ANTIGO PRIMEIRO, e nunca por valor ou urgência declarada. Fila que
+  se reordena sozinha é fila em que o pedido pequeno de janeiro nunca é atendido.
+
+  Três números no topo, e o do meio é o que muda comportamento: "meus" é o
+  trabalho que já tem o seu nome, e é por ele que se começa o dia.
+{% endcomment %}
+{% if solicitacoes %}
+  <div class="au-kpi-linha">
+    <div class="au-kpi">
+      <span class="au-kpi-rotulo">{% trans "na fila" %}</span>
+      <span class="au-kpi-valor">{{ resumo.total }}</span>
+    </div>
+    <div class="au-kpi">
+      <span class="au-kpi-rotulo">{% trans "assumidos por você" %}</span>
+      <span class="au-kpi-valor">{{ resumo.meus }}</span>
+    </div>
+    <div class="au-kpi {% if resumo.atrasados %}au-kpi--alerta{% endif %}">
+      <span class="au-kpi-rotulo">{% trans "além do prazo prometido" %}</span>
+      <span class="au-kpi-valor">{{ resumo.atrasados }}</span>
+    </div>
+  </div>
+
+  <div class="au-tabela">
+    <table>
+      <thead>
+        <tr>
+          <th>{% trans "Serviço" %}</th>
+          <th>{% trans "Quem pediu" %}</th>
+          <th>{% trans "Esperando há" %}</th>
+          <th class="num">{% trans "Valor" %}</th>
+          <th>{% trans "Atendente" %}</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for s in solicitacoes %}
+          <tr>
+            <td>
+              <span class="au-list-titulo">{{ s.item.nome }}</span>
+              {% include "workspace/_anexos.html" with anexos=s.anexos.all %}
+            </td>
+            <td>{{ s.solicitante.get_full_name|default:s.solicitante.email }}</td>
+            <td>
+              {% comment %}
+                Dias corridos contra o prazo PROMETIDO do item — o mesmo número
+                que a pessoa viu quando pediu. Cobrar por outro seria mudar a
+                régua depois do jogo.
+              {% endcomment %}
+              {% blocktrans count dias=s.criado_em|dias_desde %}{{ dias }} dia{% plural %}{{ dias }} dias{% endblocktrans %}
+              <span class="au-list-meta">
+                {% blocktrans with prazo=s.item.prazo_prometido_dias %}prazo: {{ prazo }}{% endblocktrans %}
+              </span>
+            </td>
+            <td class="num">
+              {% if s.valor %}R$ {{ s.valor|moeda }}{% else %}—{% endif %}
+            </td>
+            <td>
+              {% if s.atendente %}
+                {{ s.atendente.get_full_name|default:s.atendente.email }}
+              {% else %}
+                <span class="au-list-meta">{% trans "ninguém ainda" %}</span>
+              {% endif %}
+            </td>
+            <td>
+              <form method="post" action="{% url 'workspace:atender' s.pk %}"
+                    class="au-form-acoes au-form-acoes--linha">
+                {% csrf_token %}
+                {% if not s.atendente %}
+                  <button class="au-btn au-btn--sutil au-btn--pequeno" type="submit"
+                          name="acao" value="assumir">
+                    {% trans "Assumir" %}
+                  </button>
+                {% endif %}
+                <button class="au-btn au-btn--primario au-btn--pequeno" type="submit"
+                        name="acao" value="concluir">
+                  {% trans "Concluir" %}
+                </button>
+                {% comment %}
+                  Devolver daqui NÃO é reprovar: a aprovação continua valendo. É
+                  "não consigo atender assim", e o motivo é obrigatório — sem
+                  ele, quem recebe de volta adivinha, e adivinhar gera um
+                  segundo envio igualmente errado.
+                {% endcomment %}
+                <input class="au-input au-input--compacto" type="text" name="motivo"
+                       placeholder="{% trans 'motivo, para devolver' %}">
+                <button class="au-btn au-btn--sutil au-btn--pequeno" type="submit"
+                        name="acao" value="devolver">
+                  {% trans "Devolver" %}
+                </button>
+              </form>
+            </td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+{% else %}
+  <div class="au-vazio">
+    <p class="au-vazio-titulo">{% trans "Nada esperando você." %}</p>
+    <p class="au-vazio-dica">
+      {% blocktrans %}Quando um pedido das suas filas for aprovado, ele aparece aqui.{% endblocktrans %}
+    </p>
+  </div>
+{% endif %}
+{% endblock %}

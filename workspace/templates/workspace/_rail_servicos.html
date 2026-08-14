@@ -48,9 +48,19 @@
 </a>
 
 {% comment %}
-  "Aprovar" só aparece para quem tem algo esperando. Rail com item vazio ensina
-  o usuário a ignorar o rail.
+  "Atender" e "Aprovar" só aparecem para quem tem algo esperando. Rail com item
+  vazio ensina o usuário a ignorar o rail.
 {% endcomment %}
+{% if na_fila %}
+  <p class="au-rail-grupo">{% trans "Atender" %}</p>
+  <a class="au-rail-item {% if aba == 'fila' %}au-rail-item--ativo{% endif %}"
+     href="{% url 'workspace:fila' %}">
+    <svg class="au-icon" aria-hidden="true"><use href="#i-activity"></use></svg>
+    {% trans "Fila" %}
+    <span class="au-rail-contagem">{{ na_fila }}</span>
+  </a>
+{% endif %}
+
 {% if pendentes_aprovacao %}
   <p class="au-rail-grupo">{% trans "Aprovar" %}</p>
   <a class="au-rail-item {% if aba == 'aprovacoes' %}au-rail-item--ativo{% endif %}"

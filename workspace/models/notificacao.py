@@ -39,6 +39,9 @@ class TipoNotificacao(models.TextChoices):
     PEDIDO_APROVADO = "pedido_aprovado", "Seu pedido foi aprovado"
     PEDIDO_DEVOLVIDO = "pedido_devolvido", "Seu pedido foi devolvido"
     PEDIDO_CANCELADO = "pedido_cancelado", "Seu pedido foi cancelado"
+    # O que faltava para o ciclo fechar: depois de aprovado, alguém ATENDE.
+    PEDIDO_EM_ATENDIMENTO = "pedido_em_atendimento", "Seu pedido está sendo atendido"
+    PEDIDO_CONCLUIDO = "pedido_concluido", "Seu pedido foi concluído"
     CORRESPONDENCIA_RECEBIDA = (
         "correspondencia_recebida",
         "Chegou correspondência para você",

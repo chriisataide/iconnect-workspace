@@ -2095,3 +2095,22 @@ tr[data-abre-resumo]:hover { background: var(--au-surface-sunken); }
   padding-top: var(--au-4);
   border-top: 1px solid var(--au-border);
 }
+
+/* ── Ações dentro de uma linha de tabela ────────────────────────────
+   A fila de atendimento decide na própria linha: assumir, concluir, devolver
+   com motivo. Abrir uma tela para cada decisão de dois segundos é o que faz
+   uma fila de vinte pedidos levar uma tarde. */
+
+.au-form-acoes--linha {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--au-2);
+  margin: 0;
+}
+
+.au-input--compacto {
+  width: 11rem;
+  padding: var(--au-1) var(--au-2);
+  font-size: var(--au-t-sm);
+}

@@ -127,6 +127,7 @@ PAPEIS_V1 = [
         "escopo_padrao": ESCOPO_GLOBAL,
         "permissoes": AUTOATENDIMENTO
         + [
+            "rh.atender.global",
             "rh.ler.global",
             "rh.admin.global",
             "hab.ler.unidade",
@@ -142,6 +143,7 @@ PAPEIS_V1 = [
         "escopo_padrao": ESCOPO_GLOBAL,
         "permissoes": AUTOATENDIMENTO
         + [
+            "fin.atender.global",
             "fin.ler.global",
             "fin.aprovar.centro_custo",
             "fin.contrato.ler.unidade",
@@ -155,6 +157,7 @@ PAPEIS_V1 = [
         "escopo_padrao": ESCOPO_UNIDADE,
         "permissoes": AUTOATENDIMENTO
         + [
+            "com.atender.unidade",
             "com.operar.unidade",
             "com.receber.unidade",
             "com.ler.unidade",
@@ -172,6 +175,7 @@ PAPEIS_V1 = [
         "escopo_padrao": ESCOPO_UNIDADE,
         "permissoes": AUTOATENDIMENTO
         + [
+            "log.atender.unidade",
             "log.ler.unidade",
             "log.movimentar.unidade",
             "log.custodia.ler.unidade",
@@ -211,6 +215,7 @@ PAPEIS_V1 = [
         "escopo_padrao": ESCOPO_GLOBAL,
         "permissoes": AUTOATENDIMENTO
         + [
+            "hab.atender.global",
             "hab.ler.unidade",
             "hab.validar.evidencia",
             "hab.exigencia.definir",
@@ -229,6 +234,7 @@ PAPEIS_V1 = [
         "escopo_padrao": ESCOPO_UNIDADE,
         "permissoes": AUTOATENDIMENTO
         + [
+            "ops.atender.unidade",
             "ops.ler.unidade",
             "ops.despachar.unidade",
             "ops.escala.editar.unidade",

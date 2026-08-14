@@ -669,6 +669,9 @@ def test_contexto_do_rail_usa_pessoa_aberta_para_anonimo():
         "abertas": 0,
         "pendentes_aprovacao": 0,
         "nao_lidas": 0,
+        # Anônimo não atende fila nenhuma, e o item "Atender" nem aparece no
+        # trilho: contador zerado é o que faz alguém aprender a ignorá-lo.
+        "na_fila": 0,
     }
 
 
