@@ -133,6 +133,35 @@ def test_confirmar_leitura_e_correspondencia_tambem_assinam(client):
 
 
 @pytest.mark.django_db
+def test_o_formulario_abre_para_qualquer_um_mas_enviar_se_identifica(client, cenario):
+    """O ato central do produto sem parede de login na frente, e sem pedido
+    nascendo em nome de quem não pediu."""
+    destino = reverse("workspace:pedir", args=[cenario["item"].chave])
+
+    aberto = client.get(destino)
+    assert aberto.status_code == 200
+    # E a tela avisa antes, não na hora do envio.
+    assert "identificar ao enviar" in aberto.content.decode()
+
+    enviar = client.post(destino, {"o_que": "4 notebooks", "valor": "100,00"})
+    assert enviar.status_code == 302
+    assert enviar["Location"].startswith("/entrar/")
+    assert not SolicitacaoServico.objects.exists()
+
+
+@pytest.mark.django_db
+def test_formulario_anonimo_nao_mostra_dado_de_ninguem(client, cenario):
+    """Sem sessão, o centro de custo e os adiantamentos pendentes não são de
+    ninguém — mostrar os da primeira pessoa do organograma seria vazamento."""
+    corpo = client.get(
+        reverse("workspace:pedir", args=[cenario["item"].chave])
+    ).content.decode()
+
+    assert "1008" not in corpo, "centro de custo de alguém apareceu para anônimo"
+    assert "Peça ao RH" not in corpo, "aviso de lotação para quem não disse quem é"
+
+
+@pytest.mark.django_db
 def test_ver_a_agenda_de_uma_sala_continua_aberto(client):
     """A fronteira da reserva passa dentro da view: consultar é informação de
     escritório — é o que faz a pessoa parar de bater na porta da sala."""

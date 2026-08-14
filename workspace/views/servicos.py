@@ -6,6 +6,7 @@ from decimal import Decimal
 
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
+from django.contrib.auth.views import redirect_to_login
 from django.core.exceptions import PermissionDenied
 from django.http import FileResponse, Http404, HttpRequest, HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
@@ -61,10 +62,24 @@ _ABERTAS = ["aguardando_aprovacao", "aprovada", "em_atendimento", "devolvida"]
 
 
 def pedir(request: HttpRequest, chave: str) -> HttpResponse:
-    """Formulário de um item. Valida antes de enviar e bloqueia com o motivo."""
+    """Formulário de um item. Valida antes de enviar e bloqueia com o motivo.
+
+    A fronteira passa DENTRO da view, como em `reservar()`: o formulário abre
+    para qualquer um — é assim que a pessoa descobre o que o serviço pede antes
+    de decidir usá-lo, e fechar isso seria pôr uma parede de login na frente do
+    ato central do produto.
+
+    ENVIAR é outra coisa. O pedido nasce com um solicitante, consome o centro de
+    custo dele e entra na fila do gestor dele; anônimo, nasceria em nome da
+    primeira pessoa do organograma, que descobriria pela notificação. Por isso
+    o POST se identifica — e o `next` traz a pessoa de volta a este formulário.
+    """
     item = get_object_or_404(ItemCatalogo, chave=chave, ativo=True)
     cache = _cache(request)
-    pessoa = pessoa_da_requisicao(request)
+    # `request.user`, e não `pessoa_da_requisicao()`: o que esta tela mostra de
+    # pessoal — o centro de custo e os adiantamentos a prestar contas — é de
+    # quem está identificado. Sem sessão, não é de ninguém.
+    pessoa = request.user
 
     dados = {}
     arquivos = {}
@@ -74,6 +89,8 @@ def pedir(request: HttpRequest, chave: str) -> HttpResponse:
     adiantamento = None
 
     if request.method == "POST":
+        if not pessoa.is_authenticated:
+            return redirect_to_login(request.get_full_path())
         dados = {
             campo["chave"]: (request.POST.get(campo["chave"]) or "").strip()
             for campo in item.campos
@@ -163,7 +180,13 @@ def pedir(request: HttpRequest, chave: str) -> HttpResponse:
             "valor": valor,
             "erro_valor": por_campo.get("valor"),
             "impedimentos": impedimentos,
-            "centro_custo": svc._centro_custo_de(pessoa),
+            # Sem sessão não há centro de custo a mostrar — e o aviso "você não
+            # tem centro de custo, peça ao RH" seria mentira contada a quem
+            # ainda nem disse quem é.
+            "identificada": pessoa.is_authenticated,
+            "centro_custo": (
+                svc._centro_custo_de(pessoa) if pessoa.is_authenticated else ""
+            ),
             "maximo_anexos": anx.MAXIMO_POR_CAMPO,
             # Item a item: o valor deixa de ser digitado e passa a ser somado.
             "por_despesa": rmb.tem_despesas(item),

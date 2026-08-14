@@ -146,10 +146,23 @@
         </li>
       </ul>
 
-      {% if item.exige_centro_custo and not centro_custo %}
-        <p class="au-ajuda au-ajuda--alerta">
-          {% blocktrans %}Você não tem centro de custo na sua lotação. Peça ao RH para cadastrar
-          antes de enviar.{% endblocktrans %}
+      {% if identificada %}
+        {% if item.exige_centro_custo and not centro_custo %}
+          <p class="au-ajuda au-ajuda--alerta">
+            {% blocktrans %}Você não tem centro de custo na sua lotação. Peça ao RH para cadastrar
+            antes de enviar.{% endblocktrans %}
+          </p>
+        {% endif %}
+      {% else %}
+        {% comment %}
+          Dito no começo, e não como surpresa no envio: o formulário abre para
+          qualquer um, mas o pedido nasce com um nome. Descobrir isso só depois
+          de anexar três comprovantes é o tipo de coisa que faz a pessoa voltar
+          para o e-mail.
+        {% endcomment %}
+        <p class="au-ajuda">
+          {% blocktrans %}Você vai se identificar ao enviar — o pedido nasce em nome de alguém, e
+          unidade, centro de custo e quem aprova vêm da sua lotação.{% endblocktrans %}
         </p>
       {% endif %}
     </article>

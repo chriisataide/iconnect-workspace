@@ -126,6 +126,7 @@ de alguém, e a leitura do que é de uma pessoa:
 | `solicitacao/<id>/acerto/` | movimenta dinheiro: declara devolução ou informa conta |
 | `solicitacao/<id>/cancelar/` | derruba a aprovação em curso e libera orçamento |
 | `reserva/<id>/cancelar/` | desfaz a reserva que outro marcou |
+| `servicos/<chave>/` **no POST** | o formulário abre para qualquer um; o pedido nasce com um solicitante, consome o centro de custo dele e cai na fila do gestor dele |
 | `reservas/<codigo>/` **no POST** | ver a agenda é aberto; marcar põe um nome no calendário |
 | `documentacao/<slug>/confirmar/` | é a linha que a empresa apresenta para provar que a pessoa leu |
 | `correspondencias/` e seus três POSTs | a tela responde quem recebeu intimação, de quem e quando |
