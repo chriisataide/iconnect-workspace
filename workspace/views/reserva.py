@@ -10,6 +10,7 @@ from __future__ import annotations
 from datetime import datetime, timedelta
 
 from django.contrib import messages
+from django.contrib.auth.decorators import login_required
 from django.http import HttpRequest, HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
@@ -151,9 +152,12 @@ def minhas_reservas(request: HttpRequest) -> HttpResponse:
     )
 
 
+@login_required
 def cancelar_reserva(request: HttpRequest, pk: int) -> HttpResponse:
+    """Cancelar derruba a reserva de alguém — a sala que a pessoa contava ter.
+    Ver a agenda continua aberto; desfazer o que outro marcou, não."""
     reserva = get_object_or_404(Reserva, pk=pk)
-    pessoa = pessoa_da_requisicao(request)
+    pessoa = request.user
     if request.method == "POST":
         try:
             res.cancelar(reserva, pessoa)

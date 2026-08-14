@@ -197,11 +197,20 @@ def test_terceiro_nao_baixa(client, cenario):
 
 
 @pytest.mark.django_db
-def test_anonimo_baixa_com_pessoa_aberta(client, cenario):
+def test_anonimo_nao_baixa_anexo_de_ninguem(client, cenario):
+    """O Workspace é aberto para LER as telas; anexo não é tela.
+
+    Este teste substitui um que exigia o contrário. O acesso aberto fazia
+    `pode_baixar()` responder pela primeira pessoa do organograma, e o
+    atestado médico dela saía por esta URL para qualquer visitante — o mesmo
+    furo que o projeto fechou ao tirar os anexos de `MEDIA_ROOT`, reaberto por
+    outro caminho.
+    """
     anexo = pedir(cenario).anexos.get()
     resposta = client.get(reverse("workspace:baixar_anexo", args=(anexo.pk,)))
 
-    assert resposta.status_code == 200
+    assert resposta.status_code == 302
+    assert resposta["Location"].startswith("/entrar/")
 
 
 @pytest.mark.django_db

@@ -87,6 +87,42 @@ def test_home_continua_publica(client):
     assert client.get(reverse("workspace:home")).status_code == 200
 
 
+# ── Ver é aberto; assinar exige identidade ──────────────────────────
+#
+# O acesso aberto vale para LER. Os atos abaixo escrevem em nome de alguém —
+# e, sem sessão, `pessoa_da_requisicao()` devolve a primeira pessoa do
+# organograma: qualquer visitante aprovaria pedidos, cancelaria o pedido de
+# outro e baixaria o atestado médico dela, com o histórico registrando o nome
+# de quem não fez nada disso.
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize(
+    "rota,args",
+    [
+        ("workspace:decidir_aprovacao", [1]),
+        ("workspace:aprovar_em_lote", []),
+        ("workspace:cancelar_solicitacao", [1]),
+        ("workspace:acerto", [1]),
+        ("workspace:baixar_anexo", [1]),
+        ("workspace:cancelar_reserva", [1]),
+    ],
+)
+def test_ato_em_nome_de_alguem_exige_identidade(client, rota, args):
+    destino = reverse(rota, args=args)
+    resposta = client.get(destino)
+
+    assert resposta.status_code == 302, f"{rota} respondeu sem sessão"
+    assert resposta["Location"].startswith("/entrar/"), resposta["Location"]
+
+
+@pytest.mark.django_db
+def test_ha_onde_se_identificar(client):
+    """Sem esta rota, exigir identidade seria trancar todo mundo do lado de
+    fora: `/admin/login/` recusa quem não é staff, e não havia outra porta."""
+    assert client.get("/entrar/").status_code == 200
+
+
 # ── Catálogo ────────────────────────────────────────────────────────
 
 

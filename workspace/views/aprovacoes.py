@@ -7,6 +7,7 @@ comprometido, este pedido — é decisão.
 from __future__ import annotations
 
 from django.contrib import messages
+from django.contrib.auth.decorators import login_required
 from django.core.exceptions import ObjectDoesNotExist
 from django.http import HttpRequest, HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
@@ -148,13 +149,20 @@ def bandeja(request: HttpRequest) -> HttpResponse:
     )
 
 
+@login_required
 def decidir(request: HttpRequest, pk: int) -> HttpResponse:
-    """Registra a decisão. Toda regra está no serviço, não aqui."""
+    """Registra a decisão. Toda regra está no serviço, não aqui.
+
+    `@login_required` e `request.user`, não `pessoa_da_requisicao()`: a bandeja
+    é aberta como o resto do Workspace, mas DECIDIR assina. Sem identidade, o
+    fallback anônimo aprovaria pedidos com o nome da primeira pessoa do
+    organograma — e o histórico registraria que foi ela.
+    """
     if request.method != "POST":
         return redirect(reverse("workspace:aprovacoes"))
 
     solicitacao = get_object_or_404(SolicitacaoAprovacao, pk=pk)
-    pessoa = pessoa_da_requisicao(request)
+    pessoa = request.user
     decisao = request.POST.get("decisao", "")
     justificativa = (request.POST.get("justificativa") or "").strip()
 
@@ -175,8 +183,13 @@ def decidir(request: HttpRequest, pk: int) -> HttpResponse:
     return redirect(reverse("workspace:aprovacoes"))
 
 
+@login_required
 def decidir_em_lote(request: HttpRequest) -> HttpResponse:
-    """Aprova as selecionadas. Não aborta tudo quando uma falha."""
+    """Aprova as selecionadas. Não aborta tudo quando uma falha.
+
+    Assina como `decidir()`, e em lote — o que torna a falta de identidade aqui
+    mais cara, não menos.
+    """
     if request.method != "POST":
         return redirect(reverse("workspace:aprovacoes"))
 
@@ -186,7 +199,7 @@ def decidir_em_lote(request: HttpRequest) -> HttpResponse:
         return redirect(reverse("workspace:aprovacoes"))
 
     solicitacoes = list(SolicitacaoAprovacao.objects.filter(pk__in=ids))
-    pessoa = pessoa_da_requisicao(request)
+    pessoa = request.user
     decididas, falhas = apr.decidir_em_lote(
         solicitacoes, pessoa, apr.Decisao.APROVAR, cache=_cache(request)
     )

@@ -139,6 +139,13 @@ AUTH_PASSWORD_VALIDATORS = [
     {"NAME": "django.contrib.auth.password_validation.NumericPasswordValidator"},
 ]
 
+# Para onde `@login_required` manda quem precisa se identificar. O Workspace é
+# aberto; o decorador aparece só nos atos que assinam em nome de alguém, e é
+# esta a tela que eles usam.
+LOGIN_URL = "/entrar/"
+LOGIN_REDIRECT_URL = "/workspace/meu-dia/"
+LOGOUT_REDIRECT_URL = "/workspace/"
+
 # ── Internacionalização ─────────────────────────────────────────────
 
 # pt-BR e não en-us: a home escreve "Sexta-feira, 7 de agosto" com

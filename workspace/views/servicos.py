@@ -5,6 +5,7 @@ from __future__ import annotations
 from decimal import Decimal
 
 from django.contrib import messages
+from django.contrib.auth.decorators import login_required
 from django.core.exceptions import PermissionDenied
 from django.http import FileResponse, Http404, HttpRequest, HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
@@ -234,19 +235,26 @@ def _texto_do_valor(valor) -> str:
     return f"{valor:.2f}".replace(".", ",")
 
 
+@login_required
 def baixar_anexo(request: HttpRequest, pk: int) -> HttpResponse:
     """O único caminho até um anexo. Autoriza, então entrega.
 
     Não existe URL pública para estes arquivos: eles moram fora de MEDIA_ROOT e
     o storage não tem `base_url` (ver `workspace/storage.py`). Se esta view negar,
     não há segunda porta.
+
+    `@login_required` aqui não é sobre decidir, é sobre O QUE estes arquivos
+    são: atestado médico, comprovante, contrato em análise. `pode_baixar()`
+    responde "esta pessoa pode?" — e com o fallback anônimo a resposta seria
+    calculada para a primeira pessoa do organograma, entregando o atestado dela
+    a quem passasse pela URL. É o mesmo furo que o projeto fechou ao tirar os
+    anexos de `MEDIA_ROOT`, reaberto por outro caminho.
     """
     anexo = get_object_or_404(
         Anexo.objects.select_related("solicitacao", "solicitacao__aprovacao"), pk=pk
     )
-    pessoa = pessoa_da_requisicao(request)
 
-    if not anx.pode_baixar(pessoa, anexo, cache=_cache(request)):
+    if not anx.pode_baixar(request.user, anexo, cache=_cache(request)):
         # 403 e não 404: quem chegou aqui tem o id de um anexo que existe, e
         # mentir sobre a existência não protege nada que o 403 já não proteja.
         raise PermissionDenied("Você não tem acesso a este anexo.")
@@ -289,6 +297,7 @@ def minhas_solicitacoes(request: HttpRequest) -> HttpResponse:
     )
 
 
+@login_required
 def acerto(request: HttpRequest, pk: int) -> HttpResponse:
     """O segundo passo da prestação de contas: o que fazer com a diferença.
 
@@ -296,8 +305,12 @@ def acerto(request: HttpRequest, pk: int) -> HttpResponse:
     diferença só existe DEPOIS que as compras foram somadas — mostrar antes
     exigiria calcular no navegador, e aí a conta que a pessoa vê e a conta que
     o sistema grava seriam duas.
+
+    `@login_required` porque aqui se movimenta dinheiro: o acerto declara que
+    uma devolução foi feita, ou informa a conta em que a empresa vai depositar.
+    Ato assinado — sem identidade, seria assinado com o nome de outra pessoa.
     """
-    pessoa = pessoa_da_requisicao(request)
+    pessoa = request.user
     prestacao = get_object_or_404(
         svc.minhas(pessoa).select_related("adiantamento"), pk=pk
     )
@@ -341,8 +354,11 @@ def acerto(request: HttpRequest, pk: int) -> HttpResponse:
     )
 
 
+@login_required
 def cancelar(request: HttpRequest, pk: int) -> HttpResponse:
-    pessoa = pessoa_da_requisicao(request)
+    """Cancelar é ato: derruba a aprovação em curso e libera o orçamento
+    comprometido. Sem identidade, qualquer um cancelaria o pedido de alguém."""
+    pessoa = request.user
     solicitacao = get_object_or_404(svc.minhas(pessoa), pk=pk)
     if request.method == "POST":
         try:

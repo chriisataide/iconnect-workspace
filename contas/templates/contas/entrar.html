@@ -1,0 +1,55 @@
+{% extends "workspace/_shell.html" %}
+{% load i18n %}
+
+{% block titulo %}{% trans "Identificar-se" %}{% endblock %}
+
+{% comment %}
+  Login do WORKSPACE, não do iConnect Platform. São dois sistemas e dois
+  cadastros; esta tela nunca dá acesso ao outro.
+
+  Ela NÃO é a porta do produto: o Workspace é aberto, e ninguém chega aqui
+  navegando. Só se cai nesta tela ao tentar um ato que assina em nome de
+  alguém — aprovar, fechar acerto, cancelar — ou ao abrir o documento de outra
+  pessoa. Por isso o texto fala de "identificar-se" e não de "entrar": a pessoa
+  já estava usando o produto.
+
+  Provisória: quando o SSO entrar, ela chega aqui já identificada pelo M365 e
+  esta tela deixa de aparecer no caminho normal — sobra como saída para conta de
+  serviço e para quem não está no tenant.
+{% endcomment %}
+{% block conteudo %}
+  <section class="au-hero">
+    <h1 class="au-hero-titulo">{% trans "Identifique-se para continuar" %}</h1>
+    <p class="au-hero-sub">
+      {% trans "O Workspace é aberto. Só decidir em nome de alguém — aprovar, fechar um acerto, cancelar — e abrir documento de outra pessoa exigem saber quem é você." %}
+    </p>
+  </section>
+
+  <section class="au-secao">
+    <form method="post" class="au-form-entrar">
+      {% csrf_token %}
+      {% if form.errors %}
+        <p class="au-faixa au-faixa--alerta">
+          {% trans "E-mail ou senha não conferem." %}
+        </p>
+      {% endif %}
+
+      <label class="au-campo">
+        <span class="au-campo-rotulo">{% trans "E-mail corporativo" %}</span>
+        <input class="au-campo-entrada" type="email" name="username"
+               autocomplete="username" required autofocus>
+      </label>
+
+      <label class="au-campo">
+        <span class="au-campo-rotulo">{% trans "Senha" %}</span>
+        <input class="au-campo-entrada" type="password" name="password"
+               autocomplete="current-password" required>
+      </label>
+
+      <button class="au-botao au-botao--primario" type="submit">
+        {% trans "Continuar" %}
+      </button>
+      <input type="hidden" name="next" value="{{ next }}">
+    </form>
+  </section>
+{% endblock %}

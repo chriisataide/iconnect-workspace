@@ -108,20 +108,37 @@ Papéis se atribuem em `/admin/identidade/` (ou pelo `semear_papeis` + vínculo)
 Antes das telas, sete invariantes. Cada uma delas já foi quebrada uma vez, e cada
 uma vale um caso de teste em qualquer aba que você abrir.
 
-### 2.1 O hub é público; a área pessoal exige login
+### 2.1 O Workspace é aberto para ver; assinar exige identidade
 
 > *"Quem estiver na rede da empresa tem acesso ao portal, não precisa de senha."*
 
-Público (abre em janela anônima, sem redirecionar para login):
-`/workspace/`, `/workspace/buscar/`, `/workspace/m/<modulo>/`,
-`/workspace/documentacao/`, `/workspace/reservas/`, `/workspace/publicacao/<id>/`.
+**Aberto** (abre em janela anônima, sem redirecionar): praticamente tudo —
+`/workspace/`, a busca, os módulos, a documentação, as reservas, as
+publicações, **e também** `servicos`, `minhas-solicitacoes`, `aprovacoes`,
+`meu-dia`, `notificacoes` e `correspondencias`. Pedir um serviço não exige
+login.
 
-Exige login (redireciona para `/login/?next=…`):
-`meu-dia`, `notificacoes`, `servicos`, `minhas-solicitacoes`, `aprovacoes`,
-`correspondencias`, `reservas/minhas`, `anexo/<id>`, e todo POST.
+**Exige identidade** (302 para `/entrar/?next=…`) — os atos que assinam em nome
+de alguém, e a leitura de documento alheio:
 
-**Defeito se:** uma tela pública redirecionar para login, **ou** uma tela pessoal
-abrir sem sessão. As duas metades importam.
+| Rota | Por quê |
+|---|---|
+| `aprovacoes/<id>/decidir/` e `aprovacoes/lote/` | a decisão vai para o histórico com um nome |
+| `solicitacao/<id>/acerto/` | movimenta dinheiro: declara devolução ou informa conta |
+| `solicitacao/<id>/cancelar/` | derruba a aprovação em curso e libera orçamento |
+| `reserva/<id>/cancelar/` | desfaz a reserva que outro marcou |
+| `anexo/<id>/` | atestado médico, comprovante, contrato — de uma pessoa |
+
+O motivo é um só: **sem sessão, o produto atribui a ação à primeira pessoa ativa
+com lotação** (`workspace/acesso.py`). Ver as telas com essa pessoa é a decisão
+de produto; assinar por ela não é.
+
+**Defeito se:** uma tela aberta redirecionar para `/entrar/`, **ou** um dos atos
+da tabela acontecer sem sessão. As duas metades importam.
+
+`/entrar/` existe só para isso — **nenhum link do produto leva até lá**, e não
+deve aparecer botão de login em tela nenhuma (ver 2.2). Sem essa rota seria
+impossível se identificar: `/admin/login/` recusa quem não é staff.
 
 ### 2.2 Não existe botão de login na topbar
 
