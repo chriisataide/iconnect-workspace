@@ -117,6 +117,40 @@ def test_ato_em_nome_de_alguem_exige_identidade(client, rota, args):
 
 
 @pytest.mark.django_db
+def test_confirmar_leitura_e_correspondencia_tambem_assinam(client):
+    """Confirmar leitura de normativo é a linha que a empresa apresenta para
+    provar conformidade; a correspondência revela quem recebe intimação."""
+    for rota, args in [
+        ("workspace:confirmar_leitura", ["qualquer-slug"]),
+        ("workspace:correspondencias", []),
+        ("workspace:registrar_correspondencia", []),
+        ("workspace:entregar_correspondencia", [1]),
+        ("workspace:identificar_correspondencia", [1]),
+    ]:
+        resposta = client.get(reverse(rota, args=args))
+        assert resposta.status_code == 302, rota
+        assert resposta["Location"].startswith("/entrar/"), rota
+
+
+@pytest.mark.django_db
+def test_ver_a_agenda_de_uma_sala_continua_aberto(client):
+    """A fronteira da reserva passa dentro da view: consultar é informação de
+    escritório — é o que faz a pessoa parar de bater na porta da sala."""
+    from workspace.models.reserva import Recurso, TipoRecurso
+
+    Recurso.objects.create(
+        codigo="sala-1", nome="Sala 1", tipo=TipoRecurso.SALA, capacidade=6
+    )
+
+    aberta = client.get(reverse("workspace:reservar", args=["sala-1"]))
+    assert aberta.status_code == 200
+
+    marcar = client.post(reverse("workspace:reservar", args=["sala-1"]), {})
+    assert marcar.status_code == 302
+    assert marcar["Location"].startswith("/entrar/")
+
+
+@pytest.mark.django_db
 def test_ha_onde_se_identificar(client):
     """Sem esta rota, exigir identidade seria trancar todo mundo do lado de
     fora: `/admin/login/` recusa quem não é staff, e não havia outra porta."""

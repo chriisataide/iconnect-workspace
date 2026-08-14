@@ -102,7 +102,7 @@ casa, que era o ponto de existir um contrato.
 | O que se estranha | Por quê |
 |---|---|
 | O Workspace abre sem login | Decisão de produto: quem está na rede usa o hub e as telas operacionais sem barreira de autenticação. |
-| …mas aprovar, acertar, cancelar e baixar anexo pedem login | Ver é aberto; **assinar em nome de alguém, não**. Sem sessão, o produto atribui a ação à primeira pessoa do organograma — e o histórico registraria o nome de quem não fez nada. A tela `/entrar/` existe só para isso: nenhum link leva até ela. |
+| …mas assinar pede login | Ver é aberto; **assinar em nome de alguém, não**. Sem sessão, o produto atribui a ação à primeira pessoa do organograma — e o histórico registraria o nome de quem não fez nada. Vale para aprovar, acertar, cancelar, marcar reserva, confirmar leitura, correspondências e baixar anexo. A tela `/entrar/` existe só para isso: nenhum link leva até ela. |
 | "Aplicativos" é a última faixa da home | A home abria por lá, com o iConnect como tile herói — o que a fazia um *app launcher*, com o trabalho da pessoa em segundo lugar. |
 | Anexos moram fora de `MEDIA_ROOT` | Segurança, não organização de pasta: servidor web serve `MEDIA_ROOT` sem passar por view. No projeto anterior o nginx expôs `/media/` sem autenticação. |
 | Nenhum `style=` em template | A CSP não tem `unsafe-inline`. Navegador ignora `unsafe-inline` quando há nonce, e nonce não se aplica a atributo `style` — o estilo é descartado **em silêncio**. Por isso a barra da bandeja é SVG, onde `width` é atributo. |

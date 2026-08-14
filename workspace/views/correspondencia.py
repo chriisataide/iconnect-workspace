@@ -9,11 +9,11 @@ from __future__ import annotations
 
 from django.contrib import messages
 from django.contrib.auth import get_user_model
+from django.contrib.auth.decorators import login_required
 from django.http import HttpRequest, HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 
-from workspace.acesso import pessoa_da_requisicao
 from identidade.services.autorizacao import pode
 from workspace.models.correspondencia import Correspondencia, TipoCorrespondencia
 from workspace.services import correspondencia as cor
@@ -25,9 +25,21 @@ def _cache(request: HttpRequest) -> dict:
     return request.perm_cache
 
 
+@login_required
 def correspondencias(request: HttpRequest) -> HttpResponse:
+    """A exceção à regra "ver é aberto", e a razão está no conteúdo da tela.
+
+    Aqui não há tela institucional nenhuma: o que se lê é *quem recebeu
+    intimação, de quem, e quando*. Aberta, ela responde isso a respeito da
+    primeira pessoa do organograma — e, se essa pessoa operar a recepção, a
+    respeito da empresa inteira.
+
+    O guia de QA já dizia "tudo autenticado, é dado de pessoa", e a fila não é
+    pública nem para gestores. Manter aberto seria contradizer a única regra
+    que esta tela tem.
+    """
     cache = _cache(request)
-    pessoa = pessoa_da_requisicao(request)
+    pessoa = request.user
     opera = pode(pessoa, cor.PERMISSAO_REGISTRAR, cache=cache)
 
     return render(
@@ -51,11 +63,12 @@ def correspondencias(request: HttpRequest) -> HttpResponse:
     )
 
 
+@login_required
 def registrar_correspondencia(request: HttpRequest) -> HttpResponse:
     if request.method != "POST":
         return redirect(reverse("workspace:correspondencias"))
 
-    pessoa = pessoa_da_requisicao(request)
+    pessoa = request.user
     destinatario = None
     if request.POST.get("destinatario"):
         destinatario = get_user_model().objects.filter(pk=request.POST["destinatario"]).first()
@@ -79,12 +92,13 @@ def registrar_correspondencia(request: HttpRequest) -> HttpResponse:
     return redirect(reverse("workspace:correspondencias"))
 
 
+@login_required
 def entregar_correspondencia(request: HttpRequest, pk: int) -> HttpResponse:
     if request.method != "POST":
         return redirect(reverse("workspace:correspondencias"))
 
     registro = get_object_or_404(Correspondencia, pk=pk)
-    pessoa = pessoa_da_requisicao(request)
+    pessoa = request.user
     try:
         cor.entregar(registro, pessoa, cache=_cache(request))
     except cor.CorrespondenciaError as falha:
@@ -95,6 +109,7 @@ def entregar_correspondencia(request: HttpRequest, pk: int) -> HttpResponse:
     return redirect(reverse("workspace:correspondencias"))
 
 
+@login_required
 def identificar_correspondencia(request: HttpRequest, pk: int) -> HttpResponse:
     """Aponta o destinatário do que chegou sem nome — e avisa na hora.
 
@@ -105,7 +120,7 @@ def identificar_correspondencia(request: HttpRequest, pk: int) -> HttpResponse:
         return redirect(reverse("workspace:correspondencias"))
 
     registro = get_object_or_404(Correspondencia, pk=pk)
-    pessoa = pessoa_da_requisicao(request)
+    pessoa = request.user
     destinatario = get_user_model().objects.filter(pk=request.POST.get("destinatario")).first()
     if destinatario is None:
         messages.error(request, "Escolha o destinatário.")

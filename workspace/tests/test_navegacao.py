@@ -56,9 +56,16 @@ def test_todo_tile_disponivel_leva_a_pagina_que_responde(client):
             continue
         destino = reverse(spec.url_name, args=spec.url_args)
         assert destino in _href(corpo), f"tile {spec.chave} não está na home"
-        # O Workspace é aberto: tile disponível precisa responder.
+        # Tile disponível precisa levar a algum lugar: a tela, ou — nas poucas
+        # que mostram dado de pessoa, como correspondências — a identificação.
+        # O que não pode é 404, 500 ou beco.
         resposta = client.get(destino)
-        assert resposta.status_code == 200, f"{destino} não responde"
+        if resposta.status_code == 302:
+            assert resposta["Location"].startswith("/entrar/"), (
+                f"{destino} redireciona para {resposta['Location']}"
+            )
+        else:
+            assert resposta.status_code == 200, f"{destino} não responde"
 
 
 def test_modulo_disponivel_tem_tile_e_destino():

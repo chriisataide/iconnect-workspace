@@ -115,11 +115,10 @@ uma vale um caso de teste em qualquer aba que você abrir.
 **Aberto** (abre em janela anônima, sem redirecionar): praticamente tudo —
 `/workspace/`, a busca, os módulos, a documentação, as reservas, as
 publicações, **e também** `servicos`, `minhas-solicitacoes`, `aprovacoes`,
-`meu-dia`, `notificacoes` e `correspondencias`. Pedir um serviço não exige
-login.
+`meu-dia` e `notificacoes`. Pedir um serviço não exige login.
 
 **Exige identidade** (302 para `/entrar/?next=…`) — os atos que assinam em nome
-de alguém, e a leitura de documento alheio:
+de alguém, e a leitura do que é de uma pessoa:
 
 | Rota | Por quê |
 |---|---|
@@ -127,6 +126,9 @@ de alguém, e a leitura de documento alheio:
 | `solicitacao/<id>/acerto/` | movimenta dinheiro: declara devolução ou informa conta |
 | `solicitacao/<id>/cancelar/` | derruba a aprovação em curso e libera orçamento |
 | `reserva/<id>/cancelar/` | desfaz a reserva que outro marcou |
+| `reservas/<codigo>/` **no POST** | ver a agenda é aberto; marcar põe um nome no calendário |
+| `documentacao/<slug>/confirmar/` | é a linha que a empresa apresenta para provar que a pessoa leu |
+| `correspondencias/` e seus três POSTs | a tela responde quem recebeu intimação, de quem e quando |
 | `anexo/<id>/` | atestado médico, comprovante, contrato — de uma pessoa |
 
 O motivo é um só: **sem sessão, o produto atribui a ação à primeira pessoa ativa

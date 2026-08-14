@@ -324,10 +324,18 @@ def test_dias_esperando_para_do_que_foi_retirado(cenario):
 # ── As telas ────────────────────────────────────────────────────────
 
 
-def test_tela_e_aberta(client, cenario):
+def test_tela_exige_identidade(client, cenario):
+    """A exceção à regra "ver é aberto", e o motivo está no conteúdo.
+
+    Esta tela responde *quem recebeu intimação, de quem e quando*. Aberta, ela
+    responderia isso sobre a primeira pessoa do organograma — e, se ela operar
+    a recepção, sobre a empresa inteira. Este teste substitui um que exigia o
+    contrário.
+    """
     resposta = client.get(reverse("workspace:correspondencias"))
 
-    assert resposta.status_code == 200
+    assert resposta.status_code == 302
+    assert resposta["Location"].startswith("/entrar/")
 
 
 def test_quem_nao_opera_nao_ve_o_formulario(client, cenario):

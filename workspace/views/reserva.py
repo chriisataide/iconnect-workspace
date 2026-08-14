@@ -11,6 +11,7 @@ from datetime import datetime, timedelta
 
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
+from django.contrib.auth.views import redirect_to_login
 from django.http import HttpRequest, HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
@@ -76,13 +77,22 @@ def reservas(request: HttpRequest) -> HttpResponse:
 
 
 def reservar(request: HttpRequest, codigo: str) -> HttpResponse:
-    """Formulário de um recurso, com a agenda do dia ao lado."""
+    """Formulário de um recurso, com a agenda do dia ao lado.
+
+    Aqui a fronteira passa DENTRO da view, e não no decorador: consultar a
+    agenda de uma sala é informação de escritório e continua aberta, mas marcar
+    põe um nome no calendário. `@login_required` na view inteira fecharia a
+    consulta junto — e é a consulta que faz a pessoa parar de bater na porta
+    para saber se a sala está livre.
+    """
     recurso = get_object_or_404(Recurso, codigo=codigo, ativo=True)
     dia = _dia_pedido(request)
-    pessoa = pessoa_da_requisicao(request)
+    pessoa = request.user
     erro = ""
 
     if request.method == "POST":
+        if not pessoa.is_authenticated:
+            return redirect_to_login(request.get_full_path())
         inicio, fim, erro = _janela_do_post(request)
         if not erro:
             try:

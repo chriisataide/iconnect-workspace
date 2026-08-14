@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from django.contrib import messages
+from django.contrib.auth.decorators import login_required
 from django.core.exceptions import PermissionDenied
 from django.http import HttpRequest, HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
@@ -66,15 +67,21 @@ def documento(request: HttpRequest, slug: str) -> HttpResponse:
     )
 
 
+@login_required
 def confirmar_leitura(request: HttpRequest, slug: str) -> HttpResponse:
     """POST apenas: confirmação é escrita, e GET não muda estado.
 
     Sem isso, o pré-carregamento de link do navegador registraria conformidade
     que a pessoa nunca declarou — e é exatamente esse registro que se leva para
     uma audiência.
+
+    Pelo mesmo motivo, `@login_required`: é a declaração de que uma pessoa
+    NOMEADA leu um normativo. Ler o documento continua aberto; assinar que leu,
+    não — a confirmação anônima entraria com o nome de outra pessoa, e é essa
+    linha que a empresa apresenta quando precisa provar conformidade.
     """
     doc = get_object_or_404(Documento, slug=slug)
-    pessoa = pessoa_da_requisicao(request)
+    pessoa = request.user
     if request.method != "POST":
         return redirect(reverse("workspace:documento", args=(slug,)))
 
