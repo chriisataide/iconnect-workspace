@@ -26,26 +26,20 @@
         {% trans "Bem-vindo ao Workspace." %}
       {% endif %}
     </h1>
-    <p class="au-hero-sub">{% trans "Busque um serviço, um comunicado ou um sistema." %}</p>
-
     {% comment %}
-      Campo inline da home. A paleta global continua existindo na casca para as
-      outras telas, mas aqui a busca aparece no lugar em que a pessoa clicou:
-      resultados logo abaixo do campo, sem modal.
+      SEM campo de busca aqui. Existe UM só em toda a aplicação — a lupa da
+      topbar, que abre a paleta, e o ⌘K que faz o mesmo de qualquer tela.
+
+      A home já teve um campo próprio duas vezes, e as duas foram desfeitas
+      pelo mesmo motivo: dois campos de busca na mesma tela fazem a pessoa
+      hesitar sobre se buscam a mesma coisa, e o da home só funcionava na home.
+
+      Por isso o subtítulo aponta para onde a busca mora: sem campo à vista, a
+      frase "busque um serviço" precisa dizer POR ONDE.
     {% endcomment %}
-    <div class="au-busca au-busca--home">
-      <svg class="au-busca-icone" aria-hidden="true"><use href="#i-search"></use></svg>
-      <label class="au-sr" for="busca-home">{% trans "Buscar no Workspace" %}</label>
-      <input class="au-busca-campo" id="busca-home" type="search" autocomplete="off"
-             role="combobox" aria-expanded="false" aria-controls="busca-home-resultados"
-             placeholder="{% trans 'Buscar…' %}"
-             data-busca-inline>
-      <span class="au-atalho" aria-hidden="true">
-        <kbd class="au-tecla">⌘</kbd><kbd class="au-tecla">K</kbd>
-      </span>
-      <div class="au-busca-painel" id="busca-home-resultados" role="listbox" hidden
-           data-url="{% url 'workspace:buscar' %}"></div>
-    </div>
+    <p class="au-hero-sub">
+      {% trans "Busque um serviço, um comunicado ou um sistema pela lupa no topo — ou com ⌘K, de qualquer tela." %}
+    </p>
   </section>
 
   {% comment %}

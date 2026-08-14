@@ -231,18 +231,6 @@ body {
   box-shadow: var(--au-e-1), 0 0 0 3px var(--au-accent-bg);
 }
 
-.au-busca--home {
-  width: 40%;
-  max-width: none;
-}
-.au-busca--home .au-busca-campo {
-  border-radius: var(--au-r-full);
-}
-.au-busca--home .au-busca-painel {
-  top: calc(100% + var(--au-2));
-  z-index: 30;
-}
-
 .au-atalho {
   position: absolute;
   right: var(--au-3);

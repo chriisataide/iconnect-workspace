@@ -399,15 +399,22 @@ def test_paleta_existe_em_toda_tela(client, pessoas, rota):
     assert "workspace/js/workspace.js" in corpo, f"{rota} sem o script"
 
 
-def test_home_tem_busca_inline_e_nao_duplica_campo_global(client, pessoas):
-    """A home busca no próprio campo. O `#busca` global continua único para a
-    paleta das outras telas; duplicá-lo faria o JS mirar no elemento errado."""
+def test_a_home_nao_tem_campo_de_busca_proprio(client, pessoas):
+    """UM campo de busca em toda a aplicação, e ele mora na paleta.
+
+    Este teste substitui um que exigia o contrário. A home já teve campo
+    próprio duas vezes: na primeira, o ⌘K só funcionava lá, porque o atalho
+    procurava um `#busca` que só ela tinha; na segunda, dois campos na mesma
+    tela — o dela e a lupa da topbar — faziam a pessoa hesitar sobre se
+    buscavam a mesma coisa.
+    """
     corpo = client.get(reverse("workspace:home")).content.decode()
 
-    assert corpo.count('id="busca"') == 1
-    assert 'id="busca-home"' in corpo
-    assert "data-busca-inline" in corpo
-    assert 'id="busca-home-resultados"' in corpo
+    assert corpo.count('id="busca"') == 1, "o campo da paleta é o único"
+    assert "busca-home" not in corpo
+    assert "data-busca-inline" not in corpo
+    # A lupa continua onde estava, e é por ela que se busca.
+    assert "data-abre-busca" in corpo
 
 
 def test_paleta_e_dialog_nativo(client, pessoas):

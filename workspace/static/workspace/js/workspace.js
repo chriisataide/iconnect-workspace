@@ -17,10 +17,6 @@
   var painel = document.getElementById('busca-resultados');
   if (!paleta || !campo || !painel) return;
 
-  var campoInline = document.querySelector('[data-busca-inline]');
-  var painelInline = campoInline
-    ? document.getElementById(campoInline.getAttribute('aria-controls'))
-    : null;
   var atraso = 200;
 
   function prepararBusca(campoBusca, painelBusca) {
@@ -130,20 +126,13 @@
     };
   }
 
+  // UM campo de busca em toda a aplicação, e ele mora na paleta. A home já teve
+  // um campo próprio duas vezes: na primeira o ⌘K só funcionava lá, porque o
+  // atalho procurava um `#busca` que só ela tinha; na segunda, dois campos na
+  // mesma tela faziam a pessoa hesitar sobre se buscavam a mesma coisa.
   var buscaPaleta = prepararBusca(campo, painel);
-  var buscaHome = painelInline ? prepararBusca(campoInline, painelInline) : null;
-
-  function focoBuscaPrincipal() {
-    if (campoInline) {
-      campoInline.focus();
-      campoInline.select();
-      return true;
-    }
-    return false;
-  }
 
   function abrirPaleta() {
-    if (focoBuscaPrincipal()) return;
     if (paleta.open) return;
     // `showModal` e não `show`: só o modal traz o fundo inerte e o Esc nativo.
     paleta.showModal();
@@ -153,25 +142,6 @@
 
   function fecharPaleta() {
     if (paleta.open) paleta.close();
-  }
-
-  document.addEventListener('click', function (e) {
-    if (
-      buscaHome &&
-      !e.target.closest('.au-busca--home') &&
-      !e.target.closest('[data-abre-busca]')
-    ) {
-      buscaHome.fecharPainel();
-    }
-  });
-
-  if (campoInline) {
-    campoInline.addEventListener('focus', function () {
-      if (campoInline.value.trim().length >= 2 && painelInline.innerHTML.trim()) {
-        painelInline.hidden = false;
-        campoInline.setAttribute('aria-expanded', 'true');
-      }
-    });
   }
 
   // ── Abrir e fechar ──────────────────────────────────────────────
