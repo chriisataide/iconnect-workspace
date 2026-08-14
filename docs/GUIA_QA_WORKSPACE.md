@@ -386,7 +386,10 @@ falha.
   custo em item que exige um recebe: "Você não tem centro de custo na sua
   lotação. Peça ao RH para cadastrar." Isso é comportamento correto.
 - O campo de valor aceita `1.234,56` **e** `1234.56`. O usuário digita como
-  aprendeu.
+  aprendeu. **Regressão já corrida:** `1234.56` era lido como **cento e vinte e
+  três mil**, porque a leitura apagava todo ponto antes de trocar a vírgula.
+  Hoje há uma leitura só, em `services/reembolso.valor_de()`; teste os dois
+  formatos e também `1.234` (mil duzentos e trinta e quatro).
 - Campo de arquivo se satisfaz com **arquivo**, não com texto. Já passou:
   digitar "cupom.jpg" num campo de texto validava o pedido sem comprovante.
 
@@ -414,6 +417,76 @@ falha.
 Auto-aprovado mostra: *"… aprovado automaticamente — está dentro da política."*
 Os casos de EPI e reciclagem de NR são decisões de segurança, não de custo: negar
 EPI é risco, não economia, e habilitação vencida bloqueia despacho.
+
+**O que testar — os campos de R.H. e de dinheiro:**
+
+| Item | Campos | Obrigatórios |
+|---|---|---|
+| Enviar atestado | data, horário, atestado, motivo, chefe ciente | os três primeiros |
+| Trabalho remoto | período, dias, motivo | todos |
+| Declaração ou comprovante | qual declaração, anexo | só a primeira |
+| Adiantamento | motivo, data de pagamento, conta do beneficiário, supervisor ciente, orçamento | os três primeiros |
+
+O teto de **3 obrigatórios** continua valendo, e é ele que decide o que ficou
+opcional. Motivo do atestado é opcional porque o documento já o traz; o chefe
+ciente também, porque o gestor vem da lotação — o campo existe para o caso em
+que a realidade diverge do cadastro. O orçamento do adiantamento é opcional
+porque foi pedido assim: "caso já haja um documento".
+
+---
+
+### 3.6.1 Reembolso item a item e acerto do adiantamento
+
+**Para que serve.** Reembolso é preenchido **uma compra por vez**: comprovante,
+valor e motivo em cada linha. Não existe campo de valor total — quem soma é o
+servidor. Antes eram cinco cupons somados à mão num número só, e quem aprovava
+recebia "R$ 340,00" com cinco imagens sem saber qual era qual.
+
+**O que testar — a lista de compras:**
+
+- "Adicionar outra compra" acrescenta uma linha; "Remover" tira. A **última
+  linha não é removível** — reembolso sem nenhuma compra não tem o que enviar.
+- Teto de **20 compras** por reembolso. No limite, o botão de adicionar
+  desabilita.
+- O total aparece como **prévia** enquanto se digita. É prévia mesmo: quem soma
+  para valer é o servidor, e a palavra está na tela de propósito.
+- **Sem JavaScript a tela continua funcionando** — o servidor manda uma linha
+  pronta e lê a lista do POST. Uma compra por envio, o que é pior, mas não é
+  tela quebrada. Teste desligando o JS.
+- Erro numerado por linha: *"Compra 2: anexe o comprovante."* Todos de uma vez.
+- Ao voltar com erro, valor e motivo voltam preenchidos; **o arquivo não**, e a
+  tela avisa disso. Nenhum navegador repopula `<input type=file>`.
+- Linha aberta e deixada em branco é ignorada, não vira erro.
+
+**O que testar — atrelar um adiantamento:**
+
+- A seção só aparece se a pessoa tiver adiantamento pendente de prestação de
+  contas. Sem nenhum, ela não existe — seletor vazio faz procurar o que não há.
+- Só aparece adiantamento **já aprovado**: dinheiro que não saiu não deve
+  prestação. E só o da própria pessoa.
+- Adiantamento já prestado sai da lista. Se a prestação for **cancelada**, ele
+  volta — senão um cancelamento acidental trancaria a pessoa para sempre.
+
+**O que testar — o acerto (`/workspace/solicitacao/<id>/acerto/`):**
+
+Ao enviar um reembolso atrelado, a tela seguinte é o acerto, e não "Minhas
+solicitações". A conta fica aberta até ser confirmada; dá para voltar depois.
+
+| Situação | O que a tela pede |
+|---|---|
+| Gastou **menos** que o adiantado | a conta da empresa à vista + **comprovante da devolução** (obrigatório) |
+| Gastou **mais** | a conta bancária da pessoa, pré-preenchida com a que ela informou no adiantamento |
+| Gastou **igual** | nada além de confirmar — e ainda assim vira registro |
+
+- Sem `CONTA_BANCARIA_EMPRESA` configurada, a tela **não inventa um número**:
+  diz para pedir os dados ao Financeiro. Depositar na conta errada é
+  irreversível.
+- Confirmar duas vezes é recusado. O acerto de outra pessoa dá 404.
+- Depois de confirmado, a tela mostra "Conta fechada" com data e o link do
+  comprovante.
+
+**Na bandeja de aprovação**, o pedido item a item mostra a **lista de compras**
+com o comprovante de cada valor, no lugar do bloco de anexos soltos.
 
 ---
 
@@ -738,10 +811,28 @@ só para quem administra recurso.
 ### Roteiro A — reembolso auto-aprovado (o caminho felizinho)
 
 1. Colaborador, ⌘K: `gastei com uber` → o assistente oferece **Reembolso**
-2. Anexa uma foto de cupom, valor **R$ 80**
+2. Uma compra: foto do cupom, **R$ 80**, motivo "corrida até o cliente"
 3. Envia → *"Reembolso aprovado automaticamente — está dentro da política."*
-4. Minhas solicitações: situação **aprovada**
+4. Minhas solicitações: situação **aprovada**, valor **R$ 80** (a soma, não um
+   número digitado)
 5. Meu dia: **não** aparece em "Esperando sua decisão" de ninguém
+
+### Roteiro A2 — prestação de contas de adiantamento (o roteiro do dinheiro)
+
+1. Colaborador pede **Adiantamento** de **R$ 1.000** — motivo, data de
+   pagamento e a conta dele. Vai para a cadeia (adiantamento não tem limite).
+2. Gestor aprova. O adiantamento passa a **dever prestação de contas**.
+3. Colaborador pede **Reembolso**: duas compras, **R$ 620** e **R$ 180,50**, e
+   atrela o adiantamento na seção que só aparece porque ele existe.
+4. Envia → cai direto na tela de **acerto**: adiantado 1.000, gasto 800,50,
+   **sobrou R$ 199,50**.
+5. Tenta confirmar sem comprovante → recusado, com o motivo na tela.
+6. Anexa o comprovante do depósito → *"Prestação de contas fechada."*
+7. Volta à mesma URL: **"Conta fechada"**, com data e link do comprovante.
+8. Novo reembolso: o adiantamento **não aparece mais** na lista de pendentes.
+
+Para o outro lado, refaça com uma compra de **R$ 1.160**: a tela pede a conta
+**da pessoa**, já pré-preenchida com a que ela informou no adiantamento.
 
 ### Roteiro B — a cadeia inteira (o roteiro mais valioso do produto)
 
@@ -805,7 +896,7 @@ só para quem administra recurso.
 
 ---
 
-## 7. Lista de regressão — as 11 armadilhas já corridas
+## 7. Lista de regressão — as 12 armadilhas já corridas
 
 Cada linha abaixo é um defeito **real**, encontrado e corrigido. Elas são a
 melhor lista de regressão que este produto tem, porque cada uma passou por uma
@@ -824,6 +915,7 @@ suíte verde uma vez.
 | 9 | Anexos com URL pública em `/media/` | Arquivo do Workspace acessível sem login |
 | 10 | Duplo clique em "Confirmo que li" → 500 | `IntegrityError` dentro de `atomic` |
 | 11 | Busca por `RH` dava `NoReverseMatch` e matava a busca inteira | Busca 500 em termo específico |
+| 12 | `1234.56` no campo de valor virava **R$ 123.456,00** | Pedido cem vezes maior que o gasto, aprovado por quem confiou no número da tela |
 
 **Se você só tiver uma hora**, teste: o Roteiro B (linha 1), a passagem pelas 6
 telas logado (linha 3), ⌘K + Esc em três telas (linhas 4 e 5), e o console aberto
