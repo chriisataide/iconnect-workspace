@@ -1,21 +1,16 @@
-"""Catálogo de serviços — as telas de pedir e acompanhar.
-
-Área pessoal: pedir exige saber quem pede. A home do Workspace continua pública; é
-aqui que o login passa a ser necessário, e `@login_required` só aparece neste
-arquivo e no de aprovações.
-"""
+"""Catálogo de serviços — as telas de pedir e acompanhar."""
 
 from __future__ import annotations
 
 from decimal import Decimal
 
 from django.contrib import messages
-from django.contrib.auth.decorators import login_required
 from django.core.exceptions import PermissionDenied
 from django.http import FileResponse, Http404, HttpRequest, HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 
+from workspace.acesso import pessoa_da_requisicao
 from workspace.models.anexo import Anexo
 from workspace.models.catalogo import ItemCatalogo, TipoCampo
 from workspace.services import anexos as anx
@@ -34,12 +29,12 @@ def _cache(request: HttpRequest) -> dict:
     return request.perm_cache
 
 
-@login_required
 def catalogo(request: HttpRequest) -> HttpResponse:
     """O catálogo agrupado por intenção, com prazo real medido."""
     cache = _cache(request)
+    pessoa = pessoa_da_requisicao(request)
     grupos = []
-    for rotulo, itens in svc.agrupado_para(request.user, cache=cache).items():
+    for rotulo, itens in svc.agrupado_para(pessoa, cache=cache).items():
         grupos.append(
             {
                 "rotulo": rotulo,
@@ -49,7 +44,7 @@ def catalogo(request: HttpRequest) -> HttpResponse:
             }
         )
 
-    minhas = svc.minhas(request.user)
+    minhas = svc.minhas(pessoa)
     return render(
         request,
         "workspace/servicos/catalogo.html",
@@ -64,11 +59,11 @@ def catalogo(request: HttpRequest) -> HttpResponse:
 _ABERTAS = ["aguardando_aprovacao", "aprovada", "em_atendimento", "devolvida"]
 
 
-@login_required
 def pedir(request: HttpRequest, chave: str) -> HttpResponse:
     """Formulário de um item. Valida antes de enviar e bloqueia com o motivo."""
     item = get_object_or_404(ItemCatalogo, chave=chave, ativo=True)
     cache = _cache(request)
+    pessoa = pessoa_da_requisicao(request)
 
     dados = {}
     arquivos = {}
@@ -93,11 +88,11 @@ def pedir(request: HttpRequest, chave: str) -> HttpResponse:
 
         try:
             adiantamento = rmb.adiantamento_escolhido(
-                request.user, request.POST.get("adiantamento")
+                pessoa, request.POST.get("adiantamento")
             )
             solicitacao = svc.solicitar(
                 item,
-                request.user,
+                pessoa,
                 dados,
                 valor,
                 cache=cache,
@@ -111,7 +106,7 @@ def pedir(request: HttpRequest, chave: str) -> HttpResponse:
             # desistir no terceiro envio.
             impedimentos = svc.verificar(
                 item,
-                request.user,
+                pessoa,
                 dados,
                 valor,
                 cache=cache,
@@ -167,7 +162,7 @@ def pedir(request: HttpRequest, chave: str) -> HttpResponse:
             "valor": valor,
             "erro_valor": por_campo.get("valor"),
             "impedimentos": impedimentos,
-            "centro_custo": svc._centro_custo_de(request.user),
+            "centro_custo": svc._centro_custo_de(pessoa),
             "maximo_anexos": anx.MAXIMO_POR_CAMPO,
             # Item a item: o valor deixa de ser digitado e passa a ser somado.
             "por_despesa": rmb.tem_despesas(item),
@@ -175,7 +170,7 @@ def pedir(request: HttpRequest, chave: str) -> HttpResponse:
             "erro_despesas": por_campo.get("despesas"),
             "maximo_despesas": rmb.MAXIMO_DESPESAS,
             "adiantamentos": (
-                rmb.adiantamentos_pendentes(request.user)
+                rmb.adiantamentos_pendentes(pessoa)
                 if rmb.aceita_adiantamento(item)
                 else []
             ),
@@ -239,7 +234,6 @@ def _texto_do_valor(valor) -> str:
     return f"{valor:.2f}".replace(".", ",")
 
 
-@login_required
 def baixar_anexo(request: HttpRequest, pk: int) -> HttpResponse:
     """O único caminho até um anexo. Autoriza, então entrega.
 
@@ -250,8 +244,9 @@ def baixar_anexo(request: HttpRequest, pk: int) -> HttpResponse:
     anexo = get_object_or_404(
         Anexo.objects.select_related("solicitacao", "solicitacao__aprovacao"), pk=pk
     )
+    pessoa = pessoa_da_requisicao(request)
 
-    if not anx.pode_baixar(request.user, anexo, cache=_cache(request)):
+    if not anx.pode_baixar(pessoa, anexo, cache=_cache(request)):
         # 403 e não 404: quem chegou aqui tem o id de um anexo que existe, e
         # mentir sobre a existência não protege nada que o 403 já não proteja.
         raise PermissionDenied("Você não tem acesso a este anexo.")
@@ -282,9 +277,8 @@ def _valor_de(bruto: str | None) -> Decimal | None:
     return rmb.valor_de(bruto)
 
 
-@login_required
 def minhas_solicitacoes(request: HttpRequest) -> HttpResponse:
-    solicitacoes = svc.minhas(request.user)
+    solicitacoes = svc.minhas(pessoa_da_requisicao(request))
     return render(
         request,
         "workspace/servicos/minhas.html",
@@ -295,7 +289,6 @@ def minhas_solicitacoes(request: HttpRequest) -> HttpResponse:
     )
 
 
-@login_required
 def acerto(request: HttpRequest, pk: int) -> HttpResponse:
     """O segundo passo da prestação de contas: o que fazer com a diferença.
 
@@ -304,8 +297,9 @@ def acerto(request: HttpRequest, pk: int) -> HttpResponse:
     exigiria calcular no navegador, e aí a conta que a pessoa vê e a conta que
     o sistema grava seriam duas.
     """
+    pessoa = pessoa_da_requisicao(request)
     prestacao = get_object_or_404(
-        svc.minhas(request.user).select_related("adiantamento"), pk=pk
+        svc.minhas(pessoa).select_related("adiantamento"), pk=pk
     )
     conta = rmb.calcular_acerto(prestacao)
     if conta is None:
@@ -318,7 +312,7 @@ def acerto(request: HttpRequest, pk: int) -> HttpResponse:
         try:
             rmb.confirmar_acerto(
                 prestacao,
-                request.user,
+                pessoa,
                 dados_bancarios=request.POST.get("dados_bancarios", ""),
                 comprovante=request.FILES.get("comprovante"),
             )
@@ -347,12 +341,12 @@ def acerto(request: HttpRequest, pk: int) -> HttpResponse:
     )
 
 
-@login_required
 def cancelar(request: HttpRequest, pk: int) -> HttpResponse:
-    solicitacao = get_object_or_404(svc.minhas(request.user), pk=pk)
+    pessoa = pessoa_da_requisicao(request)
+    solicitacao = get_object_or_404(svc.minhas(pessoa), pk=pk)
     if request.method == "POST":
         try:
-            svc.cancelar(solicitacao, request.user)
+            svc.cancelar(solicitacao, pessoa)
             messages.success(request, "Solicitação cancelada.")
         except SolicitacaoError as erro:
             messages.error(request, str(erro))

@@ -197,12 +197,11 @@ def test_terceiro_nao_baixa(client, cenario):
 
 
 @pytest.mark.django_db
-def test_anonimo_nao_baixa(client, cenario):
+def test_anonimo_baixa_com_pessoa_aberta(client, cenario):
     anexo = pedir(cenario).anexos.get()
     resposta = client.get(reverse("workspace:baixar_anexo", args=(anexo.pk,)))
 
-    assert resposta.status_code == 302
-    assert settings.LOGIN_URL in resposta["Location"]
+    assert resposta.status_code == 200
 
 
 @pytest.mark.django_db

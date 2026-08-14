@@ -139,10 +139,6 @@ AUTH_PASSWORD_VALIDATORS = [
     {"NAME": "django.contrib.auth.password_validation.NumericPasswordValidator"},
 ]
 
-LOGIN_URL = "/entrar/"
-LOGIN_REDIRECT_URL = "/workspace/meu-dia/"
-LOGOUT_REDIRECT_URL = "/workspace/"
-
 # ── Internacionalização ─────────────────────────────────────────────
 
 # pt-BR e não en-us: a home escreve "Sexta-feira, 7 de agosto" com

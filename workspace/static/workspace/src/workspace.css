@@ -231,6 +231,18 @@ body {
   box-shadow: var(--au-e-1), 0 0 0 3px var(--au-accent-bg);
 }
 
+.au-busca--home {
+  width: 40%;
+  max-width: none;
+}
+.au-busca--home .au-busca-campo {
+  border-radius: var(--au-r-full);
+}
+.au-busca--home .au-busca-painel {
+  top: calc(100% + var(--au-2));
+  z-index: 30;
+}
+
 .au-atalho {
   position: absolute;
   right: var(--au-3);
@@ -342,6 +354,7 @@ body {
   background: var(--au-surface);
   border: 1px solid var(--au-border);
   border-radius: var(--au-r-md);
+  box-shadow: var(--au-e-1);
   text-decoration: none;
   color: inherit;
   transition: border-color var(--au-dur-fast) var(--au-ease),
@@ -454,6 +467,7 @@ body {
   background: var(--au-surface);
   border: 1px solid var(--au-border);
   border-radius: var(--au-r-md);
+  box-shadow: var(--au-e-1);
 }
 
 .au-card-cabeca {
@@ -1415,15 +1429,6 @@ a.au-notif-titulo:hover { color: var(--au-accent-text); text-decoration: underli
   font-size: var(--au-t-xs);
   color: var(--au-text-subtle);
 }
-
-/* Gatilho na home: parece campo, é botão. */
-.au-busca--gatilho {
-  width: 100%;
-  text-align: left;
-  cursor: pointer;
-  font: inherit;
-}
-.au-busca-placeholder { flex: 1; color: var(--au-text-subtle); }
 
 .au-topbar-botao {
   display: inline-flex; align-items: center; justify-content: center;

@@ -12,22 +12,6 @@
 {% endblock %}
 
 {% block corpo %}
-  {% if not autenticado %}
-    {% comment %}
-      O Workspace é aberto na rede da empresa: a vitrine aparece sem senha. O login
-      só entra quando a pessoa vai agir — e dizer isso aqui evita que ela clique
-      em "Pedir" achando que a tela quebrou.
-    {% endcomment %}
-    <div class="au-faixa">
-      <span class="au-faixa-texto">
-        {% blocktrans %}Você está vendo o que este módulo atende. Para pedir e acompanhar, entre com sua conta.{% endblocktrans %}
-      </span>
-      <a class="au-btn au-btn--primario" href="{% url 'workspace:minhas_solicitacoes' %}">
-        {% trans "Entrar" %}
-      </a>
-    </div>
-  {% endif %}
-
   <section class="au-secao">
     <div class="au-secao-cabeca">
       <h2 class="au-secao-titulo">{% trans "O que você pode pedir aqui" %}</h2>
@@ -63,12 +47,6 @@
                 <span class="au-app-icone">
                   <svg class="au-icon" aria-hidden="true"><use href="#i-{{ entrada.item.icone }}"></use></svg>
                 </span>
-                {% comment %}
-                  Selo só no caso autenticado-sem-permissão, que precisa de
-                  explicação. Para o anônimo, a faixa acima já diz — repetir
-                  "Entrar" em cada card é ruído que some da vista na segunda
-                  visita.
-                {% endcomment %}
                 {% if autenticado %}<span class="au-selo">{% trans "Sem acesso" %}</span>{% endif %}
               </span>
               <span class="au-app-nome">{{ entrada.item.nome }}</span>

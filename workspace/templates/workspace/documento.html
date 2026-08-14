@@ -65,12 +65,7 @@
           <h3 class="au-card-titulo">{% trans "Leitura obrigatória" %}</h3>
         </header>
 
-        {% if not autenticado %}
-          <p class="au-ajuda">
-            {% blocktrans %}Entre com sua conta para confirmar. Confirmação sem identidade não
-            serve como registro.{% endblocktrans %}
-          </p>
-        {% elif ja_confirmou %}
+        {% if ja_confirmou %}
           <p class="au-ajuda au-ajuda--ok">
             {% blocktrans with v=documento.versao %}Você confirmou a versão {{ v }}.{% endblocktrans %}
           </p>

@@ -1,4 +1,4 @@
-"""Meu dia e a Central de Notificações — área pessoal.
+"""Meu dia e a Central de Notificações.
 
 Duas telas com papéis distintos, e a distinção é o desenho:
 
@@ -13,11 +13,11 @@ só informação — e é assim que a pessoa para de olhar as duas.
 from __future__ import annotations
 
 from django.contrib import messages
-from django.contrib.auth.decorators import login_required
 from django.http import HttpRequest, HttpResponse
 from django.shortcuts import redirect, render
 from django.urls import reverse
 
+from workspace.acesso import pessoa_da_requisicao
 from workspace.services import meu_dia as md
 from workspace.services import notificacoes as nt
 
@@ -30,13 +30,11 @@ def _cache(request: HttpRequest) -> dict:
     return request.perm_cache
 
 
-@login_required
 def meu_dia(request: HttpRequest) -> HttpResponse:
-    contexto = md.para(request.user, cache=_cache(request))
+    contexto = md.para(pessoa_da_requisicao(request), cache=_cache(request))
     return render(request, "workspace/meu_dia.html", contexto)
 
 
-@login_required
 def notificacoes(request: HttpRequest) -> HttpResponse:
     """O histórico. Abrir a tela NÃO marca tudo como lido.
 
@@ -44,7 +42,7 @@ def notificacoes(request: HttpRequest) -> HttpResponse:
     ainda não leu — ela entrou para ver um item e apagou o rastro dos outros.
     Aqui a marcação é uma ação explícita.
     """
-    itens = list(nt.para(request.user, limite=LIMITE_HISTORICO))
+    itens = list(nt.para(pessoa_da_requisicao(request), limite=LIMITE_HISTORICO))
     return render(
         request,
         "workspace/notificacoes.html",
@@ -56,13 +54,12 @@ def notificacoes(request: HttpRequest) -> HttpResponse:
     )
 
 
-@login_required
 def marcar_lidas(request: HttpRequest) -> HttpResponse:
     if request.method != "POST":
         return redirect(reverse("workspace:notificacoes"))
 
     ids = request.POST.getlist("ids") or None
-    quantas = nt.marcar_lidas(request.user, ids=ids)
+    quantas = nt.marcar_lidas(pessoa_da_requisicao(request), ids=ids)
     if quantas:
         messages.success(request, f"{quantas} notificação(ões) marcada(s) como lida(s).")
 

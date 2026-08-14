@@ -10,12 +10,12 @@ from __future__ import annotations
 from datetime import datetime, timedelta
 
 from django.contrib import messages
-from django.contrib.auth.decorators import login_required
 from django.http import HttpRequest, HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.utils import timezone
 
+from workspace.acesso import pessoa_da_requisicao
 from workspace.models.reserva import Recurso, Reserva
 from workspace.services import reserva as res
 
@@ -42,7 +42,7 @@ def _dia_pedido(request: HttpRequest):
 def reservas(request: HttpRequest) -> HttpResponse:
     """Vitrine dos recursos, com a agenda do dia em cada um."""
     dia = _dia_pedido(request)
-    pessoa = request.user if request.user.is_authenticated else None
+    pessoa = pessoa_da_requisicao(request)
 
     grupos = []
     for rotulo, recursos in res.agrupados_para(pessoa).items():
@@ -65,20 +65,20 @@ def reservas(request: HttpRequest) -> HttpResponse:
             "ontem": dia - timedelta(days=1),
             "amanha": dia + timedelta(days=1),
             "e_hoje": dia == timezone.localdate(),
-            "autenticado": request.user.is_authenticated,
+            "autenticado": True,
             "total": sum(len(g["recursos"]) for g in grupos),
             "minhas_futuras": (
-                res.minhas(pessoa).confirmadas().futuras().count() if pessoa else 0
+                res.minhas(pessoa).confirmadas().futuras().count()
             ),
         },
     )
 
 
-@login_required
 def reservar(request: HttpRequest, codigo: str) -> HttpResponse:
     """Formulário de um recurso, com a agenda do dia ao lado."""
     recurso = get_object_or_404(Recurso, codigo=codigo, ativo=True)
     dia = _dia_pedido(request)
+    pessoa = pessoa_da_requisicao(request)
     erro = ""
 
     if request.method == "POST":
@@ -87,7 +87,7 @@ def reservar(request: HttpRequest, codigo: str) -> HttpResponse:
             try:
                 res.reservar(
                     recurso,
-                    request.user,
+                    pessoa,
                     inicio,
                     fim,
                     motivo=(request.POST.get("motivo") or "").strip(),
@@ -139,9 +139,8 @@ def _janela_do_post(request: HttpRequest):
     return inicio, fim, ""
 
 
-@login_required
 def minhas_reservas(request: HttpRequest) -> HttpResponse:
-    consulta = res.minhas(request.user)
+    consulta = res.minhas(pessoa_da_requisicao(request))
     return render(
         request,
         "workspace/minhas_reservas.html",
@@ -152,12 +151,12 @@ def minhas_reservas(request: HttpRequest) -> HttpResponse:
     )
 
 
-@login_required
 def cancelar_reserva(request: HttpRequest, pk: int) -> HttpResponse:
     reserva = get_object_or_404(Reserva, pk=pk)
+    pessoa = pessoa_da_requisicao(request)
     if request.method == "POST":
         try:
-            res.cancelar(reserva, request.user)
+            res.cancelar(reserva, pessoa)
             messages.success(request, f"Reserva de {reserva.recurso} cancelada.")
         except res.ReservaError as falha:
             messages.error(request, str(falha))

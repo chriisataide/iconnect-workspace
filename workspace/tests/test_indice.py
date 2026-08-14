@@ -399,12 +399,15 @@ def test_paleta_existe_em_toda_tela(client, pessoas, rota):
     assert "workspace/js/workspace.js" in corpo, f"{rota} sem o script"
 
 
-def test_home_tem_gatilho_e_nao_um_segundo_campo(client, pessoas):
-    """Dois campos com o mesmo id resolveriam o ⌘K criando problema pior."""
+def test_home_tem_busca_inline_e_nao_duplica_campo_global(client, pessoas):
+    """A home busca no próprio campo. O `#busca` global continua único para a
+    paleta das outras telas; duplicá-lo faria o JS mirar no elemento errado."""
     corpo = client.get(reverse("workspace:home")).content.decode()
 
     assert corpo.count('id="busca"') == 1
-    assert "data-abre-busca" in corpo
+    assert 'id="busca-home"' in corpo
+    assert "data-busca-inline" in corpo
+    assert 'id="busca-home-resultados"' in corpo
 
 
 def test_paleta_e_dialog_nativo(client, pessoas):

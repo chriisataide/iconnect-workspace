@@ -34,17 +34,6 @@
   </a>
 </div>
 
-{% if not autenticado %}
-  <div class="au-faixa">
-    <span class="au-faixa-texto">
-      {% blocktrans %}Você está vendo a agenda. Para reservar, entre com sua conta.{% endblocktrans %}
-    </span>
-    <a class="au-btn au-btn--primario" href="{% url 'workspace:minhas_reservas' %}">
-      {% trans "Entrar" %}
-    </a>
-  </div>
-{% endif %}
-
 {% if grupos %}
   {% for grupo in grupos %}
     <section class="au-secao">

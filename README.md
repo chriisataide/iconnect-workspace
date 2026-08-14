@@ -59,8 +59,8 @@ python manage.py reindexar_busca
 python manage.py runserver
 ```
 
-Abra <http://127.0.0.1:8000/workspace/>. **A home é pública** — quem está na rede
-da empresa vê o hub sem senha. O login aparece só na área pessoal.
+Abra <http://127.0.0.1:8000/workspace/>. **O Workspace é aberto** — quem está na
+rede da empresa usa o hub e as telas operacionais sem login.
 
 Todos os comandos `semear_*` rodam em **simulação por padrão**: sem `--aplicar`
 eles só relatam o que fariam.
@@ -99,7 +99,7 @@ casa, que era o ponto de existir um contrato.
 
 | O que se estranha | Por quê |
 |---|---|
-| A home abre sem login | Decisão de produto: quem está na rede vê o hub. `@login_required` só na área pessoal. |
+| O Workspace abre sem login | Decisão de produto: quem está na rede usa o hub e as telas operacionais sem barreira de autenticação. |
 | "Aplicativos" é a última faixa da home | A home abria por lá, com o iConnect como tile herói — o que a fazia um *app launcher*, com o trabalho da pessoa em segundo lugar. |
 | Anexos moram fora de `MEDIA_ROOT` | Segurança, não organização de pasta: servidor web serve `MEDIA_ROOT` sem passar por view. No projeto anterior o nginx expôs `/media/` sem autenticação. |
 | Nenhum `style=` em template | A CSP não tem `unsafe-inline`. Navegador ignora `unsafe-inline` quando há nonce, e nonce não se aplica a atributo `style` — o estilo é descartado **em silêncio**. Por isso a barra da bandeja é SVG, onde `width` é atributo. |
