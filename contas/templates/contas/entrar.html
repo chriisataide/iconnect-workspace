@@ -9,47 +9,81 @@
 
   Ela NÃO é a porta do produto: o Workspace é aberto, e ninguém chega aqui
   navegando. Só se cai nesta tela ao tentar um ato que assina em nome de
-  alguém — aprovar, fechar acerto, cancelar — ou ao abrir o documento de outra
+  alguém — aprovar, fechar acerto, cancelar — ou ao abrir o que é de outra
   pessoa. Por isso o texto fala de "identificar-se" e não de "entrar": a pessoa
   já estava usando o produto.
 
-  Provisória: quando o SSO entrar, ela chega aqui já identificada pelo M365 e
-  esta tela deixa de aparecer no caminho normal — sobra como saída para conta de
-  serviço e para quem não está no tenant.
+  O VOCABULÁRIO É O DO DESIGN SYSTEM. Esta tela nasceu com classes de um
+  projeto anterior (`au-form-entrar`, `au-campo-entrada`, `au-botao`) que nunca
+  existiram neste CSS — e por isso aparecia sem estilo nenhum, com as caixas
+  cruas do navegador, no meio de um produto inteiro estilizado. Formulário
+  aqui é `au-form` + `au-campo` + `au-rotulo` + `au-input`, e botão é `au-btn`,
+  como em todas as outras telas.
+
+  Provisória: quando o SSO entrar, a pessoa chega já identificada pelo M365 e
+  esta tela sai do caminho normal — sobra para conta de serviço e para quem não
+  está no tenant.
 {% endcomment %}
 {% block conteudo %}
-  <section class="au-hero">
-    <h1 class="au-hero-titulo">{% trans "Identifique-se para continuar" %}</h1>
-    <p class="au-hero-sub">
-      {% trans "O Workspace é aberto. Só decidir em nome de alguém — aprovar, fechar um acerto, cancelar — e abrir documento de outra pessoa exigem saber quem é você." %}
-    </p>
-  </section>
+  <section class="au-secao au-entrar">
+    <article class="au-card au-entrar-cartao">
+      <h1 class="au-pagina-titulo">{% trans "Identifique-se para continuar" %}</h1>
+      <p class="au-pagina-desc">
+        {% trans "O Workspace é aberto. Decidir em nome de alguém — aprovar, fechar um acerto, cancelar — e abrir o que é de outra pessoa exigem saber quem é você." %}
+      </p>
 
-  <section class="au-secao">
-    <form method="post" class="au-form-entrar">
-      {% csrf_token %}
-      {% if form.errors %}
-        <p class="au-faixa au-faixa--alerta">
-          {% trans "E-mail ou senha não conferem." %}
-        </p>
-      {% endif %}
+      <form method="post" class="au-form au-entrar-form">
+        {% csrf_token %}
 
-      <label class="au-campo">
-        <span class="au-campo-rotulo">{% trans "E-mail corporativo" %}</span>
-        <input class="au-campo-entrada" type="email" name="username"
-               autocomplete="username" required autofocus>
-      </label>
+        {% if form.errors %}
+          {% comment %}
+            Uma mensagem só, e sem dizer QUAL dos dois está errado: "este
+            e-mail não existe" transforma a tela num verificador de quem
+            trabalha aqui.
+          {% endcomment %}
+          <div class="au-aviso au-aviso--error" role="alert">
+            {% trans "E-mail ou senha não conferem." %}
+          </div>
+        {% endif %}
 
-      <label class="au-campo">
-        <span class="au-campo-rotulo">{% trans "Senha" %}</span>
-        <input class="au-campo-entrada" type="password" name="password"
-               autocomplete="current-password" required>
-      </label>
+        <div class="au-campo">
+          <label class="au-rotulo" for="id_username">
+            {% trans "E-mail corporativo" %}
+            <span class="au-obrigatorio" aria-hidden="true">*</span>
+          </label>
+          <input class="au-input" id="id_username" type="email" name="username"
+                 autocomplete="username" required autofocus>
+        </div>
 
-      <button class="au-botao au-botao--primario" type="submit">
-        {% trans "Continuar" %}
-      </button>
-      <input type="hidden" name="next" value="{{ next }}">
-    </form>
+        <div class="au-campo">
+          <label class="au-rotulo" for="id_password">
+            {% trans "Senha" %}
+            <span class="au-obrigatorio" aria-hidden="true">*</span>
+          </label>
+          <input class="au-input" id="id_password" type="password" name="password"
+                 autocomplete="current-password" required>
+        </div>
+
+        <div class="au-form-acoes">
+          {% comment %}
+            "Voltar ao Workspace" e não "Cancelar": não há nada a cancelar — o
+            produto continua aberto do outro lado desta tela, e quem chegou
+            aqui por engano precisa de uma saída óbvia.
+          {% endcomment %}
+          <a class="au-btn au-btn--sutil" href="{% url 'workspace:home' %}">
+            {% trans "Voltar ao Workspace" %}
+          </a>
+          <button class="au-btn au-btn--primario" type="submit">
+            {% trans "Continuar" %}
+          </button>
+        </div>
+
+        <input type="hidden" name="next" value="{{ next }}">
+      </form>
+
+      <p class="au-ajuda au-entrar-nota">
+        {% trans "Sua conta é a do Workspace, e não a do iConnect Platform — são dois cadastros." %}
+      </p>
+    </article>
   </section>
 {% endblock %}

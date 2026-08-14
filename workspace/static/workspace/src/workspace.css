@@ -1810,3 +1810,33 @@ a.au-notif-titulo:hover { color: var(--au-accent-text); text-decoration: underli
   .au-trilha-titulo { display: none; }
   .au-trilha-passo--atual .au-trilha-titulo { display: inline; }
 }
+
+/* ── Identificar-se ─────────────────────────────────────────────────
+   Cartão estreito e centrado. Não é a porta do produto — ninguém chega aqui
+   navegando —, então ela não ocupa a tela inteira como o login de um sistema
+   fechado: é uma parada no meio do caminho, e o Workspace continua atrás. */
+
+.au-entrar {
+  display: flex;
+  justify-content: center;
+}
+
+.au-entrar-cartao {
+  width: 100%;
+  /* A medida de leitura de um formulário de duas linhas. Mais largo que isto
+     e os campos viram faixas de ponta a ponta da tela, que é justamente o que
+     esta tela parecia antes de existir esta regra. */
+  max-width: 26rem;
+  padding: var(--au-6);
+  display: flex;
+  flex-direction: column;
+  gap: var(--au-2);
+}
+
+.au-entrar-form { margin-top: var(--au-5); }
+
+.au-entrar-nota {
+  margin-top: var(--au-5);
+  padding-top: var(--au-4);
+  border-top: 1px solid var(--au-border);
+}
