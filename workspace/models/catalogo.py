@@ -113,6 +113,24 @@ class ItemCatalogo(models.Model):
         ),
     )
 
+    # Os passos do formulário, na ordem. Vazio = uma tela só, que continua
+    # sendo o certo para quase todo item: stepper em formulário de 2 campos é
+    # cerimônia. Ele ganha o seu lugar quando há RAMO — "curso interno ou
+    # externo?" muda o resto das perguntas — ou quando uma etapa só existe
+    # depois do envio, como o acerto do adiantamento.
+    #
+    # Lista de {titulo, apos_envio?}. `apos_envio` marca o passo que acontece
+    # em OUTRA tela, depois de enviar: ele aparece na trilha em cinza, porque
+    # esconder que ainda falta uma etapa é o que faz a pessoa achar que
+    # terminou.
+    passos = models.JSONField(default=list, blank=True)
+
+    # Quando o campo de valor aparece. `None` = sempre que `exige_valor`.
+    # Existe por causa do treinamento: curso interno da empresa não tem preço a
+    # informar, e um campo "Valor *" obrigatório num ramo que não tem valor
+    # trava o pedido inteiro num campo que não faz sentido responder.
+    valor_quando = models.JSONField(null=True, blank=True)
+
     ativo = models.BooleanField(default=True, db_index=True)
     ordem = models.PositiveSmallIntegerField(default=100)
     criado_em = models.DateTimeField(auto_now_add=True)
@@ -151,13 +169,23 @@ class ItemCatalogo(models.Model):
         # Não é validação de dado, é de PRODUTO: formulário com muitos campos
         # livres é o que faz o usuário desistir e mandar e-mail. O resto tem de
         # vir da identidade.
-        livres = [c for c in self.campos if c.get("obrigatorio")]
+        #
+        # Campo CONDICIONAL (`quando`) não entra na conta, e a razão é a mesma
+        # que criou a regra: o teto existe para limitar o que a pessoa vê de uma
+        # vez. Os dados do técnico terceiro só aparecem para quem responde
+        # "é para um terceiro" — para todo mundo mais eles não existem, e
+        # contá-los faria a regra proibir justamente a pergunta que evita o
+        # formulário genérico com tudo à mostra.
+        livres = [
+            c for c in self.campos if c.get("obrigatorio") and not c.get("quando")
+        ]
         if len(livres) > 3:
             raise ValidationError(
                 {
                     "campos": (
-                        f"{len(livres)} campos obrigatórios. O máximo é 3 — o resto "
-                        "deve vir da identidade da pessoa."
+                        f"{len(livres)} campos obrigatórios sem condição. O máximo "
+                        "é 3 — o resto deve vir da identidade da pessoa, ou "
+                        "aparecer só no ramo em que faz sentido."
                     )
                 }
             )

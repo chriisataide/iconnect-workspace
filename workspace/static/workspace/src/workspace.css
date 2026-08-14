@@ -1759,3 +1759,66 @@ a.au-notif-titulo:hover { color: var(--au-accent-text); text-decoration: underli
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
 }
+
+/* ── Stepper: trilha e passos ───────────────────────────────────────
+   A trilha mostra onde a pessoa está e quanto falta — a única razão de dividir
+   um formulário em passos. O passo que acontece depois do envio aparece igual,
+   em cinza: esconder que ainda falta uma etapa faz a pessoa achar que acabou. */
+
+.au-trilha {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--au-3);
+  list-style: none;
+  margin: 0 0 var(--au-4);
+  padding: 0 0 var(--au-3);
+  border-bottom: 1px solid var(--au-border);
+}
+
+.au-trilha-passo {
+  display: flex;
+  align-items: center;
+  gap: var(--au-2);
+  font-size: var(--au-t-sm);
+  color: var(--au-text-subtle);
+}
+
+.au-trilha-num {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border-radius: var(--au-r-full);
+  border: 1px solid var(--au-border);
+  background: var(--au-surface);
+  font-size: var(--au-t-xs);
+  font-weight: 650;
+  font-variant-numeric: tabular-nums;
+}
+
+.au-trilha-passo--atual { color: var(--au-text); font-weight: 600; }
+.au-trilha-passo--atual .au-trilha-num {
+  background: var(--au-btn-bg);
+  border-color: var(--au-btn-bg);
+  color: var(--au-btn-fg);
+}
+
+.au-trilha-passo--feito .au-trilha-num {
+  background: var(--au-accent-bg);
+  border-color: var(--au-accent-bg);
+  color: var(--au-accent-text);
+}
+
+/* O que ainda vai acontecer em outra tela: presente, mas claramente não agora. */
+.au-trilha-passo--depois { opacity: .65; }
+.au-trilha-nota { font-size: var(--au-t-xs); }
+
+/* O nome do passo. Some em tela estreita: a numeração sozinha já situa, e a
+   trilha quebrando em quatro linhas empurra o formulário para baixo da dobra. */
+.au-trilha-titulo { white-space: nowrap; }
+
+@media (max-width: 640px) {
+  .au-trilha-titulo { display: none; }
+  .au-trilha-passo--atual .au-trilha-titulo { display: inline; }
+}

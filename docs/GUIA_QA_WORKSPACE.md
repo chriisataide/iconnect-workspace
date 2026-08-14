@@ -51,7 +51,7 @@ python manage.py showmigrations workspace   # tudo com [X]
 
 ```bash
 python manage.py semear_papeis --aplicar              # os 13 papéis e suas permissões
-python manage.py semear_catalogo --aplicar            # os 19 serviços do catálogo
+python manage.py semear_catalogo --aplicar            # os 21 serviços do catálogo
 python manage.py semear_regras_aprovacao --aplicar    # a cadeia 0 → 50k → 300k
 python manage.py importar_organograma docs/exemplos/organograma-inicial.csv --criar-usuarios --aplicar
 python manage.py reindexar_busca                      # popula o índice da ⌘K
@@ -241,7 +241,7 @@ que exige você hoje*, *o que a empresa está dizendo*, *para onde você vai*.
 - Logado: diz "Olá, `<primeiro nome>`." — **só o primeiro nome**.
 - A data: `"Sexta-feira, 7 de agosto"`. Uma maiúscula só, no começo. Se vier
   "Sexta-Feira, 7 De Agosto" ou "Agosto", é defeito de locale.
-- O cartão "Pedir um serviço" promete um número concreto ("19 serviços"). Confira
+- O cartão "Pedir um serviço" promete um número concreto ("21 serviços"). Confira
   que bate com `ItemCatalogo` ativos.
 - O cartão **"Esperando você"** só aparece para quem tem aprovação pendente.
   Colaborador comum não deve vê-lo. Card de aprovação sempre visível e sempre
@@ -380,7 +380,7 @@ pedido cancelado, correspondência recebida.
 
 ### 3.5 Catálogo de serviços — `/workspace/servicos/`
 
-**Para que serve.** Os 19 serviços que a empresa presta ao próprio colaborador,
+**Para que serve.** Os 21 serviços que a empresa presta ao próprio colaborador,
 agrupados por **intenção** — não por departamento.
 
 **Quando é útil.** "Preciso de alguma coisa da empresa e não sei com quem falar."
@@ -403,13 +403,45 @@ Dinheiro, Viagem, Espaço e material, Desenvolvimento, Jurídico.
 
 ### 3.6 Pedir um serviço — `/workspace/servicos/<chave>/`
 
-**Para que serve.** O formulário. **No máximo 3 campos obrigatórios** por item —
-o resto (unidade, centro de custo, gestor aprovador, matrícula) vem da
-identidade. Formulário com 8 campos livres é o que faz o usuário desistir e
-mandar e-mail.
+**Para que serve.** O formulário. **No máximo 3 campos obrigatórios sem
+condição** por item — o resto (unidade, centro de custo, gestor aprovador,
+matrícula) vem da identidade. Formulário com 8 campos livres é o que faz o
+usuário desistir e mandar e-mail.
 
 **Quando é útil.** É o ato central do Workspace. Se esta tela falha, o produto
 falha.
+
+**O que testar — ramo, passo e escolha (o motor novo):**
+
+Três mecanismos que alguns itens usam e a maioria não. Onde não são usados, a
+tela continua sendo uma só, com todos os campos — e isso é o certo.
+
+| Mecanismo | Onde ver | O que é comportamento correto |
+|---|---|---|
+| **Escolha** (`<select>`) | Acesso a um sistema, VPN, treinamento, abertura de vaga | Lista fechada, com "Selecione…" em branco no topo. Valor forjado no POST é recusado com "Escolha uma opção de…" |
+| **Ramo** (`quando`) | VPN (só temporário pede "até quando"), reciclagem (dados do técnico terceiro), treinamento (interno × externo), abertura de vaga (só reposição pergunta "quem saiu") | O campo do outro ramo **não é exigido** e **não é gravado**, mesmo se tiver sido preenchido |
+| **Passo** (trilha) | Reciclagem (2), treinamento (3), prestação de contas (3), abertura de vaga (2) | Trilha no topo, "Continuar"/"Voltar", e o **enviar só no último passo** |
+
+- **Desligue o JavaScript e refaça um deles.** Todos os passos e todos os ramos
+  aparecem de uma vez, e o formulário continua enviável. Quem separa o ramo é o
+  servidor. Se preencher os DOIS ramos e enviar, só o escolhido é gravado — o
+  outro é descartado em silêncio, e isso é correto: pedido que diz ao mesmo
+  tempo "é interno" e "a instituição é a Fulana" faria o aprovador descobrir a
+  contradição.
+- Erro no passo 2 traz a tela de volta **no passo 2**, não no 1.
+- Campo de outro ramo fica `disabled` além de escondido: campo escondido
+  continua sendo enviado pelo navegador.
+
+**O que testar — cada item que mudou:**
+
+| Item | O que ele pede agora |
+|---|---|
+| Acesso a um sistema | sistema (lista), motivo, nível (lista, opcional). A lista mora no admin — sistema novo entra sem deploy |
+| Acesso à VPN | motivo, período (temporário/definitivo) e, só no temporário, "até quando" |
+| Reciclagem de NR | qual documento vence (texto livre — a variedade é grande), a data de vencimento, e se for técnico terceiro: nome, CPF, empresa e **o responsável por ele**, porque o terceiro não acessa o Workspace |
+| Treinamento ou curso | passo 1 interno ou externo; interno só escolhe o curso da lista; externo pede instituição, curso, início, período e **valor** — que não aparece no interno |
+| Inscrição em vaga interna | qual vaga, por que quer, currículo opcional. **Não passa pelo gestor** — a cadeia normal faria o pedido de mudar de área ser avaliado por quem perde a pessoa |
+| Abertura de vaga | cargo, quantidade (opcional, 1 por padrão), motivo da abertura e justificativa; "quem saiu" só na reposição |
 
 **O que testar — validação:**
 
@@ -443,7 +475,7 @@ falha.
 
 | Item | Limite | Comportamento |
 |---|---|---|
-| Reembolso | R$ 200 | ≤ 200 **e** cabendo no orçamento → aprovado na hora |
+| Prestação de contas | R$ 200 | ≤ 200 **e** cabendo no orçamento → aprovado na hora |
 | Material de trabalho | R$ 300 | idem |
 | EPI, atestado, declaração, chamado de TI, manutenção predial, reciclagem de NR, análise de contrato | 0, sem valor | aprovado na hora |
 | Notebook, VPN, férias, home office, adiantamento, compra, viagem, veículo, treinamento | sem limite | **sempre** passa pela cadeia humana |
@@ -469,12 +501,23 @@ porque foi pedido assim: "caso já haja um documento".
 
 ---
 
-### 3.6.1 Reembolso item a item e acerto do adiantamento
+### 3.6.1 Prestação de contas item a item e acerto do adiantamento
 
-**Para que serve.** Reembolso é preenchido **uma compra por vez**: comprovante,
+> A tela chamava-se **Reembolso**. O nome mudou porque ele nomeava metade do
+> que ela faz: ela também fecha a conta de um adiantamento, e nesse caso pode
+> ser a **pessoa** que devolve, não a empresa que paga. Quem tinha dinheiro
+> sobrando procurava onde devolver e não achava. `reembolso` continua entre os
+> termos de busca — é como as pessoas chamam, e ⌘K tem de continuar achando.
+
+**Para que serve.** É preenchida **uma compra por vez**: comprovante,
 valor e motivo em cada linha. Não existe campo de valor total — quem soma é o
 servidor. Antes eram cinco cupons somados à mão num número só, e quem aprovava
 recebia "R$ 340,00" com cinco imagens sem saber qual era qual.
+
+A tela agora é um **stepper de três passos**: as compras, o adiantamento, e o
+acerto — que acontece depois do envio, em outra tela, e aparece na trilha em
+cinza desde o começo. Esconder que ainda falta uma etapa é o que faz a pessoa
+achar que terminou e deixar a conta do adiantamento aberta.
 
 **O que testar — a lista de compras:**
 

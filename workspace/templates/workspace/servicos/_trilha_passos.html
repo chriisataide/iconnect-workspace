@@ -1,0 +1,26 @@
+{% load i18n %}
+{% comment %}
+  A trilha do stepper. Mostra ONDE a pessoa está e QUANTO falta — que é a única
+  razão de dividir um formulário em passos. Stepper sem trilha é só um
+  formulário que esconde metade das perguntas.
+
+  O passo `apos_envio` aparece igual, em cinza: ele acontece em outra tela,
+  depois de enviar. Esconder que ainda falta uma etapa é o que faz a pessoa
+  achar que terminou — e, no caso da prestação de contas, deixar a conta do
+  adiantamento aberta sem saber.
+
+  `aria-current` no atual, e não só a cor: leitor de tela não enxerga destaque.
+{% endcomment %}
+<ol class="au-trilha" data-trilha>
+  {% for passo in passos %}
+    <li class="au-trilha-passo {% if passo.apos_envio %}au-trilha-passo--depois{% endif %}"
+        data-trilha-passo="{{ passo.numero }}"
+        {% if passo.numero == atual %}aria-current="step"{% endif %}>
+      <span class="au-trilha-num" aria-hidden="true">{{ passo.numero }}</span>
+      <span class="au-trilha-titulo">{{ passo.titulo }}</span>
+      {% if passo.apos_envio %}
+        <span class="au-trilha-nota">{% trans "depois de enviar" %}</span>
+      {% endif %}
+    </li>
+  {% endfor %}
+</ol>

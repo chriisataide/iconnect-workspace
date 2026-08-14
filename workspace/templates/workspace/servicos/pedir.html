@@ -21,8 +21,13 @@
     `request.FILES` chega vazio — o formulário recusaria o anexo que o usuário
     de fato escolheu, sem explicar por quê.
   {% endcomment %}
-  <form method="post" class="au-form" enctype="multipart/form-data" novalidate>
+  <form method="post" class="au-form" enctype="multipart/form-data" novalidate
+        {% if passos %}data-stepper data-ultimo="{{ ultimo_passo }}"{% endif %}>
     {% csrf_token %}
+
+    {% if passos %}
+      {% include "workspace/servicos/_trilha_passos.html" with atual=1 %}
+    {% endif %}
 
     {% if impedimentos %}
       <div class="au-aviso au-aviso--error" role="alert">
@@ -34,18 +39,46 @@
     {% endif %}
 
     {% for campo in campos %}
+      {% comment %}
+        `data-passo` e `data-quando-*` viajam como DADO no HTML, e não como
+        decisão já tomada pelo servidor: sem JS, todos os passos e todos os
+        ramos ficam visíveis e o formulário continua enviável. Quem descarta o
+        que não é do ramo escolhido é o servidor, no `limpar_fora_do_ramo()` —
+        a tela só evita mostrar pergunta que não vem ao caso.
+      {% endcomment %}
       {% if campo.e_despesas %}
         {% include "workspace/servicos/_despesas.html" %}
       {% elif campo.e_adiantamento %}
         {% include "workspace/servicos/_adiantamento.html" %}
       {% else %}
-      <div class="au-campo {% if campo.erro %}au-campo--erro{% endif %}">
+      <div class="au-campo {% if campo.erro %}au-campo--erro{% endif %}"
+           data-passo="{{ campo.passo }}"
+           {% if campo.quando_campo %}data-quando-campo="{{ campo.quando_campo }}"
+           data-quando-igual="{{ campo.quando_igual }}"{% endif %}>
         <label class="au-rotulo" for="c-{{ campo.chave }}">
           {{ campo.rotulo|default:campo.chave }}
           {% if campo.obrigatorio %}<span class="au-obrigatorio" aria-hidden="true">*</span>{% endif %}
         </label>
 
-        {% if campo.tipo == "texto_longo" %}
+        {% if campo.e_escolha %}
+          {% comment %}
+            Lista fechada em vez de texto livre: "qual sistema" escrito à mão
+            produz `iconnect`, `IConnect` e `aquele portal` para a mesma coisa,
+            e ninguém mede nem roteia em cima disso. A opção vazia existe para
+            que o campo não venha respondido por acidente — `<select>` sem ela
+            já nasce com a primeira opção escolhida.
+          {% endcomment %}
+          <select class="au-input" id="c-{{ campo.chave }}" name="{{ campo.chave }}"
+                  data-ramo>
+            <option value="">{% trans "Selecione…" %}</option>
+            {% for opcao in campo.opcoes_normalizadas %}
+              <option value="{{ opcao.valor }}"
+                      {% if campo.valor == opcao.valor %}selected{% endif %}>
+                {{ opcao.rotulo }}
+              </option>
+            {% endfor %}
+          </select>
+        {% elif campo.tipo == "texto_longo" %}
           <textarea class="au-input" id="c-{{ campo.chave }}" name="{{ campo.chave }}"
                     rows="4">{{ campo.valor }}</textarea>
         {% elif campo.tipo == "data" %}
@@ -90,7 +123,10 @@
       comprovantes, e só é conferido semanas depois.
     {% endcomment %}
     {% if item.exige_valor and not por_despesa %}
-      <div class="au-campo {% if erro_valor %}au-campo--erro{% endif %}">
+      <div class="au-campo {% if erro_valor %}au-campo--erro{% endif %}"
+           data-passo="{{ valor_passo }}"
+           {% if item.valor_quando %}data-quando-campo="{{ item.valor_quando.campo }}"
+           data-quando-igual="{{ item.valor_quando.igual }}"{% endif %}>
         <label class="au-rotulo" for="valor">
           {% trans "Valor" %} <span class="au-obrigatorio" aria-hidden="true">*</span>
         </label>
@@ -105,7 +141,22 @@
 
     <div class="au-form-acoes">
       <a class="au-btn au-btn--sutil" href="{% url 'workspace:servicos' %}">{% trans "Cancelar" %}</a>
-      <button class="au-btn au-btn--primario" type="submit">{% trans "Enviar solicitação" %}</button>
+      {% comment %}
+        Os dois botões de navegação nascem `hidden` e o JS os revela. É a ordem
+        certa da degradação: sem JS não há passos, e um "Continuar" que não
+        continua nada seria pior que a página longa.
+      {% endcomment %}
+      {% if passos %}
+        <button class="au-btn au-btn--sutil" type="button" data-passo-voltar hidden>
+          {% trans "Voltar" %}
+        </button>
+        <button class="au-btn au-btn--primario" type="button" data-passo-seguir hidden>
+          {% trans "Continuar" %}
+        </button>
+      {% endif %}
+      <button class="au-btn au-btn--primario" type="submit" data-enviar>
+        {% trans "Enviar solicitação" %}
+      </button>
     </div>
   </form>
 

@@ -18,6 +18,9 @@
 {% endblock %}
 
 {% block corpo %}
+{% if passos %}
+  {% include "workspace/servicos/_trilha_passos.html" with atual=passo_atual %}
+{% endif %}
 <div class="au-colunas au-colunas--assimetrica">
   <div>
     {% comment %}

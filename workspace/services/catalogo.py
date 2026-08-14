@@ -160,10 +160,14 @@ def verificar(
     e de novo dentro de `solicitar()` — a tela não é a fonte de verdade.
     """
     from workspace.services import anexos as anx
+    from workspace.services import formulario as frm
     from workspace.services import reembolso as rmb
 
     impedimentos: list[Impedimento] = []
-    dados = dados or {}
+    # Fora do ramo escolhido, o que foi digitado não conta — nem para exigir,
+    # nem para gravar. Sem JS a tela mostra os dois ramos, e quem preencheu os
+    # dois antes de decidir não pode acabar com um pedido que se contradiz.
+    dados = frm.limpar_fora_do_ramo(item, dados or {})
 
     # Item que pede as compras uma a uma não tem valor digitado: o total é a
     # soma das linhas. Calcular aqui, e não confiar no que a tela mandou, é o
@@ -193,12 +197,21 @@ def verificar(
         if c.get("tipo") in (TipoCampo.DESPESAS, TipoCampo.ADIANTAMENTO)
     }
 
-    for chave in item.campos_obrigatorios:
-        if chave in de_secao:
+    # Só os campos do ramo escolhido: exigir "qual a instituição" de quem
+    # escolheu curso interno é pedir para inventar uma resposta.
+    for campo in frm.campos_ativos(item, dados):
+        chave = campo["chave"]
+        rotulo = campo.get("rotulo", chave)
+
+        if frm.escolha_invalida(campo, dados.get(chave)):
+            # A lista fechada é fechada dos dois lados: o `<select>` guia, e
+            # aqui é onde um valor forjado no POST para de valer.
+            impedimentos.append(Impedimento(chave, f"Escolha uma opção de {rotulo.lower()}."))
             continue
-        rotulo = next(
-            (c.get("rotulo", chave) for c in item.campos if c["chave"] == chave), chave
-        )
+
+        if not campo.get("obrigatorio") or chave in de_secao:
+            continue
+
         if chave in de_arquivo:
             if chave not in anexados:
                 impedimentos.append(Impedimento(chave, f"Anexe {rotulo.lower()}."))
@@ -210,7 +223,7 @@ def verificar(
     for recusa in anx.verificar_lote(arquivos):
         impedimentos.append(Impedimento("anexos", f"{recusa.nome}: {recusa.motivo}"))
 
-    if item.exige_valor and (valor is None or valor <= 0):
+    if frm.valor_e_exigido(item, dados) and (valor is None or valor <= 0):
         impedimentos.append(Impedimento("valor", "Informe o valor."))
 
     if item.exige_centro_custo and not _centro_custo_de(pessoa):
@@ -259,7 +272,15 @@ def solicitar(
 ) -> SolicitacaoServico:
     """Cria o pedido e o roteia — auto-aprovado ou para a cadeia de aprovação."""
     from workspace.services import anexos as anx
+    from workspace.services import formulario as frm
     from workspace.services import reembolso as rmb
+
+    dados = frm.limpar_fora_do_ramo(item, dados or {})
+    if item.exige_valor and not frm.valor_e_exigido(item, dados):
+        # O ramo escolhido não tem valor — curso interno da empresa. Guardar o
+        # que sobrou de um ramo abandonado faria o pedido comprometer orçamento
+        # por um número que a tela nem mostrava.
+        valor = None
 
     impedimentos = verificar(
         item, pessoa, dados, valor, cache=cache, arquivos=arquivos, linhas=linhas

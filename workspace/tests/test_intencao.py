@@ -315,7 +315,10 @@ def test_semente_aplicada_permite_intencao_realista():
     esperado = {
         "quero solicitar ferias": "ferias",
         "preciso de um notebook novo": "notebook",
-        "gastei com uber, quero reembolso": "reembolso",
+        # A tela virou "Prestação de contas", mas ninguém digita isso: quem
+        # gastou com Uber escreve "reembolso". O termo continua na semente
+        # justamente para que a mudança de nome não quebre quem procura.
+        "gastei com uber, quero reembolso": "prestacao-contas",
         "meu equipamento parou de funcionar": "equipamento-quebrado",
         "preciso de um capacete": "epi",
         "quero solicitar home office": "home-office",

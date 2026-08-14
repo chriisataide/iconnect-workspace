@@ -110,9 +110,18 @@ def test_item_invalido_e_relatado_e_nao_gravado(monkeypatch):
 
 def test_nenhum_item_semente_tem_mais_de_tres_campos_obrigatorios():
     """A regra de produto: formulário com muitos campos livres faz o usuário
-    desistir e mandar e-mail."""
+    desistir e mandar e-mail.
+
+    Campo CONDICIONAL não entra na conta, e é a mesma razão que criou a regra:
+    o teto limita o que a pessoa vê DE UMA VEZ. Os dados do técnico terceiro só
+    existem para quem respondeu que é para um terceiro — contá-los proibiria
+    justamente a pergunta que evita mostrar tudo a todo mundo.
+    """
     for spec in CATALOGO_INICIAL:
-        obrigatorios = [c for c in spec.get("campos", []) if c.get("obrigatorio")]
+        obrigatorios = [
+            c for c in spec.get("campos", [])
+            if c.get("obrigatorio") and not c.get("quando")
+        ]
         assert len(obrigatorios) <= 3, f"{spec['chave']}: {len(obrigatorios)} obrigatórios"
 
 
@@ -706,7 +715,7 @@ def test_do_catalogo_ate_a_conclusao(equipe, provider_temporario):
     grupos = svc.agrupado_para(equipe["ana"])
     assert "Dinheiro" in grupos
 
-    reembolso = ItemCatalogo.objects.get(chave="reembolso")
+    reembolso = ItemCatalogo.objects.get(chave="prestacao-contas")
     # Arquivo de verdade, não o nome dele: o comprovante de cada compra é do
     # tipo arquivo, e desde os anexos reais um texto não satisfaz mais a
     # obrigatoriedade. Era esse o ponto.

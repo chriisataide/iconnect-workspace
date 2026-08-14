@@ -17,6 +17,7 @@ from workspace.models.anexo import Anexo
 from workspace.models.catalogo import ItemCatalogo, TipoCampo
 from workspace.services import anexos as anx
 from workspace.services import catalogo as svc
+from workspace.services import formulario as frm
 from workspace.services import reembolso as rmb
 from workspace.services.anexos import AnexoError
 from workspace.services.catalogo import SolicitacaoError
@@ -179,10 +180,20 @@ def pedir(request: HttpRequest, chave: str) -> HttpResponse:
             "e_arquivo": campo.get("tipo") == TipoCampo.ARQUIVO,
             "e_despesas": campo.get("tipo") == TipoCampo.DESPESAS,
             "e_adiantamento": campo.get("tipo") == TipoCampo.ADIANTAMENTO,
+            "e_escolha": campo.get("tipo") == TipoCampo.ESCOLHA,
+            "opcoes_normalizadas": frm.opcoes_de(campo),
+            "passo": frm.passo_do_campo(campo),
+            # O ramo vai para o HTML como dado (`data-`), e não como campo
+            # escondido pelo servidor: sem JS todos os ramos ficam visíveis e a
+            # página continua enviável — quem descarta o que não é do ramo é o
+            # servidor, em `limpar_fora_do_ramo()`.
+            "quando_campo": (campo.get("quando") or {}).get("campo", ""),
+            "quando_igual": _quando_igual(campo),
         }
         for campo in item.campos
     ]
 
+    passos = frm.passos_de(item)
     return render(
         request,
         "workspace/servicos/pedir.html",
@@ -190,6 +201,13 @@ def pedir(request: HttpRequest, chave: str) -> HttpResponse:
             "item": item,
             "prazo": svc.prazo_medido(item),
             "campos": campos,
+            "passos": passos,
+            # O passo do formulário em si — o `apos_envio` acontece em outra
+            # tela e não tem botão de "continuar" para chegar até ele.
+            "ultimo_passo": max(
+                [p["numero"] for p in passos if not p["apos_envio"]] or [1]
+            ),
+            "valor_passo": _passo_do_valor(item),
             "valor": valor,
             "erro_valor": por_campo.get("valor"),
             "impedimentos": impedimentos,
@@ -216,6 +234,28 @@ def pedir(request: HttpRequest, chave: str) -> HttpResponse:
             ),
         },
     )
+
+
+def _quando_igual(campo: dict) -> str:
+    """A condição do ramo, em texto separado por `|` para o `data-` do HTML."""
+    esperado = (campo.get("quando") or {}).get("igual")
+    if esperado is None:
+        return ""
+    if isinstance(esperado, (list, tuple)):
+        return "|".join(str(v) for v in esperado)
+    return str(esperado)
+
+
+def _passo_do_valor(item: ItemCatalogo) -> int:
+    """Em qual passo mostrar o campo de valor.
+
+    No último do formulário: o preço é a última coisa que se confirma, e num
+    stepper ele não pode cair sozinho num passo anterior ao que o explica.
+    """
+    passos = [
+        p["numero"] for p in frm.passos_de(item) if not p["apos_envio"]
+    ]
+    return max(passos or [1])
 
 
 # Tipos que não são texto no POST: arquivo vem em `request.FILES`, e despesas e
@@ -372,10 +412,15 @@ def acerto(request: HttpRequest, pk: int) -> HttpResponse:
             messages.success(request, "Prestação de contas fechada.")
             return redirect(reverse("workspace:minhas_solicitacoes"))
 
+    # A mesma trilha do formulário, agora no último passo: a pessoa vê que
+    # chegou onde o pedido dizia que ela chegaria, e não numa tela avulsa.
+    passos = frm.passos_de(prestacao.item)
     return render(
         request,
         "workspace/servicos/acerto.html",
         {
+            "passos": passos,
+            "passo_atual": len(passos),
             "prestacao": prestacao,
             "adiantamento": prestacao.adiantamento,
             "conta": conta,

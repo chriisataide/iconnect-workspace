@@ -319,3 +319,107 @@
   atualizarBotao();
   somar();
 })();
+
+/* Stepper e ramos do formulário de pedido.
+ *
+ * Sem inline, como o resto — a CSP não tem `unsafe-inline`.
+ *
+ * A divisão em passos é do NAVEGADOR: uma requisição só, um POST só. Wizard com
+ * estado no servidor entre telas exigiria guardar arquivo enviado pela metade,
+ * e o formulário que mais anexa é justamente o de prestação de contas.
+ *
+ * Sem este arquivo a página continua funcionando: todos os passos e todos os
+ * ramos ficam visíveis, e o servidor descarta o que não é do ramo escolhido.
+ * Por isso nada aqui esconde nada antes de ter certeza de que vai conseguir
+ * mostrar de volta.
+ */
+(function () {
+  'use strict';
+
+  var form = document.querySelector('[data-stepper]');
+  if (!form) return;
+
+  var ultimo = parseInt(form.dataset.ultimo, 10) || 1;
+  var enviar = form.querySelector('[data-enviar]');
+  var seguir = form.querySelector('[data-passo-seguir]');
+  var voltar = form.querySelector('[data-passo-voltar]');
+  var trilha = form.querySelector('[data-trilha]');
+  if (!seguir || !voltar) return;
+
+  var atual = 1;
+
+  function respostas() {
+    // O estado do ramo é o que está NOS CAMPOS, não uma variável paralela:
+    // duas fontes de verdade divergem no primeiro botão "voltar".
+    var mapa = {};
+    Array.prototype.forEach.call(form.elements, function (campo) {
+      if (campo.name && campo.type !== 'file') mapa[campo.name] = campo.value;
+    });
+    return mapa;
+  }
+
+  function noRamo(bloco, mapa) {
+    var chave = bloco.dataset.quandoCampo;
+    if (!chave) return true;
+    var aceitos = (bloco.dataset.quandoIgual || '').split('|');
+    return aceitos.indexOf(mapa[chave]) !== -1;
+  }
+
+  function blocos() {
+    return form.querySelectorAll('[data-passo]');
+  }
+
+  function desenhar() {
+    var mapa = respostas();
+
+    Array.prototype.forEach.call(blocos(), function (bloco) {
+      var doPasso = parseInt(bloco.dataset.passo, 10) === atual;
+      var visivel = doPasso && noRamo(bloco, mapa);
+      bloco.hidden = !visivel;
+      // `disabled` junto com `hidden`: campo escondido continua sendo enviado,
+      // e um `required` invisível trava o envio sem mostrar onde.
+      Array.prototype.forEach.call(bloco.querySelectorAll('input, select, textarea'),
+        function (campo) { campo.disabled = !noRamo(bloco, mapa); });
+    });
+
+    if (trilha) {
+      Array.prototype.forEach.call(trilha.querySelectorAll('[data-trilha-passo]'),
+        function (item) {
+          var numero = parseInt(item.dataset.trilhaPasso, 10);
+          item.classList.toggle('au-trilha-passo--atual', numero === atual);
+          item.classList.toggle('au-trilha-passo--feito', numero < atual);
+          if (numero === atual) item.setAttribute('aria-current', 'step');
+          else item.removeAttribute('aria-current');
+        });
+    }
+
+    voltar.hidden = atual === 1;
+    seguir.hidden = atual >= ultimo;
+    // O enviar só no fim: um botão de enviar visível no passo 1 faz metade das
+    // pessoas mandarem o formulário pela metade — e a outra metade descobrir os
+    // passos seguintes pela mensagem de erro.
+    if (enviar) enviar.hidden = atual < ultimo;
+  }
+
+  function irPara(numero) {
+    atual = Math.min(Math.max(numero, 1), ultimo);
+    desenhar();
+    form.scrollIntoView({ block: 'start' });
+  }
+
+  seguir.addEventListener('click', function () { irPara(atual + 1); });
+  voltar.addEventListener('click', function () { irPara(atual - 1); });
+
+  // Trocar o ramo muda o que existe no passo seguinte — e às vezes no atual.
+  form.addEventListener('change', function (e) {
+    if (e.target.matches('[data-ramo]')) desenhar();
+  });
+
+  // Voltou do servidor com erro? Abre no passo do primeiro campo com erro, em
+  // vez de no passo 1: procurar o erro passo a passo é o que faz a pessoa
+  // desistir no segundo envio.
+  var comErro = form.querySelector('.au-campo--erro[data-passo]');
+  if (comErro) atual = parseInt(comErro.dataset.passo, 10) || 1;
+
+  desenhar();
+})();
