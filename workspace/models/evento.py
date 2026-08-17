@@ -37,7 +37,12 @@ class AcaoSolicitacao(models.TextChoices):
 
     CRIADA = "criada", "Pedido aberto"
     AUTO_APROVADA = "auto_aprovada", "Aprovado automaticamente"
-    APROVADA = "aprovada", "Aprovado"
+    # Um degrau da cadeia, com a cadeia continuando. Separado de `APROVADA`
+    # porque são fatos diferentes: um diz "fulano assinou", o outro diz "o
+    # pedido está liberado". Numa cadeia de três degraus, dois dos três
+    # aprovadores só aparecem por causa desta linha.
+    ETAPA_APROVADA = "etapa_aprovada", "Aprovado num degrau"
+    APROVADA = "aprovada", "Aprovado — liberado"
     DEVOLVIDA = "devolvida", "Devolvido para quem pediu"
     CANCELADA = "cancelada", "Cancelado"
     ASSUMIDA = "assumida", "Atendimento assumido"

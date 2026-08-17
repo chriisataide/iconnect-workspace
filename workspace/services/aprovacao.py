@@ -56,6 +56,24 @@ aprovacao_decidida = Signal()
 # sobre como avisar as pessoas — que é assunto da superfície, não dele.
 vez_de = Signal()
 
+# Emitido quando um degrau é aprovado E A CADEIA CONTINUA — o pedido ainda não
+# se resolveu.
+#
+#     etapa_aprovada.connect(handler, sender=None)
+#     handler(sender, solicitacao, etapa, quem, **kwargs)
+#
+# Existe porque `aprovacao_decidida` só fala quando o pedido INTEIRO se resolve,
+# e isso deixava a linha do tempo mentindo por omissão: numa cadeia de três
+# degraus ela mostrava só o último aprovador, como se o gestor e a área nunca
+# tivessem assinado. A informação estava em `EtapaAprovacao` e não chegava a
+# quem lê.
+#
+# Separado de `aprovacao_decidida`, e não uma versão dele com mais argumentos:
+# quem quer saber do DESFECHO (orçamento, notificação de aprovado) não quer ser
+# acordado a cada degrau, e juntar os dois faria cada ouvinte reimplementar o
+# filtro — que é o tipo de coisa que um deles esquece.
+etapa_aprovada = Signal()
+
 PERMISSAO_APROVAR = "apr.aprovar"
 
 
@@ -364,6 +382,13 @@ def decidir(
 
     solicitacao.refresh_from_db()
     if solicitacao.situacao == SituacaoSolicitacao.AGUARDANDO:
+        if decisao == Decisao.APROVAR:
+            # Degrau aprovado e a cadeia continua. Sem este anúncio, quem lê o
+            # histórico veria só o último aprovador e concluiria que os
+            # anteriores nunca assinaram.
+            etapa_aprovada.send(
+                sender=None, solicitacao=solicitacao, etapa=etapa, quem=quem
+            )
         # A cadeia andou: o próximo degrau precisa saber que chegou a vez dele.
         # Sem isto, o aprovador descobre abrindo a tela — e é assim que um pedido
         # fica cinco dias parado sem ninguém ter culpa.

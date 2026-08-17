@@ -145,6 +145,124 @@ def test_devolver_no_atendimento_guarda_o_motivo(cenario):
     assert devolucao.quem == cenario["tecnico"]
 
 
+# ── A cadeia de vários degraus ──────────────────────────────────────
+
+
+@pytest.fixture
+def cadeia_de_tres(cenario):
+    """Gestor → área → diretoria. É onde o histórico mentia por omissão."""
+    from identidade.models import Papel
+
+    area = f.papel("compras", ["apr.aprovar.global"], escopo="global")
+    diretoria = f.papel("diretoria", ["apr.aprovar.global"], escopo="global")
+    comprador, diretor = (f.pessoa(n) for n in ("comprador", "diretor"))
+    f.lotar(comprador)
+    f.lotar(diretor)
+    f.atribuir(comprador, area)
+    f.atribuir(diretor, diretoria)
+
+    cenario["item"].dominio = "com.requisicao"
+    cenario["item"].save(update_fields=["dominio"])
+    RegraAprovacao.objects.create(
+        dominio="com.", tipo=TipoAprovador.PAPEL, papel=area, ordem=15
+    )
+    RegraAprovacao.objects.create(
+        dominio="*", tipo=TipoAprovador.PAPEL,
+        papel=Papel.objects.get(pk=diretoria.pk), ordem=20,
+    )
+    return {**cenario, "comprador": comprador, "diretor": diretor}
+
+
+def test_o_degrau_do_meio_aparece_na_linha_do_tempo(cadeia_de_tres):
+    """O defeito que isto conserta: numa cadeia de três, a linha do tempo
+    mostrava só o último aprovador — como se os outros nunca tivessem
+    assinado. A informação existia em `EtapaAprovacao` e não chegava a quem lê.
+    """
+    pedido = pedir(cadeia_de_tres)
+
+    apr.decidir(pedido.aprovacao, cadeia_de_tres["gestor"], apr.Decisao.APROVAR)
+
+    evento = hst.de(pedido).get(acao=AcaoSolicitacao.ETAPA_APROVADA)
+    assert evento.quem == cadeia_de_tres["gestor"]
+
+
+def test_a_linha_diz_QUAL_degrau_foi(cadeia_de_tres):
+    """O nome de quem assinou já está do lado; o que falta é qual papel ele
+    exercia — a mesma pessoa pode ser o gestor num pedido e a área no seguinte."""
+    pedido = pedir(cadeia_de_tres)
+
+    apr.decidir(pedido.aprovacao, cadeia_de_tres["gestor"], apr.Decisao.APROVAR)
+    apr.decidir(pedido.aprovacao, cadeia_de_tres["comprador"], apr.Decisao.APROVAR)
+
+    degraus = [e.observacao for e in hst.de(pedido).filter(
+        acao=AcaoSolicitacao.ETAPA_APROVADA
+    )]
+    assert degraus == ["Degrau 1 · gestor direto", "Degrau 2 · Compras"]
+
+
+def test_o_ultimo_degrau_e_APROVADA_e_nao_se_repete(cadeia_de_tres):
+    """Um diz "fulano assinou", o outro diz "o pedido está liberado". Registrar
+    os dois no degrau final daria duas linhas para um fato só."""
+    pedido = pedir(cadeia_de_tres)
+
+    for quem in ("gestor", "comprador", "diretor"):
+        apr.decidir(pedido.aprovacao, cadeia_de_tres[quem], apr.Decisao.APROVAR)
+
+    assert acoes(pedido) == [
+        AcaoSolicitacao.CRIADA,
+        AcaoSolicitacao.ETAPA_APROVADA,
+        AcaoSolicitacao.ETAPA_APROVADA,
+        AcaoSolicitacao.APROVADA,
+    ]
+
+
+def test_cadeia_de_um_degrau_nao_ganha_linha_a_mais(cenario):
+    """Com um degrau só, "assinou" e "liberado" são o mesmo fato."""
+    pedido = pedir(cenario)
+
+    apr.decidir(pedido.aprovacao, cenario["gestor"], apr.Decisao.APROVAR)
+
+    assert AcaoSolicitacao.ETAPA_APROVADA not in acoes(pedido)
+
+
+def test_devolver_no_meio_da_cadeia_nao_vira_aprovacao(cadeia_de_tres):
+    pedido = pedir(cadeia_de_tres)
+
+    apr.decidir(pedido.aprovacao, cadeia_de_tres["gestor"], apr.Decisao.APROVAR)
+    apr.decidir(
+        pedido.aprovacao, cadeia_de_tres["comprador"], apr.Decisao.DEVOLVER,
+        "Falta o orçamento",
+    )
+
+    registradas = acoes(pedido)
+    assert registradas.count(AcaoSolicitacao.ETAPA_APROVADA) == 1, "só o gestor"
+    assert AcaoSolicitacao.DEVOLVIDA in registradas
+
+
+def test_o_degrau_do_meio_nao_libera_o_pedido(cadeia_de_tres):
+    """A linha nova é sobre o que se LÊ. Um degrau de três não liberou nada."""
+    from workspace.models import SituacaoServico
+
+    pedido = pedir(cadeia_de_tres)
+
+    apr.decidir(pedido.aprovacao, cadeia_de_tres["gestor"], apr.Decisao.APROVAR)
+
+    pedido.refresh_from_db()
+    assert pedido.situacao == SituacaoServico.AGUARDANDO_APROVACAO
+
+
+def test_a_tela_mostra_todos_os_aprovadores(client, cadeia_de_tres):
+    pedido = pedir(cadeia_de_tres)
+    apr.decidir(pedido.aprovacao, cadeia_de_tres["gestor"], apr.Decisao.APROVAR)
+    apr.decidir(pedido.aprovacao, cadeia_de_tres["comprador"], apr.Decisao.APROVAR)
+
+    client.force_login(cadeia_de_tres["ana"])
+    corpo = client.get(reverse("workspace:minhas_solicitacoes")).content.decode()
+
+    assert "Aprovado num degrau" in corpo
+    assert "Degrau 1 · gestor direto" in corpo
+
+
 # ── A linha do tempo inteira ────────────────────────────────────────
 
 

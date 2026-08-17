@@ -668,8 +668,26 @@ com o comprovante de cada valor, no lugar do bloco de anexos soltos.
 ### 3.7 Minhas solicitações — `/workspace/minhas-solicitacoes/`
 
 **Linha do tempo.** Dentro do resumo, "O que aconteceu": pedido aberto,
-aprovado por quem, assumido por quem, concluído, devolvido com o motivo, acerto
-fechado. Do mais antigo para o mais novo — ela se lê de cima para baixo.
+aprovado por quem **em cada degrau**, assumido por quem, concluído, devolvido
+com o motivo, reaberto, acerto fechado. Do mais antigo para o mais novo — ela se
+lê de cima para baixo.
+
+Numa cadeia de três degraus ela lê assim, e **os três aprovadores aparecem**:
+
+```
+Pedido aberto          Colaborador
+Aprovado num degrau    Gestor       · Degrau 1 · gestor direto
+Aprovado num degrau    Compras      · Degrau 2 · Compras
+Aprovado — liberado    Diretoria
+```
+
+- **"Aprovado num degrau" e "Aprovado — liberado" são fatos diferentes**: um diz
+  *fulano assinou*, o outro diz *o pedido está liberado*. O último degrau produz
+  só o segundo — registrar os dois daria duas linhas para um fato só.
+- Cadeia de **um degrau** não ganha a linha extra: ali "assinou" e "liberado"
+  são a mesma coisa.
+- O degrau do meio **não muda a situação** do pedido. Ele continua "aguardando
+  aprovação", porque um degrau de três não liberou nada.
 
 É o que responde *"esse pedido está parado há duas semanas, o que aconteceu com
 ele?"*. Antes, a resposta exigia juntar a data de criação, a etapa de aprovação
@@ -1261,7 +1279,7 @@ Para o outro lado, refaça com uma compra de **R$ 1.160**: a tela pede a conta
 
 ---
 
-## 7. Lista de regressão — as 14 armadilhas já corridas
+## 7. Lista de regressão — as 15 armadilhas já corridas
 
 Cada linha abaixo é um defeito **real**, encontrado e corrigido. Elas são a
 melhor lista de regressão que este produto tem, porque cada uma passou por uma
@@ -1283,6 +1301,7 @@ suíte verde uma vez.
 | 12 | `1234.56` no campo de valor virava **R$ 123.456,00** | Pedido cem vezes maior que o gasto, aprovado por quem confiou no número da tela |
 | 13 | Etapa num papel **sem titular** não aparecia na bandeja de ninguém | Pedido em "aguardando aprovação" para sempre, sem lado do outro lado |
 | 14 | Um teste publicava sempre às `08:00:00` fixas | Suíte reprovava **entre 00:00 e 08:00** — e passava o dia inteiro depois disso |
+| 15 | Linha do tempo mostrava só o **último** aprovador | Cadeia de três degraus lida como se gestor e área nunca tivessem assinado |
 
 **Se você só tiver uma hora**, teste: o Roteiro B (linha 1), a passagem pelas 6
 telas logado (linha 3), ⌘K + Esc em três telas (linhas 4 e 5), e o console aberto

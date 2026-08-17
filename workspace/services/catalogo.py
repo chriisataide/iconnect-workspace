@@ -446,8 +446,46 @@ def ao_decidir(sender, solicitacao, decisao, quem, **kwargs) -> None:
     hst.registrar(servico, acao, quem=quem, observacao=observacao)
 
 
+def ao_aprovar_etapa(sender, solicitacao, etapa, quem, **kwargs) -> None:
+    """Ouvinte de `etapa_aprovada` — o degrau vira linha, o pedido não muda.
+
+    A situação do serviço continua "aguardando aprovação", e é assim que tem de
+    ser: um degrau aprovado num pedido de três degraus não liberou nada. O que
+    muda é só o que a pessoa consegue LER.
+
+    Antes disto a linha do tempo mentia por omissão. Numa cadeia de gestor →
+    área → diretoria, ela mostrava "Aprovado" com o nome do último e nada dos
+    outros dois — e quem lesse concluiria que ninguém mais tinha assinado. A
+    informação existia em `EtapaAprovacao` e não chegava a quem lê.
+    """
+    servico = SolicitacaoServico.objects.filter(aprovacao=solicitacao).first()
+    if servico is None:
+        return
+
+    from workspace.services import historico as hst
+
+    hst.registrar(
+        servico,
+        hst.Acao.ETAPA_APROVADA,
+        quem=quem,
+        observacao=_qual_degrau(etapa),
+    )
+
+
+def _qual_degrau(etapa) -> str:
+    """"Degrau 2 · Compras". O nome de QUEM assinou já está na coluna do lado;
+    o que falta é qual papel ele estava exercendo ao assinar — a mesma pessoa
+    pode ser o gestor direto num pedido e a área no seguinte."""
+    if etapa.papel_id:
+        return f"Degrau {etapa.ordem} · {etapa.papel.nome}"
+    return f"Degrau {etapa.ordem} · gestor direto"
+
+
 def conectar() -> None:
     """Liga o ouvinte. Chamado no `ready()` do app."""
     apr.aprovacao_decidida.connect(
         ao_decidir, dispatch_uid="workspace.catalogo.ao_decidir"
+    )
+    apr.etapa_aprovada.connect(
+        ao_aprovar_etapa, dispatch_uid="workspace.catalogo.ao_aprovar_etapa"
     )
