@@ -54,6 +54,7 @@ python manage.py semear_papeis --aplicar              # os 16 papéis e suas per
 python manage.py semear_catalogo --aplicar            # os 26 serviços do catálogo
 python manage.py semear_regras_aprovacao --aplicar    # gestor → área → 50k → 300k
 python manage.py importar_organograma docs/exemplos/organograma-inicial.csv --criar-usuarios --aplicar
+python manage.py semear_acessos --aplicar             # senha sorteada + papel por cargo
 python manage.py reindexar_busca                      # popula o índice da ⌘K
 ```
 
@@ -61,16 +62,29 @@ Todos rodam em **simulação por padrão**: sem `--aplicar` eles só relatam. Is
 deliberado e vale testar — rodar sem a flag não pode gravar nada.
 
 O organograma de exemplo cria **6 pessoas por cargo** (não são pessoas reais: o
-arquivo vai para o git). Elas nascem com `set_unusable_password()`, então para
-entrar você precisa definir senha:
+arquivo vai para o git). O CSV traz cargo e hierarquia, e **não traz
+credencial** — elas nascem com `set_unusable_password()`. Quem resolve isso é o
+`semear_acessos`, e ele faz as duas coisas que faltavam de uma vez: sorteia
+senha e concede o papel do cargo.
 
-```bash
-python manage.py shell -c "
-from django.contrib.auth.models import User
-for u in User.objects.filter(lotacao__isnull=False):
-    u.set_password('teste12345'); u.save(); print(u.username, u.lotacao)
-"
-```
+Sem ele o ambiente fica no pior dos dois mundos — organograma certo e ninguém
+entrando, e cinco áreas de aprovação sem titular engolindo pedido.
+
+**O que ele nunca faz**, e vale testar:
+
+- **Não troca senha que já existe.** Rodar por engano não pode ser o jeito de
+  perder o acesso ao próprio ambiente.
+- **Não toca em superusuário.** Conta de emergência não é de demonstração.
+- **Não roda com `DEBUG=False`** sem `--forcar`. Semear senha conhecida em
+  produção é exatamente o acidente que esse guarda impede.
+- **Não imprime senha na simulação.** A transação volta, e quem anotasse
+  descobriria na hora de entrar que o que está no papel não vale.
+
+As senhas são sorteadas e aparecem **uma vez** na saída do comando. Não ficam em
+arquivo nem no banco em claro — se perder, o caminho é o `/admin/`.
+
+> Para gente de verdade isto não serve: o fluxo certo é convite com link de
+> definição de senha, e ele chega junto com o SSO.
 
 ### 1.3 O que **não** tem semeadora — e como criar
 
@@ -99,7 +113,20 @@ Você vai precisar de **três sessões diferentes**, e o guia inteiro assume iss
 | **Gestor / Diretoria** | usuário com papel `gestor` ou `diretoria` | bandeja de aprovação |
 | **Recepção** | usuário com papel `logistica` | fila de correspondência |
 
-Papéis se atribuem em `/admin/identidade/` (ou pelo `semear_papeis` + vínculo).
+Com o `semear_acessos` aplicado, o organograma de exemplo já entrega as quatro
+sessões prontas:
+
+| Sessão | Quem, no exemplo | Papéis |
+|---|---|---|
+| **Colaborador** | `tecnico.campo@icodev.com.br` | colaborador |
+| **Gestor** | `gerente.suporte@icodev.com.br` | gestor, compras |
+| **Diretoria** | `diretor.operacoes@icodev.com.br` | diretoria, vendas |
+| **Atendimento de campo** | `gerente.campo@icodev.com.br` | gestor, operação, SESMT |
+
+Papéis também se atribuem na tela `/workspace/pessoas/` (ou em
+`/admin/identidade/`). Note que **`rh.admin` fica só com o superusuário** — é
+ele quem enxerga a tela de papéis, e é de propósito: ela é o mapa de poder da
+empresa e ela também concede.
 
 ---
 
