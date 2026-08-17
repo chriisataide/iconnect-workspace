@@ -314,6 +314,7 @@
   var seguir = form.querySelector('[data-passo-seguir]');
   var voltar = form.querySelector('[data-passo-voltar]');
   var trilha = form.querySelector('[data-trilha]');
+  var aviso = form.querySelector('[data-aviso-passo]');
   if (!seguir || !voltar) return;
 
   var atual = 1;
@@ -339,8 +340,61 @@
     return form.querySelectorAll('[data-passo]');
   }
 
+  /* Os blocos que EXISTEM num passo, para as respostas de agora.
+   *
+   * "Existem" leva o ramo em conta, e é aí que estava o defeito que fazia os
+   * passos parecerem iguais: o passo 2 do treinamento só tem campos de curso
+   * interno OU de curso externo. Antes de responder "que tipo de curso", ele
+   * não tem NADA — e o "Continuar" levava para uma tela em branco, que a
+   * pessoa lia, com razão, como "não mudou nada". */
+  function blocosDoPasso(numero, mapa) {
+    return Array.prototype.filter.call(blocos(), function (bloco) {
+      if (parseInt(bloco.dataset.passo, 10) !== numero) return false;
+      // O bloco em modo cinza conta como conteúdo: ele aparece de qualquer
+      // jeito, apagado.
+      return noRamo(bloco, mapa) || bloco.dataset.quandoModo === 'cinza';
+    });
+  }
+
+  function temConteudo(numero, mapa) {
+    return blocosDoPasso(numero, mapa).length > 0;
+  }
+
+  /* O último passo que tem o que mostrar AGORA.
+   *
+   * Não é o `data-ultimo` do servidor: o passo do adiantamento só existe para
+   * quem tem um pendente, e os passos de detalhe do curso só existem depois de
+   * escolher o tipo. É este número que decide onde aparece o "Enviar" — senão
+   * ele fica escondido atrás de um "Continuar" que leva a lugar nenhum. */
+  function ultimoUtil(mapa) {
+    for (var numero = ultimo; numero > 1; numero--) {
+      if (temConteudo(numero, mapa)) return numero;
+    }
+    return 1;
+  }
+
+  /* O que impede de seguir: campo obrigatório do passo atual sem resposta.
+   *
+   * Sem isto dá para atravessar o formulário inteiro no "Continuar" e só
+   * descobrir o que faltava na mensagem de erro do servidor — e, no caso do
+   * treinamento, dá para chegar num passo vazio porque a pergunta que decide o
+   * ramo ficou em branco. */
+  function pendencias(mapa) {
+    return blocosDoPasso(atual, mapa).filter(function (bloco) {
+      if (!bloco.hasAttribute('data-obrigatorio')) return false;
+      // A lista de compras tem regra própria (uma linha completa por compra) e
+      // quem a valida é o servidor: exigir aqui duplicaria a regra.
+      if (bloco.querySelector('[data-despesas]')) return false;
+      var campos = bloco.querySelectorAll('input, select, textarea');
+      return Array.prototype.some.call(campos, function (campo) {
+        return !campo.disabled && campo.type !== 'file' && !String(campo.value).trim();
+      });
+    });
+  }
+
   function desenhar() {
     var mapa = respostas();
+    var fim = ultimoUtil(mapa);
 
     Array.prototype.forEach.call(blocos(), function (bloco) {
       var doPasso = parseInt(bloco.dataset.passo, 10) === atual;
@@ -369,8 +423,11 @@
           // Passo sem conteúdo some da trilha — mas o `apos_envio` fica: ele
           // acontece em outra tela e não tem bloco nenhum aqui, e some-lo
           // esconderia justamente a etapa que a pessoa não pode esquecer.
+          // Passo sem conteúdo some da trilha — mas o `apos_envio` fica: ele
+          // acontece em outra tela e não tem bloco nenhum aqui, e some-lo
+          // esconderia justamente a etapa que a pessoa não pode esquecer.
           var doFormulario = numero <= ultimo;
-          item.hidden = doFormulario && !temConteudo(numero);
+          item.hidden = doFormulario && !temConteudo(numero, mapa);
           item.classList.toggle('au-trilha-passo--atual', numero === atual);
           item.classList.toggle('au-trilha-passo--feito', numero < atual);
           if (numero === atual) item.setAttribute('aria-current', 'step');
@@ -379,36 +436,49 @@
     }
 
     voltar.hidden = atual === 1;
-    seguir.hidden = atual >= ultimo;
+    seguir.hidden = atual >= fim;
     // O enviar só no fim: um botão de enviar visível no passo 1 faz metade das
     // pessoas mandarem o formulário pela metade — e a outra metade descobrir os
-    // passos seguintes pela mensagem de erro.
-    if (enviar) enviar.hidden = atual < ultimo;
-  }
-
-  // Um passo pode ficar VAZIO por decisão do servidor: o passo do adiantamento
-  // só existe para quem tem adiantamento pendente, e a seção inteira não é
-  // renderizada quando não há nenhum. "Continuar" para uma tela em branco faz a
-  // pessoa achar que a página quebrou — então o passo vazio é pulado, e some da
-  // trilha.
-  function temConteudo(numero) {
-    return Array.prototype.some.call(blocos(), function (bloco) {
-      return parseInt(bloco.dataset.passo, 10) === numero;
-    });
+    // passos seguintes pela mensagem de erro. "Fim" é o último passo que tem o
+    // que mostrar agora, e não o último declarado.
+    if (enviar) enviar.hidden = atual < fim;
   }
 
   function irPara(numero, direcao) {
-    var destino = Math.min(Math.max(numero, 1), ultimo);
+    var mapa = respostas();
+    var fim = ultimoUtil(mapa);
+    var destino = Math.min(Math.max(numero, 1), fim);
     var passo = direcao || (destino > atual ? 1 : -1);
-    while (destino > 1 && destino < ultimo && !temConteudo(destino)) {
+    // Passo vazio é pulado em vez de mostrado em branco.
+    while (destino > 1 && destino < fim && !temConteudo(destino, mapa)) {
       destino += passo;
     }
-    atual = Math.min(Math.max(destino, 1), ultimo);
+    atual = Math.min(Math.max(destino, 1), fim);
+    if (aviso) aviso.hidden = true;
     desenhar();
     form.scrollIntoView({ block: 'start' });
   }
 
-  seguir.addEventListener('click', function () { irPara(atual + 1); });
+  seguir.addEventListener('click', function () {
+    var mapa = respostas();
+    var faltando = pendencias(mapa);
+
+    if (faltando.length) {
+      // Marca, avisa e leva o foco para o primeiro — em vez de avançar para um
+      // passo que depende de uma resposta que não foi dada.
+      faltando.forEach(function (bloco) { bloco.classList.add('au-campo--erro'); });
+      if (aviso) aviso.hidden = false;
+      var primeiro = faltando[0].querySelector('input, select, textarea');
+      if (primeiro) primeiro.focus();
+      return;
+    }
+
+    Array.prototype.forEach.call(blocos(), function (bloco) {
+      bloco.classList.remove('au-campo--erro');
+    });
+    irPara(atual + 1);
+  });
+
   voltar.addEventListener('click', function () { irPara(atual - 1); });
 
   // Trocar o ramo muda o que existe no passo seguinte — e às vezes no atual.
@@ -519,5 +589,16 @@
 
     var gatilho = e.target.closest('[data-abre-resumo]');
     if (gatilho) abrir(gatilho.dataset.abreResumo);
+  });
+
+  // Enter e espaço na linha focada. Sem isto, `tabindex` só daria o foco e não
+  // a ação — que é pior que não ter foco nenhum: a pessoa chega no elemento e
+  // ele não responde.
+  document.addEventListener('keydown', function (e) {
+    if (e.key !== 'Enter' && e.key !== ' ') return;
+    var linha = e.target.closest('[data-abre-resumo]');
+    if (!linha || e.target.closest('a, button, input, select, textarea')) return;
+    e.preventDefault();
+    abrir(linha.dataset.abreResumo);
   });
 })();

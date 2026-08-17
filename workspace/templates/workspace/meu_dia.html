@@ -6,6 +6,7 @@
 {% block rail %}{% include "workspace/_rail_servicos.html" with aba="meu_dia" %}{% endblock %}
 {% block trilha %}<span>{% trans "Meu dia" %}</span>{% endblock %}
 {% block pagina_titulo %}{% trans "Meu dia" %}{% endblock %}
+{% block voltar_url %}{% url 'workspace:home' %}{% endblock %}
 
 {% block pagina_descricao %}
   {% if vazio %}

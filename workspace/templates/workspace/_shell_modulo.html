@@ -34,8 +34,26 @@
     {% endif %}
 
     <header class="au-pagina-cabeca">
-      <h1 class="au-pagina-titulo">{% block pagina_titulo %}{% endblock %}</h1>
-      {% block pagina_descricao %}{% endblock %}
+      <div>
+        <h1 class="au-pagina-titulo">{% block pagina_titulo %}{% endblock %}</h1>
+        {% block pagina_descricao %}{% endblock %}
+      </div>
+
+      {% comment %}
+        Voltar no canto superior direito, em toda tela de módulo.
+
+        É um LINK com destino de verdade, e não `history.back()`: quem chegou
+        aqui por um link colado no chat, ou depois de um envio que redirecionou,
+        tem histórico que não leva onde a pessoa espera — e o botão que às vezes
+        volta para o lugar certo é pior que o que sempre volta para o mesmo.
+
+        O destino padrão é o catálogo, e cada tela sobrescreve `voltar_url`
+        quando o seu "de onde vim" é outro.
+      {% endcomment %}
+      <a class="au-voltar" href="{% block voltar_url %}{% url 'workspace:servicos' %}{% endblock %}">
+        <svg class="au-icon" aria-hidden="true"><use href="#i-seta"></use></svg>
+        {% block voltar_rotulo %}{% trans "Voltar" %}{% endblock %}
+      </a>
     </header>
 
     {% block corpo %}{% endblock %}

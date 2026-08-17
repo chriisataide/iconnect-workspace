@@ -24,6 +24,40 @@ def data_extenso(valor, com_ano: bool = True) -> str:
     return formats.date_format(valor, formato).lower()
 
 
+@register.simple_tag
+def estatico(caminho: str) -> str:
+    """`{% static %}` com versão em desenvolvimento.
+
+    Em produção o `ManifestStaticFilesStorage` já põe o hash no NOME do arquivo,
+    e o navegador nunca serve um velho. Em desenvolvimento não há hash nenhum, e
+    `/static/workspace/js/workspace.js` é a mesma URL para sempre — então o
+    navegador guarda a versão da manhã e continua servindo ela à tarde.
+
+    Isso não é teoria: uma tela inteira pareceu quebrada porque o navegador
+    tinha o JS de antes do stepper existir, e o CSS de antes do `[hidden]`. O
+    diagnóstico dado foi "não está funcionando", e estava — só que o código que
+    rodava não era o código do disco. Hora de trabalho perdida procurando um
+    defeito que não existia.
+
+    `?v=<mtime>` resolve, custa um `stat` por tag e some sozinho em produção.
+    """
+    from django.conf import settings
+    from django.contrib.staticfiles import finders
+    from django.templatetags.static import static
+
+    url = static(caminho)
+    if not settings.DEBUG:
+        return url
+
+    caminho_no_disco = finders.find(caminho)
+    if not caminho_no_disco:
+        return url
+
+    import os
+
+    return f"{url}?v={int(os.path.getmtime(caminho_no_disco))}"
+
+
 @register.filter
 def dias_desde(quando) -> int:
     """Quantos dias corridos desde então.

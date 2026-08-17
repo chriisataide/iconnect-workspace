@@ -9,6 +9,7 @@
   <span>{% trans "Minhas solicitações" %}</span>
 {% endblock %}
 {% block pagina_titulo %}{% trans "Minhas solicitações" %}{% endblock %}
+{% block voltar_url %}{% url 'workspace:servicos' %}{% endblock %}
 
 {% block pagina_descricao %}
   <p class="au-pagina-desc">
@@ -33,18 +34,19 @@
       <tbody>
         {% for s in solicitacoes %}
           {% comment %}
-            A linha inteira abre o resumo, mas quem carrega a ação é um
-            `<button>` de verdade no nome do serviço: linha clicável com
-            `onclick` no `<tr>` não recebe foco, não responde a Enter e não é
-            anunciada como clicável — e esta tela é lida por quem quer saber
-            "e o meu pedido?", que é gente com pressa e às vezes no teclado.
+            A LINHA INTEIRA abre o resumo — sem botão dentro dela. Um botão no
+            meio da tabela desenha uma borda no lugar onde se espera texto, e
+            ainda cria dois alvos de clique para a mesma coisa.
+
+            `tabindex` e `role` para não perder o teclado: linha clicável sem
+            eles não recebe foco, não responde a Enter e não é anunciada como
+            clicável — e esta tela é lida por quem quer saber "e o meu pedido?",
+            que às vezes é gente no teclado.
           {% endcomment %}
-          <tr data-abre-resumo="resumo-{{ s.pk }}">
+          <tr data-abre-resumo="resumo-{{ s.pk }}" tabindex="0" role="button"
+              aria-label="{% blocktrans with servico=s.item.nome %}Ver resumo de {{ servico }}{% endblocktrans %}">
             <td>
-              <button class="au-link-tabela" type="button"
-                      data-abre-resumo="resumo-{{ s.pk }}">
-                {{ s.item.nome }}
-              </button>
+              <span class="au-list-titulo">{{ s.item.nome }}</span>
               {% include "workspace/_anexos.html" with anexos=s.anexos.all %}
               {% if s.motivo_devolucao %}
                 {% comment %}

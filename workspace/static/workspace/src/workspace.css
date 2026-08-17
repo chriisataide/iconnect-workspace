@@ -730,7 +730,33 @@ body {
 .au-breadcrumb a:hover { color: var(--au-accent-text); text-decoration: underline; }
 .au-breadcrumb > * + *::before { content: "/"; margin-right: var(--au-2); opacity: .5; }
 
-.au-pagina-cabeca { margin-bottom: var(--au-6); }
+.au-pagina-cabeca {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--au-4);
+  margin-bottom: var(--au-6);
+}
+
+/* Voltar, no canto superior direito de toda tela de módulo. Discreto: é saída,
+   não ação principal — e a seta aponta para a ESQUERDA, girada, porque o ícone
+   do projeto é uma seta para a direita e ter dois ícones quase iguais é como se
+   escolhe o errado. */
+.au-voltar {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--au-2);
+  flex: none;
+  padding: var(--au-2) var(--au-3);
+  border: 1px solid var(--au-border);
+  border-radius: var(--au-r-md);
+  color: var(--au-text-muted);
+  font-size: var(--au-t-sm);
+  text-decoration: none;
+  white-space: nowrap;
+}
+.au-voltar:hover { border-color: var(--au-accent); color: var(--au-accent-text); }
+.au-voltar .au-icon { transform: rotate(180deg); }
 .au-pagina-titulo {
   margin: 0 0 var(--au-1);
   font-size: var(--au-t-2xl);
@@ -2036,23 +2062,17 @@ a.au-notif-titulo:hover { color: var(--au-accent-text); text-decoration: underli
 .au-campo--inativo .au-input { background: var(--au-bg); cursor: not-allowed; }
 
 /* ── Linha de tabela que abre resumo ────────────────────────────────
-   Botão de verdade, e não `<tr onclick>`: linha clicável não recebe foco, não
-   responde a Enter e não é anunciada como clicável. */
-
-.au-link-tabela {
-  padding: 0;
-  border: none;
-  background: none;
-  font: inherit;
-  font-weight: 600;
-  color: var(--au-text);
-  text-align: left;
-  cursor: pointer;
-}
-.au-link-tabela:hover { color: var(--au-accent-text); text-decoration: underline; }
+   A linha inteira é o alvo, e não um botão dentro dela: botão no meio da
+   tabela desenha uma borda onde se espera texto, e cria dois alvos de clique
+   para a mesma coisa. O foco é do `tabindex` na linha, e o anel de foco é o
+   mesmo do resto do produto. */
 
 tr[data-abre-resumo] { cursor: pointer; }
 tr[data-abre-resumo]:hover { background: var(--au-surface-sunken); }
+tr[data-abre-resumo]:focus-visible {
+  outline: none;
+  box-shadow: var(--au-focus);
+}
 
 /* ── Modal ──────────────────────────────────────────────────────────
    Mesmo `<dialog>` da paleta: Esc, foco preso e fundo inerte de graça. */

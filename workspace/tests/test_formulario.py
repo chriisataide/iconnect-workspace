@@ -451,3 +451,71 @@ def test_o_resumo_de_um_pedido_nao_vaza_para_outra_pessoa(client, curso, ana):
     html = client.get(reverse("workspace:minhas_solicitacoes")).content.decode()
 
     assert f'id="resumo-{alheio.pk}"' not in html
+
+
+# ── A revisão dos steppers, e o que fazia os passos parecerem iguais ──
+
+
+@pytest.mark.django_db
+def test_campo_obrigatorio_marca_o_bloco_para_o_stepper(client, curso, ana):
+    """`data-obrigatorio` é o que impede atravessar o formulário no "Continuar".
+
+    Era esta a causa de "os passos 1 e 2 são iguais": dava para seguir sem
+    responder a pergunta que decide o RAMO, e o passo 2 — que só tem campos de
+    um ramo ou do outro — aparecia vazio. Tela em branco depois de "Continuar"
+    se lê, com razão, como "não mudou nada".
+    """
+    client.force_login(ana)
+    html = client.get(reverse("workspace:pedir", args=["curso"])).content.decode()
+
+    assert "data-obrigatorio" in html
+    assert "data-aviso-passo" in html
+
+
+@pytest.mark.django_db
+def test_cada_passo_tem_campo_proprio(client, ana):
+    """Nenhum passo declarado pode ficar sem nenhum campo seu.
+
+    Passo declarado e vazio é o defeito que a revisão apontou: a trilha promete
+    três etapas e a segunda não tem o que mostrar.
+    """
+    from io import StringIO
+
+    from django.core.management import call_command
+
+    call_command("semear_catalogo", "--aplicar", stdout=StringIO())
+
+    from workspace.services import formulario as frm
+
+    for item in ItemCatalogo.objects.exclude(passos=[]):
+        do_formulario = [p for p in frm.passos_de(item) if not p["apos_envio"]]
+        ocupados = {frm.passo_do_campo(c) for c in item.campos}
+        for passo in do_formulario:
+            assert passo["numero"] in ocupados, (
+                f"{item.chave}: o passo {passo['numero']} "
+                f"({passo['titulo']}) não tem campo nenhum"
+            )
+
+
+@pytest.mark.django_db
+def test_nenhum_passo_repete_os_campos_do_anterior(client, ana):
+    """Dois passos com o mesmo conteúdo é a queixa literal da revisão."""
+    from io import StringIO
+
+    from django.core.management import call_command
+
+    call_command("semear_catalogo", "--aplicar", stdout=StringIO())
+
+    from workspace.services import formulario as frm
+
+    for item in ItemCatalogo.objects.exclude(passos=[]):
+        por_passo: dict[int, set] = {}
+        for campo in item.campos:
+            por_passo.setdefault(frm.passo_do_campo(campo), set()).add(campo["chave"])
+
+        vistos: list[set] = []
+        for numero in sorted(por_passo):
+            assert por_passo[numero] not in vistos, (
+                f"{item.chave}: o passo {numero} mostra os mesmos campos de outro"
+            )
+            vistos.append(por_passo[numero])

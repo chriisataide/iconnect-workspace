@@ -9,6 +9,7 @@
   <span>{{ recurso.nome }}</span>
 {% endblock %}
 {% block pagina_titulo %}{{ recurso.nome }}{% endblock %}
+{% block voltar_url %}{% url 'workspace:reservas' %}{% endblock %}
 
 {% block pagina_descricao %}
   <p class="au-pagina-desc">

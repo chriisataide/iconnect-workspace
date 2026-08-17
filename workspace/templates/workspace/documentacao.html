@@ -6,6 +6,7 @@
 {% block rail %}{% include "workspace/_rail_servicos.html" with aba="documentacao" %}{% endblock %}
 {% block trilha %}<span>{% trans "Documentação" %}</span>{% endblock %}
 {% block pagina_titulo %}{% trans "Documentação" %}{% endblock %}
+{% block voltar_url %}{% url 'workspace:home' %}{% endblock %}
 
 {% block pagina_descricao %}
   <p class="au-pagina-desc">

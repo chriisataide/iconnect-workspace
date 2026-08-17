@@ -9,6 +9,7 @@
   <span>{{ documento.titulo }}</span>
 {% endblock %}
 {% block pagina_titulo %}{{ documento.titulo }}{% endblock %}
+{% block voltar_url %}{% url 'workspace:documentacao' %}{% endblock %}
 
 {% block pagina_descricao %}
   <p class="au-pagina-desc">

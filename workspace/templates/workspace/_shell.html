@@ -1,4 +1,4 @@
-{% load i18n static %}<!DOCTYPE html>
+{% load i18n static wks %}<!DOCTYPE html>
 {% comment %}
   Casca do Workspace — deliberadamente NÃO estende templates/base.html.
   Decisão A-02 (Etapa 6): não herda a casca antiga. Os ~40 templates
@@ -25,8 +25,8 @@
   <link rel="icon" type="image/png" href="{% static 'workspace/img/icodev-512.png' %}">
   <link rel="apple-touch-icon" href="{% static 'workspace/img/icodev-apple-touch.png' %}">
 
-  <link rel="stylesheet" href="{% static 'workspace/src/tokens.css' %}">
-  <link rel="stylesheet" href="{% static 'workspace/src/workspace.css' %}">
+  <link rel="stylesheet" href="{% estatico 'workspace/src/tokens.css' %}">
+  <link rel="stylesheet" href="{% estatico 'workspace/src/workspace.css' %}">
   {% block head %}{% endblock %}
 </head>
 <body>
@@ -104,7 +104,7 @@
     tela lembrar de carregar o script faria ⌘K morrer na próxima tela nova — foi
     exatamente assim que ele já morreu uma vez.
   {% endcomment %}
-  <script src="{% static 'workspace/js/workspace.js' %}" defer></script>
+  <script src="{% estatico 'workspace/js/workspace.js' %}" defer></script>
   {% block scripts %}{% endblock %}
 </body>
 </html>

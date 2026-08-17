@@ -764,3 +764,62 @@ def test_lote_sem_selecao_avisa_em_vez_de_aprovar_zero(client, cenario, provider
 
     assert "Selecione ao menos uma" in corpo
     assert "0 aprovada" not in corpo
+
+
+# ── Os ajustes da revisão de tela ───────────────────────────────────
+
+
+@pytest.mark.django_db
+def test_toda_tela_de_modulo_tem_por_onde_voltar(client, cenario):
+    """Voltar no canto superior direito, em todas elas.
+
+    É um LINK com destino, e não `history.back()`: quem chegou por um link
+    colado no chat, ou depois de um envio que redirecionou, tem histórico que
+    não leva onde espera — e um botão que às vezes volta para o lugar certo é
+    pior que um que sempre volta para o mesmo.
+    """
+    client.force_login(cenario["ana"])
+
+    for rota in [
+        "workspace:servicos",
+        "workspace:minhas_solicitacoes",
+        "workspace:meu_dia",
+        "workspace:notificacoes",
+        "workspace:documentacao",
+        "workspace:reservas",
+    ]:
+        corpo = client.get(reverse(rota)).content.decode()
+        assert 'class="au-voltar"' in corpo, rota
+
+
+@pytest.mark.django_db
+def test_a_linha_de_minhas_solicitacoes_e_clicavel_sem_botao(client, cenario):
+    """Sem botão dentro da tabela: ele desenhava uma borda no lugar onde se
+    espera texto, e criava dois alvos de clique para a mesma coisa.
+
+    `tabindex` e `role` ficam, senão a linha clicável não recebe foco e não
+    responde a Enter.
+    """
+    svc.solicitar(cenario["item"], cenario["ana"], {"o_que": "x"}, Decimal("10"))
+    client.force_login(cenario["ana"])
+
+    corpo = client.get(reverse("workspace:minhas_solicitacoes")).content.decode()
+
+    assert 'tabindex="0" role="button"' in corpo
+    assert "au-link-tabela" not in corpo, "o botão saiu da linha"
+
+
+@pytest.mark.django_db
+def test_o_estatico_e_versionado_em_desenvolvimento(client, settings):
+    """Sem versão na URL, o navegador serve o JS da manhã à tarde.
+
+    Aconteceu: uma tela pareceu quebrada porque o navegador tinha o JS de antes
+    do stepper e o CSS de antes do `[hidden]`. Em produção o
+    `ManifestStaticFilesStorage` já põe hash no nome; em desenvolvimento não há
+    hash nenhum, e é aqui que a versão entra.
+    """
+    settings.DEBUG = True
+    corpo = client.get(reverse("workspace:home")).content.decode()
+
+    assert "workspace.js?v=" in corpo
+    assert "workspace.css?v=" in corpo

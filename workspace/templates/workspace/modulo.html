@@ -6,6 +6,7 @@
 {% block rail %}{% include "workspace/_rail_modulo.html" %}{% endblock %}
 {% block trilha %}<span>{{ modulo.nome }}</span>{% endblock %}
 {% block pagina_titulo %}{{ modulo.nome }}{% endblock %}
+{% block voltar_url %}{% url 'workspace:home' %}{% endblock %}
 
 {% block pagina_descricao %}
   <p class="au-pagina-desc">{{ modulo.descricao }}</p>

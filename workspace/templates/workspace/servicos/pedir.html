@@ -9,6 +9,7 @@
   <span>{{ item.nome }}</span>
 {% endblock %}
 {% block pagina_titulo %}{{ item.nome }}{% endblock %}
+{% block voltar_url %}{% url 'workspace:servicos' %}{% endblock %}
 
 {% block pagina_descricao %}
   <p class="au-pagina-desc">{{ item.descricao_curta }}</p>
@@ -53,6 +54,7 @@
       {% else %}
       <div class="au-campo {% if campo.erro %}au-campo--erro{% endif %}"
            data-passo="{{ campo.passo }}"
+           {% if campo.obrigatorio %}data-obrigatorio{% endif %}
            {% if campo.quando_campo %}data-quando-campo="{{ campo.quando_campo }}"
            data-quando-igual="{{ campo.quando_igual }}"
            data-quando-modo="{{ campo.quando_modo }}"{% endif %}>
@@ -137,7 +139,7 @@
     {% endcomment %}
     {% if item.exige_valor and not por_despesa %}
       <div class="au-campo {% if erro_valor %}au-campo--erro{% endif %}"
-           data-passo="{{ valor_passo }}"
+           data-passo="{{ valor_passo }}" data-obrigatorio
            {% if item.valor_quando %}data-quando-campo="{{ item.valor_quando.campo }}"
            data-quando-igual="{{ item.valor_quando.igual }}"{% endif %}>
         <label class="au-rotulo" for="valor">
@@ -151,6 +153,12 @@
         </div>
         {% if erro_valor %}<p class="au-erro">{{ erro_valor }}</p>{% endif %}
       </div>
+    {% endif %}
+
+    {% if passos %}
+      <p class="au-erro" data-aviso-passo hidden>
+        {% trans "Responda o que está marcado para seguir para o próximo passo." %}
+      </p>
     {% endif %}
 
     <div class="au-form-acoes">
