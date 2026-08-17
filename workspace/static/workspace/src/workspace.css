@@ -2153,3 +2153,42 @@ tr[data-abre-resumo]:focus-visible {
   grid-template-columns: repeat(auto-fit, minmax(13rem, 1fr));
   gap: var(--au-4);
 }
+
+/* ── Linha do tempo do pedido ───────────────────────────────────────
+   Do mais antigo para o mais novo, com o traço ligando os pontos: é o formato
+   que se lê de cima para baixo sem precisar de legenda. */
+
+.au-timeline {
+  list-style: none;
+  margin: 0;
+  padding: 0 0 0 var(--au-4);
+  border-left: 2px solid var(--au-border);
+}
+
+.au-timeline-item {
+  position: relative;
+  padding: 0 0 var(--au-3) var(--au-3);
+  font-size: var(--au-t-sm);
+}
+.au-timeline-item:last-child { padding-bottom: 0; }
+
+/* O ponto do evento, encostado na linha. `::before` e não um elemento no HTML:
+   é decoração, e decoração não entra no leitor de tela. */
+.au-timeline-item::before {
+  content: "";
+  position: absolute;
+  left: calc(var(--au-3) * -1 - 5px);
+  top: 6px;
+  width: 8px;
+  height: 8px;
+  border-radius: var(--au-r-full);
+  background: var(--au-accent);
+}
+
+.au-timeline-quando {
+  display: block;
+  font-size: var(--au-t-xs);
+  color: var(--au-text-subtle);
+  font-variant-numeric: tabular-nums;
+}
+.au-timeline-acao { font-weight: 600; }

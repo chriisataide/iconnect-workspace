@@ -182,6 +182,12 @@ def assumir(solicitacao: SolicitacaoServico, quem, cache=None) -> SolicitacaoSer
     solicitacao.situacao = SituacaoServico.EM_ATENDIMENTO
     solicitacao.save(update_fields=["atendente", "situacao"])
 
+    from workspace.services import historico as hst
+
+    hst.registrar(
+        solicitacao, hst.Acao.ASSUMIDA, quem=quem,
+        observacao=f"Assumido por {quem.get_full_name()}.",
+    )
     _avisar(
         solicitacao,
         TipoNotificacao.PEDIDO_EM_ATENDIMENTO,
@@ -205,6 +211,9 @@ def concluir(solicitacao: SolicitacaoServico, quem, cache=None) -> SolicitacaoSe
     solicitacao.concluido_em = timezone.now()
     solicitacao.save(update_fields=["atendente", "situacao", "concluido_em"])
 
+    from workspace.services import historico as hst
+
+    hst.registrar(solicitacao, hst.Acao.CONCLUIDA, quem=quem)
     _avisar(
         solicitacao,
         TipoNotificacao.PEDIDO_CONCLUIDO,
@@ -234,6 +243,11 @@ def devolver(solicitacao: SolicitacaoServico, quem, motivo: str, cache=None) -> 
     solicitacao.motivo_devolucao = motivo
     solicitacao.save(update_fields=["situacao", "motivo_devolucao"])
 
+    from workspace.services import historico as hst
+
+    hst.registrar(
+        solicitacao, hst.Acao.DEVOLVIDA, quem=quem, observacao=motivo
+    )
     _avisar(
         solicitacao,
         TipoNotificacao.PEDIDO_DEVOLVIDO,

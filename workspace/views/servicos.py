@@ -367,7 +367,9 @@ def _valor_de(bruto: str | None) -> Decimal | None:
 
 @login_required
 def minhas_solicitacoes(request: HttpRequest) -> HttpResponse:
-    solicitacoes = svc.minhas(request.user)
+    # `prefetch` do histórico: o resumo de cada linha mostra a linha do tempo, e
+    # sem isto uma pessoa com 30 pedidos faria 31 consultas só para os eventos.
+    solicitacoes = svc.minhas(request.user).prefetch_related("eventos__quem")
     return render(
         request,
         "workspace/servicos/minhas.html",

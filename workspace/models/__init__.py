@@ -14,6 +14,7 @@ Já existe (Etapa 5 §5.2):
     reserva.py     RES  Recurso, Reserva — sem choque de horário
     reembolso.py   RMB  DespesaReembolso, AcertoAdiantamento — uma linha por
                         compra, e a conta do adiantamento fechada
+    evento.py      HST  EventoSolicitacao — o que aconteceu com um pedido, e quem fez
     correspondencia.py COR  Correspondencia — o que chega na recepção
 
 Entram nas ondas seguintes:
@@ -49,6 +50,7 @@ from .correspondencia import (
 )
 from .reserva import Recurso, Reserva, SituacaoReserva, TipoRecurso
 from .reembolso import AcertoAdiantamento, DespesaReembolso, SentidoAcerto
+from .evento import AcaoSolicitacao, EventoSolicitacao
 from .conteudo import (
     ConfirmacaoLeitura,
     Documento,
@@ -59,6 +61,8 @@ from .comunicacao import Prioridade, Publicacao, TipoPublicacao
 from .orcamento import Compromisso, SituacaoCompromisso, competencia_de
 
 __all__ = [
+    "AcaoSolicitacao",
+    "EventoSolicitacao",
     "AcertoAdiantamento",
     "DespesaReembolso",
     "SentidoAcerto",

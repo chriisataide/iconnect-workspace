@@ -343,6 +343,12 @@ def confirmar_acerto(
     elif conta.receber and not dados_bancarios:
         raise ReembolsoError("Informe a conta onde a empresa deve depositar.")
 
+    from workspace.services import historico as hst
+
+    hst.registrar(
+        prestacao, hst.Acao.ACERTO, quem=quem,
+        observacao=f"{SentidoAcerto(conta.sentido).label} · R$ {conta.diferenca}",
+    )
     return AcertoAdiantamento.objects.create(
         prestacao=prestacao,
         sentido=conta.sentido,

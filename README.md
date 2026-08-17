@@ -120,7 +120,7 @@ casa, que era o ponto de existir um contrato.
 ## Testes
 
 ```bash
-python -m pytest                          # 1.161 testes, cobertura por app
+python -m pytest                          # 1.172 testes, cobertura por app
 python scripts/check_coverage_ratchet.py  # os pisos, que só sobem
 ```
 

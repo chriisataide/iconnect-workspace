@@ -107,6 +107,42 @@
       </div>
     {% endif %}
 
+    {% comment %}
+      A LINHA DO TEMPO. É o que responde "esse pedido está parado há duas
+      semanas — o que aconteceu com ele?", que antes exigia juntar a data de
+      criação, a etapa de aprovação e o `concluido_em` — e mesmo assim sumia o
+      que importava: quem assumiu, quem devolveu e por quê.
+
+      Do mais antigo para o mais novo: linha do tempo se lê de cima para baixo.
+    {% endcomment %}
+    {% if s.eventos.all %}
+      <div class="au-modal-secao">
+        <p class="au-dossie-rotulo">{% trans "O que aconteceu" %}</p>
+        <ol class="au-timeline">
+          {% for evento in s.eventos.all %}
+            <li class="au-timeline-item">
+              <span class="au-timeline-quando">
+                {{ evento.quando|date:"d/m/Y H:i" }}
+              </span>
+              <span class="au-timeline-acao">{{ evento.get_acao_display }}</span>
+              <span class="au-list-meta">
+                {% if evento.quem %}
+                  {{ evento.quem.get_full_name|default:evento.quem.email }}
+                {% else %}
+                  {% comment %}
+                    Sem autor é caso legítimo: a auto-aprovação acontece porque
+                    o pedido cabe na política, e ninguém precisou decidir.
+                  {% endcomment %}
+                  {% trans "automático" %}
+                {% endif %}
+                {% if evento.observacao %}· {{ evento.observacao }}{% endif %}
+              </span>
+            </li>
+          {% endfor %}
+        </ol>
+      </div>
+    {% endif %}
+
     <footer class="au-form-acoes">
       {% if s.adiantamento_id %}
         <a class="au-btn au-btn--sutil" href="{% url 'workspace:acerto' s.pk %}">

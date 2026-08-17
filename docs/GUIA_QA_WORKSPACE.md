@@ -588,6 +588,21 @@ com o comprovante de cada valor, no lugar do bloco de anexos soltos.
 
 ### 3.7 Minhas solicitações — `/workspace/minhas-solicitacoes/`
 
+**Linha do tempo.** Dentro do resumo, "O que aconteceu": pedido aberto,
+aprovado por quem, assumido por quem, concluído, devolvido com o motivo, acerto
+fechado. Do mais antigo para o mais novo — ela se lê de cima para baixo.
+
+É o que responde *"esse pedido está parado há duas semanas, o que aconteceu com
+ele?"*. Antes, a resposta exigia juntar a data de criação, a etapa de aprovação
+e o `concluido_em` — e mesmo assim sumia o que importava: quem assumiu e largou,
+quem devolveu e por quê.
+
+- **Ato sem autor é caso legítimo**, e a tela escreve "automático": a
+  auto-aprovação acontece porque o pedido cabe na política, e ninguém precisou
+  decidir. Se aparecer um nome ali, é defeito.
+- Só entra ATO que muda o estado. Acesso, leitura e navegação **não** entram —
+  log que registra tudo é log que ninguém lê.
+
 **Resumo em modal.** Clicar numa linha — ou no nome do serviço, que é um
 botão de verdade — abre um `<dialog>` com o essencial: situação, valor,
 centro de custo, quem decide agora, o que foi respondido no formulário, as

@@ -317,6 +317,18 @@ def solicitar(
     if linhas:
         rmb.gravar_linhas(solicitacao, linhas, pessoa)
 
+    from workspace.services import historico as hst
+
+    hst.registrar(solicitacao, hst.Acao.CRIADA, quem=pessoa)
+    if auto:
+        # Sem `quem`: ninguém decidiu — o pedido coube na política. Inventar um
+        # autor aqui faria o histórico mentir sobre quem assinou.
+        hst.registrar(
+            solicitacao,
+            hst.Acao.AUTO_APROVADA,
+            observacao="Dentro do limite e do orçamento.",
+        )
+
     if auto:
         # Automático não pode significar invisível: o compromisso é escriturado
         # do mesmo jeito, e o histórico registra que ninguém precisou decidir.
@@ -383,6 +395,10 @@ def cancelar(solicitacao: SolicitacaoServico, quem) -> SolicitacaoServico:
     solicitacao.situacao = SituacaoServico.CANCELADA
     solicitacao.save(update_fields=["situacao"])
 
+    from workspace.services import historico as hst
+
+    hst.registrar(solicitacao, hst.Acao.CANCELADA, quem=quem)
+
     if solicitacao.aprovacao_id:
         try:
             apr.decidir(solicitacao.aprovacao, quem, apr.Decisao.CANCELAR)
@@ -408,18 +424,26 @@ def ao_decidir(sender, solicitacao, decisao, quem, **kwargs) -> None:
     if servico is None:
         return
 
+    from workspace.services import historico as hst
+
     if decisao == apr.Decisao.APROVAR:
         servico.situacao = SituacaoServico.APROVADA
+        acao, observacao = hst.Acao.APROVADA, ""
     elif decisao == apr.Decisao.DEVOLVER:
         servico.situacao = SituacaoServico.DEVOLVIDA
         etapa = solicitacao.etapas.exclude(justificativa="").order_by("-decidido_em").first()
         servico.motivo_devolucao = etapa.justificativa if etapa else ""
+        acao, observacao = hst.Acao.DEVOLVIDA, servico.motivo_devolucao
     elif decisao == apr.Decisao.CANCELAR:
         servico.situacao = SituacaoServico.CANCELADA
+        acao, observacao = hst.Acao.CANCELADA, ""
     else:  # pragma: no cover - Decisao só tem três valores
         return
 
     servico.save(update_fields=["situacao", "motivo_devolucao"])
+    # A decisão da APROVAÇÃO vira linha do histórico do PEDIDO: quem lê a
+    # timeline não deveria precisar abrir a bandeja para saber quem assinou.
+    hst.registrar(servico, acao, quem=quem, observacao=observacao)
 
 
 def conectar() -> None:
