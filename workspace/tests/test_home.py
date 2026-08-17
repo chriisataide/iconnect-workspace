@@ -115,25 +115,45 @@ def test_tile_de_modulo_pronto_leva_a_pagina(client):
     assert rh.destino == reverse("workspace:modulo", args=("rh",))
 
 
-# ── Saudação aberta ───────────────────────────────────────────────
+# ── Saudação ──────────────────────────────────────────────────────
+#
+# Esta seção afirmava o contrário até 17/08/2026: que mesmo quem tivesse
+# entrado veria "Bem-vindo ao Workspace", sem nome. Aquilo não era uma decisão
+# de produto — era o resto da onda em que o login foi REMOVIDO do projeto: sem
+# sessão, não havia nome para escrever, e a view passou a mandar `""` fixo.
+#
+# O login voltou, e a saudação por nome — que sempre existiu no template — nunca
+# chegou a acontecer, porque a view continuava mandando `autenticado=False`.
+#
+# Agora quem entrou é cumprimentado, e quem não entrou não vê nome nenhum. A
+# segunda metade é a que importa: o hub é aberto, e uma pessoa de referência é
+# usada para calcular alcance — escrever o nome dela na tela do visitante seria
+# apresentar um colega como se fosse ele.
 
 
 @pytest.mark.django_db
-def test_mesmo_autenticado_ve_saudacao_neutra(client, django_user_model):
+def test_quem_entrou_e_cumprimentado_pelo_nome(client, django_user_model):
     usuario = django_user_model.objects.create_user(
         "cataide@icodev.com.br", password="x", nome="Christopher Ataide"
     )
     client.force_login(usuario)
     resposta = client.get(reverse("workspace:home"))
 
-    assert resposta.context["nome"] == ""
-    assert "Bem-vindo ao Workspace." in resposta.content.decode()
+    assert resposta.context["nome"] == usuario.get_short_name()
+    assert usuario.get_short_name() in resposta.content.decode()
 
 
 @pytest.mark.django_db
-def test_anonimo_ve_saudacao_neutra(client):
+def test_anonimo_ve_saudacao_neutra(client, django_user_model):
+    """E, com gente cadastrada no banco, o nome de ninguém aparece."""
+    alguem = django_user_model.objects.create_user(
+        "outra@icodev.com.br", password="x", nome="Fulana de Tal"
+    )
+
     corpo = client.get(reverse("workspace:home")).content.decode()
+
     assert "Bem-vindo ao Workspace." in corpo
+    assert alguem.get_short_name() not in corpo
 
 
 # ── Marca ────────────────────────────────────────────────────────

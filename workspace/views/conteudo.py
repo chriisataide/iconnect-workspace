@@ -21,9 +21,21 @@ def _cache(request: HttpRequest) -> dict:
 
 
 def documentacao(request: HttpRequest) -> HttpResponse:
-    """A vitrine, agrupada por tipo."""
+    """A vitrine, agrupada por tipo.
+
+    Duas pessoas nesta view, de propósito:
+
+    - `pessoa` decide o ALCANCE — quais documentos o acervo mostra. É onde a
+      pessoa de referência do hub aberto continua valendo, porque saber que um
+      POP existe é informação institucional.
+    - `quem` decide o que é PESSOAL — quantas leituras faltam confirmar. Isso é
+      de uma pessoa, e o visitante anônimo estava vendo o número de outra: o
+      contador dizia "3 pendentes" para quem nunca entrou, contando os
+      documentos que uma conta específica ainda não tinha lido.
+    """
     cache = _cache(request)
     pessoa = pessoa_da_requisicao(request)
+    quem = request.user if request.user.is_authenticated else None
 
     grupos = [
         {"rotulo": rotulo, "documentos": documentos}
@@ -34,8 +46,10 @@ def documentacao(request: HttpRequest) -> HttpResponse:
         "workspace/documentacao.html",
         {
             "grupos": grupos,
-            "autenticado": True,
-            "pendentes": len(cnt.pendentes_de_leitura(pessoa, cache=cache)),
+            "autenticado": quem is not None,
+            "pendentes": (
+                len(cnt.pendentes_de_leitura(quem, cache=cache)) if quem else 0
+            ),
             "total": sum(len(g["documentos"]) for g in grupos),
         },
     )

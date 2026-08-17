@@ -1301,7 +1301,7 @@ Para o outro lado, refaça com uma compra de **R$ 1.160**: a tela pede a conta
 
 ---
 
-## 7. Lista de regressão — as 15 armadilhas já corridas
+## 7. Lista de regressão — as 17 armadilhas já corridas
 
 Cada linha abaixo é um defeito **real**, encontrado e corrigido. Elas são a
 melhor lista de regressão que este produto tem, porque cada uma passou por uma
@@ -1324,6 +1324,8 @@ suíte verde uma vez.
 | 13 | Etapa num papel **sem titular** não aparecia na bandeja de ninguém | Pedido em "aguardando aprovação" para sempre, sem lado do outro lado |
 | 14 | Um teste publicava sempre às `08:00:00` fixas | Suíte reprovava **entre 00:00 e 08:00** — e passava o dia inteiro depois disso |
 | 15 | Linha do tempo mostrava só o **último** aprovador | Cadeia de três degraus lida como se gestor e área nunca tivessem assinado |
+| 16 | Trilho mostrava ao **anônimo** os contadores de uma pessoa real | "4 não lidas" do superusuário visível a quem só abriu o endereço |
+| 17 | `var(--au-7)` — a escala pula o 7 | Declaração inválida derruba o `padding` inteiro; dois painéis sem margem |
 
 **Se você só tiver uma hora**, teste: o Roteiro B (linha 1), a passagem pelas 6
 telas logado (linha 3), ⌘K + Esc em três telas (linhas 4 e 5), e o console aberto

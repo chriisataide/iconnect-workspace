@@ -46,8 +46,15 @@ def home(request: HttpRequest) -> HttpResponse:
         request,
         "workspace/home.html",
         {
-            "autenticado": False,
-            "nome": "",
+            # Estava fixo em `False` e `""`, então a home dizia "Bem-vindo ao
+            # Workspace" para todo mundo — inclusive para quem tinha acabado de
+            # entrar. A saudação por nome existia no template e nunca acontecia.
+            "autenticado": request.user.is_authenticated,
+            "nome": (
+                request.user.get_short_name()
+                if request.user.is_authenticated
+                else ""
+            ),
             "hoje": _hoje(),
             "apps": [_para_tela(spec) for spec in apps_disponiveis(pessoa)],
             # O total do catálogo é a promessa concreta do card "Pedir um

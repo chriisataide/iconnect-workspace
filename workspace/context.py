@@ -5,6 +5,25 @@ telas, e depender de cada view lembrar de preencher garante que uma esqueça.
 
 Barato de propósito. Só roda em rota de `/workspace/` (ADR-009: curto-circuito
 fora do Workspace).
+
+## Estes contadores são PESSOAIS, e por isso não usam a pessoa de referência
+
+O Workspace é aberto, e `pessoa_da_requisicao()` devolve uma conta real do
+organograma para o visitante anônimo — as telas do hub precisam de alguém para
+calcular ALCANCE: quais tiles aparecem, quais itens do catálogo, quais
+documentos.
+
+Alcance é uma coisa. Contador pessoal é outra, e este módulo mistura os dois:
+"4 não lidas", "7 esperando sua aprovação", "você administra papéis". Usando a
+pessoa de referência, o visitante anônimo via os números DELA — no banco de
+demonstração, os do superusuário, incluindo o item "Pessoas e papéis" no
+trilho, que só aparece para quem administra.
+
+Nada disso era exploração: era a tela contando, a quem passasse pelo endereço,
+quantas notificações uma pessoa específica tinha para ler.
+
+Aqui, portanto, é `request.user` e nada mais. Sem sessão, todos os contadores
+são zero — e nem consulta ao banco acontece.
 """
 
 from __future__ import annotations
@@ -46,18 +65,32 @@ def _quem_sou(request: HttpRequest) -> dict | None:
     }
 
 
+#: O trilho de quem não entrou. Tudo zero, e nenhum item pessoal aparece.
+_SEM_SESSAO = {
+    "eu": None,
+    "abertas": 0,
+    "pendentes_aprovacao": 0,
+    "nao_lidas": 0,
+    "na_fila": 0,
+    "administra_papeis": False,
+}
+
+
 def rail(request: HttpRequest) -> dict:
     if not request.path.startswith("/workspace/"):
         return {}
 
-    from workspace.acesso import pessoa_da_requisicao
+    pessoa = getattr(request, "user", None)
+    if pessoa is None or not getattr(pessoa, "is_authenticated", False):
+        # Sai antes de tocar no banco. Além de não vazar, é o caminho mais
+        # comum do hub aberto — e ele deixa de custar cinco consultas.
+        return dict(_SEM_SESSAO)
+
+    from identidade.services import administracao as adm
     from workspace.models.catalogo import SolicitacaoServico
     from workspace.services import aprovacao as apr
-    from identidade.services import administracao as adm
     from workspace.services import atendimento as atd
     from workspace.services import notificacoes as nt
-
-    pessoa = pessoa_da_requisicao(request)
 
     if not hasattr(request, "perm_cache"):
         request.perm_cache = {}
