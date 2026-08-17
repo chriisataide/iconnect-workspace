@@ -69,6 +69,20 @@
               {% if s.auto_aprovada %}
                 <span class="au-selo au-selo--medido">{% trans "automática" %}</span>
               {% endif %}
+              {% if s.reaberturas %}
+                <span class="au-selo au-selo--alerta">
+                  {% blocktrans count vezes=s.reaberturas %}reaberto{% plural %}reaberto {{ vezes }}×{% endblocktrans %}
+                </span>
+              {% endif %}
+              {% if s.pode_reabrir %}
+                {% comment %}
+                  A dica fica na linha e o botão fica no resumo: quem recebeu
+                  "concluído" e não teve o problema resolvido precisa DESCOBRIR
+                  que existe saída, e ninguém abre um modal para procurar o que
+                  não sabe que está lá.
+                {% endcomment %}
+                <span class="au-list-meta">{% trans "não resolveu? abra o resumo" %}</span>
+              {% endif %}
             </td>
             <td>
               {% if s.aprovacao and s.aprovacao.etapa_atual %}

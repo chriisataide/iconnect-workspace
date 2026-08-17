@@ -24,6 +24,8 @@ Departamento é dado de **roteamento** (`dominio`), não taxonomia de navegaçã
 
 from __future__ import annotations
 
+from datetime import timedelta
+
 from django.conf import settings
 from django.core.exceptions import ValidationError
 from django.db import models
@@ -211,6 +213,18 @@ class SituacaoServico(models.TextChoices):
     CANCELADA = "cancelada", "Cancelada"
 
 
+# Por quantos dias depois de concluído o pedido ainda aceita "não resolveu".
+#
+# Prazo e não "para sempre": reabrir um pedido fechado há oito meses ressuscita
+# trabalho que já morreu, e o atendente que recebe não tem como reconstruir o
+# que aconteceu. Sete dias é o tempo de usar o que foi entregue e descobrir que
+# não serve — a senha que não funciona, o notebook que volta a travar.
+#
+# Passado o prazo, o caminho é abrir outro pedido, que é o certo: aquilo já é
+# problema novo.
+PRAZO_REABERTURA_DIAS = 7
+
+
 class SolicitacaoServicoQuerySet(models.QuerySet):
     def de(self, pessoa):
         return self.filter(solicitante=pessoa)
@@ -269,6 +283,15 @@ class SolicitacaoServico(models.Model):
         related_name="atendimentos",
     )
 
+    # Quantas vezes quem pediu disse "não resolveu" depois de concluído.
+    #
+    # Contador denormalizado, e o histórico continua sendo a verdade: a taxa de
+    # reabertura é O indicador de que "concluído" significa alguma coisa, e ela
+    # precisa ser contável sem varrer a linha do tempo de todos os pedidos.
+    # Também é o que a fila lê para marcar a linha — sem o contador, cada tela
+    # de fila carregaria os eventos de cada pedido só para saber se voltou.
+    reaberturas = models.PositiveSmallIntegerField(default=0)
+
     # O adiantamento do qual ESTE pedido presta contas. FK para a própria
     # tabela porque adiantamento e reembolso são o mesmo tipo de coisa — um
     # pedido do catálogo — e um campo de texto "adiantamento nº 12" não fecha
@@ -310,6 +333,48 @@ class SolicitacaoServico(models.Model):
     @property
     def em_aberto(self) -> bool:
         return self.situacao not in (SituacaoServico.CONCLUIDA, SituacaoServico.CANCELADA)
+
+    @property
+    def prazo_reabertura(self):
+        """Até quando este pedido aceita "não resolveu". `None` fora do caso.
+
+        A data existe na tela por um motivo: sem ela, o botão simplesmente some
+        um dia e a pessoa acha que o sistema quebrou.
+        """
+        if self.situacao != SituacaoServico.CONCLUIDA or self.concluido_em is None:
+            return None
+        return self.concluido_em + timedelta(days=PRAZO_REABERTURA_DIAS)
+
+    @property
+    def motivo_reabertura(self) -> str:
+        """O que quem pediu disse que continua sem resolver.
+
+        Vem do histórico e não de um campo próprio: o motivo já é escrito lá, e
+        uma segunda cópia seria mais uma coisa para as duas ficarem diferentes.
+
+        Sai pelo atalho quando o pedido nunca voltou — que é o caso de quase
+        toda linha de fila —, então a consulta aos eventos só acontece nas
+        poucas que interessam.
+        """
+        if not self.reaberturas:
+            return ""
+
+        from workspace.models.evento import AcaoSolicitacao
+
+        for evento in reversed(list(self.eventos.all())):
+            if evento.acao == AcaoSolicitacao.REABERTA:
+                return evento.observacao
+        return ""
+
+    @property
+    def pode_reabrir(self) -> bool:
+        """Só o que foi CONCLUÍDO, e dentro do prazo.
+
+        Cancelado não entra: cancelar é ato de quem pediu, e não há entrega
+        para contestar. Devolvido também não — já está de volta com a pessoa.
+        """
+        limite = self.prazo_reabertura
+        return limite is not None and timezone.now() < limite
 
     @property
     def total_despesas(self):

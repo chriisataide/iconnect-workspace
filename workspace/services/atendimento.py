@@ -34,12 +34,29 @@ Uma pessoa vê a união das filas que pode atender. Sem nenhuma permissão de
 atendimento, a tela não é sua e responde 403: fila de trabalho alheio não é
 informação institucional.
 
+## A volta: "não resolveu"
+
+Concluir era ponto final. Só o atendente podia dar o pedido por encerrado, e
+quem pediu não tinha caminho nenhum para discordar — o notebook continuava sem
+ligar e a pessoa abria um SEGUNDO pedido.
+
+Três coisas quebravam de uma vez nessa segunda abertura: o histórico do mesmo
+problema ficava partido em dois, o primeiro pedido entrava nos indicadores como
+*resolvido rápido*, e `prazo_medido()` passava a medir o tempo até o
+fechamento em vez do tempo até a solução. Fila que só quem atende pode fechar
+sempre acaba assim: mede o fechamento, não a entrega.
+
+`reabrir()` devolve o pedido à fila — o MESMO pedido, com o mesmo número e a
+mesma linha do tempo — e limpa `concluido_em`, que é o que tira a medição
+falsa da conta.
+
 ## O que este módulo NÃO faz
 
-Não reabre a decisão. Aprovar é do APR; aqui já se sabe que o pedido pode
-andar. Devolver daqui é diferente de reprovar: é dizer "não consigo atender
-assim" — falta informação, o item está errado —, e o pedido volta para quem
-pediu, não para quem aprovou.
+Não reabre a DECISÃO de aprovação. Aprovar é do APR, e reabrir o atendimento
+não desfaz a aprovação: ela continua valendo, porque o que se contesta é a
+entrega, não a autorização. Devolver daqui também é diferente de reprovar: é
+dizer "não consigo atender assim" — falta informação, o item está errado —, e o
+pedido volta para quem pediu, não para quem aprovou.
 """
 
 from __future__ import annotations
@@ -50,6 +67,7 @@ from django.utils import timezone
 
 from identidade.services.autorizacao import pode
 from workspace.models.catalogo import (
+    PRAZO_REABERTURA_DIAS,
     ItemCatalogo,
     SituacaoServico,
     SolicitacaoServico,
@@ -135,7 +153,10 @@ def fila_de(pessoa, cache: dict | None = None):
             situacao__in=NA_FILA,
         )
         .select_related("item", "solicitante", "atendente")
-        .prefetch_related("anexos", "despesas")
+        # `eventos` junto: a linha do que voltou mostra o motivo da reabertura,
+        # e sem isto seria uma consulta por linha para descobrir que a imensa
+        # maioria delas nunca voltou.
+        .prefetch_related("anexos", "despesas", "eventos")
         .order_by("criado_em")
     )
 
@@ -150,18 +171,35 @@ def _garantir_que_pode(solicitacao: SolicitacaoServico, quem, cache=None) -> Non
         )
 
 
-def _avisar(solicitacao: SolicitacaoServico, tipo: str, titulo: str, corpo: str = "") -> None:
+def _avisar_pessoa(
+    pessoa,
+    solicitacao: SolicitacaoServico,
+    tipo: str,
+    titulo: str,
+    corpo: str = "",
+    url: str = "",
+) -> None:
     from workspace.services import notificacoes as nt
 
     nt.criar(
-        solicitacao.solicitante,
+        pessoa,
         tipo=tipo,
         titulo=titulo,
         corpo=corpo,
-        url=reverse("workspace:minhas_solicitacoes"),
+        url=url or reverse("workspace:minhas_solicitacoes"),
         dominio=solicitacao.item.dominio,
         origem_id=str(solicitacao.pk),
     )
+
+
+def _avisar(solicitacao: SolicitacaoServico, tipo: str, titulo: str, corpo: str = "") -> None:
+    """Avisa quem PEDIU — o destinatário de quase tudo que acontece aqui.
+
+    A reabertura é a exceção, e vai pelo `_avisar_pessoa`: ela é a resposta de
+    quem pediu, e mandá-la de volta para ele avisaria a pessoa do que ela
+    acabou de fazer.
+    """
+    _avisar_pessoa(solicitacao.solicitante, solicitacao, tipo, titulo, corpo)
 
 
 @transaction.atomic
@@ -257,6 +295,88 @@ def devolver(solicitacao: SolicitacaoServico, quem, motivo: str, cache=None) -> 
     return solicitacao
 
 
+@transaction.atomic
+def reabrir(solicitacao: SolicitacaoServico, quem, motivo: str) -> SolicitacaoServico:
+    """"Não resolveu" — o pedido volta para a fila, e é o MESMO pedido.
+
+    ## Quem pode
+
+    Só quem pediu. Concluir é a palavra de quem entregou; reabrir é a palavra de
+    quem recebeu, e é justamente por serem duas pessoas diferentes que a
+    segunda significa alguma coisa. O atendente que se arrependeu de concluir
+    simplesmente assume o pedido de novo — não precisa deste caminho.
+
+    ## Por que não é um pedido novo
+
+    Era o que acontecia antes, na falta desta função: a pessoa abria outro. O
+    mesmo problema virava dois números, o primeiro fechava a estatística como
+    *resolvido em 1 dia*, e o atendente do segundo começava do zero sem saber
+    que já havia uma tentativa.
+
+    Aqui `concluido_em` volta a ser nulo. É a linha que importa para o prazo do
+    catálogo: enquanto o pedido estiver reaberto ele SAI da conta do prazo
+    medido, e quando for concluído de verdade a conta será do dia do pedido até
+    a solução — não até a primeira tentativa.
+
+    ## Para onde ele volta
+
+    Para as mãos de quem atendeu, quando ainda há alguém: quem disse "pronto" é
+    quem precisa ouvir "não está". Sem atendente (a pessoa saiu da empresa), o
+    pedido volta a `APROVADA` e a fila inteira o vê — é melhor que ficar preso
+    a um nome que não existe mais.
+
+    A APROVAÇÃO NÃO É REFEITA. O que se contesta é a entrega, não a
+    autorização — e mandar o gestor aprovar de novo o mesmo notebook que ele já
+    aprovou transformaria uma reclamação em burocracia.
+    """
+    if solicitacao.solicitante_id != getattr(quem, "pk", None):
+        raise AtendimentoError("Só quem pediu pode dizer que não resolveu.")
+
+    if solicitacao.situacao != SituacaoServico.CONCLUIDA:
+        raise AtendimentoError(
+            f"O pedido está {solicitacao.get_situacao_display().lower()} — "
+            "só o que foi concluído pode ser reaberto."
+        )
+
+    if not solicitacao.pode_reabrir:
+        # A mensagem diz o caminho, e não só o "não": passado o prazo, aquilo
+        # já é problema novo, e novo pedido é a resposta certa.
+        raise AtendimentoError(
+            f"O prazo de {PRAZO_REABERTURA_DIAS} dias para reabrir já passou. "
+            "Abra um novo pedido."
+        )
+
+    motivo = (motivo or "").strip()
+    if not motivo:
+        # Mesma regra da devolução, pelo mesmo motivo: "não resolveu" sem dizer
+        # o quê devolve o pedido para a mesma pessoa que já tentou uma vez, sem
+        # nada de novo para ela fazer diferente.
+        raise AtendimentoError("Diga o que continua sem resolver.")
+
+    atendente = solicitacao.atendente
+    solicitacao.situacao = (
+        SituacaoServico.EM_ATENDIMENTO if atendente else SituacaoServico.APROVADA
+    )
+    solicitacao.concluido_em = None
+    solicitacao.reaberturas += 1
+    solicitacao.save(update_fields=["situacao", "concluido_em", "reaberturas"])
+
+    from workspace.services import historico as hst
+
+    hst.registrar(solicitacao, hst.Acao.REABERTA, quem=quem, observacao=motivo)
+
+    if atendente:
+        _avisar_pessoa(
+            atendente,
+            solicitacao,
+            TipoNotificacao.PEDIDO_REABERTO,
+            f"{solicitacao.item.nome} voltou: não resolveu",
+            motivo,
+            url=reverse("workspace:fila"),
+        )
+    return solicitacao
+
+
 # ── O que a tela mostra no topo ─────────────────────────────────────
 
 
@@ -280,5 +400,9 @@ def resumo_da_fila(pessoa, cache: dict | None = None) -> dict:
         "total": len(fila),
         "meus": len(meus),
         "atrasados": len(atrasados),
+        # O número que diz se "concluído" significa alguma coisa. Fila que só
+        # conta o que entra e o que sai parece saudável mesmo quando metade do
+        # que saiu está voltando.
+        "reabertos": len([s for s in fila if s.reaberturas]),
         "solicitacoes": fila,
     }

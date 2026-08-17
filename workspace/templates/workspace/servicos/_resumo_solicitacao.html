@@ -32,6 +32,11 @@
           {% if s.auto_aprovada %}
             <span class="au-selo au-selo--medido">{% trans "automática" %}</span>
           {% endif %}
+          {% if s.reaberturas %}
+            <span class="au-selo au-selo--alerta">
+              {% blocktrans count vezes=s.reaberturas %}reaberto{% plural %}reaberto {{ vezes }}×{% endblocktrans %}
+            </span>
+          {% endif %}
         </span>
       </li>
       {% if s.valor %}
@@ -140,6 +145,44 @@
             </li>
           {% endfor %}
         </ol>
+      </div>
+    {% endif %}
+
+    {% comment %}
+      "NÃO RESOLVEU" — a única saída que faltava.
+
+      Antes disto, concluído era ponto final: o notebook continuava sem ligar e
+      a pessoa abria um SEGUNDO pedido. O mesmo problema virava dois números, o
+      primeiro fechava a estatística como resolvido rápido, e o atendente do
+      segundo começava do zero.
+
+      Aqui, e não na fila, porque reabrir é a palavra de quem RECEBEU a
+      entrega — é por serem duas pessoas diferentes que ela significa algo.
+
+      A data aparece por escrito: sem ela o botão sumiria um dia sem aviso, e a
+      pessoa acharia que o sistema quebrou.
+    {% endcomment %}
+    {% if s.pode_reabrir %}
+      <div class="au-modal-secao au-reabrir">
+        <p class="au-dossie-rotulo">{% trans "Não resolveu?" %}</p>
+        <p class="au-ajuda">
+          {% blocktrans with ate=s.prazo_reabertura|date:"d/m/Y" %}Até {{ ate }} você pode devolver este pedido para quem atendeu, sem abrir outro.{% endblocktrans %}
+        </p>
+        <form method="post" action="{% url 'workspace:reabrir_solicitacao' s.pk %}"
+              class="au-form-acoes au-form-acoes--linha">
+          {% csrf_token %}
+          {% comment %}
+            Motivo obrigatório, mesma regra da devolução: "não resolveu" sem
+            dizer o quê devolve o pedido para a mesma pessoa que já tentou uma
+            vez, sem nada de novo para ela fazer diferente.
+          {% endcomment %}
+          <input class="au-input au-input--compacto" type="text" name="motivo" required
+                 aria-label="{% trans 'O que continua sem resolver' %}"
+                 placeholder="{% trans 'o que continua sem resolver' %}">
+          <button class="au-btn au-btn--sutil au-btn--pequeno" type="submit">
+            {% trans "Reabrir" %}
+          </button>
+        </form>
       </div>
     {% endif %}
 

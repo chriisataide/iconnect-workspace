@@ -42,6 +42,9 @@ class TipoNotificacao(models.TextChoices):
     # O que faltava para o ciclo fechar: depois de aprovado, alguém ATENDE.
     PEDIDO_EM_ATENDIMENTO = "pedido_em_atendimento", "Seu pedido está sendo atendido"
     PEDIDO_CONCLUIDO = "pedido_concluido", "Seu pedido foi concluído"
+    # O único aviso que vai para o ATENDENTE, e não para quem pediu: é a
+    # resposta de quem recebeu a entrega dizendo que ela não resolveu.
+    PEDIDO_REABERTO = "pedido_reaberto", "Um pedido que você atendeu foi reaberto"
     CORRESPONDENCIA_RECEBIDA = (
         "correspondencia_recebida",
         "Chegou correspondência para você",

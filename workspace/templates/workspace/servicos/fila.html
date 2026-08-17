@@ -41,6 +41,15 @@
       <span class="au-kpi-rotulo">{% trans "além do prazo prometido" %}</span>
       <span class="au-kpi-valor">{{ resumo.atrasados }}</span>
     </div>
+    {% comment %}
+      O número que diz se "concluído" significa alguma coisa. Fila que só conta
+      o que entra e o que sai parece saudável mesmo quando metade do que saiu
+      está voltando.
+    {% endcomment %}
+    <div class="au-kpi {% if resumo.reabertos %}au-kpi--alerta{% endif %}">
+      <span class="au-kpi-rotulo">{% trans "voltaram sem resolver" %}</span>
+      <span class="au-kpi-valor">{{ resumo.reabertos }}</span>
+    </div>
   </div>
 
   <div class="au-tabela">
@@ -61,6 +70,19 @@
             <td>
               <span class="au-list-titulo">{{ s.item.nome }}</span>
               {% include "workspace/_anexos.html" with anexos=s.anexos.all %}
+              {% comment %}
+                O que voltou vem com o MOTIVO à vista. Marcar a linha só com
+                "reaberto" faria a pessoa tentar de novo exatamente a mesma
+                coisa — que foi o que já não resolveu.
+              {% endcomment %}
+              {% if s.reaberturas %}
+                <span class="au-selo au-selo--alerta">
+                  {% blocktrans count vezes=s.reaberturas %}voltou sem resolver{% plural %}voltou {{ vezes }}× sem resolver{% endblocktrans %}
+                </span>
+                <span class="au-list-resumo au-list-resumo--alerta">
+                  {{ s.motivo_reabertura }}
+                </span>
+              {% endif %}
             </td>
             <td>{{ s.solicitante.get_full_name|default:s.solicitante.email }}</td>
             <td>

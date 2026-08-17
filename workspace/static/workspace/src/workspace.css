@@ -2116,6 +2116,24 @@ tr[data-abre-resumo]:focus-visible {
   border-top: 1px solid var(--au-border);
 }
 
+/* ── "Não resolveu" ─────────────────────────────────────────────────
+   Discreto de propósito. É a saída para quando a entrega não serviu, e ela
+   precisa estar à mão sem parecer o caminho normal: pintada como alerta, ela
+   convidaria a reclamar de um pedido que ficou pronto. Fundo próprio só para
+   dizer que ali dentro se FAZ alguma coisa, e não se lê. */
+.au-reabrir {
+  margin-top: var(--au-4);
+  padding: var(--au-3);
+  border-radius: var(--au-r-md);
+  background: var(--au-surface-sunken);
+}
+
+.au-reabrir .au-ajuda { margin-bottom: var(--au-2); }
+
+/* O campo do motivo come o espaço que sobra: motivo curto demais é motivo que
+   não explica, e caixa pequena ensina a escrever "não funcionou". */
+.au-reabrir .au-input { flex: 1 1 auto; }
+
 /* ── Ações dentro de uma linha de tabela ────────────────────────────
    A fila de atendimento decide na própria linha: assumir, concluir, devolver
    com motivo. Abrir uma tela para cada decisão de dois segundos é o que faz

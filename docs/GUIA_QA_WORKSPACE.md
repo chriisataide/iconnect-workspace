@@ -630,6 +630,36 @@ compras e os anexos. Esc fecha, o fundo fica inerte, e o foco não escapa —
 - Cancelar funciona e só para os próprios pedidos.
 - Anexos são baixáveis pelo dono.
 
+**"Não resolveu?" — a saída depois de concluído.** Dentro do resumo de um
+pedido **concluído**, um bloco discreto com um campo de motivo e o botão
+*Reabrir*. O pedido volta para a fila de quem atendeu — o **mesmo** pedido, com
+o mesmo número e a mesma linha do tempo.
+
+Sem isso, o notebook continuava sem ligar e a pessoa abria um **segundo**
+pedido: o histórico do mesmo problema ficava partido em dois, o primeiro
+fechava a estatística como *resolvido rápido*, e o atendente do segundo
+começava do zero sem saber que já houve uma tentativa.
+
+- Só **quem pediu** reabre. É por serem duas pessoas diferentes que a segunda
+  palavra significa alguma coisa. O atendente arrependido apenas assume de novo.
+- **Motivo obrigatório**, mesma regra da devolução: sem ele o pedido volta para
+  quem já tentou uma vez, sem nada de novo para fazer diferente.
+- **Prazo de 7 dias** contados da conclusão, e a data aparece por escrito na
+  tela — sem ela o botão sumiria um dia sem aviso e pareceria defeito. Passado
+  o prazo, a mensagem manda abrir um pedido novo, que é o certo: aquilo já é
+  problema novo.
+- **A aprovação não é refeita.** O que se contesta é a entrega, não a
+  autorização — mandar o gestor aprovar de novo o mesmo notebook seria
+  transformar reclamação em burocracia.
+- **`concluido_em` volta a ser nulo**, e é a linha que mais importa: enquanto
+  reaberto, o pedido sai da conta do prazo medido do catálogo. Quando for
+  concluído de verdade, a conta é do dia do pedido **até a solução**.
+- Quem atendeu recebe o aviso — é o único do módulo que **não** vai para quem
+  pediu. Se o sino de quem reabriu tocar, é defeito.
+- A linha ganha o selo *reaberto* e, enquanto dá tempo, a dica "não resolveu?
+  abra o resumo". Ninguém abre um modal para procurar o que não sabe que
+  está lá.
+
 ---
 
 ### 3.8 Baixar anexo — `/workspace/anexo/<id>/`
@@ -688,6 +718,18 @@ Operações, SESMT. É a tela de trabalho deles.
 - Assumir o que outra pessoa já assumiu é recusado, com o nome dela na mensagem.
 - Atender pedido de outra fila é recusado **mesmo pelo POST direto** — a tela
   não é a fonte de verdade.
+
+**O que testar — o que voltou.** Um pedido reaberto por quem pediu (ver 3.7)
+reaparece aqui, nas mãos de quem o havia concluído.
+
+- A linha ganha o selo **"voltou sem resolver"** *com o motivo à vista*. Selo
+  sem motivo faria a pessoa tentar de novo exatamente a mesma coisa — que foi o
+  que já não resolveu.
+- O quarto KPI, **"voltaram sem resolver"**, é o número que diz se "concluído"
+  significa alguma coisa. Fila que só conta o que entra e o que sai parece
+  saudável mesmo quando metade do que saiu está voltando.
+- Sem atendente (a pessoa saiu da empresa), o pedido volta como **aprovado** e
+  a fila inteira o vê — melhor que ficar preso a um nome que não existe mais.
 
 **O que testar — e é a razão de a tela existir:**
 
@@ -1078,6 +1120,22 @@ Para o outro lado, refaça com uma compra de **R$ 1.160**: a tela pede a conta
 3. Colaborador B tenta **16:00–17:00** → **passa** (encostadas não conflitam)
 4. A cancela a sua; B tenta 14:00–16:00 → passa
 5. Meu dia de B, no dia: bloco "Suas reservas de hoje"
+
+### Roteiro G — "não resolveu" (o roteiro que protege o número do catálogo)
+
+1. Colaborador abre um chamado de TI; o atendente **assume** e **conclui**
+2. Minhas solicitações → a linha diz *concluída* e traz "não resolveu? abra o
+   resumo"
+3. Abra o resumo: bloco **"Não resolveu?"**, com a **data limite por escrito**
+4. Reabrir **sem motivo** → recusa. Reabrir com motivo → volta para a fila
+5. Fila do atendente: a linha voltou, com o selo **e o motivo**; o KPI
+   "voltaram sem resolver" marca 1; o sino **do atendente** tocou, o de quem
+   reabriu **não**
+6. Linha do tempo do pedido: aberto → assumido → concluído → **reaberto** →
+   concluído. Um pedido só, um número só
+7. Conclua de novo: o tempo medido vai do **dia do pedido até agora**, não até
+   a primeira tentativa
+8. Tente reabrir o pedido **de outra pessoa** pelo POST direto → **404**
 
 ---
 

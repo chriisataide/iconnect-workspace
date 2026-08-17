@@ -16,10 +16,12 @@ from workspace.acesso import pessoa_da_requisicao
 from workspace.models.anexo import Anexo
 from workspace.models.catalogo import ItemCatalogo, TipoCampo
 from workspace.services import anexos as anx
+from workspace.services import atendimento as atd
 from workspace.services import catalogo as svc
 from workspace.services import formulario as frm
 from workspace.services import reembolso as rmb
 from workspace.services.anexos import AnexoError
+from workspace.services.atendimento import AtendimentoError
 from workspace.services.catalogo import SolicitacaoError
 from workspace.services.reembolso import ReembolsoError
 
@@ -454,4 +456,28 @@ def cancelar(request: HttpRequest, pk: int) -> HttpResponse:
             messages.success(request, "Solicitação cancelada.")
         except SolicitacaoError as erro:
             messages.error(request, str(erro))
+    return redirect(reverse("workspace:minhas_solicitacoes"))
+
+
+@login_required
+def reabrir(request: HttpRequest, pk: int) -> HttpResponse:
+    """"Não resolveu" — o pedido volta para a fila de quem atendeu.
+
+    Fica nesta tela, e não na fila: reabrir é a palavra de quem RECEBEU a
+    entrega. `svc.minhas()` no `get_object_or_404` é a autorização inteira —
+    quem não pediu não enxerga o pedido, então não tem o que reabrir.
+    """
+    pessoa = request.user
+    solicitacao = get_object_or_404(svc.minhas(pessoa), pk=pk)
+    if request.method == "POST":
+        try:
+            atd.reabrir(solicitacao, pessoa, request.POST.get("motivo", ""))
+        except AtendimentoError as erro:
+            messages.error(request, str(erro))
+        else:
+            messages.success(
+                request,
+                f"{solicitacao.item.nome} voltou para a fila — "
+                "quem atendeu foi avisado.",
+            )
     return redirect(reverse("workspace:minhas_solicitacoes"))

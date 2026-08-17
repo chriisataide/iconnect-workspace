@@ -39,6 +39,7 @@ from .servicos import (
     catalogo,
     minhas_solicitacoes,
     pedir,
+    reabrir as reabrir_solicitacao,
 )
 
 __all__ = [
@@ -62,6 +63,7 @@ __all__ = [
     "buscar_view",
     "confirmar_leitura",
     "cancelar_solicitacao",
+    "reabrir_solicitacao",
     "catalogo",
     "decidir_aprovacao",
     "documentacao",

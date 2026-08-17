@@ -42,6 +42,7 @@ class AcaoSolicitacao(models.TextChoices):
     CANCELADA = "cancelada", "Cancelado"
     ASSUMIDA = "assumida", "Atendimento assumido"
     CONCLUIDA = "concluida", "Concluído"
+    REABERTA = "reaberta", "Reaberto — não resolveu"
     ACERTO = "acerto", "Acerto do adiantamento confirmado"
 
 
