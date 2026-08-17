@@ -5,10 +5,39 @@
 
 {% block rail %}{% include "workspace/_rail_servicos.html" with aba="meu_dia" %}{% endblock %}
 {% block trilha %}<span>{% trans "Meu dia" %}</span>{% endblock %}
-{% block pagina_titulo %}{% trans "Meu dia" %}{% endblock %}
+{% comment %}
+  O TÍTULO CUMPRIMENTA, porque é aqui que o login cai.
+
+  `LOGIN_REDIRECT_URL` aponta para esta tela, e ela abria com "Meu dia" e uma
+  contagem — sem dizer para quem. Quem acabou de entrar precisa de uma
+  confirmação de que entrou, e de com QUEM entrou: num produto que muda de
+  comportamento conforme o papel, trocar de perfil e não perceber é o caminho
+  para aprovar um pedido achando que se é outra pessoa.
+
+  A saudação da home ficou onde estava. Esta não a duplica: lá é a porta da
+  casa, aqui é a mesa de trabalho.
+{% endcomment %}
+{% block pagina_titulo %}
+  {% if eu %}
+    {% blocktrans with nome=eu.nome %}Bem-vindo, {{ nome }}{% endblocktrans %}
+  {% else %}
+    {% trans "Meu dia" %}
+  {% endif %}
+{% endblock %}
 {% block voltar_url %}{% url 'workspace:home' %}{% endblock %}
 
 {% block pagina_descricao %}
+  {% if eu and eu.area %}
+    {% comment %}
+      Cargo e área: é o que responde "entrei como quem?" sem precisar abrir
+      outra tela. Fica aqui e não no título porque o título é a saudação, e
+      saudação com crachá dentro vira formulário.
+    {% endcomment %}
+    <p class="au-pagina-desc au-pagina-desc--cracha">
+      {% if eu.cargo %}{{ eu.cargo }} · {% endif %}{{ eu.area }}
+      {% if eu.unidade %}· {{ eu.unidade }}{% endif %}
+    </p>
+  {% endif %}
   {% if vazio %}
     <p class="au-pagina-desc">{% trans "Nada exige você agora." %}</p>
   {% else %}

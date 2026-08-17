@@ -55,6 +55,44 @@
               aria-label="{% trans 'Buscar' %}" title="{% trans 'Buscar (⌘K)' %}">
         <svg class="au-icon" aria-hidden="true"><use href="#i-search"></use></svg>
       </button>
+
+      {% comment %}
+        QUEM ESTÁ LOGADO, E A PORTA DE SAÍDA.
+
+        A rota `/sair/` existia desde o começo e nenhuma tela apontava para ela:
+        dava para entrar e não dava para sair, a não ser apagando o cookie. Num
+        produto que muda de comportamento conforme quem está dentro — a fila é
+        de quem atende, a bandeja é de quem aprova —, sair é operação normal, e
+        não caso de exceção.
+
+        O nome ao lado pelo mesmo motivo: sem ele, quem trocou de perfil não tem
+        como saber quem está sendo agora, e é o tipo de coisa que se descobre
+        aprovando um pedido com o nome errado.
+
+        `POST` com CSRF porque `LogoutView` recusa GET desde o Django 4.1 — e
+        está certo em recusar: link que desloga permite um site de fora tirar
+        você daqui com uma imagem escondida.
+
+        Nada disto para quem não entrou: o hub é aberto, e "Sair" para quem
+        nunca entrou é um botão que não faz nada.
+      {% endcomment %}
+      {% if eu %}
+        <span class="au-topbar-eu" title="{{ eu.nome_completo }}{% if eu.area %} · {{ eu.area }}{% endif %}">
+          <span class="au-topbar-eu-nome">{{ eu.nome }}</span>
+          {% if eu.area %}<span class="au-topbar-eu-area">{{ eu.area }}</span>{% endif %}
+        </span>
+        <form class="au-topbar-sair" method="post" action="{% url 'sair' %}">
+          {% csrf_token %}
+          <button class="au-topbar-botao" type="submit"
+                  aria-label="{% trans 'Sair' %}" title="{% trans 'Sair' %}">
+            <svg class="au-icon" aria-hidden="true"><use href="#i-sair"></use></svg>
+          </button>
+        </form>
+      {% else %}
+        <a class="au-btn au-btn--sutil au-btn--pequeno" href="{% url 'entrar' %}">
+          {% trans "Entrar" %}
+        </a>
+      {% endif %}
     </div>
   </header>
 

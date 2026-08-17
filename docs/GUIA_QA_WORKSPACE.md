@@ -174,6 +174,28 @@ empresa e ela também concede.
 
 ---
 
+### 1.5 A topbar diz quem você é, e por onde sair
+
+Em **toda** tela do Workspace, no canto superior direito:
+
+| Estado | O que aparece |
+|---|---|
+| **Entrou** | nome, a área embaixo em corpo menor, e o botão de **sair** |
+| **Anônimo** | só o botão **Entrar** — "Sair" para quem nunca entrou não faz nada |
+
+- **O visitante anônimo não pode ver o nome de ninguém.** O hub é aberto e
+  `pessoa_da_requisicao()` devolve uma pessoa de *referência* para calcular
+  alcance — usar aquela função na topbar poria o nome de um colega no canto da
+  tela de quem nunca entrou. Se aparecer um nome sem login, é bug grave.
+- **Sair é POST, não link.** `LogoutView` recusa GET desde o Django 4.1, e está
+  certo: link que desloga permite a um site de fora tirar você daqui com uma
+  imagem escondida. Abrir `/sair/` pela barra de endereço **não** pode
+  deslogar.
+- Em tela estreita a área some e fica o nome: nome sem área ainda identifica;
+  área sem nome, não.
+
+---
+
 ## 2. As regras que valem em TODA tela
 
 Antes das telas, sete invariantes. Cada uma delas já foi quebrada uma vez, e cada

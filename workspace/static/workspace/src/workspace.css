@@ -1465,6 +1465,56 @@ a.au-notif-titulo:hover { color: var(--au-accent-text); text-decoration: underli
 }
 .au-topbar-botao:hover { background: var(--au-surface-sunken); color: var(--au-text); }
 
+/* ── Quem está logado, no canto ──────────────────────────────────────
+   Duas linhas apertadas: o nome, e a área embaixo em corpo menor. A área é o
+   que responde "entrei como quem?" num produto que muda de comportamento
+   conforme o papel — mas ela é contexto, não manchete, e por isso não compete
+   com o nome. */
+.au-topbar-eu {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.15;
+  padding-left: var(--au-2);
+  /* O nome não empurra a lupa para fora em nome comprido. */
+  max-width: 22ch;
+}
+
+.au-topbar-eu-nome {
+  font-size: var(--au-t-sm);
+  font-weight: 600;
+  color: var(--au-text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.au-topbar-eu-area {
+  font-size: var(--au-t-xs);
+  color: var(--au-text-subtle);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* O `<form>` existe só para o POST do logout — ele não pode ocupar espaço nem
+   quebrar o alinhamento dos botões ao lado. */
+.au-topbar-sair { display: flex; margin: 0; }
+
+/* Em tela estreita some o crachá e fica o nome: a topbar tem lugar para uma
+   coisa só, e nome sem área ainda identifica; área sem nome, não. */
+@media (max-width: 640px) {
+  .au-topbar-eu { max-width: 10ch; }
+  .au-topbar-eu-area { display: none; }
+}
+
+/* O crachá — cargo · área · unidade — abaixo da saudação. */
+.au-hero-cracha,
+.au-pagina-desc--cracha {
+  margin: var(--au-1) 0 0;
+  font-size: var(--au-t-sm);
+  color: var(--au-text-subtle);
+}
+
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) .au-paleta {
     box-shadow: 0 24px 48px -12px rgb(0 0 0 / .6), 0 0 0 1px rgb(255 255 255 / .06);

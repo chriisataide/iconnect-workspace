@@ -21,11 +21,26 @@
     <p class="au-hero-eyebrow">{{ hoje }}</p>
     <h1 class="au-hero-titulo">
       {% if autenticado %}
-        {% blocktrans %}Olá, {{ nome }}.{% endblocktrans %}
+        {% blocktrans %}Bem-vindo, {{ nome }}, ao Workspace.{% endblocktrans %}
       {% else %}
         {% trans "Bem-vindo ao Workspace." %}
       {% endif %}
     </h1>
+    {% comment %}
+      A ÁREA logo abaixo do nome. Ela responde "entrei como quem?", que é a
+      pergunta de quem administra vários perfis — e num produto onde a fila é de
+      quem atende e a bandeja é de quem aprova, não saber quem se está sendo é o
+      caminho para assinar um pedido no lugar de outra pessoa.
+
+      Só quando existe: colaborador sem lotação cadastrada veria um traço solto,
+      e traço solto parece defeito.
+    {% endcomment %}
+    {% if eu and eu.area %}
+      <p class="au-hero-cracha">
+        {% if eu.cargo %}{{ eu.cargo }} · {% endif %}{{ eu.area }}
+        {% if eu.unidade %}· {{ eu.unidade }}{% endif %}
+      </p>
+    {% endif %}
     {% comment %}
       SEM campo de busca aqui. Existe UM só em toda a aplicação — a lupa da
       topbar, que abre a paleta, e o ⌘K que faz o mesmo de qualquer tela.

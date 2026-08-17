@@ -666,6 +666,11 @@ def test_contexto_do_rail_usa_pessoa_aberta_para_anonimo():
         user = AnonymousUser()
 
     assert rail(Req()) == {
+        # Anônimo não é ninguém, e a topbar não escreve nome nenhum para ele.
+        # O rail usa `pessoa_da_requisicao()` — que devolve uma pessoa de
+        # REFERÊNCIA para calcular alcance —, e usar a mesma coisa aqui poria o
+        # nome de um colega no canto da tela de quem nunca entrou.
+        "eu": None,
         "abertas": 0,
         "pendentes_aprovacao": 0,
         "nao_lidas": 0,

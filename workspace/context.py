@@ -14,6 +14,38 @@ from django.http import HttpRequest
 _ABERTAS = ["aguardando_aprovacao", "aprovada", "em_atendimento", "devolvida"]
 
 
+def _quem_sou(request: HttpRequest) -> dict | None:
+    """Quem está logado DE VERDADE. `None` para quem não entrou.
+
+    `request.user`, e não `pessoa_da_requisicao()`: aquele devolve uma pessoa de
+    referência para o visitante anônimo, porque o hub é aberto e as telas
+    precisam de alguém para calcular alcance. Usar o mesmo aqui escreveria o
+    nome de um colega no canto da tela de quem nunca entrou — e ainda ofereceria
+    "Sair" a quem não está dentro.
+    """
+    pessoa = getattr(request, "user", None)
+    if pessoa is None or not getattr(pessoa, "is_authenticated", False):
+        return None
+
+    from identidade.models import Lotacao
+
+    lotacao = (
+        Lotacao.objects.filter(user=pessoa)
+        .select_related("departamento", "unidade")
+        .first()
+    )
+    return {
+        "nome": pessoa.get_short_name() or pessoa.get_full_name(),
+        "nome_completo": pessoa.get_full_name(),
+        "cargo": lotacao.cargo if lotacao else "",
+        # A ÁREA, que é o que a pessoa reconhece como "onde eu trabalho". O
+        # código do departamento fica de fora: "OPS" não diz nada para quem não
+        # convive com a tabela.
+        "area": lotacao.departamento.nome if lotacao and lotacao.departamento else "",
+        "unidade": lotacao.unidade.nome if lotacao and lotacao.unidade else "",
+    }
+
+
 def rail(request: HttpRequest) -> dict:
     if not request.path.startswith("/workspace/"):
         return {}
@@ -31,6 +63,7 @@ def rail(request: HttpRequest) -> dict:
         request.perm_cache = {}
 
     return {
+        "eu": _quem_sou(request),
         "abertas": SolicitacaoServico.objects.de(pessoa)
         .filter(situacao__in=_ABERTAS)
         .count(),
