@@ -1916,11 +1916,12 @@ a.au-notif-titulo:hover { color: var(--au-accent-text); text-decoration: underli
 .au-corpo-porta {
   min-height: 100vh;
   margin: 0;
-  /* O navy da marca ocupa a tela: quem foi parado aqui está fora do produto,
-     e o fundo diz isso antes de qualquer texto. Não é `--au-bg`, que é a
-     superfície de trabalho. */
-  background:
-    radial-gradient(120% 90% at 15% 0%, #2b2e8a 0%, #212369 45%, #1a1c55 100%);
+  /* Fundo CLARO, o mesmo do resto do produto.
+     Já foi um campo navy de ponta a ponta, e a tela ficava pesada: a cor da
+     marca ocupando tudo empurra o cartão para trás em vez de destacá-lo, e
+     fazia esta parada de meio de caminho parecer o login de um sistema
+     fechado — que é justamente o que o Workspace não é. */
+  background: var(--au-bg);
   color: var(--au-text);
 }
 
@@ -1939,14 +1940,12 @@ a.au-notif-titulo:hover { color: var(--au-accent-text); text-decoration: underli
   align-items: center;
   gap: var(--au-3);
   text-decoration: none;
-  /* Sobre o navy, o texto de apoio é branco com transparência: um cinza dos
-     tokens é calculado para fundo claro e some aqui. */
-  color: rgb(255 255 255 / .92);
+  color: var(--au-text);
 }
 .au-porta-marca img { display: block; height: 34px; width: auto; }
 .au-porta-marca-divisor {
   width: 1px; height: 20px;
-  background: rgb(255 255 255 / .3);
+  background: var(--au-border-strong);
 }
 .au-porta-marca-produto {
   font-size: var(--au-t-lg);
@@ -1965,7 +1964,10 @@ a.au-notif-titulo:hover { color: var(--au-accent-text); text-decoration: underli
   grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr);
   border-radius: var(--au-r-lg);
   overflow: hidden;
-  box-shadow: 0 30px 60px -20px rgb(0 0 0 / .45), 0 0 0 1px rgb(255 255 255 / .07);
+  /* Sobre fundo claro o cartão precisa de contorno E sombra: só a sombra o
+     deixa boiando, e só o contorno o deixa chapado. */
+  border: 1px solid var(--au-border);
+  box-shadow: 0 18px 40px -18px rgb(15 23 42 / .22);
 }
 
 /* O FORMULÁRIO SOBRE BRANCO, e não sobre a cor da marca.
@@ -1976,7 +1978,7 @@ a.au-notif-titulo:hover { color: var(--au-accent-text); text-decoration: underli
    "enviar". Campo escuro sobre claro é o padrão do resto do produto, e aqui
    não havia razão para ser exceção. */
 .au-porta-form {
-  padding: var(--au-8) var(--au-7);
+  padding: var(--au-8) var(--au-6);
   background: var(--au-surface);
   display: flex;
   flex-direction: column;
@@ -2024,7 +2026,7 @@ a.au-notif-titulo:hover { color: var(--au-accent-text); text-decoration: underli
 /* ── O painel do porquê ────────────────────────────────────────────── */
 
 .au-porta-lado {
-  padding: var(--au-8) var(--au-7);
+  padding: var(--au-8) var(--au-6);
   background: linear-gradient(160deg, #2b2e8a 0%, #212369 100%);
   color: rgb(255 255 255 / .88);
   display: flex;
@@ -2099,7 +2101,7 @@ a.au-notif-titulo:hover { color: var(--au-accent-text); text-decoration: underli
 .au-porta-rodape {
   margin: 0;
   font-size: var(--au-t-xs);
-  color: rgb(255 255 255 / .5);
+  color: var(--au-text-subtle);
 }
 
 @media (max-width: 780px) {

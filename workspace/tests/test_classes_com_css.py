@@ -99,3 +99,32 @@ def test_nenhum_comentario_curto_vazou_para_a_pagina():
         "comentário `{# #}` aberto numa linha e fechado em outra — o Django "
         "imprime isso na tela:\n  " + "\n  ".join(vazados)
     )
+
+
+def test_todo_token_usado_no_css_existe():
+    """`var(--au-7)` derrubou o padding de uma tela inteira, em silêncio.
+
+    A escala de espaçamento **pula o 7**: existe `--au-6` e existe `--au-8`.
+    Escrever `padding: var(--au-8) var(--au-7)` não é meio certo — é uma
+    declaração inválida, e o navegador descarta o padding INTEIRO. A tela de
+    identificar-se foi ao ar com os dois painéis sem margem nenhuma, texto
+    colado na borda e o rótulo da direita cortado pelo painel da esquerda.
+
+    É a mesma família dos dois testes acima: estilo regride sem levantar
+    exceção. Aqui a diferença é que nem o nome da classe estava errado — o
+    nome do token estava.
+
+    `var(--x, fallback)` fica de fora: quem escreve o fallback declarou que o
+    token pode não existir, e é assim que o CSS marca cor por dado.
+    """
+    css = _css()
+    definidos = set(re.findall(r"(--au-[a-z0-9-]+)\s*:", css))
+
+    # `var(--token)` sem vírgula — com vírgula há fallback, e aí é deliberado.
+    usados = set(re.findall(r"var\(\s*(--au-[a-z0-9-]+)\s*\)", css))
+
+    orfaos = sorted(usados - definidos)
+    assert not orfaos, (
+        "token usado e nunca definido — o navegador descarta a declaração "
+        f"inteira, sem avisar: {orfaos}"
+    )
