@@ -672,6 +672,9 @@ def test_contexto_do_rail_usa_pessoa_aberta_para_anonimo():
         # Anônimo não atende fila nenhuma, e o item "Atender" nem aparece no
         # trilho: contador zerado é o que faz alguém aprender a ignorá-lo.
         "na_fila": 0,
+        # Nem administra papéis — a tela de quem aprova o quê é mapa de poder
+        # da empresa, e ela também concede.
+        "administra_papeis": False,
     }
 
 

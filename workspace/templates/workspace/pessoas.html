@@ -1,0 +1,203 @@
+{% extends "workspace/_shell_modulo.html" %}
+{% load i18n wks %}
+
+{% block titulo %}{% trans "Pessoas e papéis" %}{% endblock %}
+
+{% block rail %}{% include "workspace/_rail_servicos.html" with aba="pessoas" %}{% endblock %}
+{% block trilha %}
+  <span>{% trans "Pessoas e papéis" %}</span>
+{% endblock %}
+{% block pagina_titulo %}{% trans "Pessoas e papéis" %}{% endblock %}
+{% block voltar_url %}{% url 'workspace:home' %}{% endblock %}
+
+{% block pagina_descricao %}
+  <p class="au-pagina-desc">
+    {% trans "Quem aprova o quê, e por quanto tempo." %}
+  </p>
+{% endblock %}
+
+{% block corpo %}
+{% comment %}
+  O MAPA vem primeiro, e não a lista de gente.
+
+  A pergunta que traz alguém a esta tela é quase sempre "por que o pedido não
+  chegou em ninguém?", e a resposta costuma ser uma área sem aprovador. Área
+  órfã aparece marcada: a cadeia manda o pedido para um papel que não tem dono,
+  e ele fica parado sem que ninguém seja avisado.
+
+  O mapa sai das REGRAS cruzadas com quem tem o papel — a mesma fonte que o
+  motor usa para montar a cadeia. Uma lista mantida à mão diria o que alguém
+  achava que era verdade.
+{% endcomment %}
+<section class="au-secao">
+  <div class="au-secao-cabeca">
+    <h2 class="au-secao-titulo">{% trans "Quem aprova cada área" %}</h2>
+  </div>
+
+  <div class="au-tabela">
+    <table>
+      <thead>
+        <tr>
+          <th>{% trans "Área" %}</th>
+          <th>{% trans "Papel" %}</th>
+          <th>{% trans "Entra quando" %}</th>
+          <th>{% trans "Quem responde hoje" %}</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for linha in mapa %}
+          <tr>
+            <td><code>{{ linha.dominio }}</code></td>
+            <td>{{ linha.papel.nome }}</td>
+            <td>
+              {% if linha.acima_de %}
+                {% blocktrans with valor=linha.acima_de|moeda %}acima de R$ {{ valor }}{% endblocktrans %}
+              {% else %}
+                {% trans "sempre" %}
+              {% endif %}
+            </td>
+            <td>
+              {% if linha.orfa %}
+                <span class="au-etiqueta au-etiqueta--devolvida">
+                  {% trans "ninguém — o pedido fica parado" %}
+                </span>
+              {% else %}
+                {% for pessoa in linha.pessoas %}
+                  {{ pessoa.get_full_name|default:pessoa.email }}{% if not forloop.last %} · {% endif %}
+                {% endfor %}
+              {% endif %}
+            </td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<section class="au-secao">
+  <div class="au-secao-cabeca">
+    <h2 class="au-secao-titulo">{% trans "Conceder um papel" %}</h2>
+  </div>
+
+  <form method="post" action="{% url 'workspace:conceder_papel' %}" class="au-form">
+    {% csrf_token %}
+    <div class="au-colunas-form">
+      <div class="au-campo">
+        <label class="au-rotulo" for="pessoa">{% trans "Pessoa" %}</label>
+        <select class="au-input" id="pessoa" name="pessoa" required>
+          <option value="">{% trans "Selecione…" %}</option>
+          {% for linha in pessoas %}
+            <option value="{{ linha.pessoa.pk }}">
+              {{ linha.pessoa.get_full_name|default:linha.pessoa.email }}
+              {% if linha.lotacao.departamento %}· {{ linha.lotacao.departamento.codigo }}{% endif %}
+            </option>
+          {% endfor %}
+        </select>
+      </div>
+
+      <div class="au-campo">
+        <label class="au-rotulo" for="papel">{% trans "Papel" %}</label>
+        <select class="au-input" id="papel" name="papel" required>
+          {% for papel in papeis %}
+            <option value="{{ papel.pk }}">{{ papel.nome }}</option>
+          {% endfor %}
+        </select>
+      </div>
+
+      <div class="au-campo">
+        <label class="au-rotulo" for="escopo">{% trans "Alcance" %}</label>
+        <select class="au-input" id="escopo" name="escopo" required>
+          {% for valor, rotulo in escopos %}
+            <option value="{{ valor }}">{{ rotulo }}</option>
+          {% endfor %}
+        </select>
+        <p class="au-ajuda">
+          {% trans "“Global” alcança a empresa inteira — e por isso exige justificativa." %}
+        </p>
+      </div>
+
+      <div class="au-campo">
+        <label class="au-rotulo" for="vigencia_fim">{% trans "Até quando" %}</label>
+        <input class="au-input" id="vigencia_fim" name="vigencia_fim" type="date">
+        <p class="au-ajuda">
+          {% trans "Em branco, não expira. Papel temporário que depende de alguém lembrar de tirar não é temporário." %}
+        </p>
+      </div>
+    </div>
+
+    <div class="au-campo">
+      <label class="au-rotulo" for="justificativa">{% trans "Por quê" %}</label>
+      <input class="au-input" id="justificativa" name="justificativa" type="text"
+             placeholder="{% trans 'Obrigatório para alcance de unidade ou global' %}">
+    </div>
+
+    <div class="au-form-acoes">
+      <button class="au-btn au-btn--primario" type="submit">{% trans "Conceder" %}</button>
+    </div>
+  </form>
+</section>
+
+<section class="au-secao">
+  <div class="au-secao-cabeca">
+    <h2 class="au-secao-titulo">{% trans "Quem tem o quê" %}</h2>
+  </div>
+
+  <div class="au-tabela">
+    <table>
+      <thead>
+        <tr>
+          <th>{% trans "Pessoa" %}</th>
+          <th>{% trans "Lotação" %}</th>
+          <th>{% trans "Papéis" %}</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for linha in pessoas %}
+          <tr>
+            <td>
+              <span class="au-list-titulo">
+                {{ linha.pessoa.get_full_name|default:linha.pessoa.email }}
+              </span>
+              <span class="au-list-meta">{{ linha.pessoa.email }}</span>
+            </td>
+            <td>
+              {{ linha.lotacao.cargo|default:"—" }}
+              <span class="au-list-meta">
+                {% if linha.lotacao.unidade %}{{ linha.lotacao.unidade.codigo }}{% endif %}
+                {% if linha.lotacao.departamento %}· {{ linha.lotacao.departamento.codigo }}{% endif %}
+              </span>
+            </td>
+            <td>
+              {% for atribuicao in linha.atribuicoes %}
+                {% comment %}
+                  Papel encerrado continua na lista, apagado: a pergunta "quem
+                  aprovava isso em março?" tem de continuar respondível depois
+                  que a pessoa muda de área.
+                {% endcomment %}
+                <form method="post" class="au-papel-linha {% if not atribuicao.vigente %}au-papel-linha--fim{% endif %}"
+                      action="{% url 'workspace:revogar_papel' atribuicao.pk %}">
+                  {% csrf_token %}
+                  <span class="au-etiqueta au-etiqueta--dominio">{{ atribuicao.papel.nome }}</span>
+                  <span class="au-list-meta">
+                    {{ atribuicao.get_escopo_display }}
+                    {% if atribuicao.vigencia_fim %}
+                      · {% blocktrans with data=atribuicao.vigencia_fim|date:"d/m/Y" %}até {{ data }}{% endblocktrans %}
+                    {% endif %}
+                  </span>
+                  {% if not atribuicao.vigencia_fim %}
+                    <button class="au-btn au-btn--sutil au-btn--pequeno" type="submit">
+                      {% trans "Encerrar" %}
+                    </button>
+                  {% endif %}
+                </form>
+              {% empty %}
+                <span class="au-list-meta">{% trans "só o autoatendimento" %}</span>
+              {% endfor %}
+            </td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
+{% endblock %}

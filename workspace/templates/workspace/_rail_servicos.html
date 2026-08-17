@@ -51,6 +51,15 @@
   "Atender" e "Aprovar" só aparecem para quem tem algo esperando. Rail com item
   vazio ensina o usuário a ignorar o rail.
 {% endcomment %}
+{% if administra_papeis %}
+  <p class="au-rail-grupo">{% trans "Administrar" %}</p>
+  <a class="au-rail-item {% if aba == 'pessoas' %}au-rail-item--ativo{% endif %}"
+     href="{% url 'workspace:pessoas' %}">
+    <svg class="au-icon" aria-hidden="true"><use href="#i-users"></use></svg>
+    {% trans "Pessoas e papéis" %}
+  </a>
+{% endif %}
+
 {% if na_fila %}
   <p class="au-rail-grupo">{% trans "Atender" %}</p>
   <a class="au-rail-item {% if aba == 'fila' %}au-rail-item--ativo{% endif %}"

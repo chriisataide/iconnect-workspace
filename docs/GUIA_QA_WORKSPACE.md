@@ -50,9 +50,9 @@ python manage.py showmigrations workspace   # tudo com [X]
 ### 1.2 Semear o que tem semeadora
 
 ```bash
-python manage.py semear_papeis --aplicar              # os 13 papéis e suas permissões
-python manage.py semear_catalogo --aplicar            # os 21 serviços do catálogo
-python manage.py semear_regras_aprovacao --aplicar    # a cadeia 0 → 50k → 300k
+python manage.py semear_papeis --aplicar              # os 16 papéis e suas permissões
+python manage.py semear_catalogo --aplicar            # os 26 serviços do catálogo
+python manage.py semear_regras_aprovacao --aplicar    # gestor → área → 50k → 300k
 python manage.py importar_organograma docs/exemplos/organograma-inicial.csv --criar-usuarios --aplicar
 python manage.py reindexar_busca                      # popula o índice da ⌘K
 ```
@@ -241,7 +241,7 @@ que exige você hoje*, *o que a empresa está dizendo*, *para onde você vai*.
 - Logado: diz "Olá, `<primeiro nome>`." — **só o primeiro nome**.
 - A data: `"Sexta-feira, 7 de agosto"`. Uma maiúscula só, no começo. Se vier
   "Sexta-Feira, 7 De Agosto" ou "Agosto", é defeito de locale.
-- O cartão "Pedir um serviço" promete um número concreto ("21 serviços"). Confira
+- O cartão "Pedir um serviço" promete um número concreto ("26 serviços"). Confira
   que bate com `ItemCatalogo` ativos.
 - O cartão **"Esperando você"** só aparece para quem tem aprovação pendente.
   Colaborador comum não deve vê-lo. Card de aprovação sempre visível e sempre
@@ -380,7 +380,7 @@ pedido cancelado, correspondência recebida.
 
 ### 3.5 Catálogo de serviços — `/workspace/servicos/`
 
-**Para que serve.** Os 21 serviços que a empresa presta ao próprio colaborador,
+**Para que serve.** Os 26 serviços que a empresa presta ao próprio colaborador,
 agrupados por **intenção** — não por departamento.
 
 **Quando é útil.** "Preciso de alguma coisa da empresa e não sei com quem falar."
@@ -680,6 +680,36 @@ Conclua **cinco** pedidos do mesmo item e volte ao catálogo. O card tem de
 trocar "prazo estimado" por **"prazo medido"**. Antes desta fila isso era
 impossível: `prazo_medido()` lê as conclusões, e nada no produto concluía nada —
 o número na tela seria um chute para sempre.
+
+---
+
+### 3.8.2 Pessoas e papéis — `/workspace/pessoas/`
+
+**Para que serve.** Cadastrar quem aprova o quê, sem passar pelo `/admin/` do
+Django. Exige a permissão `rh.admin` — colaborador comum recebe **403**, e isso
+é correto: a tela é o mapa de poder da empresa, e ela também *concede*.
+
+**O que testar:**
+
+- O **mapa vem primeiro**, antes da lista de gente. A pergunta que traz alguém
+  aqui é quase sempre "por que o pedido não chegou em ninguém?".
+- **Área sem aprovador aparece marcada** — "ninguém, o pedido fica parado". É o
+  defeito que a tela existe para mostrar: a cadeia manda o pedido para um papel
+  que não tem dono, e ele fica parado sem que ninguém seja avisado.
+- O mapa sai das **regras cruzadas com quem tem o papel** — a mesma fonte que o
+  motor usa. Uma lista mantida à mão diria o que alguém achava que era verdade.
+- **Escopo "unidade" ou "global" exige justificativa escrita.** É a diferença
+  entre "aprova a própria equipe" e "aprova a empresa inteira", e no admin as
+  duas são uma opção num `<select>` idêntico.
+- **Papel para quem não tem lotação é recusado.** Aprovador sem unidade e sem
+  gestor é a origem das 881 lotações vazias que fizeram este produto existir
+  separado.
+- **Encerrar não apaga**: a linha fica, com a data do último dia em que valeu e
+  o motivo. "Quem aprovava isso em março?" continua respondível.
+- Encerrar tem efeito **imediato**, não à meia-noite: a vigência é por dia e
+  `vigentes()` inclui o dia de fim, então o fim gravado é o dia anterior. A
+  exceção é o papel concedido e revogado no mesmo dia — esse vale até a
+  meia-noite, porque vigência não pode terminar antes de começar.
 
 ---
 

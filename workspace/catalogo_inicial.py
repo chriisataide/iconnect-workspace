@@ -610,4 +610,108 @@ CATALOGO_INICIAL = [
         ],
         "limite_auto_aprovacao": Decimal("0"),
     },
+    # ── Vendas ──────────────────────────────────────────────────────
+    #
+    # Área nova. Os itens abaixo são o mínimo plausível para a área existir de
+    # verdade — quem conhece o processo comercial ajusta no admin, sem deploy.
+    {
+        "chave": "desconto-especial",
+        "termos": ["desconto", "condicao especial", "preco", "proposta", "negociacao"],
+        "nome": "Desconto fora da tabela",
+        "descricao_curta": "Condição comercial que precisa de aprovação",
+        "grupo": GrupoCatalogo.DINHEIRO,
+        "icone": "cart",
+        "dominio": "ven.desconto",
+        "prazo_prometido_dias": 2,
+        # Desconto TEM valor — é o valor do negócio, e é ele que decide se a
+        # diretoria entra na cadeia. Sem isso, um desconto de R$ 400 mil seria
+        # aprovado pelo gestor direto como se fosse um pedido de material.
+        "exige_valor": True,
+        "campos": [
+            {"chave": "cliente", "rotulo": "Cliente", "tipo": TipoCampo.TEXTO,
+             "obrigatorio": True},
+            {"chave": "condicao", "rotulo": "Qual condição você precisa",
+             "tipo": TipoCampo.TEXTO_LONGO, "obrigatorio": True,
+             "ajuda": "Percentual, prazo de pagamento, escopo incluído."},
+            {"chave": "proposta", "rotulo": "Proposta", "tipo": TipoCampo.ARQUIVO,
+             "obrigatorio": False},
+        ],
+    },
+    {
+        "chave": "cadastro-cliente",
+        "termos": ["cliente novo", "cadastrar cliente", "abertura de cliente", "cnpj"],
+        "nome": "Cadastro de cliente",
+        "descricao_curta": "Abrir um cliente novo no sistema",
+        "grupo": GrupoCatalogo.ESPACO,
+        "icone": "users",
+        "dominio": "ven.cadastro",
+        "prazo_prometido_dias": 2,
+        "campos": [
+            {"chave": "razao_social", "rotulo": "Razão social", "tipo": TipoCampo.TEXTO,
+             "obrigatorio": True},
+            {"chave": "documento", "rotulo": "CNPJ", "tipo": TipoCampo.TEXTO,
+             "obrigatorio": True},
+            {"chave": "contato", "rotulo": "Contato do cliente",
+             "tipo": TipoCampo.TEXTO_LONGO, "obrigatorio": False},
+        ],
+        "limite_auto_aprovacao": Decimal("0"),
+    },
+    # ── Marketing ───────────────────────────────────────────────────
+    {
+        "chave": "material-marketing",
+        "termos": ["arte", "banner", "folder", "post", "material de divulgacao", "marca"],
+        "nome": "Material de divulgação",
+        "descricao_curta": "Arte, folder, post ou apresentação",
+        "grupo": GrupoCatalogo.ESPACO,
+        "icone": "megafone",
+        "dominio": "mkt.material",
+        "prazo_prometido_dias": 5,
+        "campos": [
+            {"chave": "o_que", "rotulo": "O que você precisa",
+             "tipo": TipoCampo.TEXTO_LONGO, "obrigatorio": True},
+            {"chave": "quando", "rotulo": "Precisa até", "tipo": TipoCampo.DATA,
+             "obrigatorio": True},
+            {"chave": "referencia", "rotulo": "Referência", "tipo": TipoCampo.ARQUIVO,
+             "obrigatorio": False},
+        ],
+        "limite_auto_aprovacao": Decimal("0"),
+    },
+    {
+        "chave": "evento",
+        "termos": ["feira", "evento", "patrocinio", "stand", "congresso"],
+        "nome": "Evento ou patrocínio",
+        "descricao_curta": "Feira, congresso, stand ou patrocínio",
+        "grupo": GrupoCatalogo.DINHEIRO,
+        "icone": "megafone",
+        "dominio": "mkt.evento",
+        "prazo_prometido_dias": 10,
+        "exige_valor": True,
+        "exige_centro_custo": True,
+        "campos": [
+            {"chave": "evento", "rotulo": "Qual evento", "tipo": TipoCampo.TEXTO,
+             "obrigatorio": True},
+            {"chave": "quando", "rotulo": "Quando", "tipo": TipoCampo.DATA,
+             "obrigatorio": True},
+            {"chave": "retorno", "rotulo": "O que a empresa ganha com isso",
+             "tipo": TipoCampo.TEXTO_LONGO, "obrigatorio": True},
+        ],
+    },
+    # ── Jurídico (o módulo ganhou tile; o domínio já existia) ────────
+    {
+        "chave": "parecer-juridico",
+        "termos": ["parecer", "duvida juridica", "consulta juridica", "legal"],
+        "nome": "Parecer jurídico",
+        "descricao_curta": "Dúvida que precisa de resposta formal",
+        "grupo": GrupoCatalogo.JURIDICO,
+        "icone": "file",
+        "dominio": "jur.parecer",
+        "prazo_prometido_dias": 10,
+        "campos": [
+            {"chave": "pergunta", "rotulo": "Qual é a dúvida",
+             "tipo": TipoCampo.TEXTO_LONGO, "obrigatorio": True},
+            {"chave": "documento", "rotulo": "Documento relacionado",
+             "tipo": TipoCampo.ARQUIVO, "obrigatorio": False},
+        ],
+        "limite_auto_aprovacao": Decimal("0"),
+    },
 ]

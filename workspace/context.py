@@ -21,6 +21,7 @@ def rail(request: HttpRequest) -> dict:
     from workspace.acesso import pessoa_da_requisicao
     from workspace.models.catalogo import SolicitacaoServico
     from workspace.services import aprovacao as apr
+    from identidade.services import administracao as adm
     from workspace.services import atendimento as atd
     from workspace.services import notificacoes as nt
 
@@ -41,4 +42,8 @@ def rail(request: HttpRequest) -> dict:
         # não atende nada dá 0, e o item do trilho nem aparece — trilho com
         # item vazio ensina o usuário a ignorar o trilho.
         "na_fila": atd.fila_de(pessoa, cache=request.perm_cache).count(),
+        # Item de administração: aparece só para quem administra papéis, pela
+        # mesma regra dos outros — trilho com item que não leva a nada ensina o
+        # usuário a ignorar o trilho.
+        "administra_papeis": adm.pode_administrar(pessoa, cache=request.perm_cache),
     }

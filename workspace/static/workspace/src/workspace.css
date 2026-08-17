@@ -2134,3 +2134,22 @@ tr[data-abre-resumo]:focus-visible {
   padding: var(--au-1) var(--au-2);
   font-size: var(--au-t-sm);
 }
+
+/* ── Pessoas e papéis ───────────────────────────────────────────────
+   Cada papel é um formulário de uma linha: o botão de encerrar precisa de POST
+   e CSRF, e um formulário por linha é mais simples que um formulário só com
+   `name` numerado — que é onde se erra o índice e se encerra o papel errado. */
+
+.au-papel-linha {
+  display: flex;
+  align-items: center;
+  gap: var(--au-2);
+  margin: 0 0 var(--au-1);
+}
+.au-papel-linha--fim { opacity: .5; }
+
+.au-colunas-form {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(13rem, 1fr));
+  gap: var(--au-4);
+}

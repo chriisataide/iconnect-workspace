@@ -42,10 +42,19 @@ def cadeia():
 
 @pytest.fixture
 def hierarquia():
-    """Sócio → diretor → gerente → analista, com os papéis atribuídos."""
+    """Sócio → diretor → gerente → analista, com os papéis atribuídos.
+
+    Mais `comprador`, que não está na linha de comando de ninguém: ele responde
+    pela ÁREA. Desde que a cadeia ganhou o degrau por área, uma requisição de
+    compra passa pelo gestor E por Compras — são perguntas diferentes, e é por
+    isso que ele aparece aqui e não na hierarquia.
+    """
     socio, diretor, gerente, analista = (
         f.pessoa(n) for n in ("socio", "diretor", "gerente", "analista")
     )
+    comprador = f.pessoa("comprador")
+    f.lotar(comprador, centro_custo_codigo="1042")
+    f.atribuir(comprador, Papel.objects.get(chave="compras"))
     f.lotar(socio, centro_custo_codigo="1000")
     f.lotar(diretor, gestor=socio, centro_custo_codigo="1000")
     f.lotar(gerente, gestor=diretor, centro_custo_codigo="1042")
@@ -60,7 +69,10 @@ def hierarquia():
         user = {"socio": socio, "diretor": diretor, "gerente": gerente, "analista": analista}[username]
         f.atribuir(user, Papel.objects.get(chave=chave))
 
-    return {"socio": socio, "diretor": diretor, "gerente": gerente, "analista": analista}
+    return {
+        "socio": socio, "diretor": diretor, "gerente": gerente,
+        "analista": analista, "comprador": comprador,
+    }
 
 
 def _etapas(valor, solicitante):
@@ -78,8 +90,11 @@ def _etapas(valor, solicitante):
 # ── A cadeia semeada ────────────────────────────────────────────────
 
 
-def test_comando_cria_os_tres_degraus(cadeia):
-    regras = list(RegraAprovacao.objects.filter(ativa=True).order_by("ordem"))
+def test_comando_cria_os_degraus_por_valor(cadeia):
+    """As faixas valem para TODO domínio (`*`), e são cumulativas."""
+    regras = list(
+        RegraAprovacao.objects.filter(ativa=True, dominio="*").order_by("ordem")
+    )
 
     assert [r.valor_minimo for r in regras] == [
         Decimal("0"),
@@ -91,10 +106,35 @@ def test_comando_cria_os_tres_degraus(cadeia):
     assert regras[2].papel.chave == "socios"
 
 
+def test_comando_cria_o_degrau_da_area(cadeia):
+    """Depois do gestor, antes da diretoria: a área revisa o que é dela.
+
+    São perguntas diferentes. O gestor sabe se a equipe aguenta a ausência; o
+    R.H. sabe se a pessoa tem saldo e se o período é legal. Só o gestor aprova
+    pedido que o R.H. vai ter de desfazer.
+
+    O domínio casa por PREFIXO — `rh.` alcança `rh.ferias` e o item de R.H. que
+    nascer amanhã. Sem isso, cada item novo precisaria da própria regra, e a
+    falta dela não faria barulho nenhum.
+    """
+    por_area = {
+        r.dominio: r
+        for r in RegraAprovacao.objects.filter(ativa=True, ordem=15).select_related("papel")
+    }
+
+    assert por_area["rh."].papel.chave == "rh"
+    assert por_area["fin."].papel.chave == "financeiro"
+    assert por_area["com."].papel.chave == "compras"
+    for regra in por_area.values():
+        assert regra.tipo == TipoAprovador.PAPEL
+        assert 10 < regra.ordem < 20, "a área entra depois do gestor e antes da diretoria"
+
+
 def test_comando_e_reexecutavel_sem_duplicar(cadeia):
+    antes = RegraAprovacao.objects.filter(ativa=True).count()
     call_command("semear_regras_aprovacao", "--aplicar", stdout=StringIO())
 
-    assert RegraAprovacao.objects.filter(ativa=True).count() == 3
+    assert RegraAprovacao.objects.filter(ativa=True).count() == antes
 
 
 def test_simulacao_nao_grava():
@@ -119,11 +159,13 @@ def test_comando_avisa_quando_o_papel_nao_existe():
 # ── As faixas, cumulativas ──────────────────────────────────────────
 
 
-def test_ate_50k_para_no_gestor_direto(cadeia, hierarquia):
+def test_ate_50k_para_no_gestor_e_na_area(cadeia, hierarquia):
+    """Abaixo do teto, sem diretoria — mas Compras revisa toda requisição."""
     _, etapas = _etapas("49999.99", hierarquia["analista"])
 
-    assert len(etapas) == 1
+    assert len(etapas) == 2
     assert etapas[0].aprovador == hierarquia["gerente"]
+    assert etapas[1].papel.chave == "compras"
 
 
 def test_no_limite_de_50k_a_diretoria_entra(cadeia, hierarquia):
@@ -134,19 +176,21 @@ def test_no_limite_de_50k_a_diretoria_entra(cadeia, hierarquia):
     """
     _, etapas = _etapas("50000", hierarquia["analista"])
 
-    assert len(etapas) == 2
+    assert len(etapas) == 3
     assert etapas[0].aprovador == hierarquia["gerente"]
-    assert etapas[1].papel.chave == "diretoria"
+    assert etapas[1].papel.chave == "compras"
+    assert etapas[2].papel.chave == "diretoria"
 
 
 def test_acima_de_300k_os_socios_entram_sem_tirar_ninguem(cadeia, hierarquia):
     """A regra central: faixas somam, não substituem."""
     _, etapas = _etapas("400000", hierarquia["analista"])
 
-    assert len(etapas) == 3
+    assert len(etapas) == 4
     assert etapas[0].aprovador == hierarquia["gerente"]
-    assert etapas[1].papel.chave == "diretoria"
-    assert etapas[2].papel.chave == "socios"
+    assert etapas[1].papel.chave == "compras"
+    assert etapas[2].papel.chave == "diretoria"
+    assert etapas[3].papel.chave == "socios"
 
 
 def test_ordem_dos_degraus_e_de_baixo_para_cima(cadeia, hierarquia):
@@ -170,6 +214,12 @@ def test_gerente_nao_decide_a_etapa_por_papel_acima_dele(cadeia, hierarquia):
     solicitacao, _ = _etapas("400000", hierarquia["analista"])
     apr.decidir(solicitacao, hierarquia["gerente"], apr.Decisao.APROVAR)
 
+    solicitacao.refresh_from_db()
+    assert solicitacao.etapa_atual.papel.chave == "compras"
+    with pytest.raises(apr.AprovacaoError):
+        apr.decidir(solicitacao, hierarquia["gerente"], apr.Decisao.APROVAR)
+
+    apr.decidir(solicitacao, hierarquia["comprador"], apr.Decisao.APROVAR)
     solicitacao.refresh_from_db()
     assert solicitacao.etapa_atual.papel.chave == "diretoria"
     with pytest.raises(apr.AprovacaoError):
@@ -204,6 +254,7 @@ def test_a_cadeia_completa_de_400k(cadeia, hierarquia):
     solicitacao, _ = _etapas("400000", hierarquia["analista"])
 
     apr.decidir(solicitacao, hierarquia["gerente"], apr.Decisao.APROVAR)
+    apr.decidir(solicitacao, hierarquia["comprador"], apr.Decisao.APROVAR)
     apr.decidir(solicitacao, hierarquia["diretor"], apr.Decisao.APROVAR)
     apr.decidir(solicitacao, hierarquia["socio"], apr.Decisao.APROVAR)
 
@@ -218,7 +269,7 @@ def test_gerente_nao_conclui_sozinho_acima_do_teto(cadeia, hierarquia):
 
     solicitacao.refresh_from_db()
     assert solicitacao.situacao == "aguardando"
-    assert solicitacao.etapa_atual.papel.chave == "diretoria"
+    assert solicitacao.etapa_atual.papel.chave == "compras"
 
 
 # ── A bandeja mostra só a etapa da vez ──────────────────────────────
@@ -256,6 +307,13 @@ def test_o_pedido_aparece_para_cada_um_na_sua_vez(cadeia, hierarquia):
     apr.decidir(solicitacao, hierarquia["gerente"], apr.Decisao.APROVAR)
 
     assert not apr.pendentes_para(hierarquia["gerente"]).exists()
+    # A vez é da ÁREA antes de subir: Compras revisa a requisição.
+    assert list(apr.pendentes_para(hierarquia["comprador"])) == [solicitacao]
+    assert not apr.pendentes_para(hierarquia["diretor"]).exists()
+
+    apr.decidir(solicitacao, hierarquia["comprador"], apr.Decisao.APROVAR)
+
+    assert not apr.pendentes_para(hierarquia["comprador"]).exists()
     assert list(apr.pendentes_para(hierarquia["diretor"])) == [solicitacao]
     assert not apr.pendentes_para(hierarquia["socio"]).exists()
 

@@ -80,34 +80,61 @@ class Decisao:
 # ── Construção da cadeia ────────────────────────────────────────────
 
 
+def _alcance(regra_dominio: str, dominio: str) -> int:
+    """Quão específica esta regra é para este domínio. `-1` = não alcança.
+
+    Três níveis, e o do meio é o que faltava: `*` alcança tudo (0), o PREFIXO
+    alcança a área inteira (`rh.` pega `rh.ferias`, `rh.ausencia`, `rh.vaga`), e
+    o domínio exato alcança um serviço só.
+
+    O prefixo entrou quando a aprovação passou a ter etapa por ÁREA. Sem ele,
+    "o R.H. revisa o que é de R.H." exigiria uma regra por item de catálogo — e
+    a regra do item novo seria esquecida no dia em que ele nascesse, sem que
+    nada avisasse. O resto do código já casava domínio por prefixo
+    (`services/catalogo.q_dominios`); esta função alinha a aprovação com ele.
+    """
+    if regra_dominio == "*":
+        return 0
+    if regra_dominio == dominio:
+        return len(regra_dominio) + 1
+    if regra_dominio.endswith(".") and dominio.startswith(regra_dominio):
+        return len(regra_dominio)
+    return -1
+
+
 def _regras_aplicaveis(dominio: str, valor: Decimal | None) -> list[RegraAprovacao]:
     """Regras do domínio que a solicitação alcança.
 
-    Regra específica do domínio **substitui** a genérica `*` na mesma ordem —
-    senão uma empresa que configura "reembolso é diferente" acabaria com as duas
+    Regra mais específica **substitui** a mais genérica na mesma ordem — senão
+    uma empresa que configura "reembolso é diferente" acabaria com as duas
     cadeias somadas.
     """
-    consulta = RegraAprovacao.objects.filter(ativa=True).filter(
-        Q(dominio=dominio) | Q(dominio="*")
-    )
+    consulta = RegraAprovacao.objects.filter(ativa=True)
     if valor is not None:
         consulta = consulta.filter(valor_minimo__lte=valor)
     else:
         # Sem valor (férias, acesso), só regras de faixa zero fazem sentido.
         consulta = consulta.filter(valor_minimo=Decimal("0"))
 
-    especificas = {}
-    genericas = {}
+    # Filtro por prefixo em Python e não no banco: a consulta seria
+    # "coluna é prefixo do parâmetro", que nenhum índice serve — e a tabela de
+    # regras tem dezenas de linhas, não milhões.
+    escolhidas: dict[int, tuple[int, RegraAprovacao]] = {}
     for regra in consulta.select_related("papel", "aprovador").order_by("ordem", "valor_minimo"):
-        alvo = especificas if regra.dominio == dominio else genericas
-        # Dentro da mesma ordem, a de maior `valor_minimo` vence: é a mais
-        # específica para aquele valor.
-        anterior = alvo.get(regra.ordem)
-        if anterior is None or regra.valor_minimo >= anterior.valor_minimo:
-            alvo[regra.ordem] = regra
+        alcance = _alcance(regra.dominio, dominio)
+        if alcance < 0:
+            continue
+        anterior = escolhidas.get(regra.ordem)
+        # Mais específica vence; empatando, a de maior `valor_minimo`, que é a
+        # mais específica para aquele valor.
+        if (
+            anterior is None
+            or alcance > anterior[0]
+            or (alcance == anterior[0] and regra.valor_minimo >= anterior[1].valor_minimo)
+        ):
+            escolhidas[regra.ordem] = (alcance, regra)
 
-    combinada = {**genericas, **especificas}
-    return [combinada[ordem] for ordem in sorted(combinada)]
+    return [escolhidas[ordem][1] for ordem in sorted(escolhidas)]
 
 
 def _resolver_aprovador(regra: RegraAprovacao, solicitante) -> tuple[object | None, object | None]:

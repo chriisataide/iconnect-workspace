@@ -103,6 +103,7 @@ casa, que era o ponto de existir um contrato.
 
 | O que se estranha | Por quê |
 |---|---|
+| A cadeia de aprovação tem um degrau de ÁREA | Depois do gestor direto, antes da diretoria: o R.H. revisa o que é de R.H., o Financeiro o que é dinheiro. São perguntas diferentes — o gestor sabe se a equipe aguenta a ausência; o R.H. sabe se a pessoa tem saldo e se o período é legal. A regra casa por PREFIXO (`rh.` pega `rh.ferias` e o item que nascer amanhã). |
 | O pedido tem TRÊS etapas, não duas | Pedir → aprovar → **atender**. A fila de atendimento (`/workspace/fila/`) é onde o pedido aprovado vira entregue, e é ela que alimenta o prazo REAL do catálogo: sem conclusões, o card mostraria "estimado" para sempre. |
 | O Workspace abre sem login | Decisão de produto: quem está na rede usa o hub, o catálogo, a documentação, a agenda das salas e **o formulário de qualquer serviço** sem barreira de autenticação. |
 | …mas "Meu dia", "Minhas solicitações" e a bandeja pedem | O que é **de uma pessoa** não é institucional: o dia dela, os pedidos dela, a fila que espera a decisão dela, a correspondência dela. Sem sessão o produto assume a primeira pessoa do organograma, e essas telas mostrariam a vida dela a quem passasse pela URL. |
@@ -119,7 +120,7 @@ casa, que era o ponto de existir um contrato.
 ## Testes
 
 ```bash
-python -m pytest                          # 1.136 testes, cobertura por app
+python -m pytest                          # 1.161 testes, cobertura por app
 python scripts/check_coverage_ratchet.py  # os pisos, que só sobem
 ```
 

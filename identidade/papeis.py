@@ -267,4 +267,48 @@ PAPEIS_V1 = [
             "porque o auditor pode ser externo — cliente auditando fornecedor."
         ),
     },
+    {
+        "chave": "vendas",
+        "nome": "Vendas",
+        "escopo_padrao": ESCOPO_UNIDADE,
+        "permissoes": AUTOATENDIMENTO
+        + [
+            "ven.atender.unidade",
+            "ven.aprovar.unidade",
+            "ven.ler.unidade",
+        ],
+        "descricao": (
+            "Proposta, desconto e cadastro de cliente. Desconto fora da tabela "
+            "passa pelo gestor E por Vendas: um sabe se o cliente merece, o "
+            "outro se a margem aguenta."
+        ),
+    },
+    {
+        "chave": "marketing",
+        "nome": "Marketing",
+        "escopo_padrao": ESCOPO_GLOBAL,
+        "permissoes": AUTOATENDIMENTO
+        + [
+            "mkt.atender.global",
+            "mkt.ler.global",
+        ],
+        "descricao": (
+            "Material de divulgação, evento e presença de marca. Atende os "
+            "pedidos da área; evento com valor segue a cadeia por faixa."
+        ),
+    },
+    {
+        "chave": "juridico",
+        "nome": "Jurídico",
+        "escopo_padrao": ESCOPO_GLOBAL,
+        "permissoes": AUTOATENDIMENTO
+        + [
+            "jur.atender.global",
+            "jur.ler.global",
+        ],
+        "descricao": (
+            "Análise de contrato e parecer. Atende — não aprova pedido de "
+            "terceiro: quem decide se o contrato é assinado é quem o assina."
+        ),
+    },
 ]

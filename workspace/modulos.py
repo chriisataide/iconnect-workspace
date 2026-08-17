@@ -122,6 +122,34 @@ MODULOS: tuple[Modulo, ...] = (
         ordem=80,
     ),
     Modulo(
+        chave="vendas",
+        nome="Vendas",
+        descricao="Proposta, desconto e cadastro de cliente",
+        icone="cart",
+        dominios=("ven.",),
+        ordem=85,
+    ),
+    Modulo(
+        chave="marketing",
+        nome="Marketing",
+        descricao="Material, evento e presença de marca",
+        icone="megafone",
+        dominios=("mkt.",),
+        ordem=87,
+    ),
+    Modulo(
+        chave="juridico",
+        nome="Jurídico",
+        descricao="Contrato, parecer e notificação",
+        icone="file",
+        # O domínio `jur.analise` existia desde o começo, com item de catálogo e
+        # tudo — só não tinha tile. Serviço que existe e não aparece na home é
+        # serviço que ninguém acha: o caminho era a busca, e quem não sabe que
+        # ele existe não busca por ele.
+        dominios=("jur.",),
+        ordem=88,
+    ),
+    Modulo(
         chave="universidade",
         nome="Universidade",
         descricao="Trilhas, cursos e certificações",

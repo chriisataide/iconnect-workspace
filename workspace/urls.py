@@ -55,6 +55,11 @@ urlpatterns = [
     # o pedido parava em "aprovado" para sempre e o prazo REAL nunca era medido.
     path("fila/", views.fila, name="fila"),
     path("fila/<int:pk>/", views.atender, name="atender"),
+    # Pessoas e papéis — quem aprova o quê. Administração de produto, para o
+    # R.H. não precisar do /admin/ do Django.
+    path("pessoas/", views.pessoas, name="pessoas"),
+    path("pessoas/conceder/", views.conceder_papel, name="conceder_papel"),
+    path("papel/<int:pk>/encerrar/", views.revogar_papel, name="revogar_papel"),
     # Aprovações
     path("aprovacoes/", views.bandeja, name="aprovacoes"),
     path("aprovacoes/<int:pk>/decidir/", views.decidir_aprovacao, name="decidir_aprovacao"),
