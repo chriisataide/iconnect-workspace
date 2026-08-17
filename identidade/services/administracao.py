@@ -61,6 +61,33 @@ def pode_administrar(pessoa, cache: dict | None = None) -> bool:
     return pode(pessoa, "rh.admin", cache=cache)
 
 
+def quem_administra():
+    """Quem pode consertar um papel sem dono.
+
+    Existe para que o produto tenha a quem RECLAMAR. Uma etapa de aprovação por
+    papel que ninguém ocupa não aparece na bandeja de ninguém — ela não tem
+    destinatário —, e o pedido fica parado sem que uma única pessoa saiba.
+    Avisar quem pode conceder o papel é o que fecha esse silêncio.
+
+    Só quem já tem alguma atribuição vigente entra na conta, mais os
+    superusuários: `rh.admin` chega por papel, e varrer a tabela inteira de
+    gente para perguntar o mesmo a cada uma custaria uma consulta por
+    colaborador da empresa.
+    """
+    from django.contrib.auth import get_user_model
+    from django.db.models import Q
+
+    from identidade.services.autorizacao import pode
+
+    com_papel = AtribuicaoPapel.objects.vigentes().values_list("user_id", flat=True)
+    candidatos = (
+        get_user_model()
+        .objects.filter(Q(pk__in=com_papel) | Q(is_superuser=True), is_active=True)
+        .distinct()
+    )
+    return [pessoa for pessoa in candidatos if pode(pessoa, "rh.admin")]
+
+
 def papeis_concedíveis():
     """Todos os papéis ativos, em ordem de nome."""
     return Papel.objects.filter(ativo=True).order_by("nome")

@@ -45,6 +45,9 @@ class TipoNotificacao(models.TextChoices):
     # O único aviso que vai para o ATENDENTE, e não para quem pediu: é a
     # resposta de quem recebeu a entrega dizendo que ela não resolveu.
     PEDIDO_REABERTO = "pedido_reaberto", "Um pedido que você atendeu foi reaberto"
+    # Vai para quem PODE CONSERTAR, e não para quem pediu: a etapa parou num
+    # papel que ninguém ocupa, e só quem concede papel tira o pedido dali.
+    APROVACAO_SEM_DONO = "aprovacao_sem_dono", "Um pedido parou num papel sem ninguém"
     CORRESPONDENCIA_RECEBIDA = (
         "correspondencia_recebida",
         "Chegou correspondência para você",

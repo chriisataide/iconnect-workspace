@@ -87,6 +87,19 @@
             <td>
               {% if s.aprovacao and s.aprovacao.etapa_atual %}
                 {{ s.aprovacao.etapa_atual.aprovador|default:s.aprovacao.etapa_atual.papel }}
+                {% comment %}
+                  O jeito mais silencioso de o produto perder um pedido: a
+                  cadeia manda para "Compras", ninguém tem o papel de Compras, e
+                  a etapa não aparece na bandeja de pessoa nenhuma. Quem pediu
+                  via "aguardando aprovação" para sempre, sem lado do outro
+                  lado. Quem lê isto não pode consertar — mas silêncio é pior, e
+                  é o que faz a pessoa mandar e-mail perguntando.
+                {% endcomment %}
+                {% if s.aprovacao.etapa_atual.papel_id in papeis_orfaos %}
+                  <span class="au-list-resumo au-list-resumo--alerta">
+                    {% trans "parado: ninguém tem este papel hoje" %}
+                  </span>
+                {% endif %}
               {% else %}
                 —
               {% endif %}

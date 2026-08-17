@@ -128,8 +128,16 @@ def test_formulario_de_criacao_abre(client, admin_user):
 
 @pytest.mark.django_db
 def test_publicar_pelo_admin_aparece_no_portal(client, admin_user):
-    """O caminho completo que o usuário vai percorrer."""
+    """O caminho completo que o usuário vai percorrer.
+
+    A hora vem do relógio, e não de um `"08:00:00"` fixo: `publicadas()` filtra
+    `publicar_em__lte=agora`, então a hora fixa fazia este teste falhar de
+    madrugada — a publicação nascia AGENDADA para daqui a algumas horas, e a
+    home estava certa em não mostrá-la. Suíte que só passa depois das oito é
+    suíte em que ninguém confia às sete.
+    """
     client.force_login(admin_user)
+    agora = timezone.localtime()
     client.post(
         reverse("admin:workspace_publicacao_add"),
         {
@@ -139,8 +147,8 @@ def test_publicar_pelo_admin_aparece_no_portal(client, admin_user):
             "corpo": "",
             "prioridade": 0,
             "publicado": "on",
-            "publicar_em_0": timezone.localtime().strftime("%Y-%m-%d"),
-            "publicar_em_1": "08:00:00",
+            "publicar_em_0": agora.strftime("%Y-%m-%d"),
+            "publicar_em_1": agora.strftime("%H:%M:%S"),
             "_save": "Salvar",
         },
     )

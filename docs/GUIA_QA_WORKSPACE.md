@@ -359,7 +359,15 @@ foi resolvido.
 **Quando é útil.** "Recebi um aviso ontem e não sei mais qual era."
 
 **Tipos de notificação:** vez de aprovar, pedido aprovado, pedido devolvido,
-pedido cancelado, correspondência recebida.
+pedido cancelado, pedido em atendimento, pedido concluído, pedido reaberto,
+aprovação parada em papel sem dono, correspondência recebida.
+
+**Os dois que NÃO vão para quem pediu**, e é de propósito:
+
+| Aviso | Vai para | Por quê |
+|---|---|---|
+| **Pedido reaberto** | quem **atendeu** | é a resposta de quem recebeu a entrega dizendo que ela não resolveu |
+| **Papel sem dono** | quem tem **`rh.admin`** | quem recebe não tem o que decidir, tem o que **conceder** — e o link leva à tela de papéis, não à bandeja |
 
 **O que testar:**
 
@@ -629,6 +637,10 @@ compras e os anexos. Esc fecha, o fundo fica inerte, e o foco não escapa —
   cegas.
 - Cancelar funciona e só para os próprios pedidos.
 - Anexos são baixáveis pelo dono.
+- **"Parado: ninguém tem este papel hoje"** aparece na coluna *Esperando*
+  quando a cadeia chegou a um papel vago. Quem lê não pode consertar — mas
+  silêncio é o que faz a pessoa mandar e-mail perguntando, e o e-mail é o que
+  este produto existe para substituir. Ver 3.8.2.
 
 **"Não resolveu?" — a saída depois de concluído.** Dentro do resumo de um
 pedido **concluído**, um bloco discreto com um campo de motivo e o botão
@@ -752,7 +764,32 @@ Django. Exige a permissão `rh.admin` — colaborador comum recebe **403**, e is
   aqui é quase sempre "por que o pedido não chegou em ninguém?".
 - **Área sem aprovador aparece marcada** — "ninguém, o pedido fica parado". É o
   defeito que a tela existe para mostrar: a cadeia manda o pedido para um papel
-  que não tem dono, e ele fica parado sem que ninguém seja avisado.
+  que não tem dono.
+
+**E agora ele avisa, em vez de esperar ser descoberto.** Este era o jeito mais
+silencioso de o produto perder um pedido: etapa por papel **não** gera
+notificação — de propósito, porque "Diretoria" são três pessoas e três avisos
+para um pedido só viram dois avisos órfãos depois da primeira decisão. Mas
+quando o papel está **vago**, não há bandeja em que o pedido apareça: o contador
+de todo mundo fica zerado e o pedido espera para sempre.
+
+**O que testar:**
+
+1. Deixe um papel de aprovação **sem ninguém** (ex.: Compras)
+2. Abra um pedido cuja cadeia passe por ele e **aprove os degraus anteriores**
+3. No momento em que a vez chega ao papel vago, quem tem `rh.admin` recebe
+   *"… parou: ninguém tem o papel Compras"*, e o link leva a **`/pessoas/`** —
+   não à bandeja: quem recebe não tem o que decidir, tem o que conceder
+4. Quem pediu vê **"parado: ninguém tem este papel hoje"** em Minhas
+   solicitações
+5. Conceda o papel a alguém → o pedido aparece na bandeja dela
+
+- **Papel COM titular não gera aviso nenhum.** O aviso é para o defeito, não
+  para o funcionamento normal.
+- Empresa **sem `rh.admin` cadastrado**: o pedido para do mesmo jeito e nada
+  quebra — não há a quem avisar, e isso não pode virar erro de servidor.
+- **Papel vago que não aparece em regra nenhuma não conta.** Ele não trava
+  pedido, e marcá-lo transformaria o alerta em ruído.
 - O mapa sai das **regras cruzadas com quem tem o papel** — a mesma fonte que o
   motor usa. Uma lista mantida à mão diria o que alguém achava que era verdade.
 - **Escopo "unidade" ou "global" exige justificativa escrita.** É a diferença
@@ -1153,7 +1190,7 @@ Para o outro lado, refaça com uma compra de **R$ 1.160**: a tela pede a conta
 
 ---
 
-## 7. Lista de regressão — as 12 armadilhas já corridas
+## 7. Lista de regressão — as 14 armadilhas já corridas
 
 Cada linha abaixo é um defeito **real**, encontrado e corrigido. Elas são a
 melhor lista de regressão que este produto tem, porque cada uma passou por uma
@@ -1173,6 +1210,8 @@ suíte verde uma vez.
 | 10 | Duplo clique em "Confirmo que li" → 500 | `IntegrityError` dentro de `atomic` |
 | 11 | Busca por `RH` dava `NoReverseMatch` e matava a busca inteira | Busca 500 em termo específico |
 | 12 | `1234.56` no campo de valor virava **R$ 123.456,00** | Pedido cem vezes maior que o gasto, aprovado por quem confiou no número da tela |
+| 13 | Etapa num papel **sem titular** não aparecia na bandeja de ninguém | Pedido em "aguardando aprovação" para sempre, sem lado do outro lado |
+| 14 | Um teste publicava sempre às `08:00:00` fixas | Suíte reprovava **entre 00:00 e 08:00** — e passava o dia inteiro depois disso |
 
 **Se você só tiver uma hora**, teste: o Roteiro B (linha 1), a passagem pelas 6
 telas logado (linha 3), ⌘K + Esc em três telas (linhas 4 e 5), e o console aberto

@@ -19,6 +19,7 @@ from workspace.services import anexos as anx
 from workspace.services import atendimento as atd
 from workspace.services import catalogo as svc
 from workspace.services import formulario as frm
+from workspace.services import mapa_aprovacao as mapa
 from workspace.services import reembolso as rmb
 from workspace.services.anexos import AnexoError
 from workspace.services.atendimento import AtendimentoError
@@ -378,6 +379,13 @@ def minhas_solicitacoes(request: HttpRequest) -> HttpResponse:
         {
             "solicitacoes": solicitacoes,
             "abertas": solicitacoes.filter(situacao__in=_ABERTAS).count(),
+            # Uma consulta só para a tela inteira, e não uma por linha: serve
+            # para dizer "está parado porque ninguém tem esse papel" em vez de
+            # deixar o pedido em "aguardando aprovação" sem explicação. Quem lê
+            # não pode consertar, mas silêncio é pior — é o que faz a pessoa
+            # mandar e-mail perguntando, que é o que o Workspace existe para
+            # substituir.
+            "papeis_orfaos": mapa.papeis_sem_titular(),
         },
     )
 

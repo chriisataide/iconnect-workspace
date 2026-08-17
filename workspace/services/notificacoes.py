@@ -99,6 +99,37 @@ def _url_das_minhas() -> str:
     return reverse("workspace:minhas_solicitacoes")
 
 
+def _avisar_que_o_papel_nao_tem_dono(solicitacao, etapa) -> None:
+    """O pedido parou num papel que ninguém ocupa. Avisa quem pode consertar.
+
+    Sem isto, este é o jeito mais silencioso de o produto perder um pedido: a
+    cadeia manda para "Compras", ninguém tem o papel de Compras, e a etapa não
+    aparece na bandeja de pessoa nenhuma. O solicitante vê "aguardando
+    aprovação" para sempre, e do outro lado não há lado.
+
+    A URL leva à tela de papéis, e não à bandeja: quem recebe este aviso não
+    tem o que decidir — tem o que conceder.
+    """
+    from identidade.services.administracao import quem_administra
+    from workspace.services.mapa_aprovacao import papeis_sem_titular
+
+    if etapa.papel_id not in papeis_sem_titular():
+        return
+
+    nome = etapa.papel.nome if etapa.papel_id else "?"
+    for pessoa in quem_administra():
+        criar(
+            destinatario=pessoa,
+            tipo=TipoNotificacao.APROVACAO_SEM_DONO,
+            titulo=f"{solicitacao.titulo} parou: ninguém tem o papel {nome}",
+            corpo=f"Enquanto o papel {nome} estiver vago, este pedido não "
+            "aparece na bandeja de ninguém.",
+            url=reverse("workspace:pessoas"),
+            dominio=solicitacao.dominio,
+            origem_id=str(solicitacao.pk),
+        )
+
+
 def ao_chegar_a_vez(sender, solicitacao, etapa, **kwargs) -> None:
     """Avisa quem tem a etapa da vez.
 
@@ -106,8 +137,16 @@ def ao_chegar_a_vez(sender, solicitacao, etapa, **kwargs) -> None:
     são três pessoas, e criar três linhas aqui significaria que aprovar uma
     deixaria duas notificações órfãs apontando para um pedido já decidido.
     Para essas, o aviso é o contador da bandeja, que reflete o estado real.
+
+    **Menos quando o papel não tem ninguém.** Aí não há bandeja em que o pedido
+    apareça: a etapa não tem destinatário, e o contador de todo mundo continua
+    zerado enquanto o pedido espera para sempre. Esse é o único caso em que
+    etapa por papel gera aviso — e ele vai para quem pode conceder o papel, que
+    é a única pessoa capaz de tirar o pedido dali.
     """
     if etapa.aprovador_id is None:
+        if etapa.papel_id:
+            _avisar_que_o_papel_nao_tem_dono(solicitacao, etapa)
         return
 
     # Reusa o filtro de moeda em vez de formatar aqui: dois lugares formatando

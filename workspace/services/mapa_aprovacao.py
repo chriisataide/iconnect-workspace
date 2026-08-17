@@ -21,6 +21,33 @@ from identidade.models import AtribuicaoPapel
 from workspace.models.aprovacao import RegraAprovacao, TipoAprovador
 
 
+def papeis_sem_titular() -> set[int]:
+    """Os papéis de aprovação que ninguém ocupa hoje.
+
+    Uma consulta só, devolvendo ids: a tela de "minhas solicitações" precisa
+    marcar as etapas paradas, e perguntar por linha custaria uma consulta por
+    pedido numa tela que já é uma lista.
+
+    Só papéis que APARECEM em regra de aprovação. Papel sem titular que não
+    aprova nada não trava pedido nenhum, e listá-lo aqui transformaria a marca
+    de "parado" em ruído.
+    """
+    usados = set(
+        RegraAprovacao.objects.filter(ativa=True, tipo=TipoAprovador.PAPEL)
+        .exclude(papel__isnull=True)
+        .values_list("papel_id", flat=True)
+    )
+    if not usados:
+        return set()
+
+    ocupados = set(
+        AtribuicaoPapel.objects.vigentes()
+        .filter(papel_id__in=usados)
+        .values_list("papel_id", flat=True)
+    )
+    return usados - ocupados
+
+
 def resumo_de_aprovacao() -> list[dict]:
     """Quem aprova o quê, por área — a pergunta que a tela existe para responder.
 

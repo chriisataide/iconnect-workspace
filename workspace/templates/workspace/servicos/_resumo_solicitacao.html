@@ -56,6 +56,11 @@
         <span class="au-list-meta">
           {% if s.aprovacao and s.aprovacao.etapa_atual %}
             {{ s.aprovacao.etapa_atual.aprovador|default:s.aprovacao.etapa_atual.papel }}
+            {% if s.aprovacao.etapa_atual.papel_id in papeis_orfaos %}
+              <span class="au-list-resumo au-list-resumo--alerta">
+                {% trans "parado: ninguém tem este papel hoje" %}
+              </span>
+            {% endif %}
           {% else %}
             {% trans "ninguém — o pedido não está em fila de aprovação" %}
           {% endif %}
