@@ -1,5 +1,5 @@
-{% extends "workspace/_shell.html" %}
-{% load i18n %}
+{% extends "contas/_shell_entrar.html" %}
+{% load i18n static %}
 
 {% block titulo %}{% trans "Identificar-se" %}{% endblock %}
 
@@ -7,33 +7,46 @@
   Login do WORKSPACE, não do iConnect Platform. São dois sistemas e dois
   cadastros; esta tela nunca dá acesso ao outro.
 
-  Ela NÃO é a porta do produto: o Workspace é aberto, e ninguém chega aqui
-  navegando. Só se cai nesta tela ao tentar um ato que assina em nome de
-  alguém — aprovar, fechar acerto, cancelar — ou ao abrir o que é de outra
-  pessoa. Por isso o texto fala de "identificar-se" e não de "entrar".
+  ## A ideia que organiza o desenho
 
-  DOIS PAINÉIS, como a referência: formulário à esquerda sobre a cor da marca,
-  ilustração à direita. Duas diferenças conscientes em relação ao modelo:
+  Esta não é a porta do produto — o Workspace é aberto, e ninguém chega aqui
+  navegando. Só se cai nesta tela ao tentar um ato que ASSINA em nome de
+  alguém: aprovar, fechar um acerto, cancelar. É uma soleira, não uma catraca.
 
-  - a ilustração é SVG inline, desenhado aqui. A CSP não permite imagem de
-    terceiros, e um PNG de banco de imagens é peso e licença para um adorno;
-  - o azul é o `--au-btn-bg` do projeto (o navy do logo), e não o azul do
-    exemplo. A tela é da icodev, não da referência.
+  Por isso o painel da direita não é adorno: ele nomeia os três atos que
+  exigem identidade. Quem chegou aqui sem entender por quê tem a resposta na
+  mesma tela, em vez de uma ilustração de banco de imagens.
 
-  O "Remember" e o "Forgot password" do modelo ficaram de fora de propósito: a
-  sessão já dura o suficiente, e recuperação de senha não existe enquanto a
-  conta não nasce do Entra ID (ADR-013) — botão que leva a lugar nenhum é pior
-  que botão ausente.
+  ## O que mudou em relação à versão anterior
+
+  - **O formulário voltou para o branco.** Ele estava sobre o navy, o que
+    obrigava campo branco arredondado, rótulo semitransparente e um botão que
+    precisava brigar com o fundo — foi assim que ele acabou VERDE, usando o
+    token de "deu certo" para dizer "enviar". Campo escuro sobre claro é o
+    padrão do resto do produto, e aqui não havia motivo para ser exceção.
+  - **O verde saiu.** A marca da icodev é navy e crimson; verde ali não vinha
+    de lugar nenhum, e `--au-success` significa "operação concluída".
+  - **A ilustração saiu.** Duas pessoas ao lado de um celular não dizem nada
+    sobre este produto. O que ocupa o lugar é o desenho da própria cadeia de
+    aprovação — que é justamente o que exige saber quem você é.
 {% endcomment %}
 {% block conteudo %}
-  <section class="au-entrar">
-    <div class="au-entrar-painel">
-      <h1 class="au-entrar-titulo">{% trans "Identifique-se para continuar" %}</h1>
-      <p class="au-entrar-sub">
-        {% trans "O Workspace é aberto. Decidir em nome de alguém — aprovar, fechar um acerto, cancelar — e abrir o que é de outra pessoa exigem saber quem é você." %}
+<div class="au-porta">
+  <a class="au-porta-marca" href="{% url 'workspace:home' %}">
+    <img src="{% static 'workspace/img/icodev-wordmark.png' %}"
+         alt="icodev" width="132" height="45">
+    <span class="au-porta-marca-divisor" aria-hidden="true"></span>
+    <span class="au-porta-marca-produto">Workspace</span>
+  </a>
+
+  <main class="au-porta-cartao">
+    <section class="au-porta-form" id="entrar">
+      <h1 class="au-porta-titulo">{% trans "Identifique-se para continuar" %}</h1>
+      <p class="au-porta-sub">
+        {% trans "O Workspace é aberto — o catálogo, os documentos e as reservas não pedem senha. O que pede é assinar em nome de alguém." %}
       </p>
 
-      <form method="post" class="au-form au-entrar-form">
+      <form method="post" class="au-porta-campos">
         {% csrf_token %}
 
         {% if form.errors or bloqueado %}
@@ -55,83 +68,81 @@
         {% endif %}
 
         <div class="au-campo">
-          <label class="au-rotulo au-entrar-rotulo" for="id_username">
-            {% trans "E-mail corporativo" %}
-          </label>
-          <input class="au-input au-entrar-input" id="id_username" type="email"
+          <label class="au-rotulo" for="id_username">{% trans "E-mail corporativo" %}</label>
+          <input class="au-input" id="id_username" type="email"
                  name="username" autocomplete="username" required autofocus
                  placeholder="nome@icodev.com.br">
         </div>
 
         <div class="au-campo">
-          <label class="au-rotulo au-entrar-rotulo" for="id_password">
-            {% trans "Senha" %}
-          </label>
-          <input class="au-input au-entrar-input" id="id_password" type="password"
+          <label class="au-rotulo" for="id_password">{% trans "Senha" %}</label>
+          <input class="au-input" id="id_password" type="password"
                  name="password" autocomplete="current-password" required
                  placeholder="••••••••">
         </div>
 
-        <button class="au-btn au-entrar-enviar" type="submit">
+        <button class="au-btn au-btn--primario au-porta-enviar" type="submit">
           {% trans "Continuar" %}
         </button>
 
         <input type="hidden" name="next" value="{{ next }}">
       </form>
 
-      <p class="au-entrar-nota">
+      <p class="au-porta-nota">
         {% trans "Sua conta é a do Workspace, e não a do iConnect Platform — são dois cadastros." %}
-        <a class="au-entrar-volta" href="{% url 'workspace:home' %}">
-          {% trans "Voltar ao Workspace" %}
-        </a>
+        <a href="{% url 'workspace:home' %}">{% trans "Voltar ao Workspace" %}</a>
       </p>
-    </div>
+    </section>
 
     {% comment %}
-      A ilustração é decorativa: `aria-hidden`, sem texto alternativo. Ela não
-      carrega informação que o painel da esquerda já não diga — leitor de tela
-      anunciando "desenho de duas pessoas ao lado de um celular" só atrasa
-      quem quer chegar ao campo de e-mail.
+      O PAINEL DA DIREITA — o porquê, não um enfeite.
 
-      `currentColor` e os tokens fazem ela acompanhar o tema escuro sem uma
-      segunda cópia do desenho.
+      Ele responde a pergunta de quem foi parado aqui sem esperar: "por que
+      preciso entrar num portal que estava aberto?". A resposta é a lista dos
+      atos que assinam com um nome.
+
+      O desenho no topo é a cadeia de aprovação em três degraus, geométrica e
+      em `currentColor`: é a estrutura do produto, e não uma cena de escritório
+      que serviria para qualquer software do mundo.
+
+      `aria-hidden` só no desenho. A lista é texto de verdade e é lida.
     {% endcomment %}
-    <div class="au-entrar-arte" aria-hidden="true">
-      <svg viewBox="0 0 320 260" fill="none" xmlns="http://www.w3.org/2000/svg">
-        <!-- avião de papel e o rastro, como no modelo -->
-        <path d="M232 30 L266 44 L240 52 L236 70 L228 52 Z" class="au-arte-marca"/>
-        <path d="M240 56 C268 78 268 96 244 104 C220 112 214 124 226 136"
-              class="au-arte-tracejado" stroke-dasharray="5 7"/>
-
-        <!-- o "celular" com o cartão de identidade -->
-        <rect x="112" y="52" width="96" height="164" rx="14" class="au-arte-tela"/>
-        <circle cx="160" cy="92" r="18" class="au-arte-avatar"/>
-        <path d="M160 86a6 6 0 100 12 6 6 0 000-12zM148 108c2-7 6-10 12-10s10 3 12 10z"
-              class="au-arte-avatar-fig"/>
-        <rect x="128" y="126" width="64" height="12" rx="6" class="au-arte-linha"/>
-        <rect x="128" y="146" width="64" height="12" rx="6" class="au-arte-linha"/>
-        <rect x="128" y="170" width="64" height="14" rx="7" class="au-arte-botao"/>
-
-        <!-- a pessoa em pé, apresentando a tela -->
-        <circle cx="72" cy="96" r="16" class="au-arte-pele"/>
-        <path d="M56 96c0-14 7-22 16-22s16 8 16 22c0 8-4 10-4 18h-24c0-8-4-10-4-18z"
-              class="au-arte-cabelo"/>
-        <path d="M60 118h26l6 34H56z" class="au-arte-roupa"/>
-        <path d="M86 128c12 2 18 8 22 16" class="au-arte-braco"/>
-        <path d="M58 152h28l-2 56h-10l-2-34-4 34H58z" class="au-arte-calca"/>
-
-        <!-- a pessoa sentada com o notebook -->
-        <circle cx="242" cy="164" r="13" class="au-arte-pele"/>
-        <path d="M229 162c0-11 6-16 13-16s13 5 13 16c-4-4-9-5-13-3s-9 2-13 3z"
-              class="au-arte-cabelo"/>
-        <path d="M230 180h24l4 26h-32z" class="au-arte-roupa"/>
-        <path d="M224 206h40l-2 8h-38z" class="au-arte-notebook"/>
-
-        <!-- planta -->
-        <path d="M286 214c-10-8-12-22-6-34 8 6 12 20 6 34z" class="au-arte-folha"/>
-        <path d="M286 214c8-10 20-12 30-8-6 8-18 12-30 8z" class="au-arte-folha"/>
-        <path d="M276 214h26l-4 26h-18z" class="au-arte-vaso"/>
+    <aside class="au-porta-lado">
+      <svg class="au-porta-arte" viewBox="0 0 200 132" fill="none" aria-hidden="true">
+        <!-- os três degraus da cadeia, empilhados -->
+        <rect x="16" y="10" width="120" height="26" rx="8" class="au-porta-arte-degrau"/>
+        <rect x="30" y="53" width="120" height="26" rx="8" class="au-porta-arte-degrau"/>
+        <rect x="44" y="96" width="120" height="26" rx="8" class="au-porta-arte-degrau au-porta-arte-degrau--fim"/>
+        <!-- o traço que liga um degrau ao seguinte -->
+        <path d="M76 36v17M90 79v17" class="au-porta-arte-fio"/>
+        <!-- a assinatura: o visto que só existe com um nome atrás -->
+        <path d="M150 100l7 8 15-18" class="au-porta-arte-visto"/>
+        <circle cx="161" cy="109" r="21" class="au-porta-arte-anel"/>
       </svg>
-    </div>
-  </section>
+
+      <p class="au-porta-lado-titulo">{% trans "O que exige o seu nome" %}</p>
+      <ul class="au-porta-atos">
+        <li>
+          <svg class="au-icon" aria-hidden="true"><use href="#i-check"></use></svg>
+          <span>{% trans "Aprovar ou devolver o pedido de outra pessoa" %}</span>
+        </li>
+        <li>
+          <svg class="au-icon" aria-hidden="true"><use href="#i-wallet"></use></svg>
+          <span>{% trans "Fechar o acerto de um adiantamento" %}</span>
+        </li>
+        <li>
+          <svg class="au-icon" aria-hidden="true"><use href="#i-file"></use></svg>
+          <span>{% trans "Abrir um anexo — atestado, comprovante, contrato" %}</span>
+        </li>
+      </ul>
+      <p class="au-porta-lado-nota">
+        {% trans "Cada um desses atos fica registrado com o seu nome na linha do tempo do pedido." %}
+      </p>
+    </aside>
+  </main>
+
+  <p class="au-porta-rodape">
+    {% blocktrans %}iConnect Workspace · a vida corporativa em um lugar{% endblocktrans %}
+  </p>
+</div>
 {% endblock %}

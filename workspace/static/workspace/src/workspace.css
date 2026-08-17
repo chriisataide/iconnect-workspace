@@ -1899,207 +1899,215 @@ a.au-notif-titulo:hover { color: var(--au-accent-text); text-decoration: underli
   .au-trilha-passo--atual .au-trilha-titulo { display: inline; }
 }
 
-/* ── Identificar-se ─────────────────────────────────────────────────
-   Dois painéis: formulário sobre a cor da marca à esquerda, ilustração à
-   direita. Não é a porta do produto — o Workspace continua aberto atrás —,
-   então o cartão é uma parada no caminho, e não uma tela cheia de login.
+/* ═══ A SOLEIRA — a tela de identificar-se ═══════════════════════════
+   Não é a porta do produto: o Workspace é aberto, e ninguém chega aqui
+   navegando. Só se cai nesta tela ao tentar um ato que ASSINA em nome de
+   alguém. O desenho segue essa ideia — o campo do lado esquerdo, o porquê do
+   lado direito.
 
-   No celular a arte sai: ela é adorno, e adorno não empurra o campo de senha
-   para baixo da dobra. */
+   Ela tem casca própria (`contas/_shell_entrar.html`), sem topbar e sem
+   rodapé do Workspace: a topbar ganhou um botão "Entrar" e ele passou a
+   aparecer dentro da própria tela de entrar.
 
-.au-entrar {
+   Havia DUAS versões destas regras no arquivo, uma sobrescrevendo a outra —
+   a de cartão estreito ganhava da de dois painéis por vir depois. Junto delas
+   viajava uma cópia byte a byte do bloco do Stepper. As três saíram. */
+
+.au-corpo-porta {
+  min-height: 100vh;
+  margin: 0;
+  /* O navy da marca ocupa a tela: quem foi parado aqui está fora do produto,
+     e o fundo diz isso antes de qualquer texto. Não é `--au-bg`, que é a
+     superfície de trabalho. */
+  background:
+    radial-gradient(120% 90% at 15% 0%, #2b2e8a 0%, #212369 45%, #1a1c55 100%);
+  color: var(--au-text);
+}
+
+.au-porta {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--au-6);
+  padding: var(--au-6) var(--au-4);
+}
+
+.au-porta-marca {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--au-3);
+  text-decoration: none;
+  /* Sobre o navy, o texto de apoio é branco com transparência: um cinza dos
+     tokens é calculado para fundo claro e some aqui. */
+  color: rgb(255 255 255 / .92);
+}
+.au-porta-marca img { display: block; height: 34px; width: auto; }
+.au-porta-marca-divisor {
+  width: 1px; height: 20px;
+  background: rgb(255 255 255 / .3);
+}
+.au-porta-marca-produto {
+  font-size: var(--au-t-lg);
+  font-weight: 600;
+  letter-spacing: -.01em;
+}
+
+/* ── O cartão, em dois painéis ─────────────────────────────────────── */
+
+.au-porta-cartao {
+  width: 100%;
+  max-width: 62rem;
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-  max-width: 60rem;
-  margin: var(--au-6) auto;
+  /* O formulário um pouco mais largo que o painel do porquê: quem chegou aqui
+     veio digitar, e a explicação é apoio. */
+  grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr);
   border-radius: var(--au-r-lg);
   overflow: hidden;
-  box-shadow: var(--au-e-3);
+  box-shadow: 0 30px 60px -20px rgb(0 0 0 / .45), 0 0 0 1px rgb(255 255 255 / .07);
+}
+
+/* O FORMULÁRIO SOBRE BRANCO, e não sobre a cor da marca.
+
+   Ele já esteve sobre o navy, e isso obrigava campo branco arredondado,
+   rótulo semitransparente e um botão que precisava brigar com o fundo — foi
+   assim que o botão acabou VERDE, usando o token de "deu certo" para dizer
+   "enviar". Campo escuro sobre claro é o padrão do resto do produto, e aqui
+   não havia razão para ser exceção. */
+.au-porta-form {
+  padding: var(--au-8) var(--au-7);
   background: var(--au-surface);
+  display: flex;
+  flex-direction: column;
 }
 
-.au-entrar-painel {
-  padding: var(--au-8);
-  background: var(--au-btn-bg);
-  color: var(--au-btn-fg);
-}
-
-.au-entrar-titulo {
+.au-porta-titulo {
   margin: 0 0 var(--au-2);
   font-size: var(--au-t-2xl);
   font-weight: 700;
-  letter-spacing: -.02em;
+  letter-spacing: -.022em;
+  line-height: 1.15;
+  text-wrap: balance;
 }
 
-.au-entrar-sub {
+.au-porta-sub {
   margin: 0;
-  font-size: var(--au-t-sm);
-  /* Sobre o navy, o texto de apoio é o mesmo branco com transparência: um
-     cinza dos tokens seria calculado para fundo claro e sumiria aqui. */
-  color: rgb(255 255 255 / .82);
+  max-width: 34ch;
+  font-size: var(--au-t-base);
+  color: var(--au-text-muted);
 }
 
-.au-entrar-form { margin-top: var(--au-6); gap: var(--au-4); }
-.au-entrar-rotulo { color: rgb(255 255 255 / .9); }
-
-/* Campo branco e arredondado, como na referência — e com contorno próprio,
-   porque o `--au-border` dos tokens é calculado para fundo claro. */
-.au-entrar-input {
-  border-radius: var(--au-r-full);
-  border-color: transparent;
-  padding: var(--au-3) var(--au-5);
-}
-.au-entrar-input:focus-visible {
-  box-shadow: 0 0 0 3px rgb(255 255 255 / .45);
+.au-porta-campos {
+  margin-top: var(--au-6);
+  display: flex;
+  flex-direction: column;
+  gap: var(--au-4);
 }
 
-.au-entrar-enviar {
+.au-porta-enviar {
   margin-top: var(--au-2);
   width: 100%;
   justify-content: center;
-  border-radius: var(--au-r-full);
   padding: var(--au-3) var(--au-5);
-  background: var(--au-success);
-  border-color: var(--au-success);
-  color: #ffffff;
-  font-weight: 650;
-  letter-spacing: .02em;
+  font-size: var(--au-t-lg);
 }
-.au-entrar-enviar:hover { filter: brightness(.94); }
 
-.au-entrar-nota {
-  margin: var(--au-6) 0 0;
-  padding-top: var(--au-4);
-  border-top: 1px solid rgb(255 255 255 / .22);
+.au-porta-nota {
+  margin: auto 0 0;
+  padding-top: var(--au-5);
   font-size: var(--au-t-xs);
-  color: rgb(255 255 255 / .82);
-}
-
-.au-entrar-volta { color: #ffffff; text-decoration: underline; }
-
-.au-entrar-arte {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: var(--au-6);
-  background: var(--au-surface);
-}
-.au-entrar-arte svg { width: 100%; height: auto; max-width: 22rem; }
-
-.au-arte-marca  { fill: var(--au-accent); }
-.au-arte-tela   { fill: var(--au-accent); }
-.au-arte-avatar { fill: var(--au-surface); }
-.au-arte-avatar-fig { fill: var(--au-accent); }
-.au-arte-linha  { fill: var(--au-surface); opacity: .85; }
-.au-arte-botao  { fill: var(--au-success); }
-.au-arte-tracejado { stroke: var(--au-text-subtle); stroke-width: 2; fill: none; }
-.au-arte-pele   { fill: var(--au-warning-bg); }
-.au-arte-cabelo { fill: var(--au-text); }
-.au-arte-roupa  { fill: var(--au-success); }
-.au-arte-braco  { stroke: var(--au-warning-bg); stroke-width: 7; stroke-linecap: round; fill: none; }
-.au-arte-calca  { fill: var(--au-text); }
-.au-arte-notebook { fill: var(--au-text-subtle); }
-.au-arte-folha  { fill: var(--au-success); opacity: .55; }
-.au-arte-vaso   { fill: var(--au-text-subtle); opacity: .5; }
-
-@media (max-width: 46rem) {
-  .au-entrar { grid-template-columns: minmax(0, 1fr); margin: 0; }
-  .au-entrar-painel { padding: var(--au-6); }
-  /* A arte é adorno: no celular ela só empurraria a senha para fora da tela. */
-  .au-entrar-arte { display: none; }
-}
-
-/* ── Stepper: trilha e passos ───────────────────────────────────────
-   A trilha mostra onde a pessoa está e quanto falta — a única razão de dividir
-   um formulário em passos. O passo que acontece depois do envio aparece igual,
-   em cinza: esconder que ainda falta uma etapa faz a pessoa achar que acabou. */
-
-.au-trilha {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--au-3);
-  list-style: none;
-  margin: 0 0 var(--au-4);
-  padding: 0 0 var(--au-3);
-  border-bottom: 1px solid var(--au-border);
-}
-
-.au-trilha-passo {
-  display: flex;
-  align-items: center;
-  gap: var(--au-2);
-  font-size: var(--au-t-sm);
   color: var(--au-text-subtle);
 }
+.au-porta-nota a { color: var(--au-accent-text); }
 
-.au-trilha-num {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 22px;
-  height: 22px;
-  border-radius: var(--au-r-full);
-  border: 1px solid var(--au-border);
-  background: var(--au-surface);
-  font-size: var(--au-t-xs);
-  font-weight: 650;
-  font-variant-numeric: tabular-nums;
-}
+/* ── O painel do porquê ────────────────────────────────────────────── */
 
-.au-trilha-passo--atual { color: var(--au-text); font-weight: 600; }
-.au-trilha-passo--atual .au-trilha-num {
-  background: var(--au-btn-bg);
-  border-color: var(--au-btn-bg);
-  color: var(--au-btn-fg);
-}
-
-.au-trilha-passo--feito .au-trilha-num {
-  background: var(--au-accent-bg);
-  border-color: var(--au-accent-bg);
-  color: var(--au-accent-text);
-}
-
-/* O que ainda vai acontecer em outra tela: presente, mas claramente não agora. */
-.au-trilha-passo--depois { opacity: .65; }
-.au-trilha-nota { font-size: var(--au-t-xs); }
-
-/* O nome do passo. Some em tela estreita: a numeração sozinha já situa, e a
-   trilha quebrando em quatro linhas empurra o formulário para baixo da dobra. */
-.au-trilha-titulo { white-space: nowrap; }
-
-@media (max-width: 640px) {
-  .au-trilha-titulo { display: none; }
-  .au-trilha-passo--atual .au-trilha-titulo { display: inline; }
-}
-
-/* ── Identificar-se ─────────────────────────────────────────────────
-   Cartão estreito e centrado. Não é a porta do produto — ninguém chega aqui
-   navegando —, então ela não ocupa a tela inteira como o login de um sistema
-   fechado: é uma parada no meio do caminho, e o Workspace continua atrás. */
-
-.au-entrar {
-  display: flex;
-  justify-content: center;
-}
-
-.au-entrar-cartao {
-  width: 100%;
-  /* A medida de leitura de um formulário de duas linhas. Mais largo que isto
-     e os campos viram faixas de ponta a ponta da tela, que é justamente o que
-     esta tela parecia antes de existir esta regra. */
-  max-width: 26rem;
-  padding: var(--au-6);
+.au-porta-lado {
+  padding: var(--au-8) var(--au-7);
+  background: linear-gradient(160deg, #2b2e8a 0%, #212369 100%);
+  color: rgb(255 255 255 / .88);
   display: flex;
   flex-direction: column;
-  gap: var(--au-2);
+  gap: var(--au-4);
 }
 
-.au-entrar-form { margin-top: var(--au-5); }
+.au-porta-arte { width: 100%; max-width: 13rem; height: auto; }
+.au-porta-arte-degrau { fill: rgb(255 255 255 / .13); }
+.au-porta-arte-degrau--fim { fill: rgb(255 255 255 / .22); }
+.au-porta-arte-fio {
+  stroke: rgb(255 255 255 / .35);
+  stroke-width: 2;
+  stroke-linecap: round;
+}
+/* O ÚNICO ponto de crimson da tela, e o único traço colorido do desenho: o
+   visto é o ato que exige um nome atrás, que é o assunto desta tela inteira.
+   Crimson porque é a marca — nunca porque significa erro. */
+.au-porta-arte-visto {
+  stroke: var(--au-marca);
+  stroke-width: 3.5;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  fill: none;
+}
+.au-porta-arte-anel {
+  stroke: var(--au-marca);
+  stroke-width: 1.5;
+  fill: none;
+  opacity: .45;
+}
 
-.au-entrar-nota {
-  margin-top: var(--au-5);
+.au-porta-lado-titulo {
+  margin: 0;
+  font-size: var(--au-t-xs);
+  font-weight: 650;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+  color: rgb(255 255 255 / .6);
+}
+
+.au-porta-atos {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: var(--au-3);
+}
+.au-porta-atos li {
+  display: grid;
+  grid-template-columns: 18px 1fr;
+  gap: var(--au-3);
+  align-items: start;
+  font-size: var(--au-t-base);
+  line-height: 1.5;
+}
+.au-porta-atos .au-icon {
+  width: 18px; height: 18px;
+  margin-top: 2px;
+  color: rgb(255 255 255 / .55);
+}
+
+.au-porta-lado-nota {
+  margin: auto 0 0;
   padding-top: var(--au-4);
-  border-top: 1px solid var(--au-border);
+  border-top: 1px solid rgb(255 255 255 / .16);
+  font-size: var(--au-t-xs);
+  color: rgb(255 255 255 / .6);
+}
+
+.au-porta-rodape {
+  margin: 0;
+  font-size: var(--au-t-xs);
+  color: rgb(255 255 255 / .5);
+}
+
+@media (max-width: 780px) {
+  .au-porta-cartao { grid-template-columns: minmax(0, 1fr); }
+  .au-porta-form { padding: var(--au-6) var(--au-5); }
+  /* O painel do porquê some no celular. Ele explica, e explicação não pode
+     empurrar o campo de senha para fora da tela. */
+  .au-porta-lado { display: none; }
 }
 
 /* ── Campo fora do ramo, em modo cinza ──────────────────────────────
