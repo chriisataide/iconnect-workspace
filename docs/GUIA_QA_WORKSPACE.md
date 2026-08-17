@@ -55,8 +55,52 @@ python manage.py semear_catalogo --aplicar            # os 26 serviços do catá
 python manage.py semear_regras_aprovacao --aplicar    # gestor → área → 50k → 300k
 python manage.py importar_organograma docs/exemplos/organograma-inicial.csv --criar-usuarios --aplicar
 python manage.py semear_acessos --aplicar             # senha sorteada + papel por cargo
+python manage.py semear_perfis --aplicar              # um usuário POR PAPEL, para testar
 python manage.py reindexar_busca                      # popula o índice da ⌘K
 ```
+
+### 1.2.1 Os 16 perfis de teste — um por papel
+
+O organograma tem gente com nome de gente (`gerente.suporte`, `tecnico.campo`).
+É realista, e é péssimo para testar: para saber quem vê a fila de Compras é
+preciso lembrar que Compras caiu no gerente de suporte.
+
+O `semear_perfis` resolve isso — **o e-mail é a resposta**. Todos com a senha
+`workspace123`:
+
+| Entrar como | Atende a fila de | Aprova |
+|---|---|---|
+| `colaborador@icodev.com.br` | — | nada — é a pessoa que só **pede** |
+| `gestor@icodev.com.br` | — | o 1º degrau de quem responde a ele |
+| `rh@icodev.com.br` | R.H. | `rh.*` — e é o único que abre **`/pessoas/`** |
+| `financeiro@icodev.com.br` | Financeiro | `fin.*` |
+| `compras@icodev.com.br` | Compras | `com.*` |
+| `vendas@icodev.com.br` | Vendas | `ven.*` |
+| `sesmt@icodev.com.br` | SESMT | `hab.*` |
+| `ti@icodev.com.br` | TI | — |
+| `logistica@icodev.com.br` | Logística | — |
+| `operacao@icodev.com.br` | Operação | — |
+| `juridico@icodev.com.br` | Jurídico | — |
+| `marketing@icodev.com.br` | Marketing | — |
+| `diretoria@icodev.com.br` | — | **qualquer** degrau, e o de 20 acima de R$ 50 mil |
+| `socios@icodev.com.br` | — | **qualquer** degrau, e o de 30 acima de R$ 300 mil |
+| `auditoria@icodev.com.br` | — | — (só leitura de auditoria) |
+| `monitoramento@icodev.com.br` | — | — (só o painel de operação) |
+
+A hierarquia vem montada: `colaborador@` → `gestor@` → `diretoria@` →
+`socios@`, e toda área responde a `gestor@`. Sem ela o primeiro degrau da
+cadeia não existiria — a regra de ordem 10 é `GESTOR_DIRETO` e sai da
+**lotação**, não de papel.
+
+> **Diretoria e Sócios decidem sem ter fila, e isso não é bug.** Os dois papéis
+> têm `apr.aprovar.global`, que alcança qualquer degrau — inclusive os de gestor
+> direto. Aprovar e **atender** são coisas diferentes: eles decidem, não
+> executam.
+
+> **A bandeja abre para todos, a fila não.** Qualquer pessoa pode virar
+> aprovadora (basta alguém tê-la como gestor), então bandeja vazia é verdade.
+> Já "sua fila está vazia" para quem não atende nada seria mentira — por isso a
+> fila responde **403**.
 
 Todos rodam em **simulação por padrão**: sem `--aplicar` eles só relatam. Isso é
 deliberado e vale testar — rodar sem a flag não pode gravar nada.
