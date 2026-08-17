@@ -150,6 +150,32 @@ def test_nao_troca_senha_de_quem_ja_entra(organograma):
     assert pessoa.check_password("a-que-eu-escolhi")
 
 
+def test_senha_escolhida_vale_para_todo_mundo(organograma):
+    """Para demonstrar de mesa: uma senha que dá para digitar sem consultar."""
+    semear(aplicar=True, senha="workspace123")
+
+    for apelido in ("socio", "diretor", "gerente", "tecnico"):
+        organograma[apelido].refresh_from_db()
+        assert organograma[apelido].check_password("workspace123")
+
+
+def test_senha_escolhida_avisa_que_e_so_para_demonstracao(organograma):
+    saida = semear(aplicar=True, senha="workspace123")
+
+    assert "SENHA ÚNICA" in saida
+
+
+def test_senha_escolhida_nao_alcanca_superusuario(organograma):
+    """Nem a senha fácil entra na conta de emergência."""
+    chefe = organograma["chefe"]
+    antes = chefe.password
+
+    semear(aplicar=True, senha="workspace123", resortear=True)
+
+    chefe.refresh_from_db()
+    assert chefe.password == antes
+
+
 def test_resortear_troca_a_senha_de_quem_ja_tem(organograma):
     """Para quando a senha passou por um lugar por onde não devia."""
     semear(aplicar=True)

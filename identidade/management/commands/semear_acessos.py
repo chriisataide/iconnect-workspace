@@ -113,6 +113,14 @@ class Command(BaseCommand):
             action="store_true",
             help="Troca a senha de quem já tem. Superusuário continua intocado.",
         )
+        parser.add_argument(
+            "--senha",
+            default="",
+            help=(
+                "Usa esta senha para todo mundo, em vez de sortear. Só para "
+                "demonstração — uma senha para sete pessoas não é senha."
+            ),
+        )
 
     def handle(self, *args, **opcoes):
         aplicar = opcoes["aplicar"]
@@ -128,16 +136,28 @@ class Command(BaseCommand):
                 self.style.WARNING("SIMULAÇÃO — nada será gravado. Use --aplicar.\n")
             )
 
+        escolhida = (opcoes["senha"] or "").strip()
+        if escolhida:
+            self.stdout.write(
+                self.style.WARNING(
+                    "SENHA ÚNICA para todo mundo. Serve para demonstrar, e só: "
+                    "uma senha para sete pessoas não distingue ninguém, e é o "
+                    "oposto do que o controle de acesso deste produto faz.\n"
+                )
+            )
+
         with transaction.atomic():
-            senhas, papeis, pulados = self._semear(aplicar, opcoes["resortear"])
+            senhas, papeis, pulados = self._semear(
+                aplicar, opcoes["resortear"], escolhida
+            )
             if not aplicar:
                 transaction.set_rollback(True)
 
-        self._relatar(senhas, papeis, pulados, aplicar)
+        self._relatar(senhas, papeis, pulados, aplicar, bool(escolhida))
 
     # ── O trabalho ──────────────────────────────────────────────────
 
-    def _semear(self, aplicar, resortear=False):
+    def _semear(self, aplicar, resortear=False, escolhida=""):
         quem = self._concedente()
         senhas: list[tuple[str, str]] = []
         papeis: list[str] = []
@@ -153,7 +173,7 @@ class Command(BaseCommand):
             if pessoa.has_usable_password() and not resortear:
                 pulados.append(f"{pessoa.email} · já tem senha")
             else:
-                senha = get_random_string(TAMANHO_SENHA, ALFABETO)
+                senha = escolhida or get_random_string(TAMANHO_SENHA, ALFABETO)
                 if aplicar:
                     pessoa.set_password(senha)
                     pessoa.save(update_fields=["password"])
@@ -207,7 +227,7 @@ class Command(BaseCommand):
 
     # ── O relatório ─────────────────────────────────────────────────
 
-    def _relatar(self, senhas, papeis, pulados, aplicar):
+    def _relatar(self, senhas, papeis, pulados, aplicar, senha_escolhida=False):
         self.stdout.write("")
         self.stdout.write(self.style.MIGRATE_HEADING("Papéis concedidos"))
         for linha in papeis or ["  (nenhum — todos já tinham)"]:
@@ -223,9 +243,10 @@ class Command(BaseCommand):
             # quem anotasse descobriria na hora de entrar que o que está no
             # papel não vale — pior que não ter mostrado nada.
             self.stdout.write("")
-            self.stdout.write(self.style.MIGRATE_HEADING("Senhas que seriam sorteadas"))
+            self.stdout.write(self.style.MIGRATE_HEADING("Quem ganharia senha"))
+            marca = "(a que você passou)" if senha_escolhida else "(sorteada ao aplicar)"
             for email, _ in senhas:
-                self.stdout.write(f"  {email:<45} (sorteada ao aplicar)")
+                self.stdout.write(f"  {email:<45} {marca}")
 
         if senhas and aplicar:
             self.stdout.write("")
