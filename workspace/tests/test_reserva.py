@@ -280,10 +280,22 @@ def test_agenda_nao_mostra_cancelada(cenario):
 
 
 def test_agenda_de_outro_dia(cenario):
-    res.reservar(cenario["sala"], cenario["ana"], daqui(2), daqui(4))
-    amanha = timezone.localdate() + timedelta(days=1)
+    """A agenda de um dia não mostra a reserva de outro.
 
-    assert not list(res.agenda_do_dia(cenario["sala"], amanha))
+    `na_agenda()` e não `daqui()`: com `daqui(2)`–`daqui(4)`, quem rodasse a
+    suíte depois das 20h reservava das 23h à 1h — atravessando a meia-noite —,
+    e a reserva aparecia legitimamente na agenda de amanhã. O teste reprovava
+    dizendo que a agenda vazou, quando o vazamento era do relógio.
+
+    Terceiro flake por hora do dia nesta base. Os outros dois: `daqui(4)` fora
+    da agenda comercial depois das 13h, e a publicação de hoje às 08:00 que
+    reprovava de madrugada.
+    """
+    inicio = na_agenda(9)
+    res.reservar(cenario["sala"], cenario["ana"], inicio, inicio + timedelta(hours=2))
+    outro_dia = inicio.date() + timedelta(days=1)
+
+    assert not list(res.agenda_do_dia(cenario["sala"], outro_dia))
 
 
 def test_agrupados_na_ordem_do_enum(cenario):

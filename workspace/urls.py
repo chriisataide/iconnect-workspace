@@ -37,6 +37,7 @@ urlpatterns = [
          views.identificar_correspondencia, name="identificar_correspondencia"),
     # Meu dia e notificações.
     path("meu-dia/", views.meu_dia, name="meu_dia"),
+    path("indicadores/", views.indicadores, name="indicadores"),
     path("notificacoes/", views.notificacoes, name="notificacoes"),
     path("notificacoes/lidas/", views.marcar_lidas, name="marcar_lidas"),
     # Serviços.

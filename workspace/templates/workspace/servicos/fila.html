@@ -27,7 +27,12 @@
   Três números no topo, e o do meio é o que muda comportamento: "meus" é o
   trabalho que já tem o seu nome, e é por ele que se começa o dia.
 {% endcomment %}
-{% if solicitacoes %}
+{% comment %}
+  `resumo.total` e não `solicitacoes`: a lista de baixo é a FILTRADA, e testar
+  por ela mandaria quem filtrou por "sem dono" numa fila cheia para a tela de
+  "nada esperando você" — que é falso, e assusta.
+{% endcomment %}
+{% if resumo.total %}
   <div class="au-kpi-linha">
     <div class="au-kpi">
       <span class="au-kpi-rotulo">{% trans "na fila" %}</span>
@@ -52,6 +57,38 @@
     </div>
   </div>
 
+  {% comment %}
+    Os três recortes que quem atende usa de verdade. "Assumidos por mim" é o
+    que começa o dia; "sem dono" é onde a fila trava quando todo mundo acha
+    que é do outro.
+
+    Os KPIs acima NÃO acompanham o filtro, de propósito — eles respondem "como
+    está a minha fila", e "3 atrasados" não pode virar "0 atrasados" porque a
+    pessoa clicou em outra aba.
+  {% endcomment %}
+  <div class="au-filtros">
+    <div class="au-filtros-chips">
+      {% for chave, rotulo in filtros %}
+        <a class="au-chip {% if filtro_atual == chave %}au-chip--ativo{% endif %}"
+           href="{% if chave %}?filtro={{ chave }}{% else %}{% url 'workspace:fila' %}{% endif %}"
+           {% if filtro_atual == chave %}aria-current="true"{% endif %}>
+          {{ rotulo }}
+        </a>
+      {% endfor %}
+    </div>
+  </div>
+
+  {% if not solicitacoes %}
+    <div class="au-vazio">
+      <p class="au-vazio-titulo">{% trans "Nada com esse recorte." %}</p>
+      <p class="au-vazio-dica">
+        {% blocktrans %}A fila continua com trabalho — é este filtro que não encontra nenhum.{% endblocktrans %}
+      </p>
+      <p><a class="au-btn au-btn--sutil" href="{% url 'workspace:fila' %}">
+        {% trans "Ver a fila inteira" %}
+      </a></p>
+    </div>
+  {% else %}
   <div class="au-tabela">
     <table>
       <thead>
@@ -139,6 +176,9 @@
       </tbody>
     </table>
   </div>
+
+  {% include "workspace/_paginacao.html" %}
+  {% endif %}
 {% else %}
   <div class="au-vazio">
     <p class="au-vazio-titulo">{% trans "Nada esperando você." %}</p>

@@ -39,13 +39,16 @@ def modulo(request: HttpRequest, chave: str) -> HttpResponse:
     # listas — a completa (vitrine) e a permitida.
     permitidas = {i.chave for i in svc.catalogo_para(pessoa, cache=cache)}
 
+    do_modulo = svc.do_modulo(mod.dominios)
+    # Uma consulta de prazo para a vitrine inteira — ver `prazos_medidos()`.
+    prazos = svc.prazos_medidos(do_modulo)
     itens = [
         {
             "item": item,
-            "prazo": svc.prazo_medido(item),
+            "prazo": prazos[item.pk],
             "pode_pedir": item.chave in permitidas,
         }
-        for item in svc.do_modulo(mod.dominios)
+        for item in do_modulo
     ]
 
     pedidos = svc.minhas_do_modulo(pessoa, mod.dominios)

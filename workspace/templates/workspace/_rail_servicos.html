@@ -51,13 +51,27 @@
   "Atender" e "Aprovar" só aparecem para quem tem algo esperando. Rail com item
   vazio ensina o usuário a ignorar o rail.
 {% endcomment %}
-{% if administra_papeis %}
-  <p class="au-rail-grupo">{% trans "Administrar" %}</p>
-  <a class="au-rail-item {% if aba == 'pessoas' %}au-rail-item--ativo{% endif %}"
-     href="{% url 'workspace:pessoas' %}">
-    <svg class="au-icon" aria-hidden="true"><use href="#i-users"></use></svg>
-    {% trans "Pessoas e papéis" %}
-  </a>
+{% if ve_indicadores or administra_papeis %}
+  <p class="au-rail-grupo">{% trans "Acompanhar" %}</p>
+  {% comment %}
+    Indicadores aparece para quem tem `ind.ler` — Diretoria, Sócios e R.H. — e
+    também para quem ATENDE uma fila, que tem direito aos números da própria
+    área sem precisar pedir relatório para a diretoria toda semana.
+  {% endcomment %}
+  {% if ve_indicadores %}
+    <a class="au-rail-item {% if aba == 'indicadores' %}au-rail-item--ativo{% endif %}"
+       href="{% url 'workspace:indicadores' %}">
+      <svg class="au-icon" aria-hidden="true"><use href="#i-activity"></use></svg>
+      {% trans "Indicadores" %}
+    </a>
+  {% endif %}
+  {% if administra_papeis %}
+    <a class="au-rail-item {% if aba == 'pessoas' %}au-rail-item--ativo{% endif %}"
+       href="{% url 'workspace:pessoas' %}">
+      <svg class="au-icon" aria-hidden="true"><use href="#i-users"></use></svg>
+      {% trans "Pessoas e papéis" %}
+    </a>
+  {% endif %}
 {% endif %}
 
 {% if na_fila %}

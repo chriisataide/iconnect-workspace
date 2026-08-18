@@ -84,6 +84,8 @@ def test_o_trilho_do_anonimo_e_todo_zero(client, gente_com_coisas):
         "nao_lidas": 0,
         "na_fila": 0,
         "administra_papeis": False,
+        # O painel de indicadores segue a mesma regra: sem sessão, sem item.
+        "ve_indicadores": False,
     }
 
 

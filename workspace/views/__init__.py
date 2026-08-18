@@ -31,6 +31,7 @@ from .reserva import (
     reservar,
     reservas,
 )
+from .indicadores import indicadores
 from .publicacao import detalhe as publicacao_detalhe
 from .servicos import (
     acerto,
@@ -69,6 +70,7 @@ __all__ = [
     "documentacao",
     "documento",
     "home",
+    "indicadores",
     "marcar_lidas",
     "meu_dia",
     "minhas_solicitacoes",

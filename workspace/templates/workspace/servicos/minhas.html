@@ -18,7 +18,52 @@
 {% endblock %}
 
 {% block corpo %}
+{% comment %}
+  FILTRO E BUSCA.
+
+  Numa lista que só cresce, achar "aquele reembolso de março" era rolar a tela
+  — e depois de um ano isso deixa de ser incômodo e vira impossível.
+
+  `method="get"`: o recorte fica na URL, então dá para mandar o link para
+  alguém e voltar nele pelo histórico do navegador. Filtro que só existe em
+  POST é filtro que se perde ao apertar F5.
+
+  A busca olha o NOME do serviço e o motivo da devolução, e não o conteúdo do
+  formulário — ali moram atestado, dados bancários e motivo de afastamento.
+{% endcomment %}
+<form class="au-filtros" method="get" role="search">
+  <div class="au-filtros-chips">
+    {% for chave, rotulo, _ in filtros %}
+      <a class="au-chip {% if filtro_atual == chave %}au-chip--ativo{% endif %}"
+         href="?{% if chave %}situacao={{ chave }}{% endif %}{% if busca %}{% if chave %}&{% endif %}q={{ busca|urlencode }}{% endif %}"
+         {% if filtro_atual == chave %}aria-current="true"{% endif %}>
+        {{ rotulo }}
+      </a>
+    {% endfor %}
+  </div>
+
+  <div class="au-filtros-busca">
+    {% if filtro_atual %}<input type="hidden" name="situacao" value="{{ filtro_atual }}">{% endif %}
+    <label class="au-sr" for="q">{% trans "Buscar nos meus pedidos" %}</label>
+    <input class="au-input au-input--compacto" id="q" type="search" name="q"
+           value="{{ busca }}" placeholder="{% trans 'nome do serviço…' %}">
+    <button class="au-btn au-btn--sutil au-btn--pequeno" type="submit">
+      {% trans "Buscar" %}
+    </button>
+    {% if not sem_filtro %}
+      <a class="au-btn au-btn--sutil au-btn--pequeno" href="{% url 'workspace:minhas_solicitacoes' %}">
+        {% trans "Limpar" %}
+      </a>
+    {% endif %}
+  </div>
+</form>
+
 {% if solicitacoes %}
+  {% if not sem_filtro %}
+    <p class="au-pagina-desc au-filtros-achados">
+      {% blocktrans count n=encontradas %}{{ n }} pedido encontrado.{% plural %}{{ n }} pedidos encontrados.{% endblocktrans %}
+    </p>
+  {% endif %}
   <div class="au-tabela">
     <table>
       <thead>
@@ -136,15 +181,35 @@
   {% for s in solicitacoes %}
     {% include "workspace/servicos/_resumo_solicitacao.html" %}
   {% endfor %}
+
+  {% include "workspace/_paginacao.html" %}
 {% else %}
-  <div class="au-vazio">
-    <p class="au-vazio-titulo">{% trans "Você ainda não pediu nada." %}</p>
-    <p class="au-vazio-dica">
-      {% blocktrans %}Suas férias, reembolsos e requisições aparecem aqui.{% endblocktrans %}
-    </p>
-    <p><a class="au-btn au-btn--primario" href="{% url 'workspace:servicos' %}">
-      {% trans "Ver o catálogo" %}
-    </a></p>
-  </div>
+  {% comment %}
+    Duas telas vazias diferentes, e a distinção importa: "você ainda não pediu
+    nada" para quem chegou agora é acolhimento; a mesma frase para quem
+    filtrou por "canceladas" e não tem nenhuma é mentira, e faz a pessoa achar
+    que perdeu os pedidos.
+  {% endcomment %}
+  {% if sem_filtro %}
+    <div class="au-vazio">
+      <p class="au-vazio-titulo">{% trans "Você ainda não pediu nada." %}</p>
+      <p class="au-vazio-dica">
+        {% blocktrans %}Suas férias, reembolsos e requisições aparecem aqui.{% endblocktrans %}
+      </p>
+      <p><a class="au-btn au-btn--primario" href="{% url 'workspace:servicos' %}">
+        {% trans "Ver o catálogo" %}
+      </a></p>
+    </div>
+  {% else %}
+    <div class="au-vazio">
+      <p class="au-vazio-titulo">{% trans "Nada com esse recorte." %}</p>
+      <p class="au-vazio-dica">
+        {% blocktrans %}Seus pedidos continuam aqui — é este filtro que não encontra nenhum.{% endblocktrans %}
+      </p>
+      <p><a class="au-btn au-btn--sutil" href="{% url 'workspace:minhas_solicitacoes' %}">
+        {% trans "Ver todos" %}
+      </a></p>
+    </div>
+  {% endif %}
 {% endif %}
 {% endblock %}

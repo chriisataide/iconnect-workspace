@@ -16,6 +16,7 @@ from django.urls import reverse
 
 from workspace.models.catalogo import SolicitacaoServico
 from workspace.services import atendimento as atd
+from workspace.services import listagem as lst
 from workspace.services.atendimento import AtendimentoError
 
 
@@ -34,14 +35,31 @@ def fila(request: HttpRequest) -> HttpResponse:
         # nada é mentira, e faz a pessoa esperar por trabalho que nunca vem.
         raise PermissionDenied("Você não atende nenhuma fila de serviço.")
 
+    # Os KPIs são da fila INTEIRA, sempre. Eles respondem "como está a minha
+    # fila", e esse número não pode mudar porque a pessoa clicou num filtro —
+    # senão "3 atrasados" vira "0 atrasados" ao filtrar por "assumidos por
+    # mim", e a tela passa a esconder justamente o que ela existe para mostrar.
     resumo = atd.resumo_da_fila(request.user, cache=cache)
+
+    # A lista sai do PRÓPRIO resumo, já carregada. Consultar de novo faria a
+    # tela perguntar duas vezes a mesma coisa ao banco.
+    filtro = request.GET.get("filtro", "")
+    pagina = lst.paginar(
+        lst.filtrar_fila(resumo["solicitacoes"], request.user, filtro),
+        request.GET.get("p"),
+    )
+
     return render(
         request,
         "workspace/servicos/fila.html",
         {
             "resumo": resumo,
-            "solicitacoes": resumo["solicitacoes"],
-            "eu": request.user,
+            "pagina": pagina,
+            "solicitacoes": pagina.object_list,
+            "filtros": lst.FILTROS_FILA,
+            "filtro_atual": filtro,
+            "encontradas": pagina.paginator.count,
+            "params": lst.parametros_sem_pagina(request),
         },
     )
 

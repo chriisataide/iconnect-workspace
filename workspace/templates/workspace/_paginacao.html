@@ -1,0 +1,42 @@
+{% load i18n %}
+{% comment %}
+  Paginação — só aparece quando há mais de uma página.
+
+  Controle que aparece dizendo "página 1 de 1" ensina a pessoa a ignorá-lo, e
+  ocupa a altura de uma linha em toda lista curta do produto.
+
+  `params` carrega o filtro e a busca atuais. Sem ele, clicar em "próxima"
+  dentro de um filtro voltaria para a lista inteira — e a pessoa perderia o
+  recorte que acabou de montar sem entender por quê.
+{% endcomment %}
+{% if pagina.paginator.num_pages > 1 %}
+  <nav class="au-paginacao" aria-label="{% trans 'Páginas' %}">
+    {% if pagina.has_previous %}
+      <a class="au-btn au-btn--sutil au-btn--pequeno" href="?{{ params }}p={{ pagina.previous_page_number }}">
+        {% trans "Anterior" %}
+      </a>
+    {% else %}
+      {% comment %}
+        Desabilitado e não ausente: o botão que some faz os outros pularem de
+        lugar entre uma página e outra, e a pessoa erra o clique.
+      {% endcomment %}
+      <span class="au-btn au-btn--sutil au-btn--pequeno au-btn--inerte" aria-hidden="true">
+        {% trans "Anterior" %}
+      </span>
+    {% endif %}
+
+    <span class="au-paginacao-posicao">
+      {% blocktrans with atual=pagina.number total=pagina.paginator.num_pages %}Página {{ atual }} de {{ total }}{% endblocktrans %}
+    </span>
+
+    {% if pagina.has_next %}
+      <a class="au-btn au-btn--sutil au-btn--pequeno" href="?{{ params }}p={{ pagina.next_page_number }}">
+        {% trans "Próxima" %}
+      </a>
+    {% else %}
+      <span class="au-btn au-btn--sutil au-btn--pequeno au-btn--inerte" aria-hidden="true">
+        {% trans "Próxima" %}
+      </span>
+    {% endif %}
+  </nav>
+{% endif %}

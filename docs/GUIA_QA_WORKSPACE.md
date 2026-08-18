@@ -748,6 +748,26 @@ compras e os anexos. Esc fecha, o fundo fica inerte, e o foco não escapa —
   cegas.
 - Cancelar funciona e só para os próprios pedidos.
 - Anexos são baixáveis pelo dono.
+**Filtro, busca e paginação.** Chips de situação, uma caixa de busca e 20 por
+página.
+
+- O recorte fica na **URL** (`method="get"`), então dá para mandar o link para
+  alguém e voltar nele pelo histórico. Filtro que só existe em POST se perde
+  ao apertar F5.
+- **O filtro sobrevive à troca de página.** Clicar em "próxima" dentro de um
+  recorte não pode voltar para a lista inteira.
+- **A busca olha o NOME do serviço e o motivo da devolução — não o conteúdo do
+  formulário.** Ali moram atestado, dados bancários e motivo de afastamento;
+  uma busca que varre isso vira um vazador de dado sensível para quem espia a
+  tela de alguém.
+- **`?p=99` numa lista de duas páginas não dá 404**, cai na última: quem chega
+  assim veio de um link velho, e castigar a pessoa por uma URL que o próprio
+  produto deu é falta de educação do software.
+- **Filtro sem resultado NÃO diz "você ainda não pediu nada".** Essa frase para
+  quem filtrou é mentira, e faz a pessoa achar que perdeu os pedidos.
+- Lista com uma página só **não mostra a paginação** — controle dizendo
+  "página 1 de 1" ensina a ignorá-lo.
+
 - **"Parado: ninguém tem este papel hoje"** aparece na coluna *Esperando*
   quando a cadeia chegou a um papel vago. Quem lê não pode consertar — mas
   silêncio é o que faz a pessoa mandar e-mail perguntando, e o e-mail é o que
@@ -841,6 +861,17 @@ Operações, SESMT. É a tela de trabalho deles.
 - Assumir o que outra pessoa já assumiu é recusado, com o nome dela na mensagem.
 - Atender pedido de outra fila é recusado **mesmo pelo POST direto** — a tela
   não é a fonte de verdade.
+
+**O que testar — os filtros.** Tudo · Assumidos por mim · Sem dono · Além do
+prazo.
+
+- **Os KPIs do topo NÃO acompanham o filtro.** "3 atrasados" não pode virar "0
+  atrasados" porque a pessoa clicou noutra aba — a tela passaria a esconder
+  justamente o que ela existe para mostrar.
+- **"Sem dono" é o recorte que mais importa**: é onde a fila trava quando todo
+  mundo acha que é do outro.
+- Filtro vazio numa fila cheia diz **"nada com esse recorte"**, e não "nada
+  esperando você".
 
 **O que testar — o que voltou.** Um pedido reaberto por quem pediu (ver 3.7)
 reaparece aqui, nas mãos de quem o havia concluído.
@@ -1169,6 +1200,55 @@ declarado, e é correto).
 
 ---
 
+### 3.15 Indicadores — `/workspace/indicadores/`
+
+**Para que serve.** Os números que respondem se o portal está funcionando:
+quanto entra por área, quanto tempo leva até resolver, onde trava, e o que
+volta sem resolver.
+
+**Por que isso importa.** O produto media tudo e não mostrava nada. O índice
+`wks_evento_quem_idx` foi criado com um comentário dizendo para que servia —
+*"quantos o Fulano concluiu em julho"* — e **nada consultava**.
+
+**Quem vê o quê:**
+
+| Entrar como | Vê |
+|---|---|
+| `diretoria@` · `socios@` · `rh@` | a **empresa inteira** (permissão `ind.ler`) |
+| `compras@` · `financeiro@` · `ti@` … | **só a própria área** |
+| `colaborador@` · `gestor@` · `auditoria@` · `monitoramento@` | **403** |
+
+O item aparece no trilho, em "Acompanhar", só para quem tem painel.
+
+**O que testar:**
+
+- **403 e não tela zerada** para quem não tem área nenhuma. Números todos em
+  zero para quem nunca vai ter dado faz a pessoa achar que a empresa parou —
+  é a mesma regra da fila de atendimento.
+- **Quem atende vê só a sua fatia.** `compras@` não pode enxergar os números
+  do R.H. — e não deveria precisar pedir relatório para a diretoria toda
+  semana para ver os próprios.
+- **Os tempos são MEDIANAS, não médias**, e isso está escrito na tela. Um
+  pedido esquecido oitenta dias numa fila puxaria a média da área inteira e
+  faria o setor parecer lento.
+- **"Até aprovar" e "até resolver" ficam separados.** Somados viram um número
+  que ninguém sabe consertar: não se sabe se falta gente na fila ou se o
+  gestor não decide.
+- **"—" e não "0" sem amostra.** Zero diria "resolve no mesmo dia", que é o
+  oposto de "ainda não sei".
+- **Área sem movimento não vira linha.** Zero em todas as colunas é ruído que
+  empurra para baixo as áreas que têm o que mostrar.
+- **A taxa de reabertura nunca passa de 100%.** Na primeira medição deu
+  **200%**: um pedido reaberto deixa de estar "concluído", então saía do
+  denominador e continuava no numerador. O denominador é quantos já foram
+  entregues *alguma vez*.
+- **O período muda tudo**: 30, 90 ou 365 dias. `?dias=99999` cai no padrão em
+  vez de fazer uma consulta enorme por uma URL digitada.
+- **Fora da janela não conta.** Indicador acumulado desde a fundação nunca
+  melhora, por melhor que a equipe fique.
+
+---
+
 ## 4. Matriz perfil × tela
 
 Use como plano de cobertura. **A coluna "Anônimo" é a mais esquecida e a que mais
@@ -1301,7 +1381,7 @@ Para o outro lado, refaça com uma compra de **R$ 1.160**: a tela pede a conta
 
 ---
 
-## 7. Lista de regressão — as 17 armadilhas já corridas
+## 7. Lista de regressão — as 20 armadilhas já corridas
 
 Cada linha abaixo é um defeito **real**, encontrado e corrigido. Elas são a
 melhor lista de regressão que este produto tem, porque cada uma passou por uma
@@ -1326,6 +1406,9 @@ suíte verde uma vez.
 | 15 | Linha do tempo mostrava só o **último** aprovador | Cadeia de três degraus lida como se gestor e área nunca tivessem assinado |
 | 16 | Trilho mostrava ao **anônimo** os contadores de uma pessoa real | "4 não lidas" do superusuário visível a quem só abriu o endereço |
 | 17 | `var(--au-7)` — a escala pula o 7 | Declaração inválida derruba o `padding` inteiro; dois painéis sem margem |
+| 18 | Catálogo fazia **28 consultas** de prazo, uma por item | Cada uma lia todo o histórico do item; a tela mais visitada do produto |
+| 19 | Taxa de reabertura deu **200%** | Pedido reaberto sai do denominador e fica no numerador — número impossível num painel |
+| 20 | 3º flake por hora do dia (`daqui(4)` cruzava a meia-noite) | Suíte reprovava depois das 20h e passava o resto do dia |
 
 **Se você só tiver uma hora**, teste: o Roteiro B (linha 1), a passagem pelas 6
 telas logado (linha 3), ⌘K + Esc em três telas (linhas 4 e 5), e o console aberto

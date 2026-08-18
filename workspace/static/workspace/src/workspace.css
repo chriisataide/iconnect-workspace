@@ -1899,6 +1899,93 @@ a.au-notif-titulo:hover { color: var(--au-accent-text); text-decoration: underli
   .au-trilha-passo--atual .au-trilha-titulo { display: inline; }
 }
 
+/* ── Painel de indicadores ───────────────────────────────────────────
+   Duas colunas de apoio abaixo da tabela por área. O cartão é discreto de
+   propósito: num painel, o que precisa saltar é o NÚMERO fora do lugar, e
+   moldura forte em tudo faz o alerta desaparecer no meio da decoração. */
+
+.au-indicadores-titulo { margin: var(--au-6) 0 var(--au-3); }
+.au-indicadores-nota { margin-top: var(--au-3); max-width: 72ch; }
+.au-indicadores-blocos { margin-top: var(--au-6); }
+
+.au-cartao {
+  padding: var(--au-5);
+  border: 1px solid var(--au-border);
+  border-radius: var(--au-r-md);
+  background: var(--au-surface);
+}
+.au-cartao .au-secao-titulo { margin: 0 0 var(--au-1); }
+.au-cartao .au-ajuda { margin-bottom: var(--au-3); }
+
+/* ── Filtros de lista e paginação ────────────────────────────────────
+   Nenhuma lista do produto filtrava nem paginava. Funcionou o ano inteiro
+   porque o banco tinha dezenove pedidos: com quatorze, a página de "minhas
+   solicitações" já pesava 65 KB e levava quinze `<dialog>` montados no
+   servidor — um por linha, crescendo sem teto.
+
+   Os chips são LINKS e não botões: o recorte vive na URL, então dá para mandar
+   o link para alguém e voltar nele pelo histórico do navegador. Filtro que só
+   existe em POST se perde ao apertar F5. */
+
+.au-filtros {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--au-3);
+  margin-bottom: var(--au-4);
+}
+
+.au-filtros-chips { display: flex; flex-wrap: wrap; gap: var(--au-2); }
+.au-filtros-busca { display: flex; align-items: center; gap: var(--au-2); }
+.au-filtros-achados { margin-bottom: var(--au-3); }
+
+.au-chip {
+  display: inline-flex;
+  align-items: center;
+  height: 28px;
+  padding: 0 var(--au-3);
+  border: 1px solid var(--au-border);
+  border-radius: var(--au-r-full);
+  background: var(--au-surface);
+  color: var(--au-text-muted);
+  font-size: var(--au-t-sm);
+  font-weight: 550;
+  text-decoration: none;
+  white-space: nowrap;
+}
+.au-chip:hover { border-color: var(--au-border-strong); color: var(--au-text); }
+
+/* O ativo muda de PESO e de fundo, não só de cor: chip que se distingue apenas
+   pelo tom desaparece para quem não separa bem as duas cores. */
+.au-chip--ativo {
+  border-color: var(--au-accent);
+  background: var(--au-accent-bg);
+  color: var(--au-accent-text);
+  font-weight: 650;
+}
+
+.au-paginacao {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--au-4);
+  margin-top: var(--au-5);
+}
+
+.au-paginacao-posicao {
+  font-size: var(--au-t-sm);
+  color: var(--au-text-subtle);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Botão de borda apagada para a ponta da paginação. Some-lo faria os outros
+   pularem de lugar entre uma página e outra, e a pessoa erra o clique. */
+.au-btn--inerte {
+  opacity: .4;
+  pointer-events: none;
+}
+
 /* ═══ A SOLEIRA — a tela de identificar-se ═══════════════════════════
    Não é a porta do produto: o Workspace é aberto, e ninguém chega aqui
    navegando. Só se cai nesta tela ao tentar um ato que ASSINA em nome de

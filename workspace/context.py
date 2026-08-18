@@ -73,6 +73,7 @@ _SEM_SESSAO = {
     "nao_lidas": 0,
     "na_fila": 0,
     "administra_papeis": False,
+    "ve_indicadores": False,
 }
 
 
@@ -88,6 +89,7 @@ def rail(request: HttpRequest) -> dict:
 
     from identidade.services import administracao as adm
     from workspace.models.catalogo import SolicitacaoServico
+    from workspace.services import indicadores as ind
     from workspace.services import aprovacao as apr
     from workspace.services import atendimento as atd
     from workspace.services import notificacoes as nt
@@ -112,4 +114,7 @@ def rail(request: HttpRequest) -> dict:
         # mesma regra dos outros — trilho com item que não leva a nada ensina o
         # usuário a ignorar o trilho.
         "administra_papeis": adm.pode_administrar(pessoa, cache=request.perm_cache),
+        # Reaproveita o `perm_cache` que `na_fila` já aqueceu acima: as duas
+        # perguntas passam pelos mesmos papéis.
+        "ve_indicadores": ind.tem_painel(pessoa, cache=request.perm_cache),
     }

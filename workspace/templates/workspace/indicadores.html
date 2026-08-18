@@ -1,0 +1,183 @@
+{% extends "workspace/_shell_modulo.html" %}
+{% load i18n wks %}
+
+{% block titulo %}{% trans "Indicadores" %}{% endblock %}
+
+{% block rail %}{% include "workspace/_rail_servicos.html" with aba="indicadores" %}{% endblock %}
+{% block trilha %}<span>{% trans "Indicadores" %}</span>{% endblock %}
+{% block pagina_titulo %}{% trans "Indicadores" %}{% endblock %}
+{% block voltar_url %}{% url 'workspace:home' %}{% endblock %}
+
+{% block pagina_descricao %}
+  <p class="au-pagina-desc">
+    {% if tudo %}
+      {% blocktrans %}A empresa inteira, nos últimos {{ dias }} dias.{% endblocktrans %}
+    {% else %}
+      {% blocktrans %}As suas áreas, nos últimos {{ dias }} dias.{% endblocktrans %}
+    {% endif %}
+  </p>
+{% endblock %}
+
+{% block corpo %}
+{% comment %}
+  O PAINEL QUE FALTAVA.
+
+  O produto media tudo e não mostrava nada: cada pedido guardava data de
+  criação, de aprovação, de conclusão e de reabertura, e a única forma de somar
+  isso era abrir o `/admin/`.
+
+  Duas decisões estão à vista na tela e valem ser lidas junto com os números:
+
+  - **mediana, não média.** Um pedido esquecido oitenta dias numa fila puxa a
+    média de uma área inteira. A mediana diz o que acontece com o pedido do
+    meio, que é a experiência de quem pede;
+  - **aprovar e atender, separados.** Somados viram um número que ninguém sabe
+    consertar — não se sabe se falta gente na fila ou se o gestor não decide.
+{% endcomment %}
+
+<div class="au-filtros">
+  <div class="au-filtros-chips">
+    {% for valor, rotulo in periodos %}
+      <a class="au-chip {% if dias == valor %}au-chip--ativo{% endif %}"
+         href="?dias={{ valor }}"
+         {% if dias == valor %}aria-current="true"{% endif %}>{{ rotulo }}</a>
+    {% endfor %}
+  </div>
+</div>
+
+{% if not areas %}
+  <div class="au-vazio">
+    <p class="au-vazio-titulo">{% trans "Nenhum pedido nesse período." %}</p>
+    <p class="au-vazio-dica">
+      {% blocktrans %}Assim que os pedidos começarem a entrar, os números aparecem aqui.{% endblocktrans %}
+    </p>
+  </div>
+{% else %}
+
+<div class="au-kpi-linha">
+  <div class="au-kpi">
+    <span class="au-kpi-rotulo">{% trans "pedidos no período" %}</span>
+    <span class="au-kpi-valor">{{ total }}</span>
+  </div>
+  <div class="au-kpi">
+    <span class="au-kpi-rotulo">{% trans "ainda abertos" %}</span>
+    <span class="au-kpi-valor">{{ abertos }}</span>
+  </div>
+  <div class="au-kpi {% if atrasados %}au-kpi--alerta{% endif %}">
+    <span class="au-kpi-rotulo">{% trans "além do prazo prometido" %}</span>
+    <span class="au-kpi-valor">{{ atrasados }}</span>
+  </div>
+  {% comment %}
+    A taxa de reabertura é O indicador de que "concluído" significa alguma
+    coisa. Um portal que só conta o que entra e o que sai parece saudável
+    mesmo quando metade do que saiu está voltando.
+  {% endcomment %}
+  <div class="au-kpi {% if taxa_reabertura %}au-kpi--alerta{% endif %}">
+    <span class="au-kpi-rotulo">{% trans "voltaram sem resolver" %}</span>
+    <span class="au-kpi-valor">
+      {% if taxa_reabertura is None %}—{% else %}{{ taxa_reabertura }}%{% endif %}
+    </span>
+  </div>
+</div>
+
+<h2 class="au-secao-titulo au-indicadores-titulo">{% trans "Por área" %}</h2>
+
+<div class="au-tabela">
+  <table>
+    <thead>
+      <tr>
+        <th>{% trans "Área" %}</th>
+        <th class="num">{% trans "Pedidos" %}</th>
+        <th class="num">{% trans "Abertos" %}</th>
+        <th class="num">{% trans "Até aprovar" %}</th>
+        <th class="num">{% trans "Até resolver" %}</th>
+        <th class="num">{% trans "Além do prazo" %}</th>
+        <th class="num">{% trans "Voltaram" %}</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for area in areas %}
+        <tr>
+          <td>
+            <span class="au-list-titulo">{{ area.nome }}</span>
+            <span class="au-list-meta"><code>{{ area.dominio }}.</code></span>
+          </td>
+          <td class="num">{{ area.total }}</td>
+          <td class="num">{{ area.abertos }}</td>
+          {% comment %}
+            "—" e não "0" quando não há amostra: zero diria "resolve no mesmo
+            dia", que é o oposto de "ainda não sei".
+          {% endcomment %}
+          <td class="num">
+            {% if area.ate_aprovar is None %}—
+            {% else %}{% blocktrans count d=area.ate_aprovar %}{{ d }} dia{% plural %}{{ d }} dias{% endblocktrans %}{% endif %}
+          </td>
+          <td class="num">
+            {% if area.ate_concluir is None %}—
+            {% else %}{% blocktrans count d=area.ate_concluir %}{{ d }} dia{% plural %}{{ d }} dias{% endblocktrans %}{% endif %}
+          </td>
+          <td class="num">
+            {% if area.atrasados %}
+              <span class="au-selo au-selo--alerta">{{ area.atrasados }}</span>
+            {% else %}—{% endif %}
+          </td>
+          <td class="num">
+            {% if area.taxa_reabertura %}
+              <span class="au-selo au-selo--alerta">{{ area.taxa_reabertura }}%</span>
+            {% else %}—{% endif %}
+          </td>
+        </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+<p class="au-secao-rodape au-indicadores-nota">
+  {% blocktrans %}Os tempos são <b>medianas</b>, não médias: um pedido esquecido numa fila puxaria a média da área inteira e faria o setor parecer lento. "Até aprovar" e "até resolver" ficam separados porque a saída é diferente — um se resolve cobrando quem decide, o outro com gente na fila.{% endblocktrans %}
+</p>
+
+<div class="au-grade au-grade--tercos au-indicadores-blocos">
+  <section class="au-cartao">
+    <h2 class="au-secao-titulo">{% trans "Mais pedidos" %}</h2>
+    <p class="au-ajuda">
+      {% blocktrans %}O que aparece toda semana merece formulário mais curto — e às vezes deixar de exigir aprovação.{% endblocktrans %}
+    </p>
+    <ul class="au-lista">
+      {% for linha in mais_pedidos %}
+        <li class="au-list-row">
+          <span class="au-list-titulo">{{ linha.nome }}</span>
+          <span class="au-list-meta">{{ linha.total }}</span>
+        </li>
+      {% empty %}
+        <li class="au-list-row"><span class="au-list-meta">—</span></li>
+      {% endfor %}
+    </ul>
+  </section>
+
+  {% comment %}
+    Quem entregou quanto. É a consulta que o índice `wks_evento_quem_idx`
+    esperava desde que o histórico foi criado.
+
+    É sobre ENTREGA, não sobre pessoas: serve para ver se uma fila inteira está
+    nas costas de uma pessoa só — o gargalo mais comum, e o mais fácil de não
+    enxergar até ela sair de férias.
+  {% endcomment %}
+  <section class="au-cartao">
+    <h2 class="au-secao-titulo">{% trans "Quem entregou" %}</h2>
+    <p class="au-ajuda">
+      {% blocktrans %}Serve para ver se uma fila inteira está nas costas de uma pessoa só.{% endblocktrans %}
+    </p>
+    <ul class="au-lista">
+      {% for linha in quem_entregou %}
+        <li class="au-list-row">
+          <span class="au-list-titulo">{{ linha.quem }}</span>
+          <span class="au-list-meta">{{ linha.total }}</span>
+        </li>
+      {% empty %}
+        <li class="au-list-row"><span class="au-list-meta">{% trans "ninguém concluiu nada ainda" %}</span></li>
+      {% endfor %}
+    </ul>
+  </section>
+</div>
+{% endif %}
+{% endblock %}

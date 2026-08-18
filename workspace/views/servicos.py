@@ -19,6 +19,7 @@ from workspace.services import anexos as anx
 from workspace.services import atendimento as atd
 from workspace.services import catalogo as svc
 from workspace.services import formulario as frm
+from workspace.services import listagem as lst
 from workspace.services import mapa_aprovacao as mapa
 from workspace.services import reembolso as rmb
 from workspace.services.anexos import AnexoError
@@ -49,16 +50,20 @@ def catalogo(request: HttpRequest) -> HttpResponse:
     """
     cache = _cache(request)
     pessoa = pessoa_da_requisicao(request)
-    grupos = []
-    for rotulo, itens in svc.agrupado_para(pessoa, cache=cache).items():
-        grupos.append(
-            {
-                "rotulo": rotulo,
-                "itens": [
-                    {"item": item, "prazo": svc.prazo_medido(item)} for item in itens
-                ],
-            }
-        )
+    agrupado = svc.agrupado_para(pessoa, cache=cache)
+    # UMA consulta de prazo para a tela inteira. Chamar `prazo_medido()` dentro
+    # do laço fazia 28 consultas aqui — uma por item do catálogo —, e cada uma
+    # lia todo o histórico de conclusões daquele item.
+    prazos = svc.prazos_medidos(
+        [item for itens in agrupado.values() for item in itens]
+    )
+    grupos = [
+        {
+            "rotulo": rotulo,
+            "itens": [{"item": item, "prazo": prazos[item.pk]} for item in itens],
+        }
+        for rotulo, itens in agrupado.items()
+    ]
 
     minhas = svc.minhas(request.user)
     return render(
@@ -372,13 +377,32 @@ def _valor_de(bruto: str | None) -> Decimal | None:
 def minhas_solicitacoes(request: HttpRequest) -> HttpResponse:
     # `prefetch` do histórico: o resumo de cada linha mostra a linha do tempo, e
     # sem isto uma pessoa com 30 pedidos faria 31 consultas só para os eventos.
-    solicitacoes = svc.minhas(request.user).prefetch_related("eventos__quem")
+    todas = svc.minhas(request.user)
+    situacao = request.GET.get("situacao", "")
+    texto = request.GET.get("q", "")
+
+    # O `prefetch` do histórico fica DEPOIS do filtro e da paginação: ele custa
+    # uma consulta por página, e antes custava uma pelo histórico inteiro da
+    # pessoa — inclusive dos pedidos que a página nem mostra.
+    filtradas = lst.filtrar_minhas(todas, situacao, texto)
+    pagina = lst.paginar(filtradas.prefetch_related("eventos__quem"), request.GET.get("p"))
+
     return render(
         request,
         "workspace/servicos/minhas.html",
         {
-            "solicitacoes": solicitacoes,
-            "abertas": solicitacoes.filter(situacao__in=_ABERTAS).count(),
+            "pagina": pagina,
+            "solicitacoes": pagina.object_list,
+            "filtros": lst.FILTROS_MINHAS,
+            "filtro_atual": situacao,
+            "busca": texto,
+            "encontradas": pagina.paginator.count,
+            "sem_filtro": not situacao and not texto,
+            "params": lst.parametros_sem_pagina(request),
+            # A contagem de abertas é da lista INTEIRA, e não da filtrada: ela
+            # responde "quanto eu tenho em aberto", que não muda porque a
+            # pessoa escolheu ver só as canceladas.
+            "abertas": todas.filter(situacao__in=_ABERTAS).count(),
             # Uma consulta só para a tela inteira, e não uma por linha: serve
             # para dizer "está parado porque ninguém tem esse papel" em vez de
             # deixar o pedido em "aguardando aprovação" sem explicação. Quem lê

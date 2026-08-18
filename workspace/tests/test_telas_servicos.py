@@ -680,6 +680,8 @@ def test_contexto_do_rail_usa_pessoa_aberta_para_anonimo():
         # Nem administra papéis — a tela de quem aprova o quê é mapa de poder
         # da empresa, e ela também concede.
         "administra_papeis": False,
+        # O painel de indicadores segue a mesma regra: sem sessão, sem item.
+        "ve_indicadores": False,
     }
 
 

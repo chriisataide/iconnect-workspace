@@ -15,11 +15,14 @@ Três coisas aqui não são óbvias e são as que decidem se o catálogo é usad
 
 from __future__ import annotations
 
+from collections import defaultdict
 from dataclasses import dataclass
+from datetime import timedelta
 from decimal import Decimal
 from statistics import median
 
 from django.db import models, transaction
+from django.utils import timezone
 
 from identidade.models import Lotacao
 from identidade.services.autorizacao import pode
@@ -120,16 +123,64 @@ def do_modulo(prefixos) -> list[ItemCatalogo]:
     return list(ItemCatalogo.objects.filter(q_dominios(prefixos), ativo=True))
 
 
+# Por quanto tempo para trás o prazo medido olha.
+#
+# Existe por dois motivos, e o segundo é o que importa mais. O primeiro é
+# custo: sem janela, a consulta cresce para sempre e o catálogo passa a ler o
+# histórico inteiro da empresa a cada carregamento. O segundo é VERDADE — o
+# prazo é uma promessa sobre o que a empresa faz HOJE, e uma entrega de 2023
+# não diz nada sobre a equipe de agora. Média de todo o histórico envelhece
+# junto com a empresa e nunca melhora, por melhor que o setor fique.
+JANELA_PRAZO_DIAS = 180
+
+
+def prazos_medidos(itens) -> dict[int, tuple[int, bool]]:
+    """`{item_id: (dias, e_medido)}` para a lista inteira, em UMA consulta.
+
+    Nasceu de uma medição: a tela de catálogo fazia 42 consultas, e 28 delas
+    eram `prazo_medido()` — uma por item. Cada uma lia TODAS as conclusões
+    daquele item para tirar a mediana em Python. Com 19 pedidos no banco isso é
+    invisível; com vinte mil, o catálogo lê vinte mil linhas vinte e seis vezes
+    a cada abertura da tela mais visitada do produto.
+
+    A mediana continua em Python de propósito: `percentile_cont` existe no
+    PostgreSQL e não no SQLite, e o projeto roda nos dois — uma consulta que só
+    funciona em produção é uma consulta que ninguém testa.
+    """
+    itens = list(itens)
+    if not itens:
+        return {}
+
+    corte = timezone.now() - timedelta(days=JANELA_PRAZO_DIAS)
+    duracoes: dict[int, list[int]] = defaultdict(list)
+    linhas = SolicitacaoServico.objects.filter(
+        item_id__in=[i.pk for i in itens],
+        situacao=SituacaoServico.CONCLUIDA,
+        concluido_em__isnull=False,
+        concluido_em__gte=corte,
+    ).values_list("item_id", "criado_em", "concluido_em")
+
+    for item_id, criado_em, concluido_em in linhas:
+        duracoes[item_id].append((concluido_em - criado_em).days)
+
+    resposta = {}
+    for item in itens:
+        medidas = duracoes.get(item.pk, [])
+        if len(medidas) < MINIMO_PARA_PRAZO_MEDIDO:
+            resposta[item.pk] = (item.prazo_prometido_dias, False)
+        else:
+            resposta[item.pk] = (int(median(medidas)), True)
+    return resposta
+
+
 def prazo_medido(item: ItemCatalogo) -> tuple[int, bool]:
-    """`(dias, e_medido)`. Cai no prometido enquanto não há histórico bastante."""
-    duracoes = [
-        s.dias_para_concluir
-        for s in item.solicitacoes.concluidas().only("criado_em", "concluido_em")
-        if s.dias_para_concluir is not None
-    ]
-    if len(duracoes) < MINIMO_PARA_PRAZO_MEDIDO:
-        return item.prazo_prometido_dias, False
-    return int(median(duracoes)), True
+    """`(dias, e_medido)` de UM item. Cai no prometido sem histórico bastante.
+
+    Continua existindo para a tela de um item só e para o admin. Numa LISTA,
+    use `prazos_medidos()` — chamar esta aqui em laço é exatamente o defeito
+    que aquela função existe para não ter.
+    """
+    return prazos_medidos([item])[item.pk]
 
 
 # ── Validação antes do envio ────────────────────────────────────────
