@@ -12,6 +12,7 @@ no caminho.
 
 from __future__ import annotations
 
+import re
 from datetime import timedelta
 from io import StringIO
 
@@ -291,7 +292,11 @@ def test_comando_de_reindexacao(pessoas):
 
     texto = saida.getvalue()
     assert "Índice reconstruído" in texto
-    assert "documentos    1" in texto
+    # O relatório sai da própria contagem — §57 acrescentou cinco origens, e a
+    # lista escrita à mão esconderia justamente as novas.
+    assert re.search(r"documentos\s+1", texto)
+    for origem in ("faq", "cursos", "recursos", "solicitacoes", "correspondencias"):
+        assert origem in texto, origem
 
 
 def test_comando_relata_orfa(pessoas):

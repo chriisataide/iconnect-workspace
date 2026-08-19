@@ -69,6 +69,12 @@ class Modulo:
         return () if self.rota else ((self.chave,) if self.tem_catalogo else ())
 
 
+# COMPRAS não tem tile na home — decisão de produto.
+#
+# O que saiu foi a PORTA, não o departamento: o domínio `com.` continua no
+# catálogo, os itens continuam pedíveis pela busca e pela navegação por
+# intenção, a fila de Compras continua recebendo, e as regras de aprovação
+# continuam valendo. Quem executa o trabalho não foi tocado.
 MODULOS: tuple[Modulo, ...] = (
     Modulo(
         chave="rh",
@@ -95,10 +101,17 @@ MODULOS: tuple[Modulo, ...] = (
         ordem=50,
     ),
     Modulo(
-        chave="logistica",
-        nome="Logística",
-        descricao="Estoque, remessas e materiais",
+        chave="suprimentos",
+        nome="Suprimentos",
+        descricao="Materiais, estoque e viagens",
         icone="truck",
+        # O PREFIXO continua `log.`, e é de propósito.
+        #
+        # Renomear o rótulo é troca de palavra; renomear o domínio seria migração
+        # de dados: `log.` está gravado em cada pedido já feito, na permissão
+        # `log.atender`, nos papéis concedidos e nas regras de aprovação. O nome
+        # que a empresa usa muda; a chave interna não precisa mudar junto, e
+        # amarrar as duas é como um rename vira incidente.
         dominios=("log.",),
         ordem=60,
     ),
@@ -112,14 +125,6 @@ MODULOS: tuple[Modulo, ...] = (
         # órfãos de tile.
         dominios=("ti.acesso",),
         ordem=70,
-    ),
-    Modulo(
-        chave="compras",
-        nome="Compras",
-        descricao="Requisições e fornecedores",
-        icone="cart",
-        dominios=("com.",),
-        ordem=80,
     ),
     Modulo(
         chave="vendas",

@@ -14,7 +14,7 @@ from dataclasses import dataclass
 from datetime import date
 from decimal import Decimal
 
-from django.db import transaction
+from django.db import models, transaction
 from django.utils import timezone
 
 from workspace.models.aprovacao import SolicitacaoAprovacao
@@ -148,6 +148,48 @@ def baixar(compromisso: Compromisso, movimentacao_id: str = "") -> Compromisso:
     compromisso.baixado_em = timezone.now()
     compromisso.save(update_fields=["situacao", "movimentacao_id", "baixado_em"])
     return compromisso
+
+
+@transaction.atomic
+def baixar_do_pedido(solicitacao_servico) -> int:
+    """Baixa o compromisso do pedido ENTREGUE. Devolve quantos saíram — §58.
+
+    ## O defeito que isto conserta
+
+    `baixar()` existia e **ninguém a chamava**. O compromisso entrava na
+    aprovação e só saía por cancelamento: pedido entregue continuava contando
+    como "comprometido" para sempre.
+
+    A consequência é aritmética. `consumido = realizado + comprometido`, e
+    assim que a nota é lançada no sistema financeiro a mesma compra passa a
+    contar duas vezes — uma como realizada, outra como comprometida. A barra do
+    centro de custo sobe sozinha todo mês, e um dia recusa um pedido legítimo
+    dizendo que o orçamento acabou.
+
+    ## Por que a conclusão, e não o pagamento
+
+    Pagar é fato do sistema financeiro, e o Workspace não o conhece — é por isso
+    que `movimentacao_id` existe como referência frouxa. Concluir é o último
+    fato que ESTE produto observa, e é quando a despesa deixa de ser promessa e
+    vira dinheiro que o financeiro vai lançar. Esperar por um evento que não
+    chega é como o compromisso ficou eterno.
+
+    Pega os dois caminhos de escrituração: o da cadeia de aprovação, que amarra
+    pela FK, e o do auto-aprovado, que grava só `dominio` + `origem_id`. Um só
+    deixaria metade dos pedidos comprometida para sempre — e seria justamente a
+    metade mais comum, que é a que nunca passa por bandeja.
+    """
+    filtros = models.Q(dominio=solicitacao_servico.item.dominio) & models.Q(
+        origem_id=str(solicitacao_servico.pk)
+    )
+    if solicitacao_servico.aprovacao_id:
+        filtros |= models.Q(solicitacao_id=solicitacao_servico.aprovacao_id)
+
+    baixados = 0
+    for compromisso in Compromisso.objects.ativos().filter(filtros):
+        baixar(compromisso)
+        baixados += 1
+    return baixados
 
 
 @transaction.atomic

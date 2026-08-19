@@ -15,7 +15,18 @@ Já existe (Etapa 5 §5.2):
     reembolso.py   RMB  DespesaReembolso, AcertoAdiantamento — uma linha por
                         compra, e a conta do adiantamento fechada
     evento.py      HST  EventoSolicitacao — o que aconteceu com um pedido, e quem fez
+    comentario.py  WKF  ComentarioSolicitacao — a conversa dentro do pedido, sem
+                        precisar devolvê-lo para perguntar
     correspondencia.py COR  Correspondencia — o que chega na recepção
+    estoque.py     EST  Material, SaldoEstoque, MovimentoEstoque — o razão do
+                        que a empresa tem, e o saldo por unidade
+    custodia.py    EST  Custodia — quem está com o quê, e o que falta devolver
+    marketing.py   MKT  Oportunidade — a feira que existe e o dia em que é
+                        preciso responder; NÃO aprova nada, o catálogo aprova
+    frota.py       FRT  Veiculo, DespesaVeiculo — a frota, seus prazos e o que
+                        ela consome; o veículo reservável é o MESMO recurso
+    faq.py         FAQ  PerguntaFrequente — a base que o assistente consulta
+                        antes de encaminhar alguém para um setor
 
 Entram nas ondas seguintes:
     conteudo.py    CNT  Documento, VersaoDocumento, PendenciaLeitura
@@ -33,6 +44,32 @@ from .aprovacao import (
     SituacaoSolicitacao,
     SolicitacaoAprovacao,
     TipoAprovador,
+)
+from .comentario import ComentarioSolicitacao
+from .faq import AreaFAQ, PerguntaFrequente
+from .habilitacao import Curso, Matricula, SituacaoMatricula, TipoCurso
+from .relatorio import (
+    EvidenciaRelatorio,
+    Relatorio,
+    SituacaoRelatorio,
+    TipoRelatorio,
+)
+from .custodia import Custodia
+from .marketing import Oportunidade, SituacaoOportunidade, TipoOportunidade
+from .frota import (
+    DespesaVeiculo,
+    SituacaoVeiculo,
+    TipoDespesaVeiculo,
+    TipoVeiculo,
+    Veiculo,
+)
+from .estoque import (
+    CondicaoMaterial,
+    Material,
+    MovimentoEstoque,
+    SaldoEstoque,
+    TipoMovimento,
+    UnidadeMedida,
 )
 from .catalogo import (
     GrupoCatalogo,
@@ -61,6 +98,32 @@ from .comunicacao import Prioridade, Publicacao, TipoPublicacao
 from .orcamento import Compromisso, SituacaoCompromisso, competencia_de
 
 __all__ = [
+    "AreaFAQ",
+    "ComentarioSolicitacao",
+    "Curso",
+    "EvidenciaRelatorio",
+    "Relatorio",
+    "SituacaoRelatorio",
+    "TipoRelatorio",
+    "Matricula",
+    "SituacaoMatricula",
+    "TipoCurso",
+    "PerguntaFrequente",
+    "CondicaoMaterial",
+    "Custodia",
+    "Oportunidade",
+    "SituacaoOportunidade",
+    "TipoOportunidade",
+    "DespesaVeiculo",
+    "SituacaoVeiculo",
+    "TipoDespesaVeiculo",
+    "TipoVeiculo",
+    "Veiculo",
+    "Material",
+    "MovimentoEstoque",
+    "SaldoEstoque",
+    "TipoMovimento",
+    "UnidadeMedida",
     "AcaoSolicitacao",
     "EventoSolicitacao",
     "AcertoAdiantamento",

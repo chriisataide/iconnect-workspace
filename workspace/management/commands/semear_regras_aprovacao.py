@@ -51,6 +51,14 @@ POR_AREA = [
     {"dominio": "com.", "papel": "compras", "rotulo": "sempre · Compras revisa requisição"},
     {"dominio": "hab.", "papel": "sesmt", "rotulo": "sempre · SESMT revisa habilitação"},
     {"dominio": "ven.", "papel": "vendas", "rotulo": "sempre · Vendas revisa condição comercial"},
+    # Suprimentos entrou junto com a viagem (§13).
+    #
+    # Sem esta linha, mover `viagem` de `fin.` para `log.` teria SILENCIOSAMENTE
+    # removido a revisão de área: o pedido passaria a ir do gestor direto
+    # direto para a fila, e o único aviso disso seria a ausência de um degrau
+    # que ninguém procura. Era o caso do prefixo `log.` inteiro, aliás — veículo
+    # da empresa nunca teve revisão de área.
+    {"dominio": "log.", "papel": "logistica", "rotulo": "sempre · Suprimentos revisa material e viagem"},
 ]
 
 CADEIA = [

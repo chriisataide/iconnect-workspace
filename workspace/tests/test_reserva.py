@@ -265,9 +265,14 @@ def test_nao_cancela_o_que_ja_terminou(cenario):
 def test_agenda_do_dia_mostra_o_que_esta_ocupado(cenario):
     """A tela mostra a agenda ANTES do formulário: sem isso a pessoa tenta por
     adivinhação."""
-    res.reservar(cenario["sala"], cenario["ana"], daqui(2), daqui(4))
+    reserva = res.reservar(cenario["sala"], cenario["ana"], daqui(2), daqui(4))
 
-    agenda = list(res.agenda_do_dia(cenario["sala"], timezone.localdate()))
+    # A data vem DA RESERVA, não de `localdate()`. Rodando depois das 21h,
+    # `daqui(2)` cai na madrugada do dia seguinte e a agenda de hoje vem vazia —
+    # o teste reprovava por causa do relógio, não do código. É a quinta
+    # armadilha de hora do dia desta suíte.
+    dia = timezone.localtime(reserva.inicio).date()
+    agenda = list(res.agenda_do_dia(cenario["sala"], dia))
 
     assert len(agenda) == 1
 
@@ -466,9 +471,23 @@ def test_tile_de_reservas_e_destino_real(client, cenario):
 
 
 def test_reserva_de_hoje_aparece_no_meu_dia(cenario):
+    """A reserva é gravada DIRETO, com horário de hoje garantido.
+
+    `daqui(2)` atravessa a meia-noite quando a suíte roda depois das 21h, e aí a
+    "reserva de hoje" é de amanhã — o bloco vem vazio e o teste reprova por
+    causa do relógio. O que se testa aqui é o BLOCO do Meu dia, e como a linha
+    nasceu não importa para ele.
+    """
+    from workspace.models.reserva import Reserva
     from workspace.services import meu_dia as md
 
-    res.reservar(cenario["sala"], cenario["ana"], daqui(2), daqui(4), motivo="Reunião")
+    agora = timezone.localtime()
+    fim_do_dia = agora.replace(hour=23, minute=59, second=0, microsecond=0)
+    Reserva.objects.create(
+        recurso=cenario["sala"], solicitante=cenario["ana"], motivo="Reunião",
+        inicio=min(agora + timedelta(hours=2), fim_do_dia - timedelta(minutes=30)),
+        fim=fim_do_dia,
+    )
 
     bloco = next(
         b for b in md.para(cenario["ana"])["blocos"] if b.chave == "reservas_hoje"

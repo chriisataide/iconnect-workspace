@@ -1,0 +1,36 @@
+{% extends "erros/_pagina.html" %}
+{% load i18n %}
+
+{% block titulo %}{% trans "Página não encontrada" %}{% endblock %}
+{% block codigo %}404{% endblock %}
+{% block cabecalho %}{% trans "Esta página não existe." %}{% endblock %}
+
+{% block explicacao %}
+  {% comment %}
+    O endereço tentado NÃO é impresso aqui, e é decisão de segurança e não de
+    estilo: `request_path` vem do que a pessoa (ou outra pessoa) digitou, e
+    imprimir entrada de terceiro numa página que qualquer um consegue fazer o
+    navegador de alguém abrir é o começo de todo XSS refletido. O Django escapa,
+    e ainda assim o texto de outra pessoa não tem nada que fazer nesta tela.
+  {% endcomment %}
+  <p>
+    {% blocktrans %}O endereço pode estar errado, ou o que estava aqui saiu do ar —
+    um item de catálogo aposentado, um comunicado arquivado, um pedido cancelado.{% endblocktrans %}
+  </p>
+  <p>
+    {% blocktrans %}Se você chegou por um link de dentro do Workspace, ele está
+    desatualizado: vale avisar quem mandou.{% endblocktrans %}
+  </p>
+{% endblock %}
+
+{% block saidas %}
+  <a class="au-btn au-btn--primario" href="{% url 'workspace:home' %}">
+    {% trans "Ir para o início" %}
+  </a>
+  <a class="au-btn au-btn--sutil" href="{% url 'workspace:servicos' %}">
+    {% trans "Ver o catálogo" %}
+  </a>
+  <a class="au-btn au-btn--sutil" href="{% url 'workspace:ajuda' %}">
+    {% trans "Perguntar ao assistente" %}
+  </a>
+{% endblock %}

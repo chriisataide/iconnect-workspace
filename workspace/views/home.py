@@ -1,4 +1,15 @@
-"""Home do Workspace — aberta."""
+"""Home do Workspace — aberta, e agora contextual. §50 e §51.
+
+A home era a única tela do produto **sem o trilho**, e o trilho é onde moram
+todos os contadores que o Workspace já sabia calcular sobre a pessoa. O
+resultado: a tela em que ela cai ao entrar era a que menos sabia sobre ela — um
+card condicional (aprovações) e o resto igual para o estagiário e para o diretor.
+
+Os cards vêm de `services/painel`, que também alimenta o trilho. Os números são
+calculados UMA vez por requisição: a view pede primeiro, o processador de
+contexto reaproveita. Sem isso, dar contexto à home custaria oito consultas a
+mais na tela mais visitada do produto.
+"""
 
 from __future__ import annotations
 
@@ -13,6 +24,7 @@ from workspace.acesso import pessoa_da_requisicao
 from workspace.launcher import AppSpec, apps_disponiveis
 from workspace.models import Publicacao, TipoPublicacao
 from workspace.models.catalogo import ItemCatalogo
+from workspace.services import painel
 
 LIMITE_CARD = 4
 
@@ -40,7 +52,23 @@ class AppNaTela:
 def home(request: HttpRequest) -> HttpResponse:
     pessoa = pessoa_da_requisicao(request)
 
-    publicadas = Publicacao.objects.publicadas()
+    # `para(request.user)` e não `publicadas()`: o público-alvo do §9 só vale
+    # se a home o respeitar. `request.user` e não `pessoa` — a pessoa de
+    # referência do hub aberto serve para calcular ALCANCE de serviço, e usá-la
+    # aqui mostraria ao visitante anônimo o comunicado dirigido ao departamento
+    # dela. Anônimo cai no ramo sem lotação e recebe só o que é geral.
+    publicadas = Publicacao.objects.para(request.user)
+
+    # O total do catálogo é a promessa concreta do card "Pedir um serviço" —
+    # "19 serviços" convence a clicar; "peça o que precisa" não. Sem filtro por
+    # permissão de propósito: é a home pública, e aqui o número é informação,
+    # não lista de ações.
+    total_servicos = ItemCatalogo.objects.filter(ativo=True).count()
+
+    # `contadores()` ANTES do render, e é o que torna os cards de graça: o
+    # processador de contexto vai pedir os mesmos números para montar o trilho e
+    # encontrar o resultado memoizado na requisição.
+    contagens = painel.contadores(request)
 
     return render(
         request,
@@ -57,11 +85,11 @@ def home(request: HttpRequest) -> HttpResponse:
             ),
             "hoje": _hoje(),
             "apps": [_para_tela(spec) for spec in apps_disponiveis(pessoa)],
-            # O total do catálogo é a promessa concreta do card "Pedir um
-            # serviço" — "19 serviços" convence a clicar; "peça o que precisa"
-            # não. Sem filtro por permissão de propósito: é a home pública, e
-            # aqui o número é informação, não lista de ações.
-            "total_servicos": ItemCatalogo.objects.filter(ativo=True).count(),
+            "total_servicos": total_servicos,
+            # §50 — os cards desta pessoa, do mais caro de ignorar ao mais
+            # barato. Função pura sobre `contagens`: sete cards custam as mesmas
+            # consultas que os três fixos de antes.
+            "cards": painel.cards(contagens, total_servicos),
             "comunicados": publicadas.do_tipo(TipoPublicacao.COMUNICADO)[:LIMITE_CARD],
             "noticias": publicadas.do_tipo(TipoPublicacao.NOTICIA)[:LIMITE_CARD],
         },

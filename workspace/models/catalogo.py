@@ -137,6 +137,21 @@ class ItemCatalogo(models.Model):
     # trava o pedido inteiro num campo que não faz sentido responder.
     valor_quando = models.JSONField(null=True, blank=True)
 
+    # Quando preenchido, o card LEVA PARA FORA em vez de abrir formulário.
+    #
+    # É o §11 do pedido: o chamado predial é aberto no iConnect Platform, e o
+    # Workspace não deve recriar o sistema de chamados. Sem este campo, a única
+    # forma de atender isso seria um item de catálogo que finge ser formulário e
+    # redireciona no POST — pior de todas as formas, porque a pessoa preenche
+    # antes de descobrir que vai para outro sistema.
+    #
+    # O card marca visivelmente que sai daqui: link que muda de produto sem
+    # avisar é o que faz alguém perder o que digitou.
+    url_externa = models.URLField(
+        max_length=300, blank=True,
+        help_text="Preenchido, o card abre este endereço em vez do formulário.",
+    )
+
     ativo = models.BooleanField(default=True, db_index=True)
     ordem = models.PositiveSmallIntegerField(default=100)
     criado_em = models.DateTimeField(auto_now_add=True)
@@ -200,16 +215,43 @@ class ItemCatalogo(models.Model):
             raise ValidationError({"limite_auto_aprovacao": "Não pode ser negativo."})
 
     @property
+    def leva_para_fora(self) -> bool:
+        """O card sai do Workspace em vez de abrir formulário."""
+        return bool(self.url_externa)
+
+    @property
     def campos_obrigatorios(self) -> list[str]:
         return [c["chave"] for c in self.campos if c.get("obrigatorio")]
 
 
 class SituacaoServico(models.TextChoices):
+    # O começo da vida do pedido, e o estado que faltava — §43.
+    #
+    # Sem ele, o formulário longo (prestação de contas, compra com anexo,
+    # requisição com dez campos) era tudo-ou-nada: quem não tinha o comprovante
+    # à mão perdia o que já tinha digitado ao sair da tela. Na prática as
+    # pessoas resolviam isso digitando tudo no bloco de notas primeiro, e o
+    # produto virava a segunda etapa de um processo que começava fora dele.
+    #
+    # Rascunho NÃO é "em aberto": nada foi enviado, ninguém foi avisado, nenhum
+    # prazo começou a correr e nenhum orçamento foi comprometido. Confundir os
+    # dois faria o painel da área contar como trabalho atrasado um formulário
+    # que ninguém nunca mandou.
+    RASCUNHO = "rascunho", "Rascunho"
     AGUARDANDO_APROVACAO = "aguardando_aprovacao", "Aguardando aprovação"
     APROVADA = "aprovada", "Aprovada"
     EM_ATENDIMENTO = "em_atendimento", "Em atendimento"
     CONCLUIDA = "concluida", "Concluída"
     DEVOLVIDA = "devolvida", "Devolvida"
+    # O "não" definitivo, que o produto não sabia dizer.
+    #
+    # Devolver e reprovar pareciam a mesma coisa e não são: devolver diz
+    # "corrija e reenvie" — é um pedido vivo esperando ação de quem pediu.
+    # Reprovar diz "não vai acontecer". Sem os dois, o gestor que quer negar só
+    # tinha a devolução, e o pedido que deveria morrer voltava em ciclo até
+    # alguém desistir por cansaço. Um pedido reprovado é TERMINAL, como
+    # cancelado — e ao contrário de cancelado, ele teve um autor e um motivo.
+    REJEITADA = "rejeitada", "Reprovada"
     CANCELADA = "cancelada", "Cancelada"
 
 
@@ -225,17 +267,42 @@ class SituacaoServico(models.TextChoices):
 PRAZO_REABERTURA_DIAS = 7
 
 
+#: Fim de linha — nada mais acontece com o pedido, e ninguém precisa agir.
+#: Em UM lugar porque a lista estava copiada em `abertas()`, em LST.ABERTAS e
+#: na conta do trilho, e as três discordariam no dia em que um estado novo
+#: aparecesse. Foi o que aconteceu com `REJEITADA`.
+SITUACOES_TERMINAIS = (
+    SituacaoServico.CONCLUIDA,
+    SituacaoServico.REJEITADA,
+    SituacaoServico.CANCELADA,
+)
+
+
+#: Ainda não entrou na esteira — §43. Nada foi enviado, ninguém foi avisado,
+#: nenhum prazo corre.
+#:
+#: Separado dos terminais porque não é fim: é antes do começo. As duas listas
+#: existem para a mesma pergunta ("isto conta como trabalho?"), e a resposta é
+#: não pelos dois motivos opostos.
+SITUACOES_NAO_ENVIADAS = (SituacaoServico.RASCUNHO,)
+
+
+#: O que NÃO é trabalho em andamento: já acabou, ou nunca começou.
+#: Em um lugar porque a soma aparece no filtro da tela, no contador do trilho e
+#: no painel de indicadores — e a cópia que esquece uma das duas é a que faz o
+#: painel contar rascunho como pedido atrasado.
+SITUACOES_FORA_DA_ESTEIRA = SITUACOES_TERMINAIS + SITUACOES_NAO_ENVIADAS
+
+
 class SolicitacaoServicoQuerySet(models.QuerySet):
     def de(self, pessoa):
         return self.filter(solicitante=pessoa)
 
     def abertas(self):
-        return self.exclude(
-            situacao__in=[
-                SituacaoServico.CONCLUIDA,
-                SituacaoServico.CANCELADA,
-            ]
-        )
+        return self.exclude(situacao__in=SITUACOES_FORA_DA_ESTEIRA)
+
+    def rascunhos(self):
+        return self.filter(situacao=SituacaoServico.RASCUNHO)
 
     def concluidas(self):
         return self.filter(situacao=SituacaoServico.CONCLUIDA)
@@ -324,6 +391,39 @@ class SolicitacaoServico(models.Model):
         return f"{self.item.nome} · {self.solicitante.get_full_name()}"
 
     @property
+    def fase(self) -> str:
+        """O que a tela diz, e não só o nome do estado — §43.
+
+        "Aprovada" é tecnicamente certo e produziu a queixa: a pessoa lê
+        "Aprovada", não encontra o pedido em "Concluídas", vê que ele continua em
+        "Em aberto", e conclui que a máquina de estados está quebrada.
+
+        A máquina está certa; a palavra é que não diz a fase. Aprovado é MEIO DO
+        CAMINHO — significa "liberado, esperando a área executar" —, e é isso
+        que a frase precisa dizer.
+
+        Derivada e não gravada: uma coluna com este texto ao lado de `situacao`
+        seria uma segunda fonte de verdade sobre a mesma coisa, e a primeira a
+        divergir.
+        """
+        from workspace.models.catalogo import SituacaoServico as S
+
+        if self.situacao == S.RASCUNHO:
+            # "Rascunho" sozinho deixa a dúvida que importa: já mandei ou não?
+            return "Rascunho · não enviado"
+        if self.situacao == S.APROVADA:
+            return "Aprovada · aguardando a área"
+        if self.situacao == S.EM_ATENDIMENTO:
+            if self.atendente_id:
+                return f"Em andamento · {self.atendente.get_short_name() or self.atendente.get_full_name()}"
+            return "Em andamento"
+        if self.situacao == S.DEVOLVIDA:
+            return "Devolvida · esperando você corrigir"
+        if self.situacao == S.AGUARDANDO_APROVACAO:
+            return "Aguardando aprovação"
+        return self.get_situacao_display()
+
+    @property
     def dias_para_concluir(self) -> int | None:
         """Dias entre pedido e conclusão. É o que alimenta o prazo REAL medido."""
         if self.concluido_em is None:
@@ -331,8 +431,52 @@ class SolicitacaoServico(models.Model):
         return (self.concluido_em - self.criado_em).days
 
     @property
+    def prioridade(self) -> str:
+        """`atrasado`, `no_limite` ou `normal` — §7.
+
+        DERIVADA do prazo prometido, e nunca declarada por quem pede. Prioridade
+        declarada é sempre a mesma história: no primeiro mês todo mundo marca
+        "normal", no terceiro todo mundo marca "urgente", e a coluna deixa de
+        significar qualquer coisa — sem que ninguém tenha feito nada errado.
+
+        A régua é o prazo que a pessoa VIU quando pediu. Cobrar por outro seria
+        mudar a medida depois do jogo.
+        """
+        if not self.em_aberto:
+            return "normal"
+        prometido = self.item.prazo_prometido_dias or 0
+        corridos = (timezone.now() - self.criado_em).days
+        if corridos > prometido:
+            return "atrasado"
+        if corridos >= prometido - 1:
+            return "no_limite"
+        return "normal"
+
+    @property
+    def prioridade_rotulo(self) -> str:
+        return {
+            "atrasado": "Atrasado",
+            "no_limite": "Vence hoje",
+            "normal": "No prazo",
+        }[self.prioridade]
+
+    @property
+    def e_rascunho(self) -> bool:
+        """A tela não compara string de estado — a regra do design system é que
+        a view (ou o model) resolve e o template desenha."""
+        return self.situacao == SituacaoServico.RASCUNHO
+
+    @property
     def em_aberto(self) -> bool:
-        return self.situacao not in (SituacaoServico.CONCLUIDA, SituacaoServico.CANCELADA)
+        """Vivo na esteira: já foi enviado e ainda não terminou.
+
+        Derivado de `SITUACOES_FORA_DA_ESTEIRA`, e não de uma lista escrita à
+        mão. Era escrita à mão — `(CONCLUIDA, CANCELADA)` — e por isso um pedido
+        REPROVADO continuava "em aberto" meses depois de o gestor ter dito não:
+        exatamente o defeito que o comentário de `SITUACOES_TERMINAIS` avisa que
+        acontece quando a mesma lista mora em dois lugares.
+        """
+        return self.situacao not in SITUACOES_FORA_DA_ESTEIRA
 
     @property
     def prazo_reabertura(self):

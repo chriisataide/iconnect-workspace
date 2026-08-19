@@ -1,0 +1,91 @@
+{% extends "workspace/_shell_modulo.html" %}
+{% load i18n wks %}
+
+{% block titulo %}{% trans "Universidade" %}{% endblock %}
+{% block rail %}{% include "workspace/_rail_servicos.html" with aba="universidade" %}{% endblock %}
+{% block trilha %}<span>{% trans "Universidade" %}</span>{% endblock %}
+{% block pagina_titulo %}{% trans "Minhas habilitações" %}{% endblock %}
+{% block voltar_url %}{% url 'workspace:home' %}{% endblock %}
+
+{% block pagina_descricao %}
+  <p class="au-pagina-desc">
+    {% if pendencias %}
+      <strong>{% blocktrans count n=pendencias|length %}{{ n }} habilitação exige atenção.{% plural %}{{ n }} habilitações exigem atenção.{% endblocktrans %}</strong>
+    {% else %}
+      {% trans "Tudo em dia." %}
+    {% endif %}
+    {% if ve_painel %}
+      <a href="{% url 'workspace:universidade_painel' %}">{% trans "Ver o painel da empresa" %}</a>.
+    {% endif %}
+  </p>
+{% endblock %}
+
+{% block corpo %}
+{% if matriculas %}
+  <div class="au-tabela">
+    <table>
+      <thead>
+        <tr>
+          <th>{% trans "Curso" %}</th>
+          <th>{% trans "Tipo" %}</th>
+          <th>{% trans "Situação" %}</th>
+          <th class="num">{% trans "Progresso" %}</th>
+          <th>{% trans "Prazo" %}</th>
+          <th>{% trans "Válido até" %}</th>
+          <th class="num">{% trans "Faltam" %}</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for m in matriculas %}
+          <tr>
+            <td>
+              {{ m.curso.nome }}
+              {% if m.curso.obrigatorio %}
+                <span class="au-selo au-selo--alerta">{% trans "obrigatório" %}</span>
+              {% endif %}
+              {% if m.curso.descricao %}
+                <span class="au-list-resumo">{{ m.curso.descricao }}</span>
+              {% endif %}
+            </td>
+            <td>{{ m.curso.get_tipo_display }}</td>
+            <td>
+              <span class="au-etiqueta au-etiqueta--hab-{{ m.estado }}">{{ m.estado_rotulo }}</span>
+            </td>
+            {% comment %}
+              O percentual como número e não como barra: "em andamento" sem
+              número não diz se falta uma aula ou o curso inteiro — e é a
+              diferença entre cobrar e ajudar.
+            {% endcomment %}
+            <td class="num">{% if m.situacao == 'em_andamento' %}{{ m.percentual }}%{% else %}—{% endif %}</td>
+            <td>{{ m.prazo|date:"d/m/Y"|default:"—" }}</td>
+            <td>{{ m.vence_em|date:"d/m/Y"|default:"não vence" }}</td>
+            {% comment %}
+              "Faltam" em DIAS, não a data de novo: a data já está na coluna ao
+              lado, e a pergunta que a pessoa faz é "tenho tempo?".
+            {% endcomment %}
+            <td class="num">
+              {% if m.dias_para_vencer is None %}
+                —
+              {% elif m.vencido %}
+                <span class="au-list-resumo au-list-resumo--alerta">
+                  {% blocktrans with d=m.dias_vencido %}venceu há {{ d }}d{% endblocktrans %}
+                </span>
+              {% else %}
+                {{ m.dias_para_vencer }}d
+              {% endif %}
+            </td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+{% else %}
+  <div class="au-vazio">
+    <p class="au-vazio-titulo">{% trans "Você não tem curso matriculado." %}</p>
+    <p class="au-vazio-dica">
+      {% blocktrans %}Quando o R.H. ou o SESMT matricular você em um curso obrigatório,
+      ele aparece aqui — com o prazo e o aviso antes de vencer.{% endblocktrans %}
+    </p>
+  </div>
+{% endif %}
+{% endblock %}

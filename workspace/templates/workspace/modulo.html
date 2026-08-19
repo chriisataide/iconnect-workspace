@@ -22,7 +22,27 @@
     <ul class="au-grade">
       {% for entrada in itens %}
         <li>
-          {% if entrada.pode_pedir %}
+          {% comment %}
+            Item que LEVA PARA FORA (§11): o chamado predial abre no iConnect
+            Platform, e o Workspace não recria o sistema de chamados.
+
+            O card diz que sai daqui ANTES do clique — `target` e o selo. Link
+            que muda de produto sem avisar é o que faz alguém perder o que
+            digitou do outro lado.
+          {% endcomment %}
+          {% if entrada.item.leva_para_fora %}
+            <a class="au-app au-app--ativo au-app--externo" href="{{ entrada.item.url_externa }}"
+               target="_blank" rel="noopener">
+              <span class="au-app-topo">
+                <span class="au-app-icone">
+                  <svg class="au-icon" aria-hidden="true"><use href="#i-{{ entrada.item.icone }}"></use></svg>
+                </span>
+                <span class="au-selo">{% trans "abre no iConnect" %}</span>
+              </span>
+              <span class="au-app-nome">{{ entrada.item.nome }}</span>
+              <span class="au-app-desc">{{ entrada.item.descricao_curta }}</span>
+            </a>
+          {% elif entrada.pode_pedir %}
             <a class="au-app au-app--ativo" href="{% url 'workspace:pedir' entrada.item.chave %}">
               <span class="au-app-topo">
                 <span class="au-app-icone">
@@ -101,7 +121,7 @@
                   <td>{{ s.criado_em|date:"d/m/Y" }}</td>
                   <td class="num">{% if s.valor %}R$ {{ s.valor|moeda }}{% else %}—{% endif %}</td>
                   <td>
-                    <span class="au-etiqueta au-etiqueta--{{ s.situacao }}">{{ s.get_situacao_display }}</span>
+                    <span class="au-etiqueta au-etiqueta--{{ s.situacao }}">{{ s.fase }}</span>
                   </td>
                 </tr>
               {% endfor %}

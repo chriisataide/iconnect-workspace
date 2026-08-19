@@ -1,0 +1,144 @@
+{% extends "workspace/_shell_modulo.html" %}
+{% load i18n %}
+
+{% block titulo %}{% trans "Candidaturas" %}{% endblock %}
+
+{% block rail %}{% include "workspace/_rail_servicos.html" with aba="candidaturas" %}{% endblock %}
+{% block trilha %}<span>{% trans "Candidaturas" %}</span>{% endblock %}
+{% block pagina_titulo %}{% trans "Candidaturas a vagas internas" %}{% endblock %}
+{% block voltar_url %}{% url 'workspace:home' %}{% endblock %}
+
+{% block pagina_descricao %}
+  <p class="au-pagina-desc">
+    {% blocktrans with t=resumo.total p=resumo.pessoas %}{{ t }} inscrições de {{ p }} pessoas.{% endblocktrans %}
+  </p>
+{% endblock %}
+
+{% block corpo %}
+{% comment %}
+  NÃO HÁ MODELO NOVO POR TRÁS DESTA TELA.
+
+  A inscrição em vaga interna já é um pedido do catálogo (`rh.vaga`), com
+  currículo anexado, cadeia de aprovação e histórico. Uma tabela `Candidatura`
+  paralela seria duas verdades sobre a mesma inscrição — e a que diverge é
+  sempre a que alguém esqueceu de atualizar.
+
+  O resultado sai da máquina de estados: concluída é aprovado, reprovada é não
+  seguiu. Um campo `status_candidatura` ao lado seria a segunda fonte de verdade
+  sobre o mesmo fato.
+{% endcomment %}
+<form class="au-filtros" method="get" role="search">
+  <div class="au-filtros-busca">
+    <label class="au-sr" for="vaga">{% trans "Vaga" %}</label>
+    <input class="au-input au-input--compacto" id="vaga" name="vaga" type="search"
+           value="{{ vaga }}" placeholder="{% trans 'Filtrar por vaga…' %}">
+    <label class="au-sr" for="pessoa">{% trans "Candidato" %}</label>
+    <select class="au-input au-input--compacto" id="pessoa" name="pessoa">
+      <option value="">{% trans "qualquer pessoa" %}</option>
+      {% for p in pessoas %}
+        <option value="{{ p.pk }}" {% if pessoa_atual and p.pk == pessoa_atual.pk %}selected{% endif %}>
+          {{ p.get_full_name|default:p.get_username }}
+        </option>
+      {% endfor %}
+    </select>
+    <button class="au-btn au-btn--sutil au-btn--pequeno" type="submit">
+      {% trans "Filtrar" %}
+    </button>
+  </div>
+</form>
+
+<section class="au-secao">
+  <div class="au-secao-cabeca">
+    <h2 class="au-secao-titulo">{% trans "Inscrições" %}</h2>
+    {% if linhas %}<span class="au-secao-contagem">{{ linhas|length }}</span>{% endif %}
+  </div>
+
+  {% if linhas %}
+    <div class="au-tabela">
+      <table>
+        <thead>
+          <tr>
+            <th>{% trans "Candidato" %}</th>
+            <th>{% trans "Vaga" %}</th>
+            <th>{% trans "Por que quer" %}</th>
+            <th>{% trans "Currículo" %}</th>
+            <th>{% trans "Data" %}</th>
+            <th>{% trans "Resultado" %}</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for l in linhas %}
+            <tr>
+              <td>{{ l.candidato.get_full_name|default:l.candidato.get_username }}</td>
+              <td>{{ l.vaga|default:"—" }}</td>
+              <td>{{ l.motivo|default:"—" }}</td>
+              <td>
+                {% for a in l.curriculos %}
+                  <a href="{% url 'workspace:baixar_anexo' a.pk %}">{{ a.nome_original }}</a>
+                {% empty %}
+                  —
+                {% endfor %}
+              </td>
+              <td>{{ l.solicitacao.criado_em|date:"d/m/Y" }}</td>
+              <td>
+                <span class="au-etiqueta au-etiqueta--rec-{{ l.resultado }}">{{ l.rotulo }}</span>
+              </td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  {% else %}
+    <div class="au-vazio">
+      <p class="au-vazio-titulo">{% trans "Nenhuma candidatura com este filtro." %}</p>
+      <p class="au-vazio-dica">
+        {% trans "As inscrições chegam pelo item “Inscrição em vaga interna” do catálogo." %}
+      </p>
+    </div>
+  {% endif %}
+</section>
+
+{% comment %}
+  A BUSCA NEGATIVA — §10 pede as duas, e esta é a que ninguém constrói.
+
+  "Quem já se candidatou" é a fácil. "Quem NUNCA se candidatou" responde
+  pergunta real — quem da equipe nunca se moveu, quem nunca foi considerado — e
+  sem ela a resposta vem de alguém varrendo a lista à mão e concluindo pela
+  ausência, que é como se conclui errado.
+
+  Atrás de um `<details>`: não é o que se procura ao abrir a tela, e aberta por
+  padrão empurraria para baixo a lista que importa.
+{% endcomment %}
+<section class="au-secao">
+  <details>
+    <summary class="au-secao-titulo">
+      {% blocktrans count n=nunca|length %}{{ n }} pessoa nunca se candidatou a nada{% plural %}{{ n }} pessoas nunca se candidataram a nada{% endblocktrans %}
+    </summary>
+
+    {% if nunca %}
+      <div class="au-tabela">
+        <table>
+          <thead>
+            <tr>
+              <th>{% trans "Pessoa" %}</th>
+              <th>{% trans "Área" %}</th>
+              <th>{% trans "Unidade" %}</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for p in nunca %}
+              <tr>
+                <td>{{ p.get_full_name|default:p.get_username }}</td>
+                <td>{{ p.lotacao.departamento.nome|default:"—" }}</td>
+                <td>{{ p.lotacao.unidade.nome|default:"—" }}</td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    {% else %}
+      <p class="au-agenda-livre">{% trans "Todo mundo já se candidatou a alguma coisa." %}</p>
+    {% endif %}
+  </details>
+</section>
+{% endblock %}

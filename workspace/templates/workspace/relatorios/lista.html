@@ -1,0 +1,75 @@
+{% extends "workspace/_shell_modulo.html" %}
+{% load i18n wks %}
+
+{% block titulo %}{% trans "Relatórios" %}{% endblock %}
+{% block rail %}{% include "workspace/_rail_servicos.html" with aba="relatorios" %}{% endblock %}
+{% block trilha %}<span>{% trans "Relatórios" %}</span>{% endblock %}
+{% block pagina_titulo %}{% trans "Relatórios" %}{% endblock %}
+{% block voltar_url %}{% url 'workspace:home' %}{% endblock %}
+
+{% block pagina_descricao %}
+  <p class="au-pagina-desc">
+    {% blocktrans %}Relatório de entrega e relatório de ocorrência. O formulário
+    guia o que precisa ser dito; emitido, ele vira documento e não muda mais.{% endblocktrans %}
+  </p>
+{% endblock %}
+
+{% block corpo %}
+<div class="au-form-linha">
+  {% for valor, rotulo in tipos %}
+    <a class="au-btn {% if forloop.first %}au-btn--primario{% else %}au-btn--sutil{% endif %}"
+       href="{% url 'workspace:relatorio_novo' %}?tipo={{ valor }}">
+      {{ rotulo }}
+    </a>
+  {% endfor %}
+</div>
+
+{% if relatorios %}
+  <div class="au-tabela">
+    <table>
+      <thead>
+        <tr>
+          <th>{% trans "Título" %}</th>
+          <th>{% trans "Tipo" %}</th>
+          <th>{% trans "Cliente" %}</th>
+          <th>{% trans "Local" %}</th>
+          <th>{% trans "Ocorrido em" %}</th>
+          <th>{% trans "Autor" %}</th>
+          <th>{% trans "Situação" %}</th>
+          <th class="num">{% trans "Evidências" %}</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for r in relatorios %}
+          <tr>
+            <td><a href="{% url 'workspace:relatorio_ver' r.pk %}">{{ r.titulo }}</a></td>
+            <td>{{ r.get_tipo_display }}</td>
+            <td>{{ r.cliente|default:"—" }}</td>
+            <td>{{ r.local|default:"—" }}</td>
+            <td>
+              {{ r.ocorrido_em|date:"d/m/Y" }}
+              {% if r.horario %}<span class="au-list-resumo">{{ r.horario|time:"H:i" }}</span>{% endif %}
+            </td>
+            <td>{{ r.autor.get_short_name|default:r.autor.email }}</td>
+            <td>
+              <span class="au-etiqueta au-etiqueta--rel-{{ r.situacao }}">
+                {{ r.get_situacao_display }}
+              </span>
+            </td>
+            <td class="num">{{ r.evidencias.all|length }}</td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+{% else %}
+  <div class="au-vazio">
+    <p class="au-vazio-titulo">{% trans "Nenhum relatório ainda." %}</p>
+    <p class="au-vazio-dica">
+      {% blocktrans %}O relatório de entrega registra o que foi entregue e quem
+      conferiu. O de ocorrência registra o que aconteceu, o que foi feito e o que
+      a empresa conclui.{% endblocktrans %}
+    </p>
+  </div>
+{% endif %}
+{% endblock %}

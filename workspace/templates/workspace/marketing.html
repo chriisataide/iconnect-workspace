@@ -1,0 +1,312 @@
+{% extends "workspace/_shell_modulo.html" %}
+{% load i18n wks %}
+
+{% block titulo %}{% trans "Oportunidades" %}{% endblock %}
+
+{% block rail %}{% include "workspace/_rail_servicos.html" with aba="marketing" %}{% endblock %}
+{% block trilha %}<span>{% trans "Oportunidades" %}</span>{% endblock %}
+{% block pagina_titulo %}{% trans "Oportunidades de marketing" %}{% endblock %}
+{% block voltar_url %}{% url 'workspace:home' %}{% endblock %}
+
+{% block pagina_descricao %}
+  <p class="au-pagina-desc">
+    {% if resumo.perdidas %}
+      <strong>{% blocktrans count n=resumo.perdidas %}{{ n }} prazo de decisão já venceu.{% plural %}{{ n }} prazos de decisão já venceram.{% endblocktrans %}</strong>
+    {% else %}
+      {% trans "Feira, congresso, patrocínio e prêmio — e o dia em que é preciso responder." %}
+    {% endif %}
+  </p>
+{% endblock %}
+
+{% block corpo %}
+{% comment %}
+  ESTA TELA NÃO APROVA NADA, e o aviso é a decisão mais importante do módulo.
+
+  Marketing já tinha o item "Evento ou patrocínio" no catálogo, com valor,
+  centro de custo e cadeia por faixa. Ele responde "aprove esta feira". O que
+  faltava era a lista do que EXISTE, com a data em que a decisão precisa
+  acontecer — porque o e-mail sobre a feira de outubro tem prazo de inscrição em
+  junho, e é esse prazo que se perde.
+
+  Quando a empresa decide ir, abre-se o pedido do catálogo. Um segundo fluxo de
+  aprovação para o mesmo dinheiro seria a duplicação que a frota mostrou de
+  perto.
+{% endcomment %}
+{% if prazos %}
+  <section class="au-secao">
+    <div class="au-secao-cabeca">
+      <h2 class="au-secao-titulo">{% trans "Precisa decidir" %}</h2>
+      <span class="au-secao-contagem">{{ prazos|length }}</span>
+    </div>
+    <ul class="au-prazos">
+      {% for o in prazos %}
+        <li class="au-prazo-item {% if o.prazo_perdido %}au-prazo-item--vencido{% endif %}">
+          <span class="au-prazo-doc">{{ o.get_tipo_display }}</span>
+          <span class="au-prazo-veiculo">
+            {{ o.titulo }}
+            {% if o.periodo %}<span class="au-prazo-modelo">{{ o.periodo }}</span>{% endif %}
+          </span>
+          <span class="au-prazo-data">
+            {% if o.prazo_perdido %}
+              {% blocktrans with data=o.prazo_decisao|date:"d/m/Y" %}prazo venceu em {{ data }}{% endblocktrans %}
+            {% else %}
+              {% blocktrans count n=o.dias_para_decidir %}decidir em {{ n }} dia{% plural %}decidir em {{ n }} dias{% endblocktrans %}
+            {% endif %}
+          </span>
+        </li>
+      {% endfor %}
+    </ul>
+  </section>
+{% endif %}
+
+<form class="au-filtros" method="get" action="{% url 'workspace:marketing' %}">
+  <div class="au-filtros-chips">
+    <a class="au-chip {% if not situacao_atual %}au-chip--ativo{% endif %}"
+       href="{% url 'workspace:marketing' %}">{% trans "Em aberto" %}</a>
+    {% for valor, rotulo in situacoes %}
+      <a class="au-chip {% if situacao_atual == valor %}au-chip--ativo{% endif %}"
+         href="?situacao={{ valor }}">{{ rotulo }}</a>
+    {% endfor %}
+  </div>
+</form>
+
+<section class="au-secao">
+  <div class="au-secao-cabeca">
+    <h2 class="au-secao-titulo">{% trans "Radar" %}</h2>
+    {% if oportunidades %}<span class="au-secao-contagem">{{ oportunidades|length }}</span>{% endif %}
+  </div>
+
+  {% if oportunidades %}
+    <div class="au-tabela">
+      <table>
+        <thead>
+          <tr>
+            <th>{% trans "Oportunidade" %}</th>
+            <th>{% trans "Tipo" %}</th>
+            <th>{% trans "Quando" %}</th>
+            <th>{% trans "Decidir até" %}</th>
+            <th class="num">{% trans "Custo" %}</th>
+            <th>{% trans "Responsável" %}</th>
+            <th>{% trans "Situação" %}</th>
+            {% if opera %}<th></th>{% endif %}
+          </tr>
+        </thead>
+        <tbody>
+          {% for o in oportunidades %}
+            <tr>
+              <td>
+                {% if o.site %}
+                  <a href="{{ o.site }}" rel="noopener noreferrer" target="_blank">{{ o.titulo }}</a>
+                {% else %}
+                  {{ o.titulo }}
+                {% endif %}
+                {% if o.organizador or o.cidade %}
+                  <span class="au-list-resumo">
+                    {{ o.organizador }}{% if o.organizador and o.cidade %} · {% endif %}{{ o.cidade }}
+                  </span>
+                {% endif %}
+                {% comment %}
+                  O MOTIVO fica visível na linha da descartada. É o campo mais
+                  útil da tabela: sem ele a mesma feira volta todo ano e a
+                  discussão recomeça do zero.
+                {% endcomment %}
+                {% if o.motivo %}
+                  <span class="au-list-resumo">{{ o.motivo }}</span>
+                {% endif %}
+              </td>
+              <td>{{ o.get_tipo_display }}</td>
+              <td>{{ o.periodo|default:"—" }}</td>
+              <td>
+                {% if o.prazo_decisao %}
+                  {{ o.prazo_decisao|date:"d/m/Y" }}
+                  {% if o.prazo_perdido %}
+                    <span class="au-selo au-selo--alerta">{% trans "vencido" %}</span>
+                  {% endif %}
+                {% else %}
+                  —
+                {% endif %}
+              </td>
+              <td class="num">
+                {% if o.custo_estimado %}R$ {{ o.custo_estimado|moeda }}{% else %}—{% endif %}
+              </td>
+              <td>
+                {% if o.responsavel %}
+                  {{ o.responsavel.get_short_name|default:o.responsavel.get_full_name }}
+                {% else %}
+                  —
+                {% endif %}
+              </td>
+              <td>
+                <span class="au-etiqueta au-etiqueta--mkt-{{ o.situacao }}">
+                  {{ o.get_situacao_display }}
+                </span>
+                {% if o.solicitacao %}
+                  <span class="au-list-resumo">{% trans "pedido aberto" %}</span>
+                {% endif %}
+              </td>
+              {% if opera %}
+                <td>
+                  {% if o.aberta %}
+                    <form class="au-custodia-baixa" method="post"
+                          action="{% url 'workspace:oportunidade_decidir' o.pk %}">
+                      {% csrf_token %}
+                      <label class="au-sr" for="sit-{{ o.pk }}">{% trans "Situação" %}</label>
+                      <select class="au-input au-input--compacto" id="sit-{{ o.pk }}"
+                              name="situacao">
+                        {% for valor, rotulo in situacoes %}
+                          <option value="{{ valor }}" {% if o.situacao == valor %}selected{% endif %}>
+                            {{ rotulo }}
+                          </option>
+                        {% endfor %}
+                      </select>
+                      <label class="au-sr" for="mot-{{ o.pk }}">{% trans "Motivo" %}</label>
+                      <input class="au-input au-input--compacto" id="mot-{{ o.pk }}"
+                             name="motivo" type="text" maxlength="300"
+                             placeholder="{% trans 'por quê?' %}">
+                      <button class="au-btn au-btn--sutil au-btn--pequeno" type="submit">
+                        {% trans "Registrar" %}
+                      </button>
+                    </form>
+                  {% endif %}
+                </td>
+              {% endif %}
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% if opera %}
+      <p class="au-ajuda">
+        {% blocktrans %}Aprovar aqui só marca a decisão. O gasto continua passando pelo
+        item “Evento ou patrocínio” do catálogo, que confere o orçamento do centro de
+        custo e segue a cadeia de aprovação por faixa de valor.{% endblocktrans %}
+        <a href="{% url 'workspace:pedir' 'evento' %}">{% trans "Abrir o pedido" %}</a>
+      </p>
+    {% endif %}
+  {% else %}
+    <div class="au-vazio">
+      <p class="au-vazio-titulo">{% trans "Nada no radar." %}</p>
+      <p class="au-vazio-dica">
+        {% blocktrans %}Cadastre a feira quando o convite chegar, com o prazo para
+        responder. É esse prazo que se perde — o evento é em outubro, a inscrição
+        antecipada acaba em junho.{% endblocktrans %}
+      </p>
+    </div>
+  {% endif %}
+</section>
+
+{% if opera %}
+  <section class="au-secao">
+    <div class="au-secao-cabeca">
+      <h2 class="au-secao-titulo">{% trans "Registrar oportunidade" %}</h2>
+    </div>
+
+    <form class="au-form" method="post" action="{% url 'workspace:oportunidade_nova' %}"
+          novalidate>
+      {% csrf_token %}
+
+      <div class="au-colunas au-colunas--duas">
+        <div class="au-campo">
+          <label class="au-rotulo" for="titulo">
+            {% trans "Oportunidade" %} <span class="au-obrigatorio" aria-hidden="true">*</span>
+          </label>
+          <input class="au-input" id="titulo" name="titulo" type="text" maxlength="200"
+                 placeholder="{% trans 'Feira Intersolar 2027' %}">
+        </div>
+        <div class="au-campo">
+          <label class="au-rotulo" for="tipo">{% trans "Tipo" %}</label>
+          <select class="au-input" id="tipo" name="tipo">
+            {% for valor, rotulo in tipos %}
+              <option value="{{ valor }}">{{ rotulo }}</option>
+            {% endfor %}
+          </select>
+        </div>
+      </div>
+
+      <div class="au-colunas au-colunas--tres">
+        <div class="au-campo">
+          <label class="au-rotulo" for="organizador">{% trans "Organizador" %}</label>
+          <input class="au-input" id="organizador" name="organizador" type="text"
+                 maxlength="160">
+        </div>
+        <div class="au-campo">
+          <label class="au-rotulo" for="cidade">{% trans "Cidade" %}</label>
+          <input class="au-input" id="cidade" name="cidade" type="text" maxlength="120">
+        </div>
+        <div class="au-campo">
+          <label class="au-rotulo" for="site">{% trans "Site" %}</label>
+          <input class="au-input" id="site" name="site" type="url" maxlength="300">
+        </div>
+      </div>
+
+      <div class="au-colunas au-colunas--tres">
+        <div class="au-campo">
+          <label class="au-rotulo" for="data_inicio">{% trans "Começa em" %}</label>
+          <input class="au-input" id="data_inicio" name="data_inicio" type="date">
+        </div>
+        <div class="au-campo">
+          <label class="au-rotulo" for="data_fim">{% trans "Termina em" %}</label>
+          <input class="au-input" id="data_fim" name="data_fim" type="date">
+        </div>
+        <div class="au-campo">
+          <label class="au-rotulo" for="prazo_decisao">
+            {% trans "Decidir até" %}
+          </label>
+          <input class="au-input" id="prazo_decisao" name="prazo_decisao" type="date">
+          {% comment %}
+            NÃO é a data do evento. É o dia em que a resposta precisa estar
+            dada: fim da inscrição antecipada, prazo do edital, último dia para
+            reservar stand. Guardar só a data do evento faria o alerta chegar
+            quando já não adianta.
+          {% endcomment %}
+          <p class="au-ajuda">
+            {% trans "Fim da inscrição antecipada, prazo do edital — não a data do evento." %}
+          </p>
+        </div>
+      </div>
+
+      <div class="au-colunas au-colunas--tres">
+        <div class="au-campo">
+          <label class="au-rotulo" for="custo_estimado">{% trans "Custo estimado" %}</label>
+          <input class="au-input" id="custo_estimado" name="custo_estimado" type="text"
+                 inputmode="decimal">
+        </div>
+        <div class="au-campo">
+          <label class="au-rotulo" for="publico_estimado">{% trans "Público estimado" %}</label>
+          <input class="au-input" id="publico_estimado" name="publico_estimado"
+                 type="number" min="0" step="1">
+        </div>
+        <div class="au-campo">
+          <label class="au-rotulo" for="responsavel">{% trans "Responsável" %}</label>
+          <select class="au-input" id="responsavel" name="responsavel">
+            <option value="">{% trans "ainda sem dono" %}</option>
+            {% for p in pessoas %}
+              <option value="{{ p.pk }}">{{ p.get_full_name|default:p.get_username }}</option>
+            {% endfor %}
+          </select>
+        </div>
+      </div>
+
+      <div class="au-campo">
+        <label class="au-rotulo" for="retorno_esperado">{% trans "O que a empresa ganha com isso" %}</label>
+        <textarea class="au-input" id="retorno_esperado" name="retorno_esperado" rows="3"></textarea>
+        <p class="au-ajuda">
+          {% trans "Escrito aqui, vira o texto do pedido — em vez de ser inventado na hora de pedir." %}
+        </p>
+      </div>
+
+      <div class="au-campo">
+        <label class="au-rotulo" for="origem">{% trans "Como soubemos" %}</label>
+        <input class="au-input" id="origem" name="origem" type="text" maxlength="200"
+               placeholder="{% trans 'E-mail do organizador, indicação de cliente, edição anterior' %}">
+      </div>
+
+      <div class="au-form-acoes">
+        <button class="au-btn au-btn--primario" type="submit">
+          {% trans "Registrar" %}
+        </button>
+      </div>
+    </form>
+  </section>
+{% endif %}
+{% endblock %}

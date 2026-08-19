@@ -98,9 +98,28 @@ def pendentes_de_leitura(pessoa, cache: dict | None = None) -> list[Documento]:
     if pessoa is None or getattr(pessoa, "is_authenticated", False) is False:
         return []
 
+    # O filtro de OBRIGATÓRIO vem antes do de público-alvo, e a ordem é a
+    # diferença entre duas consultas e três.
+    #
+    # `visiveis_para()` chama `para_subjects()`, que avalia o queryset inteiro
+    # em Python e devolve outro `filter(pk__in=...)` — duas idas ao banco. Com
+    # `obrigatorios()` primeiro, o conjunto que sai do banco já é o pequeno (a
+    # empresa tem dezenas de documentos e um punhado de leituras obrigatórias),
+    # e o recorte por sujeito acontece na lista que já está na memória.
+    #
+    # Isto não é micro-otimização: esta função roda no trilho, em TODA tela do
+    # Workspace. Uma consulta a mais aqui é uma consulta a mais em cada
+    # carregamento de cada página.
     obrigatorios = list(
-        visiveis_para(pessoa, cache=cache).obrigatorios().select_related("dono")
+        Documento.objects.publicados().obrigatorios().select_related("dono")
     )
+    if not obrigatorios:
+        return []
+
+    alvo = set(subjects_de(pessoa, cache=cache))
+    obrigatorios = [
+        d for d in obrigatorios if alvo & set(d.publico_alvo or ["*"])
+    ]
     if not obrigatorios:
         return []
 
@@ -160,6 +179,47 @@ def cobertura_de_leitura(documento: Documento) -> dict:
 # ── Para o dono ─────────────────────────────────────────────────────
 
 
+PERMISSAO_PUBLICAR = "doc.publicar"
+
+
+class DocumentoError(Exception):
+    """O arquivo não pode ser anexado assim."""
+
+
+def pode_publicar(pessoa, cache: dict | None = None) -> bool:
+    from identidade.services.autorizacao import pode
+
+    return pode(pessoa, PERMISSAO_PUBLICAR, cache=cache)
+
+
+def anexar_arquivo(documento: Documento, arquivo, pessoa, cache=None) -> Documento:
+    """O upload do §33.
+
+    Substitui o anterior quando já havia um, e é o certo: a versão do documento
+    é `Documento.versao`, não a contagem de arquivos. Guardar os dois faria a
+    tela ter de escolher qual mostrar — e escolheria errado uma vez.
+
+    O NOME ORIGINAL é guardado à parte porque o nome no disco é um UUID: sem
+    ele, quem baixa recebe `a3f9c1....pdf` e não reconhece o que pediu.
+    """
+    if not pode_publicar(pessoa, cache=cache):
+        raise DocumentoError("Você não pode publicar documentos.")
+
+    # Reusa o validador dos anexos — extensão, MIME e magic bytes. Ver o
+    # docstring de `anexos.validar`.
+    from workspace.services import anexos as anx
+
+    motivo = anx.validar(arquivo)
+    if motivo:
+        raise DocumentoError(f"{getattr(arquivo, 'name', 'arquivo')}: {motivo}")
+
+    documento.arquivo = arquivo
+    documento.arquivo_nome = getattr(arquivo, "name", "")[:255]
+    documento.arquivo_tamanho = getattr(arquivo, "size", 0) or 0
+    documento.save(update_fields=["arquivo", "arquivo_nome", "arquivo_tamanho"])
+    return documento
+
+
 def a_vencer(dono=None, dias: int = DIAS_DE_AVISO):
     """Documentos vigentes que vencem na janela. Filtra por dono se informado."""
     hoje = timezone.localdate()
@@ -173,3 +233,252 @@ def vencidos(dono=None):
     """Já vencidos e ainda marcados como vigentes — a fila de trabalho do dono."""
     consulta = Documento.objects.vencidos()
     return consulta.filter(dono=dono) if dono is not None else consulta
+
+
+# ── Escrever — §37 ──────────────────────────────────────────────────
+#
+# O acervo podia ser LIDO e não podia ser MANTIDO. Criar um POP exigia o
+# `/admin/` do Django, que pede `is_staff` — e quem escreve procedimento é a
+# área que o executa, não quem administra o banco. Na prática, publicar norma
+# significava pedir para outra pessoa; é o mesmo defeito que a redação de
+# comunicados corrigiu, no módulo ao lado.
+
+
+#: Os sujeitos que o público-alvo aceita, e o vocabulário é o MESMO do
+#: *security trimming* da busca. Um segundo vocabulário para dizer "quem vê"
+#: divergiria do primeiro na terceira semana — e aí o documento aparece na busca
+#: de quem não pode abri-lo.
+PUBLICO_TODOS = "*"
+
+
+def alvo_de(unidades=None, departamentos=None) -> list[str]:
+    """Converte a escolha da tela em sujeitos. Vazio = a empresa inteira.
+
+    VAZIO significa "todo mundo", e não "ninguém". O contrário faria todo
+    documento já existente sumir no dia em que o campo ganhasse tela — e o POP
+    que a empresa inteira precisa ler seria o primeiro a desaparecer.
+    """
+    sujeitos = [f"unidade:{u}" for u in (unidades or []) if str(u).isdigit()]
+    sujeitos += [f"depto:{d}" for d in (departamentos or []) if str(d).isdigit()]
+    return sujeitos or [PUBLICO_TODOS]
+
+
+def alvo_para_tela(documento: Documento | None) -> tuple[set[int], set[int]]:
+    """`(unidades, departamentos)` marcados, para o formulário reabrir igual."""
+    if documento is None:
+        return set(), set()
+    unidades, departamentos = set(), set()
+    for sujeito in documento.publico_alvo or []:
+        prefixo, _, valor = str(sujeito).partition(":")
+        if not valor.isdigit():
+            continue
+        if prefixo == "unidade":
+            unidades.add(int(valor))
+        elif prefixo == "depto":
+            departamentos.add(int(valor))
+    return unidades, departamentos
+
+
+def redacao(pessoa, cache: dict | None = None):
+    """O acervo de quem escreve — inclusive rascunho, vencido e revogado.
+
+    Diferente de `visiveis_para()`, que é a vitrine: quem mantém a norma precisa
+    ver justamente o que saiu do ar, porque é isso que dá trabalho a ele.
+    """
+    if not pode_publicar(pessoa, cache=cache):
+        return Documento.objects.none()
+    return Documento.objects.select_related("dono").order_by(
+        "situacao", "tipo", "titulo"
+    )
+
+
+@transaction.atomic
+def salvar(
+    pessoa,
+    documento: Documento | None,
+    slug: str,
+    titulo: str,
+    tipo: str,
+    resumo: str = "",
+    corpo: str = "",
+    versao: str = "",
+    unidades=None,
+    departamentos=None,
+    leitura_obrigatoria: bool = False,
+    vigencia_inicio=None,
+    vigencia_fim=None,
+    publicar: bool = False,
+    arquivo=None,
+    cache: dict | None = None,
+) -> Documento:
+    """Cria ou atualiza. Uma função para os dois, como na redação de comunicados.
+
+    Duas divergiriam na terceira semana — e a validação que existe só numa delas
+    é a porta por onde entra o documento sem título.
+    """
+    from django.utils.text import slugify
+
+    if not pode_publicar(pessoa, cache=cache):
+        raise DocumentoError("Você não pode publicar documentos.")
+    if not titulo.strip():
+        raise DocumentoError("O documento precisa de um título.")
+    if tipo not in TipoDocumento.values:
+        raise DocumentoError("Tipo de documento inválido.")
+
+    if vigencia_fim and vigencia_inicio and vigencia_fim < vigencia_inicio:
+        # Vigência invertida produz documento que nasce vencido: some da vitrine
+        # no mesmo instante em que é publicado, e ninguém entende por quê.
+        raise DocumentoError("A vigência termina antes de começar.")
+
+    if documento is None:
+        base = slugify(slug or titulo)[:80] or "documento"
+        documento = Documento(slug=_slug_livre(base), dono=pessoa)
+    elif documento.dono_id is None:
+        documento.dono = pessoa
+
+    documento.titulo = titulo.strip()[:200]
+    documento.tipo = tipo
+    documento.resumo = resumo.strip()[:300]
+    documento.corpo = corpo
+    # A versão é do AUTOR e não um contador automático. "2.1" quer dizer algo
+    # para quem mantém a norma; um número que sobe sozinho a cada salvamento
+    # invalidaria toda confirmação de leitura por causa de um erro de digitação
+    # corrigido — e é a confirmação que vai para a auditoria.
+    documento.versao = (versao.strip() or documento.versao or "1")[:12]
+    documento.publico_alvo = alvo_de(unidades, departamentos)
+    documento.leitura_obrigatoria = bool(leitura_obrigatoria)
+    if vigencia_inicio:
+        documento.vigencia_inicio = vigencia_inicio
+    documento.vigencia_fim = vigencia_fim
+    documento.situacao = (
+        SituacaoDocumento.VIGENTE if publicar else SituacaoDocumento.RASCUNHO
+    )
+    documento.save()
+
+    if arquivo is not None:
+        anexar_arquivo(documento, arquivo, pessoa, cache=cache)
+    return documento
+
+
+def _slug_livre(base: str) -> str:
+    """`base`, `base-2`, `base-3`… O slug é único e vai na URL.
+
+    Recusar o documento porque já existe outro com título parecido faria quem
+    escreve inventar um título pior para caber na regra.
+    """
+    if not Documento.objects.filter(slug=base).exists():
+        return base
+    for sufixo in range(2, 100):
+        tentativa = f"{base[:76]}-{sufixo}"
+        if not Documento.objects.filter(slug=tentativa).exists():
+            return tentativa
+    raise DocumentoError("Não foi possível gerar um endereço para este documento.")
+
+
+@transaction.atomic
+def revogar(documento: Documento, pessoa, cache: dict | None = None) -> Documento:
+    """Tira da vitrine sem apagar.
+
+    Revogado continua acessível por link direto, de propósito: quem investiga
+    uma ocorrência precisa poder abrir o POP que valia na época. O que muda é
+    que a vitrine não lista e a tela avisa.
+    """
+    if not pode_publicar(pessoa, cache=cache):
+        raise DocumentoError("Você não pode revogar documentos.")
+    documento.situacao = SituacaoDocumento.REVOGADO
+    documento.save(update_fields=["situacao"])
+    return documento
+
+
+# ── Cobrar — §37 ────────────────────────────────────────────────────
+
+
+def avisar_leituras_obrigatorias() -> int:
+    """Um aviso por pessoa que deve leitura obrigatória. Devolve quantos foram.
+
+    É o que separa "a empresa publicou" de "a empresa informou". Sem ele, a
+    confirmação só acontece para quem abre o Meu dia por conta própria — e é
+    justamente essa confirmação que se leva para auditoria de ISO ou para defesa
+    trabalhista.
+
+    O dedupe do `criar()` usa `origem_id`, e aqui ele inclui a VERSÃO: publicar
+    a v2 de um POP volta a cobrar todo mundo, mesmo quem já tinha lido a v1 —
+    que é exatamente o comportamento que a confirmação por versão existe para
+    garantir.
+
+    Custo: duas consultas por pessoa, e o `cache` compartilhado guarda as
+    lotações entre elas. É comando diário sobre quem tem lotação, não laço em
+    requisição — e a alternativa (resolver sujeito → pessoas no banco) é a
+    consulta reversa do organograma, que ainda não existe.
+    """
+    from django.contrib.auth import get_user_model
+    from django.urls import reverse
+
+    from workspace.models.notificacao import TipoNotificacao
+    from workspace.services import notificacoes as nt
+
+    if not Documento.objects.publicados().obrigatorios().exists():
+        return 0
+
+    cache: dict = {}
+    enviados = 0
+    pessoas = (
+        get_user_model()
+        .objects.filter(is_active=True, lotacao__isnull=False)
+        .order_by("pk")
+    )
+    for pessoa in pessoas:
+        for documento in pendentes_de_leitura(pessoa, cache=cache):
+            if nt.criar(
+                pessoa,
+                TipoNotificacao.LEITURA_OBRIGATORIA,
+                f"Leitura obrigatória: {documento.titulo}",
+                f"{documento.get_tipo_display()} · versão {documento.versao}. "
+                "Confirme depois de ler.",
+                url=reverse("workspace:documento", args=[documento.slug]),
+                dominio="cnt.leitura",
+                origem_id=f"{documento.pk}:{documento.versao}",
+            ):
+                enviados += 1
+    return enviados
+
+
+def avisar_vencimentos(dias: int = DIAS_DE_AVISO) -> int:
+    """Avisa o DONO do documento que a vigência está acabando ou acabou.
+
+    Vai para o dono e não para quem lê: `publicados()` tira o vencido da
+    vitrine, então um POP que passa da vigência simplesmente SOME do acervo. As
+    pessoas continuam precisando do procedimento; ele deixou de existir na tela,
+    e só quem o mantém pode republicá-lo.
+    """
+    from django.urls import reverse
+
+    from workspace.models.notificacao import TipoNotificacao
+    from workspace.services import notificacoes as nt
+
+    hoje = timezone.localdate()
+    enviados = 0
+    # Vencidos primeiro: um documento pode estar nas duas listas conforme a
+    # janela, e o aviso de "vence em N dias" para algo que já venceu seria
+    # informação errada.
+    for documento in list(vencidos()) + [
+        d for d in a_vencer(dias=dias) if not d.vencido
+    ]:
+        restam = (documento.vigencia_fim - hoje).days
+        titulo = (
+            f"{documento.titulo} venceu"
+            if documento.vencido
+            else f"{documento.titulo} vence em {restam} dias"
+        )
+        if nt.criar(
+            documento.dono,
+            TipoNotificacao.DOCUMENTO_A_VENCER,
+            titulo,
+            f"{documento.get_tipo_display()} · vigência até "
+            f"{documento.vigencia_fim.strftime('%d/%m/%Y')}.",
+            url=reverse("workspace:documento", args=[documento.slug]),
+            dominio="cnt.vigencia",
+            origem_id=f"{documento.pk}:{documento.vigencia_fim.isoformat()}",
+        ):
+            enviados += 1
+    return enviados

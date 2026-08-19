@@ -36,7 +36,16 @@ class OrigemIndice(models.TextChoices):
     """De onde a entrada veio. Define o grupo na tela, na ordem daqui."""
 
     SERVICO = "servico", "Serviços"
+    # §57 — o que se PEDE já estava; o que se PERGUNTA, se APRENDE, se MARCA e
+    # o que é SEU não estava. A busca achava o item de catálogo "Reembolso" e
+    # não achava o pedido de reembolso que a própria pessoa abriu — que é o que
+    # ela procura quando digita "reembolso março".
+    SOLICITACAO = "solicitacao", "Minhas solicitações"
     DOCUMENTO = "documento", "Documentação"
+    FAQ = "faq", "Perguntas frequentes"
+    CURSO = "curso", "Universidade"
+    RECURSO = "recurso", "Reservas"
+    CORRESPONDENCIA = "correspondencia", "Correspondências"
     COMUNICADO = "comunicado", "Comunicados"
     NOTICIA = "noticia", "Notícias"
 

@@ -46,7 +46,12 @@ from django.db.models import Count, Q
 from django.utils import timezone
 
 from identidade.services.autorizacao import pode
-from workspace.models.catalogo import SituacaoServico, SolicitacaoServico
+from workspace.models.catalogo import (
+    SITUACOES_FORA_DA_ESTEIRA,
+    SITUACOES_NAO_ENVIADAS,
+    SituacaoServico,
+    SolicitacaoServico,
+)
 from workspace.models.evento import AcaoSolicitacao, EventoSolicitacao
 from workspace.services import atendimento as atd
 
@@ -119,7 +124,13 @@ def panorama(pessoa, dias: int = PERIODO_PADRAO, cache: dict | None = None) -> d
     raizes = dominios_visiveis(pessoa, cache=cache)
     corte = timezone.now() - timedelta(days=dias)
 
-    base = SolicitacaoServico.objects.filter(criado_em__gte=corte)
+    # RASCUNHO fora da base inteira — §43. Um formulário que ninguém enviou não
+    # é trabalho da área: sem esta exclusão, o rascunho que alguém deixou pela
+    # metade apareceria como pedido aberto e, passado o prazo prometido do item,
+    # como pedido ATRASADO — no painel de uma área que nunca soube dele.
+    base = SolicitacaoServico.objects.filter(criado_em__gte=corte).exclude(
+        situacao__in=SITUACOES_NAO_ENVIADAS
+    )
     if raizes is not None:
         consulta = Q()
         for raiz in raizes:
@@ -178,7 +189,11 @@ def panorama(pessoa, dias: int = PERIODO_PADRAO, cache: dict | None = None) -> d
                 area["ate_concluir"].append(levou)
         elif situacao == SituacaoServico.DEVOLVIDA:
             area["devolvidos"] += 1
-        elif situacao != SituacaoServico.CANCELADA:
+        elif situacao not in SITUACOES_FORA_DA_ESTEIRA:
+            # A condição era `!= CANCELADA`, escrita à mão, e por isso um pedido
+            # REPROVADO contava como aberto para sempre — e como ATRASADO
+            # assim que passasse o prazo prometido do item. O gestor tinha dito
+            # não meses antes; o painel da área continuava cobrando.
             area["abertos"] += 1
             # Atraso só faz sentido no que AINDA está aberto: o que já foi
             # entregue tem o tempo real medido na coluna do lado, e contar as
@@ -299,7 +314,7 @@ _NOME_DA_AREA = {
     "fin": "Financeiro",
     "hab": "SESMT",
     "jur": "Jurídico",
-    "log": "Logística",
+    "log": "Suprimentos",
     "mkt": "Marketing",
     "ops": "Operação",
     "rh": "R.H.",

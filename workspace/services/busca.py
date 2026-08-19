@@ -42,7 +42,14 @@ MIN_CARACTERES = 2
 # política sobre ele — e quem quer a política reconhece o grupo seguinte.
 ORDEM_DOS_GRUPOS = (
     (OrigemIndice.SERVICO, "Serviços"),
+    # O que é DA PESSOA vem logo depois do que ela pode pedir: quem digita
+    # "reembolso março" procura o próprio pedido, não a política sobre ele.
+    (OrigemIndice.SOLICITACAO, "Minhas solicitações"),
+    (OrigemIndice.FAQ, "Perguntas frequentes"),
     (OrigemIndice.DOCUMENTO, "Documentação"),
+    (OrigemIndice.CURSO, "Universidade"),
+    (OrigemIndice.RECURSO, "Reservas"),
+    (OrigemIndice.CORRESPONDENCIA, "Correspondências"),
     (OrigemIndice.COMUNICADO, "Comunicados"),
     (OrigemIndice.NOTICIA, "Notícias"),
 )

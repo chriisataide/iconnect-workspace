@@ -1,0 +1,28 @@
+{% extends "erros/_pagina.html" %}
+{% load i18n %}
+
+{% block titulo %}{% trans "Sem acesso" %}{% endblock %}
+{% block codigo %}403{% endblock %}
+{% block cabecalho %}{% trans "Isto não é seu." %}{% endblock %}
+
+{% block explicacao %}
+  {% comment %}
+    A tela mais importante das quatro, e a que o produto usa de verdade: a fila
+    de atendimento, a bandeja de aprovação e o estoque levantam `PermissionDenied`
+    em vez de mostrar uma lista vazia. "Sua fila está vazia" para quem não atende
+    nada é mentira — e mentira que faz a pessoa esperar por trabalho que nunca vem.
+
+    Por isso o texto explica o CAMINHO e não só o fato. Um 403 que diz apenas
+    "acesso negado" faz a pessoa concluir que o sistema quebrou, e a próxima
+    coisa que ela faz é abrir um chamado.
+  {% endcomment %}
+  <p>
+    {% blocktrans %}Esta tela pertence a quem tem um papel que você não tem — atender
+    uma fila, aprovar um pedido, movimentar o estoque.{% endblocktrans %}
+  </p>
+  <p>
+    {% blocktrans %}Se você deveria ter esse acesso, quem concede é o R.H. junto com a
+    sua área. Papel concedido vale a partir da requisição seguinte: basta recarregar
+    a página depois.{% endblocktrans %}
+  </p>
+{% endblock %}

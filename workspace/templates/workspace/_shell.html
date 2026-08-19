@@ -57,6 +57,67 @@
       </button>
 
       {% comment %}
+        O SINO. Ele foi citado no comentário acima desde a primeira versão desta
+        casca e nunca existiu: notificação só era alcançável pelo trilho, que
+        não aparece na home nem em tela de módulo.
+
+        `<details>` e não JS: abrir e fechar disclosure é comportamento nativo,
+        e a CSP de produção não deixaria um handler inline. Sem JS o painel
+        continua abrindo — e o link para a tela cheia continua funcionando.
+
+        Nada disto para quem não entrou. Notificação é de UMA pessoa, e o hub é
+        aberto: um sino para visitante anônimo mostraria aviso de alguém.
+      {% endcomment %}
+      {% if eu %}
+        <details class="au-sino">
+          <summary class="au-topbar-botao" title="{% trans 'Notificações' %}"
+                   aria-label="{% blocktrans count n=nao_lidas %}{{ n }} notificação não lida{% plural %}{{ n }} notificações não lidas{% endblocktrans %}">
+            <svg class="au-icon" aria-hidden="true"><use href="#i-sino"></use></svg>
+            {% if nao_lidas %}
+              <span class="au-sino-contagem">{{ nao_lidas }}</span>
+            {% endif %}
+          </summary>
+          <div class="au-sino-painel">
+            <p class="au-sino-cabeca">
+              {% if nao_lidas %}
+                {% blocktrans count n=nao_lidas %}{{ n }} não lida{% plural %}{{ n }} não lidas{% endblocktrans %}
+              {% else %}
+                {% trans "Tudo lido." %}
+              {% endif %}
+            </p>
+            {% if notificacoes_recentes %}
+              <ul class="au-sino-lista">
+                {% for n in notificacoes_recentes %}
+                  <li class="au-sino-item {% if not n.lida %}au-sino-item--nova{% endif %}">
+                    <a class="au-sino-link" href="{{ n.url|default:'#' }}">{{ n.titulo }}</a>
+                    <time class="au-sino-quando" datetime="{{ n.criado_em|date:'c' }}">{{ n.criado_em|date:"d/m H:i" }}</time>
+                  </li>
+                {% endfor %}
+              </ul>
+              {% if nao_lidas %}
+                <form class="au-sino-rodape" method="post" action="{% url 'workspace:marcar_lidas' %}">
+                  {% csrf_token %}
+                  {% comment %}
+                    A view já esperava por isto: sem `voltar`, limpar o contador
+                    jogava a pessoa na Central de qualquer tela em que estivesse.
+                  {% endcomment %}
+                  <input type="hidden" name="voltar" value="{{ request.path }}">
+                  <button class="au-btn au-btn--sutil au-btn--pequeno" type="submit">
+                    {% trans "Marcar todas como lidas" %}
+                  </button>
+                </form>
+              {% endif %}
+            {% else %}
+              <p class="au-sino-vazio">{% trans "Nada por aqui ainda." %}</p>
+            {% endif %}
+            <a class="au-sino-tudo" href="{% url 'workspace:notificacoes' %}">
+              {% trans "Ver todas" %}
+            </a>
+          </div>
+        </details>
+      {% endif %}
+
+      {% comment %}
         QUEM ESTÁ LOGADO, E A PORTA DE SAÍDA.
 
         A rota `/sair/` existia desde o começo e nenhuma tela apontava para ela:
@@ -136,6 +197,68 @@
          alt="" width="18" height="18" aria-hidden="true">
     <span>{% blocktrans %}iConnect Workspace · a vida corporativa em um lugar{% endblocktrans %}</span>
   </footer>
+
+  {% comment %}
+    O ASSISTENTE — §3.
+
+    Canto inferior direito, botão circular, painel que abre e fecha. `<details>`
+    de novo: abrir e fechar é comportamento nativo, a CSP não deixa handler
+    inline, e SEM JAVASCRIPT o painel ainda abre — o formulário de dentro faz
+    `GET` para a página de ajuda, que responde a mesma coisa em HTML.
+
+    Essa degradação não é capricho: o assistente é a primeira camada de
+    atendimento, e uma primeira camada que depende de JS carregar é uma primeira
+    camada que falha exatamente para quem está na rede ruim do canteiro de obra.
+
+    Aberto para quem não entrou, como o resto do hub: "como peço férias" é
+    informação institucional, e pôr login na frente dela contradiz o produto.
+  {% endcomment %}
+  <details class="au-bot" id="assistente">
+    <summary title="{% trans 'Assistente' %}"
+             aria-label="{% trans 'Abrir o assistente' %}">
+      <svg class="au-icon" aria-hidden="true"><use href="#i-spark"></use></svg>
+    </summary>
+
+    <div class="au-bot-painel" role="dialog" aria-label="{% trans 'Assistente' %}">
+      <div class="au-bot-cabeca">
+        <span class="au-bot-titulo">{% trans "Posso ajudar?" %}</span>
+        <a class="au-bot-tudo" href="{% url 'workspace:ajuda' %}">{% trans "Ver tudo" %}</a>
+      </div>
+
+      <form class="au-bot-form" method="get" action="{% url 'workspace:ajuda' %}"
+            data-assistente="{% url 'workspace:assistente' %}">
+        <label class="au-sr" for="bot-q">{% trans "Sua pergunta" %}</label>
+        <input class="au-input" id="bot-q" name="q" type="search" autocomplete="off"
+               placeholder="{% trans 'Como peço férias?' %}">
+        <button class="au-btn au-btn--primario au-btn--pequeno" type="submit">
+          {% trans "Perguntar" %}
+        </button>
+      </form>
+
+      {% comment %}
+        A resposta cai aqui. Nasce vazio e com `hidden` — nunca uma caixa de
+        conversa fingindo que já houve uma.
+      {% endcomment %}
+      <div class="au-bot-resposta" id="bot-resposta" aria-live="polite" hidden></div>
+
+      {% comment %}
+        As sugestões ANTES de digitar. Campo vazio com cursor piscando é a
+        interface que faz a pessoa fechar o chat: ela não sabe o que ele sabe.
+      {% endcomment %}
+      {% if sugestoes_bot %}
+        <p class="au-bot-dica">{% trans "As mais perguntadas" %}</p>
+        <ul class="au-bot-sugestoes">
+          {% for s in sugestoes_bot %}
+            <li>
+              <button class="au-bot-sugestao" type="button" data-bot-pergunta="{{ s.pergunta }}">
+                {{ s.pergunta }}
+              </button>
+            </li>
+          {% endfor %}
+        </ul>
+      {% endif %}
+    </div>
+  </details>
 
   {% comment %}
     Na casca e não em cada template: a paleta é da casca, e depender de cada

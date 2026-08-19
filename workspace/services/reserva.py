@@ -81,6 +81,87 @@ def agenda_do_dia(recurso: Recurso, dia=None):
     )
 
 
+#: A janela que a grade desenha. Fora dela ninguém reserva sala — e desenhar as
+#: 24 horas faria a faixa útil virar um quinto da tela.
+HORA_ABERTURA = 7
+HORA_FECHAMENTO = 20
+
+
+def grade_do_dia(recurso: Recurso, agenda=None, dia=None) -> list[dict]:
+    """Uma faixa por hora, dizendo se está ocupada e por quem — §32.
+
+    A lista de reservas já existia e responde "o que está marcado". Ela NÃO
+    responde "onde tem buraco", que é a pergunta de quem quer reservar: para
+    achar o vão entre 10h–11h e 14h–15h a pessoa tem de ler os horários e fazer
+    a subtração de cabeça. A grade responde por desenho.
+
+    `agenda` entra pronta de propósito: a tela lista vários recursos, e buscar
+    a agenda aqui dentro faria uma consulta por recurso — o N+1 clássico de
+    tela de calendário.
+    """
+    agenda = list(agenda if agenda is not None else agenda_do_dia(recurso, dia))
+    faixas = []
+    for hora in range(HORA_ABERTURA, HORA_FECHAMENTO):
+        ocupada = next(
+            (
+                r
+                for r in agenda
+                # Sobreposição, e não "começa nesta hora": uma reserva de
+                # 9h30–11h30 ocupa as faixas de 9, 10 e 11. Comparar só o início
+                # deixaria as horas do meio pintadas de livre.
+                if timezone.localtime(r.inicio).hour <= hora
+                and _hora_fim(r) > hora
+                and timezone.localtime(r.inicio).date() == (dia or timezone.localdate())
+            ),
+            None,
+        )
+        faixas.append(
+            {
+                "hora": hora,
+                "rotulo": f"{hora:02d}h",
+                "ocupada": ocupada is not None,
+                "reserva": ocupada,
+            }
+        )
+    return faixas
+
+
+def _hora_fim(reserva) -> int:
+    """A hora em que a reserva deixa de ocupar a faixa.
+
+    Uma reserva que termina às 11h00 em ponto NÃO ocupa a faixa das 11 — a sala
+    está livre a partir dali, e pintá-la de ocupada roubaria uma hora de agenda
+    de cada reserva do dia.
+    """
+    fim = timezone.localtime(reserva.fim)
+    # 11h00 em ponto libera a faixa das 11; 11h30 a mantém ocupada — meia sala
+    # livre não é sala livre.
+    return fim.hour + 1 if (fim.minute or fim.second) else fim.hour
+
+
+def livres_agora(pessoa, dia=None) -> list[Recurso]:
+    """Os recursos sem reserva NESTE momento — a pergunta que a tela não
+    respondia.
+
+    "Preciso de uma sala agora" é o motivo de a pessoa abrir esta tela, e a
+    resposta exigia percorrer a agenda de cada uma. Fora do horário de
+    funcionamento a lista vem vazia: dizer "tudo livre" às 23h é verdade
+    inútil.
+    """
+    agora = timezone.localtime()
+    if dia and dia != agora.date():
+        return []
+    if not (HORA_ABERTURA <= agora.hour < HORA_FECHAMENTO):
+        return []
+
+    ocupados = set(
+        Reserva.objects.confirmadas()
+        .filter(inicio__lte=agora, fim__gt=agora)
+        .values_list("recurso_id", flat=True)
+    )
+    return [r for r in recursos_para(pessoa) if r.pk not in ocupados]
+
+
 def minhas(pessoa):
     """As reservas da pessoa, futuras primeiro."""
     return (

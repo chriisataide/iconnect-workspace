@@ -35,6 +35,10 @@ from django.db import models
 class AcaoSolicitacao(models.TextChoices):
     """O vocabulário do histórico. Um verbo por linha, no passado."""
 
+    # §43 — o rascunho guardado. Só a PRIMEIRA vez entra no histórico: cada
+    # "salvar" seguinte é a mesma pessoa mexendo no próprio texto, e registrar
+    # todos encheria a linha do tempo de eventos que não contam nada a ninguém.
+    RASCUNHO_GUARDADO = "rascunho_guardado", "Rascunho guardado"
     CRIADA = "criada", "Pedido aberto"
     AUTO_APROVADA = "auto_aprovada", "Aprovado automaticamente"
     # Um degrau da cadeia, com a cadeia continuando. Separado de `APROVADA`
@@ -44,6 +48,7 @@ class AcaoSolicitacao(models.TextChoices):
     ETAPA_APROVADA = "etapa_aprovada", "Aprovado num degrau"
     APROVADA = "aprovada", "Aprovado — liberado"
     DEVOLVIDA = "devolvida", "Devolvido para quem pediu"
+    REJEITADA = "rejeitada", "Reprovado"
     CANCELADA = "cancelada", "Cancelado"
     ASSUMIDA = "assumida", "Atendimento assumido"
     CONCLUIDA = "concluida", "Concluído"

@@ -117,6 +117,18 @@ def do_modulo(prefixos) -> list[ItemCatalogo]:
     fato PEDIR continua sendo decidido por `catalogo_para()` — a tela marca os
     itens fora do alcance em vez de escondê-los, porque saber que o serviço
     existe é justamente o que faz a pessoa parar de mandar e-mail.
+
+    ## Um campo `modulos_extras` existiu aqui por uma tarde
+
+    Ele permitia um item aparecer em outro módulo sem mudar de domínio, e nasceu
+    para atender "mover Reembolso para o R.H." sem pôr o R.H. na fila de pagar
+    despesa. A dúvida era real; a resposta não era essa.
+
+    A decisão de negócio foi que **o R.H. faz a tratativa mesmo** — confere o
+    comprovante e libera o pagamento. Com isso `dominio` volta a decidir uma
+    coisa só, e o campo virou esquema que ninguém usa. Esquema morto é pior que
+    esquema nenhum: ele está lá quando alguém finalmente precisar, e estará
+    errado, porque foi desenhado para um caso que não aconteceu.
     """
     if not prefixos:
         return []
@@ -204,11 +216,18 @@ def verificar(
     cache: dict | None = None,
     arquivos: dict | None = None,
     linhas=None,
+    rascunho: SolicitacaoServico | None = None,
 ) -> list[Impedimento]:
     """O que impede este pedido de ser enviado. Vazio = pode enviar.
 
     Chamado pela tela a cada mudança (HTMX) para bloquear com o motivo à vista,
     e de novo dentro de `solicitar()` — a tela não é a fonte de verdade.
+
+    `rascunho` é o pedido guardado que está sendo enviado — §43. Sem ele, o
+    comprovante anexado ONTEM não conta: a validação olha só o que veio neste
+    POST, e quem retomasse o rascunho seria mandado anexar de novo um arquivo
+    que já está no pedido. Um formulário que esquece o que ele mesmo guardou é
+    pior que não ter rascunho nenhum.
     """
     from workspace.services import anexos as anx
     from workspace.services import formulario as frm
@@ -232,6 +251,8 @@ def verificar(
     # usuário digitava o nome do arquivo e o pedido seguia sem comprovante.
     de_arquivo = {c["chave"] for c in item.campos if c.get("tipo") == TipoCampo.ARQUIVO}
     anexados = anx.campos_com_arquivo(arquivos)
+    if rascunho is not None and rascunho.pk:
+        anexados |= set(rascunho.anexos.values_list("campo", flat=True))
 
     if not item.ativo:
         impedimentos.append(Impedimento("item", "Este serviço não está disponível."))
@@ -277,6 +298,8 @@ def verificar(
     if frm.valor_e_exigido(item, dados) and (valor is None or valor <= 0):
         impedimentos.append(Impedimento("valor", "Informe o valor."))
 
+    impedimentos.extend(_impedimentos_de_estoque(item, pessoa, dados))
+
     if item.exige_centro_custo and not _centro_custo_de(pessoa):
         impedimentos.append(
             Impedimento(
@@ -286,6 +309,136 @@ def verificar(
         )
 
     return impedimentos
+
+
+#: O campo que liga um item de catálogo ao cadastro de materiais. Item sem ele
+#: não tem nada a ver com estoque, e a checagem inteira é pulada.
+CAMPO_MATERIAL = "material"
+CAMPO_QUANTIDADE = "quantidade"
+
+
+def _impedimentos_de_estoque(item: ItemCatalogo, pessoa, dados: dict) -> list[Impedimento]:
+    """§16 — não deixa pedir mais do que existe na unidade da pessoa.
+
+    A checagem é aqui, ANTES do envio, e não na hora de atender. Deixar o pedido
+    entrar e recusá-lo três dias depois na fila é o pior dos dois mundos: a
+    pessoa esperou, Suprimentos gastou o atendimento, e a informação que faltava
+    (o saldo) estava disponível no primeiro segundo.
+
+    Não RESERVA nada — só confere. Reservar no envio criaria saldo preso por
+    pedido que ninguém aprovou, e o material some do estoque de quem precisa
+    hoje por causa de um pedido de daqui a duas semanas. A baixa acontece na
+    entrega, e é lá que a corrida por concorrência é resolvida.
+    """
+    chaves = {c["chave"] for c in item.campos}
+    if CAMPO_MATERIAL not in chaves or CAMPO_QUANTIDADE not in chaves:
+        return []
+
+    from workspace.models.estoque import Material
+    from workspace.services import estoque as est
+
+    codigo = (dados.get(CAMPO_MATERIAL) or "").strip()
+    bruta = (dados.get(CAMPO_QUANTIDADE) or "").strip() if isinstance(
+        dados.get(CAMPO_QUANTIDADE), str
+    ) else dados.get(CAMPO_QUANTIDADE)
+    if not codigo or bruta in (None, ""):
+        # Campo vazio já é tratado pela regra de obrigatório logo acima. Repetir
+        # a queixa aqui daria dois erros para o mesmo campo em branco.
+        return []
+
+    try:
+        quantidade = int(bruta)
+    except (TypeError, ValueError):
+        return [Impedimento(CAMPO_QUANTIDADE, "A quantidade tem de ser um número.")]
+    if quantidade <= 0:
+        return [Impedimento(CAMPO_QUANTIDADE, "A quantidade tem de ser maior que zero.")]
+
+    material = Material.objects.filter(codigo=codigo, ativo=True).first()
+    if material is None:
+        return [Impedimento(CAMPO_MATERIAL, "Este material não está no cadastro.")]
+
+    unidade = _unidade_de(pessoa)
+    if unidade is None:
+        return [
+            Impedimento(
+                CAMPO_MATERIAL,
+                "Você não tem unidade na sua lotação, e o estoque é por unidade. "
+                "Peça ao RH para cadastrar.",
+            )
+        ]
+
+    saldo = est.saldo_de(material, unidade)
+    if quantidade > saldo:
+        medida = material.get_unidade_medida_display().lower()
+        return [
+            Impedimento(
+                CAMPO_QUANTIDADE,
+                f"Há {saldo} {medida} de {material.nome} em {unidade.nome}. "
+                f"Você pediu {quantidade}.",
+            )
+        ]
+    return []
+
+
+def campos_do_item(item: ItemCatalogo, pessoa) -> list[dict]:
+    """Os campos do item com as listas DINÂMICAS já preenchidas.
+
+    Existe porque `ItemCatalogo.campos` é estático e o estoque não é. Gravar a
+    lista de materiais no item obrigaria uma migração de dados a cada material
+    novo — e a lista estaria errada entre uma e outra, que é o pior estado
+    possível: um `<select>` que oferece o que não existe.
+
+    O rótulo traz o saldo junto ("Capacete G — 12 disponíveis") porque a
+    pergunta seguinte a "qual material" é sempre "tem quanto?", e respondê-la no
+    próprio option economiza a ida à tela de estoque.
+    """
+    if not any(c.get("dinamico") for c in item.campos):
+        return list(item.campos)
+
+    return [
+        {**campo, "opcoes": _opcoes_de_estoque(pessoa)}
+        if campo.get("chave") == CAMPO_MATERIAL and campo.get("dinamico")
+        else campo
+        for campo in item.campos
+    ]
+
+
+def _opcoes_de_estoque(pessoa) -> list[dict]:
+    """O que existe na unidade da pessoa, com saldo maior que zero.
+
+    Zerado fica FORA da lista. Mostrá-lo desabilitado ensinaria que o material
+    existe no cadastro, o que não ajuda quem precisa dele hoje — e mostrá-lo
+    habilitado produziria um pedido recusado no envio.
+    """
+    from workspace.services import estoque as est
+
+    unidade = _unidade_de(pessoa)
+    if unidade is None:
+        return []
+
+    return [
+        {
+            "valor": linha.material.codigo,
+            "rotulo": (
+                f"{linha.material.nome} — {linha.quantidade} "
+                f"{linha.material.get_unidade_medida_display().lower()}"
+            ),
+        }
+        for linha in est.disponivel_para(pessoa, unidade=unidade)
+        if linha.quantidade > 0
+    ]
+
+
+def _unidade_de(pessoa):
+    """Delegado a `estoque.unidade_de`. A conta é a mesma e o dono é o estoque.
+
+    Estava duplicada aqui: o saldo é POR UNIDADE, e a pergunta "de qual
+    prateleira" aparece na requisição, na custódia e na tela de estoque. Três
+    cópias divergem na primeira vez que a lotação ganhar regra.
+    """
+    from workspace.services import estoque as est
+
+    return est.unidade_de(pessoa)
 
 
 def _cabe_no_orcamento(centro_custo: str, valor: Decimal | None) -> bool:
@@ -320,8 +473,15 @@ def solicitar(
     arquivos: dict | None = None,
     linhas=None,
     adiantamento: SolicitacaoServico | None = None,
+    rascunho: SolicitacaoServico | None = None,
 ) -> SolicitacaoServico:
-    """Cria o pedido e o roteia — auto-aprovado ou para a cadeia de aprovação."""
+    """Cria o pedido e o roteia — auto-aprovado ou para a cadeia de aprovação.
+
+    Com `rascunho`, a MESMA linha é promovida em vez de uma nova ser criada —
+    §43. Criar outra deixaria o rascunho para trás com os anexos dentro dele, e
+    a pessoa teria dois registros do mesmo pedido: um enviado e sem
+    comprovante, outro com o comprovante e nunca enviado.
+    """
     from workspace.services import anexos as anx
     from workspace.services import formulario as frm
     from workspace.services import reembolso as rmb
@@ -333,8 +493,12 @@ def solicitar(
         # por um número que a tela nem mostrava.
         valor = None
 
+    if rascunho is not None:
+        _garantir_rascunho_de(rascunho, pessoa)
+
     impedimentos = verificar(
-        item, pessoa, dados, valor, cache=cache, arquivos=arquivos, linhas=linhas
+        item, pessoa, dados, valor, cache=cache, arquivos=arquivos, linhas=linhas,
+        rascunho=rascunho,
     )
     if impedimentos:
         raise SolicitacaoError("; ".join(i.motivo for i in impedimentos))
@@ -348,18 +512,35 @@ def solicitar(
     centro_custo = _centro_custo_de(pessoa) if item.exige_centro_custo else ""
     auto = pode_auto_aprovar(item, valor, centro_custo)
 
-    solicitacao = SolicitacaoServico.objects.create(
-        item=item,
-        solicitante=pessoa,
-        dados=dados or {},
-        valor=valor,
-        centro_custo_codigo=centro_custo,
-        auto_aprovada=auto,
-        adiantamento=adiantamento,
-        situacao=(
-            SituacaoServico.APROVADA if auto else SituacaoServico.AGUARDANDO_APROVACAO
-        ),
+    situacao = (
+        SituacaoServico.APROVADA if auto else SituacaoServico.AGUARDANDO_APROVACAO
     )
+    if rascunho is not None:
+        solicitacao = rascunho
+        solicitacao.item = item
+        solicitacao.dados = dados or {}
+        solicitacao.valor = valor
+        solicitacao.centro_custo_codigo = centro_custo
+        solicitacao.auto_aprovada = auto
+        solicitacao.adiantamento = adiantamento
+        solicitacao.situacao = situacao
+        # `criado_em` é `auto_now_add` e NÃO é mexido: o pedido nasce agora para
+        # efeito de prazo — o relógio do SLA começa no envio, não no dia em que
+        # a pessoa abriu o formulário. Como `auto_now_add` só grava na inserção,
+        # a data continuaria a do rascunho e o pedido nasceria já atrasado.
+        solicitacao.criado_em = timezone.now()
+        solicitacao.save()
+    else:
+        solicitacao = SolicitacaoServico.objects.create(
+            item=item,
+            solicitante=pessoa,
+            dados=dados or {},
+            valor=valor,
+            centro_custo_codigo=centro_custo,
+            auto_aprovada=auto,
+            adiantamento=adiantamento,
+            situacao=situacao,
+        )
 
     # Antes de rotear: se o arquivo não gravar, a transação inteira volta e o
     # pedido não existe. Aprovador recebendo reembolso sem comprovante porque o
@@ -395,6 +576,12 @@ def solicitar(
                 competencia=competencia_de(),
                 criado_por=pessoa,
             )
+        # Auto-aprovado já NASCE na fila da área. Avisar aqui é o que impede o
+        # caso mais silencioso do produto: o pedido que nunca passou por bandeja
+        # nenhuma e por isso não gerou aviso para ninguém além de quem pediu.
+        from workspace.services import atendimento as atd
+
+        atd.avisar_a_fila(solicitacao, cache=cache)
         return solicitacao
 
     aprovacao = apr.criar(
@@ -410,6 +597,114 @@ def solicitar(
     solicitacao.aprovacao = aprovacao
     solicitacao.save(update_fields=["aprovacao"])
     return solicitacao
+
+
+# ── Rascunho — §43 ──────────────────────────────────────────────────
+
+
+@transaction.atomic
+def salvar_rascunho(
+    item: ItemCatalogo,
+    pessoa,
+    dados: dict | None = None,
+    valor: Decimal | None = None,
+    arquivos: dict | None = None,
+    rascunho: SolicitacaoServico | None = None,
+) -> SolicitacaoServico:
+    """Guarda o que já foi digitado. **Não valida nada** — esse é o ponto.
+
+    O formulário longo era tudo-ou-nada: quem não tinha o comprovante à mão
+    perdia o que já tinha escrito ao sair da tela. Validar o rascunho recriaria
+    exatamente o problema, porque o rascunho é, por definição, o formulário
+    ainda incompleto.
+
+    O que ele NÃO faz, e cada omissão é deliberada: não cria aprovação, não
+    escritura compromisso de orçamento, não avisa fila nenhuma e não começa
+    prazo. Um rascunho é texto da pessoa, e mais nada.
+
+    **Anexo é validado mesmo aqui.** Arquivo corrompido ou com magic byte errado
+    não entra em disco nem como rascunho — a validação existe contra o conteúdo,
+    e o conteúdo não fica menos perigoso por o formulário estar pela metade.
+    """
+    from workspace.services import anexos as anx
+    from workspace.services import formulario as frm
+
+    if pessoa is None or getattr(pessoa, "is_authenticated", False) is False:
+        raise SolicitacaoError("Só quem está identificado pode guardar rascunho.")
+
+    dados = frm.limpar_fora_do_ramo(item, dados or {})
+
+    if rascunho is None:
+        solicitacao = SolicitacaoServico.objects.create(
+            item=item,
+            solicitante=pessoa,
+            dados=dados,
+            valor=valor,
+            situacao=SituacaoServico.RASCUNHO,
+        )
+        from workspace.services import historico as hst
+
+        hst.registrar(solicitacao, hst.Acao.RASCUNHO_GUARDADO, quem=pessoa)
+    else:
+        _garantir_rascunho_de(rascunho, pessoa)
+        solicitacao = rascunho
+        solicitacao.item = item
+        solicitacao.dados = dados
+        solicitacao.valor = valor
+        solicitacao.save(update_fields=["item", "dados", "valor"])
+
+    anx.guardar(solicitacao, arquivos, pessoa)
+    return solicitacao
+
+
+def _garantir_rascunho_de(rascunho: SolicitacaoServico, pessoa) -> None:
+    """Rascunho é da pessoa que o escreveu, e de mais ninguém.
+
+    Checado por pk e não por `is`: a view recebe um número da URL, e sem esta
+    conferência qualquer pessoa logada continuaria o rascunho de qualquer outra
+    trocando um dígito — inclusive lendo o que ela digitou.
+    """
+    if rascunho.solicitante_id != getattr(pessoa, "pk", None):
+        raise SolicitacaoError("Este rascunho não é seu.")
+    if rascunho.situacao != SituacaoServico.RASCUNHO:
+        raise SolicitacaoError("Esta solicitação já foi enviada.")
+
+
+def rascunho_de(pessoa, pk) -> SolicitacaoServico | None:
+    """O rascunho da pessoa, ou `None`. Nunca o de outra."""
+    if pessoa is None or getattr(pessoa, "is_authenticated", False) is False:
+        return None
+    try:
+        pk = int(pk)
+    except (TypeError, ValueError):
+        return None
+    return (
+        SolicitacaoServico.objects.de(pessoa)
+        .rascunhos()
+        .select_related("item")
+        .filter(pk=pk)
+        .first()
+    )
+
+
+@transaction.atomic
+def descartar_rascunho(rascunho: SolicitacaoServico, quem) -> None:
+    """Apaga de verdade. É a única exclusão do produto, e ela se justifica.
+
+    A regra da casa é nunca apagar: pedido cancelado vira `CANCELADA` e fica,
+    porque alguém pediu, alguém foi avisado, e os indicadores do período
+    precisam continuar certos.
+
+    Nada disso vale para um rascunho. Ele nunca foi enviado, ninguém foi
+    notificado, nenhuma aprovação existiu, nenhum orçamento foi comprometido e
+    nenhum prazo correu. Guardá-lo como "cancelada" faria a aba de cancelados —
+    e a taxa de cancelamento do painel — contar pedidos que nunca foram feitos.
+
+    Os anexos vão junto por `CASCADE`, que é o certo: eram arquivos de um
+    formulário que deixou de existir.
+    """
+    _garantir_rascunho_de(rascunho, quem)
+    rascunho.delete()
 
 
 def minhas(pessoa):
@@ -482,9 +777,17 @@ def ao_decidir(sender, solicitacao, decisao, quem, **kwargs) -> None:
         acao, observacao = hst.Acao.APROVADA, ""
     elif decisao == apr.Decisao.DEVOLVER:
         servico.situacao = SituacaoServico.DEVOLVIDA
-        etapa = solicitacao.etapas.exclude(justificativa="").order_by("-decidido_em").first()
-        servico.motivo_devolucao = etapa.justificativa if etapa else ""
+        servico.motivo_devolucao = _ultima_justificativa(solicitacao)
         acao, observacao = hst.Acao.DEVOLVIDA, servico.motivo_devolucao
+    elif decisao == apr.Decisao.REJEITAR:
+        servico.situacao = SituacaoServico.REJEITADA
+        # Reaproveita `motivo_devolucao`, e o nome do campo é que ficou estreito:
+        # ele guarda "por que este pedido voltou para você", e o motivo da
+        # reprovação é a mesma informação para quem lê a tela. Uma segunda
+        # coluna com o mesmo conteúdo faria cada tela escolher qual das duas
+        # mostrar — e alguma escolheria errado.
+        servico.motivo_devolucao = _ultima_justificativa(solicitacao)
+        acao, observacao = hst.Acao.REJEITADA, servico.motivo_devolucao
     elif decisao == apr.Decisao.CANCELAR:
         servico.situacao = SituacaoServico.CANCELADA
         acao, observacao = hst.Acao.CANCELADA, ""
@@ -495,6 +798,21 @@ def ao_decidir(sender, solicitacao, decisao, quem, **kwargs) -> None:
     # A decisão da APROVAÇÃO vira linha do histórico do PEDIDO: quem lê a
     # timeline não deveria precisar abrir a bandeja para saber quem assinou.
     hst.registrar(servico, acao, quem=quem, observacao=observacao)
+
+    if decisao == apr.Decisao.APROVAR:
+        # ESTE é o degrau que faltava no fluxo. A cadeia terminou, o pedido
+        # entrou na fila da área que executa — e até aqui ninguém tinha contado
+        # isso a ela. Do lado de quem pediu, o pedido dizia "Aprovada" e parava,
+        # e a leitura óbvia era a de que aprovar devolve o pedido ao solicitante.
+        from workspace.services import atendimento as atd
+
+        atd.avisar_a_fila(servico)
+
+
+def _ultima_justificativa(solicitacao) -> str:
+    """O que o aprovador escreveu ao devolver ou reprovar."""
+    etapa = solicitacao.etapas.exclude(justificativa="").order_by("-decidido_em").first()
+    return etapa.justificativa if etapa else ""
 
 
 def ao_aprovar_etapa(sender, solicitacao, etapa, quem, **kwargs) -> None:

@@ -25,6 +25,8 @@ from django.conf import settings
 from django.db import models
 from django.utils import timezone
 
+from workspace.storage import ArmazenamentoPrivado, caminho_do_documento
+
 
 class TipoDocumento(models.TextChoices):
     """Na ordem em que a empresa procura, não alfabética."""
@@ -86,6 +88,28 @@ class Documento(models.Model):
         max_length=300, blank=True, help_text="Uma linha. Aparece na lista."
     )
     corpo = models.TextField(blank=True)
+
+    # O ARQUIVO — §33.
+    #
+    # `corpo` (texto) e `arquivo` coexistem de propósito, e não são
+    # alternativas: o texto é o que a BUSCA indexa e o que a tela mostra sem
+    # download; o arquivo é o PDF assinado, a planilha, o desenho. Um documento
+    # com os dois é o caso normal — resumo legível na tela, original anexado.
+    #
+    # Armazenamento privado. Um POP com o desenho da instalação, um contrato
+    # modelo, uma política de acesso: nenhum deles deve ficar num caminho que o
+    # nginx serve sem perguntar quem é.
+    arquivo = models.FileField(
+        upload_to=caminho_do_documento,
+        storage=ArmazenamentoPrivado(),
+        max_length=255,
+        blank=True,
+    )
+    arquivo_nome = models.CharField(
+        max_length=255, blank=True,
+        help_text="Nome original, para quem baixa reconhecer.",
+    )
+    arquivo_tamanho = models.PositiveBigIntegerField(null=True, blank=True)
 
     # Quem RESPONDE pelo conteúdo, não quem digitou. Documento normativo sem dono
     # é documento que ninguém atualiza — e o primeiro sinal de acervo morto é uma
@@ -150,6 +174,26 @@ class Documento(models.Model):
 
     def __str__(self) -> str:
         return f"{self.titulo} v{self.versao}"
+
+    @property
+    def tem_arquivo(self) -> bool:
+        return bool(self.arquivo)
+
+    @property
+    def tamanho_legivel(self) -> str:
+        """"1,4 MB" em vez de 1468006.
+
+        A tela mostra o tamanho para que a pessoa decida se baixa agora ou
+        espera o wi-fi — e o número cru não responde essa pergunta.
+        """
+        bytes_ = self.arquivo_tamanho or 0
+        if not bytes_:
+            return ""
+        for unidade in ("B", "KB", "MB", "GB"):
+            if bytes_ < 1024 or unidade == "GB":
+                return f"{bytes_:.0f} {unidade}".replace(".", ",")
+            bytes_ /= 1024
+        return ""
 
     @property
     def vencido(self) -> bool:

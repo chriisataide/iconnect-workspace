@@ -12,8 +12,13 @@ from django.urls import include, path
 from django.views.generic import RedirectView
 
 from contas.entrada import LoginComFreio
+from iconnect_workspace.saude import saude
 
 urlpatterns = [
+    # A sonda do balanceador. Fora de `/workspace/` de propósito: ela pergunta
+    # sobre o PROCESSO, não sobre o produto — e o dia em que o hub deixar de
+    # responder é justamente o dia em que a resposta importa.
+    path("saude/", saude, name="saude"),
     path("", RedirectView.as_view(pattern_name="workspace:home", permanent=False)),
     path("workspace/", include("workspace.urls")),
     # `entrar` e não `login`: o nome `login` era, no projeto anterior, a porta

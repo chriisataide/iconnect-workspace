@@ -64,7 +64,7 @@ PERFIS: list[tuple[str, str, str | None]] = [
     ("vendas", "Vendas", "gestor"),
     ("marketing", "Marketing", "gestor"),
     ("juridico", "Jurídico", "gestor"),
-    ("logistica", "Logística", "gestor"),
+    ("logistica", "Suprimentos", "gestor"),
     ("operacao", "Operação", "gestor"),
     ("sesmt", "SESMT", "gestor"),
     ("ti", "TI", "gestor"),
@@ -182,7 +182,7 @@ class Command(BaseCommand):
     def _onde(self, aplicar):
         """Onde os perfis ficam lotados. Cria o mínimo se o banco estiver vazio.
 
-        Metade dos papéis tem escopo `unidade` — Compras, Vendas, Logística,
+        Metade dos papéis tem escopo `unidade` — Compras, Vendas, Suprimentos,
         Operação. Papel de escopo `unidade` numa lotação SEM unidade não alcança
         nada, e o perfil entraria no sistema parecendo certo e sem enxergar a
         própria fila. Num banco recém-criado é exatamente o que aconteceria.

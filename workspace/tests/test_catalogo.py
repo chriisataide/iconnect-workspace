@@ -138,11 +138,15 @@ def test_todo_item_semente_declara_dominio():
         assert spec.get("dominio"), spec["chave"]
 
 
-def test_epi_e_reciclagem_nao_passam_por_aprovacao():
+def test_material_e_reciclagem_nao_passam_por_aprovacao():
     """Negar EPI é risco, não economia. E negar reciclagem de NR trava a
-    operação, porque habilitação vencida bloqueia despacho."""
+    operação, porque habilitação vencida bloqueia despacho.
+
+    A regra do EPI seguiu para `controle-materiais`, que o substituiu: quem
+    pede capacete continua não dependendo de ninguém decidir.
+    """
     por_chave = {s["chave"]: s for s in CATALOGO_INICIAL}
-    for chave in ("epi", "reciclagem-nr"):
+    for chave in ("controle-materiais", "reciclagem-nr"):
         assert por_chave[chave]["limite_auto_aprovacao"] == Decimal("0")
 
 
@@ -158,33 +162,15 @@ def _campos(chave_item: str) -> dict[str, dict]:
     return {c["chave"]: c for c in por_chave[chave_item]["campos"]}
 
 
-def test_atestado_pergunta_horario_motivo_e_chefe_ciente():
-    """Declaração de comparecimento sem horário não diz quanto tempo a pessoa
-    faltou, que é a única coisa que o R.H. precisa saber para lançar.
+def test_trabalho_remoto_saiu_da_semente():
+    """Decisão de produto: o item deixou de ser oferecido no RH.
 
-    O horário virou DOIS campos de hora — "saiu às" e "voltou às" —, e os dois
-    são opcionais: faltar o dia inteiro é caso normal, e um horário obrigatório
-    obrigaria a inventar "00:00 às 23:59".
+    Fora da SEMENTE, e não apagado do banco — ver a migração
+    `0026_desativa_trabalho_remoto`. O que este teste guarda é o outro lado
+    dela: sem a retirada daqui, `semear_catalogo` recriaria o item ativo em
+    todo banco novo, e a decisão duraria até o próximo `migrate` limpo.
     """
-    campos = _campos("atestado")
-    assert campos["horario_inicio"]["tipo"] == TipoCampo.HORA
-    assert campos["horario_fim"]["tipo"] == TipoCampo.HORA
-    for chave in ("motivo", "chefe_ciente"):
-        assert chave in campos, chave
-
-
-def test_trabalho_remoto_pergunta_dias_e_motivo():
-    campos = _campos("home-office")
-    assert campos["dias"]["tipo"] == TipoCampo.NUMERO
-    assert campos["dias"]["obrigatorio"] is True
-    assert campos["motivo"]["obrigatorio"] is True
-
-
-def test_declaracao_aceita_anexo_sem_exigir():
-    """Aqui a pessoa PEDE um documento. Exigir anexo inverteria o serviço."""
-    anexo = _campos("declaracao")["anexo"]
-    assert anexo["tipo"] == TipoCampo.ARQUIVO
-    assert anexo.get("obrigatorio", False) is False
+    assert not any(spec["chave"] == "home-office" for spec in CATALOGO_INICIAL)
 
 
 def test_adiantamento_pergunta_data_conta_supervisor_e_orcamento():

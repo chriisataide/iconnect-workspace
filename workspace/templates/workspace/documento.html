@@ -20,6 +20,45 @@
 
 {% block corpo %}
 {% comment %}
+  O ARQUIVO — §33.
+
+  `corpo` (o texto acima) e `arquivo` coexistem de propósito, e não são
+  alternativas: o texto é o que a busca indexa e o que a tela mostra sem
+  download; o arquivo é o PDF assinado, a planilha, o desenho.
+
+  O download passa por view que AUTORIZA. O arquivo mora em armazenamento sem
+  URL pública justamente para que esta seja a única porta — um POP com desenho
+  de instalação não deve ficar num caminho que o nginx serve sem perguntar
+  quem é.
+{% endcomment %}
+{% if documento.tem_arquivo %}
+  <div class="au-faixa">
+    <span class="au-faixa-texto">
+      {{ documento.arquivo_nome }}
+      {% if documento.tamanho_legivel %}
+        <span class="au-list-resumo">{{ documento.tamanho_legivel }}</span>
+      {% endif %}
+    </span>
+    <a class="au-btn au-btn--primario au-btn--pequeno"
+       href="{% url 'workspace:baixar_documento' documento.slug %}">
+      {% trans "Baixar" %}
+    </a>
+  </div>
+{% endif %}
+
+{% if pode_publicar %}
+  <form class="au-form-linha" method="post" enctype="multipart/form-data"
+        action="{% url 'workspace:anexar_documento' documento.slug %}">
+    {% csrf_token %}
+    <label class="au-sr" for="arquivo">{% trans "Arquivo" %}</label>
+    <input class="au-input" id="arquivo" name="arquivo" type="file" required>
+    <button class="au-btn au-btn--sutil au-btn--pequeno" type="submit">
+      {% if documento.tem_arquivo %}{% trans "Substituir arquivo" %}{% else %}{% trans "Anexar arquivo" %}{% endif %}
+    </button>
+  </form>
+{% endif %}
+
+{% comment %}
   Os avisos vêm ANTES do texto, sempre. Um POP vencido lido até o fim e só então
   desmentido no rodapé é o pior desenho possível: a pessoa já seguiu.
 {% endcomment %}

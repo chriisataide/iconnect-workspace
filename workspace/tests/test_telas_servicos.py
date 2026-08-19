@@ -633,13 +633,32 @@ def test_get_em_rota_de_decisao_apenas_redireciona(client, cenario):
 
 
 @pytest.mark.django_db
-def test_rail_mostra_bandeja_so_para_quem_tem_pendencia(client, cenario):
+def test_rail_mostra_bandeja_para_quem_pode_aprovar_mesmo_com_zero(client, cenario):
+    """A porta não some quando a pessoa termina de usá-la.
+
+    A regra antiga era "só aparece com pendência", e ela se voltava contra o
+    aprovador: ele decidia o último pedido, o contador ia a zero e o item
+    desaparecia do trilho. No dia seguinte não havia por onde entrar — e o
+    caminho que sobrava era procurar a URL.
+
+    Zero é informação: diz "nada esperando por mim", que é justamente o que o
+    aprovador precisa ler para confiar que não esqueceu ninguém. A regra vale
+    para QUEM PODE APROVAR — para os outros o item continua fora, porque aí sim
+    seria um item que não leva a nada.
+    """
     client.force_login(cenario["gestor"])
-    assert "Bandeja" not in client.get(reverse("workspace:servicos")).content.decode()
+    corpo = client.get(reverse("workspace:servicos")).content.decode()
+    assert "Bandeja" in corpo
 
     svc.solicitar(cenario["item"], cenario["ana"], {"o_que": "x"}, Decimal("500"))
-    corpo = client.get(reverse("workspace:servicos")).content.decode()
-    assert "Bandeja" in corpo, "rail com item vazio ensina a ignorar o rail"
+    assert "Bandeja" in client.get(reverse("workspace:servicos")).content.decode()
+
+
+@pytest.mark.django_db
+def test_rail_esconde_a_bandeja_de_quem_nao_aprova_nada(client, cenario):
+    client.force_login(cenario["ana"])
+
+    assert "Bandeja" not in client.get(reverse("workspace:servicos")).content.decode()
 
 
 @pytest.mark.django_db
@@ -672,8 +691,11 @@ def test_contexto_do_rail_usa_pessoa_aberta_para_anonimo():
         # nome de um colega no canto da tela de quem nunca entrou.
         "eu": None,
         "abertas": 0,
+        # §43 — rascunho tem contador próprio, e o do anônimo também é zero.
+        "rascunhos": 0,
         "pendentes_aprovacao": 0,
         "nao_lidas": 0,
+        "notificacoes_recentes": (),
         # Anônimo não atende fila nenhuma, e o item "Atender" nem aparece no
         # trilho: contador zerado é o que faz alguém aprender a ignorá-lo.
         "na_fila": 0,
@@ -681,7 +703,27 @@ def test_contexto_do_rail_usa_pessoa_aberta_para_anonimo():
         # da empresa, e ela também concede.
         "administra_papeis": False,
         # O painel de indicadores segue a mesma regra: sem sessão, sem item.
+        "ve_aprovacoes": False,
+        "habilitacoes_pendentes": 0,
+        "ve_faq": False,
+        "ve_publicacoes": False,
         "ve_indicadores": False,
+        # E o mesmo para estoque e equipamentos: a porta do estoque não é
+        # oferecida a quem não pode abri-la, e "0 para confirmar" seria o número
+        # de outra pessoa.
+        "ve_estoque": False,
+        "custodias_a_aceitar": 0,
+        "ve_frota": False,
+        "prazos_de_veiculo": 0,
+        # §37 — leitura obrigatória e vigência de documento seguem a mesma
+        # regra: são de UMA pessoa, e o anônimo não é ninguém.
+        "leituras_pendentes": 0,
+        "ve_documentos": False,
+        "documentos_a_vencer": 0,
+        "ve_marketing": False,
+        "prazos_de_marketing": 0,
+        "ve_candidaturas": False,
+        "chamados_abertos": 0,
     }
 
 

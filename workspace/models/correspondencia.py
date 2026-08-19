@@ -29,6 +29,8 @@ from django.conf import settings
 from django.db import models
 from django.utils import timezone
 
+from workspace.storage import ArmazenamentoPrivado, caminho_da_correspondencia
+
 
 class TipoCorrespondencia(models.TextChoices):
     """Na ordem de frequência, e os dois primeiros com prazo legal."""
@@ -75,6 +77,16 @@ class Correspondencia(models.Model):
         db_index=True,
     )
     remetente = models.CharField(max_length=160, blank=True)
+    # A EMPRESA, separada do remetente. Não é redundância: o remetente é quem
+    # mandou (uma pessoa, um órgão) e a empresa é por onde veio (Correios,
+    # transportadora, cartório). São as duas perguntas que a recepção faz na
+    # hora de procurar um extravio, e num campo só uma delas sempre se perde.
+    empresa = models.CharField(
+        max_length=120, blank=True, help_text="Correios, transportadora, cartório."
+    )
+    # Rastreio é o que permite responder "onde está" sem ligar para ninguém.
+    # Sem ele, encomenda sumida vira uma conversa de três dias.
+    numero_rastreio = models.CharField(max_length=60, blank=True, db_index=True)
     descricao = models.CharField(
         max_length=200,
         blank=True,
@@ -129,6 +141,31 @@ class Correspondencia(models.Model):
     )
     observacao = models.CharField(max_length=200, blank=True)
 
+    # A foto do envelope, do lacre, do comprovante de entrega.
+    #
+    # Campo PRÓPRIO e não FK para `Anexo`: `Anexo.solicitacao` é obrigatório —
+    # ele é o arquivo de um pedido do catálogo, não um arquivo qualquer. A FK
+    # que estava aqui não podia ser preenchida por nada, e teria ficado nula
+    # para sempre sem ninguém notar.
+    #
+    # Armazenamento privado, nunca MEDIA público: um envelope fotografado mostra
+    # nome, endereço e às vezes o conteúdo.
+    foto = models.FileField(
+        upload_to=caminho_da_correspondencia,
+        storage=ArmazenamentoPrivado(),
+        max_length=255,
+        blank=True,
+    )
+
+    # ── A confirmação de QUEM RECEBEU ────────────────────────────────
+    #
+    # Separada de `retirado_em`, e a distinção é o §6 inteiro: `retirado_em` é a
+    # recepção dizendo "entreguei", `confirmado_em` é o destinatário dizendo
+    # "recebi". Enquanto só existia o primeiro, a única versão registrada dos
+    # fatos era a de quem entregou — e é exatamente essa que não vale nada
+    # quando a intimação some.
+    confirmado_em = models.DateTimeField(null=True, blank=True)
+
     objects = CorrespondenciaQuerySet.as_manager()
 
     class Meta:
@@ -170,3 +207,16 @@ class Correspondencia(models.Model):
     @property
     def identificada(self) -> bool:
         return self.destinatario_id is not None
+
+    @property
+    def confirmada(self) -> bool:
+        return self.confirmado_em is not None
+
+    @property
+    def espera_confirmacao(self) -> bool:
+        """Entregue pela recepção e ainda sem a palavra de quem recebeu."""
+        return (
+            self.situacao == SituacaoCorrespondencia.ENTREGUE
+            and self.confirmado_em is None
+            and self.destinatario_id is not None
+        )

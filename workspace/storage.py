@@ -61,6 +61,38 @@ class ArmazenamentoPrivado(FileSystemStorage):
         )
 
 
+def caminho_do_documento(instance, filename: str) -> str:
+    """`documentos/<uuid>.<ext>` — o arquivo do acervo normativo.
+
+    Privado como todo o resto: política interna, procedimento operacional e
+    contrato-modelo não são conteúdo público, e um deles vazado é o tipo de
+    coisa que a empresa descobre por terceiro.
+    """
+    extensao = Path(filename).suffix.lower()[:10]
+    return f"documentos/{uuid.uuid4().hex}{extensao}"
+
+
+def caminho_da_imagem(instance, filename: str) -> str:
+    """`publicacoes/<uuid>.<ext>` — mesma regra de nome do anexo.
+
+    UUID e não o nome enviado pela mesma razão de sempre, e aqui com um motivo a
+    mais: imagem de comunicado costuma vir de um celular com nome que diz onde e
+    quando a foto foi tirada.
+    """
+    extensao = Path(filename).suffix.lower()[:10]
+    return f"publicacoes/{uuid.uuid4().hex}{extensao}"
+
+
+def caminho_da_correspondencia(instance, filename: str) -> str:
+    """`correspondencias/<uuid>.<ext>` — a foto do envelope ou do lacre.
+
+    Privado como o resto: um envelope fotografado mostra nome, endereço e às
+    vezes o conteúdo.
+    """
+    extensao = Path(filename).suffix.lower()[:10]
+    return f"correspondencias/{uuid.uuid4().hex}{extensao}"
+
+
 def caminho_do_anexo(instance, filename: str) -> str:
     """`<solicitacao>/<uuid>.<ext>` — nome original NÃO vai para o disco.
 

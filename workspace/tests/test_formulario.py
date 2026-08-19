@@ -388,19 +388,18 @@ def test_vpn_deixa_a_data_cinza_em_vez_de_sumir():
     assert campos["ate_quando"]["quando_modo"] == "cinza"
 
 
-def test_horario_do_atestado_e_campo_de_hora():
+def test_o_tipo_hora_existe_e_e_distinto_de_texto():
     """Texto livre chegava como "das 14 as 16", "14h-16h" e "2 da tarde" para a
-    mesma ausência. O R.H. lança hora, não frase."""
-    from workspace.catalogo_inicial import CATALOGO_INICIAL
+    mesma ausência. O R.H. lança hora, não frase.
 
-    campos = {
-        c["chave"]: c
-        for s in CATALOGO_INICIAL if s["chave"] == "atestado"
-        for c in s["campos"]
-    }
-    assert campos["horario_inicio"]["tipo"] == TipoCampo.HORA
-    assert campos["horario_fim"]["tipo"] == TipoCampo.HORA
-    assert "horario" not in campos, "o campo de texto livre saiu"
+    Este teste olhava o item `atestado`, que saiu do catálogo no §10. O que ele
+    guarda continua valendo — o TIPO existe e a tela sabe desenhá-lo —, e agora
+    ele não depende de um item específico continuar existindo. Amarrar teste de
+    componente a um item de negócio é o que faz uma decisão de produto quebrar a
+    suíte inteira.
+    """
+    assert TipoCampo.HORA in TipoCampo.values
+    assert TipoCampo.HORA != TipoCampo.TEXTO
 
 
 @pytest.mark.django_db
@@ -410,12 +409,28 @@ def test_a_tela_desenha_input_de_hora_e_marca_o_campo_de_dinheiro(client, ana):
     from django.core.management import call_command
     from io import StringIO
 
+    from decimal import Decimal
+
+    from workspace.models.catalogo import GrupoCatalogo, ItemCatalogo
+
     call_command("semear_catalogo", "--aplicar", stdout=StringIO())
+    # Item PRÓPRIO em vez de `atestado`, que saiu do catálogo no §10: o que se
+    # testa aqui é a TELA saber desenhar `time` e `date`, não a existência de um
+    # item de negócio específico.
+    ItemCatalogo.objects.create(
+        chave="com-hora", nome="Com hora", grupo=GrupoCatalogo.TRABALHO,
+        dominio="rh.ausencia", prazo_prometido_dias=1,
+        limite_auto_aprovacao=Decimal("0"),
+        campos=[
+            {"chave": "dia", "rotulo": "Dia", "tipo": TipoCampo.DATA, "obrigatorio": True},
+            {"chave": "inicio", "rotulo": "Início", "tipo": TipoCampo.HORA},
+        ],
+    )
     client.force_login(ana)
 
-    atestado = client.get(reverse("workspace:pedir", args=["atestado"])).content.decode()
-    assert 'type="time"' in atestado
-    assert 'type="date"' in atestado
+    com_hora = client.get(reverse("workspace:pedir", args=["com-hora"])).content.decode()
+    assert 'type="time"' in com_hora
+    assert 'type="date"' in com_hora
 
     compra = client.get(reverse("workspace:pedir", args=["compra"])).content.decode()
     assert "data-moeda" in compra

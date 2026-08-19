@@ -35,6 +35,31 @@
   </a>
 </div>
 
+{% comment %}
+  LIVRES AGORA — §32.
+
+  É a pergunta que traz a pessoa aqui: "preciso de uma sala agora". A tela
+  respondia só indiretamente — dava a agenda de cada recurso e deixava a
+  subtração por conta de quem lê.
+
+  Fora do horário de funcionamento a faixa não aparece: dizer "tudo livre" às
+  23h é verdade inútil, e ensina a ignorar a faixa nas horas em que ela importa.
+{% endcomment %}
+{% if livres_agora %}
+  <div class="au-livres" role="status">
+    <span class="au-livres-rotulo">{% trans "Livres agora" %}</span>
+    <ul class="au-livres-lista">
+      {% for r in livres_agora %}
+        <li>
+          <a class="au-livres-item" href="{% url 'workspace:reservar' r.codigo %}">
+            {{ r.nome }}{% if r.capacidade %} · {{ r.capacidade }}{% endif %}
+          </a>
+        </li>
+      {% endfor %}
+    </ul>
+  </div>
+{% endif %}
+
 {% if grupos %}
   {% for grupo in grupos %}
     <section class="au-secao">
@@ -85,6 +110,38 @@
               {% endcomment %}
               <p class="au-agenda-livre">{% trans "Livre o dia inteiro." %}</p>
             {% endif %}
+
+            {% comment %}
+              A GRADE — §32.
+
+              A lista acima diz O QUE ESTÁ MARCADO. Ela não diz ONDE TEM BURACO,
+              que é a pergunta de quem quer reservar: para achar o vão entre
+              10h–11h e 14h–15h a pessoa precisa ler os horários e fazer a
+              subtração de cabeça. A grade responde por desenho.
+
+              Cada faixa é um LINK para o formulário já com a hora escolhida —
+              ver o buraco e ter de digitar o horário de novo é o passo que faz
+              a pessoa desistir e bater na porta da sala.
+            {% endcomment %}
+            <ul class="au-horas" aria-label="{% trans 'Disponibilidade por hora' %}">
+              {% for faixa in entrada.grade %}
+                <li class="au-horas-faixa {% if faixa.ocupada %}au-horas-faixa--ocupada{% endif %}">
+                  {% if faixa.ocupada %}
+                    <span class="au-horas-hora"
+                          title="{{ faixa.reserva.solicitante.get_full_name }}{% if faixa.reserva.motivo %} · {{ faixa.reserva.motivo }}{% endif %}">
+                      {{ faixa.rotulo }}
+                    </span>
+                  {% else %}
+                    <a class="au-horas-hora"
+                       href="{% url 'workspace:reservar' entrada.recurso.codigo %}?dia={{ dia|date:'Y-m-d' }}&amp;hora={{ faixa.hora }}"
+                       title="{% blocktrans with h=faixa.rotulo %}Livre às {{ h }}{% endblocktrans %}">
+                      {{ faixa.rotulo }}
+                    </a>
+                  {% endif %}
+                </li>
+              {% endfor %}
+            </ul>
+
           </li>
         {% endfor %}
       </ul>

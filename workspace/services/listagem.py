@@ -35,7 +35,7 @@ from django.core.paginator import Paginator
 from django.db.models import Q
 from django.utils import timezone
 
-from workspace.models.catalogo import SituacaoServico
+from workspace.models.catalogo import SITUACOES_FORA_DA_ESTEIRA, SituacaoServico
 
 #: Quantas linhas por página. Vinte cabe numa tela sem rolar muito, e mantém a
 #: página com vinte modais em vez de todos.
@@ -43,21 +43,42 @@ POR_PAGINA = 20
 
 #: O que "em aberto" significa — em UM lugar. As telas contavam isso com uma
 #: lista literal copiada em três arquivos.
-ABERTAS = (
-    SituacaoServico.AGUARDANDO_APROVACAO,
-    SituacaoServico.APROVADA,
-    SituacaoServico.EM_ATENDIMENTO,
-    SituacaoServico.DEVOLVIDA,
-)
+#: Derivado de `SITUACOES_FORA_DA_ESTEIRA` e não escrito à mão: a lista literal
+#: daqui e a de `abertas()` eram duas verdades sobre a mesma palavra, e quando
+#: `REJEITADA` nasceu só uma das duas soube.
+#:
+#: Rascunho fica de FORA, e não por descuido: "em aberto" quer dizer que o
+#: pedido está vivo na esteira — alguém precisa mexer nele, um prazo corre. Um
+#: formulário que ninguém enviou não tem nada disso, e somá-lo aqui faria o
+#: contador do trilho misturar "o RH está devendo três respostas" com "você
+#: deixou três formulários pela metade".
+ABERTAS = tuple(s for s in SituacaoServico if s not in SITUACOES_FORA_DA_ESTEIRA)
 
 #: Os filtros da tela "Minhas solicitações", na ordem em que aparecem.
 #: `None` no valor significa "não filtra nada" — é o estado inicial.
 FILTROS_MINHAS = (
+    # "Todas" mostra tudo, rascunho INCLUSIVE: a aba existe para a pessoa achar
+    # o que ela sabe que tem, e esconder o rascunho justamente de quem o
+    # escreveu seria a única forma de perdê-lo de vez.
     ("", "Todas", None),
+    ("rascunho", "Rascunhos", (SituacaoServico.RASCUNHO,)),
     ("abertas", "Em aberto", ABERTAS),
     ("aguardando_aprovacao", "Aguardando aprovação", (SituacaoServico.AGUARDANDO_APROVACAO,)),
+    # APROVADA e EM_ANDAMENTO como abas próprias — §44.
+    #
+    # Os dois estados existiam e só apareciam dentro de "Em aberto". Isso é o
+    # que produziu a queixa do §43: o pedido dizia "Aprovada", não estava em
+    # "Concluídas", continuava em "Em aberto", e não havia onde vê-lo isolado —
+    # a leitura óbvia é a de que a máquina de estados está errada.
+    #
+    # A máquina estava certa. O que faltava era a tela dizer em que fase o
+    # pedido está: aprovado é meio do caminho, e meio do caminho merece um lugar
+    # próprio para ser olhado.
+    ("aprovada", "Aprovadas · aguardando a área", (SituacaoServico.APROVADA,)),
+    ("em_atendimento", "Em andamento", (SituacaoServico.EM_ATENDIMENTO,)),
     ("devolvida", "Devolvidas", (SituacaoServico.DEVOLVIDA,)),
     ("concluida", "Concluídas", (SituacaoServico.CONCLUIDA,)),
+    ("rejeitada", "Reprovadas", (SituacaoServico.REJEITADA,)),
     ("cancelada", "Canceladas", (SituacaoServico.CANCELADA,)),
 )
 

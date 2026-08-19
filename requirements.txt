@@ -7,6 +7,20 @@
 #
 # O requirements do projeto anterior tinha 57 entradas — DRF, Celery, Axes,
 # compressor, storages, JWT, nltk. Nenhuma delas é usada aqui.
+#
+# ## A exceção, e por que ela é uma
+#
+# `reportlab` entrou para gerar o PDF dos relatórios de campo (§34–36). Foi uma
+# decisão pedida e tomada de olhos abertos, não um efeito colateral.
+#
+# A alternativa era `weasyprint`, que converte HTML+CSS e daria um documento
+# mais parecido com a tela. Ela foi recusada pelo DEPLOY: weasyprint exige
+# Cairo, Pango e GDK-PixBuf instalados no sistema operacional — bibliotecas C
+# que precisam entrar na imagem, versionar junto e quebrar quando a base muda.
+#
+# `reportlab` é Python puro: instala por wheel, não pede nada do sistema, e a
+# mesma imagem que roda o Django roda o PDF. O preço é desenhar o layout em
+# código em vez de em CSS — pago uma vez, em `services/pdf.py`.
 
 Django==6.0.7
 
@@ -19,3 +33,7 @@ redis==8.1.0
 
 # Servidor WSGI de produção.
 gunicorn==26.0.0
+
+# PDF dos relatórios de campo. Python puro — ver a nota no topo deste arquivo
+# sobre por que não é weasyprint.
+reportlab==5.0.0

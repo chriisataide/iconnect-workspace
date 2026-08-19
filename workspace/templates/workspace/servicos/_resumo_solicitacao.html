@@ -27,7 +27,7 @@
         <span class="au-list-titulo">{% trans "Situação" %}</span>
         <span class="au-list-meta">
           <span class="au-etiqueta au-etiqueta--{{ s.situacao }}">
-            {{ s.get_situacao_display }}
+            {{ s.fase }}
           </span>
           {% if s.auto_aprovada %}
             <span class="au-selo au-selo--medido">{% trans "automática" %}</span>
@@ -114,6 +114,48 @@
       <div class="au-modal-secao">
         <p class="au-dossie-rotulo">{% trans "Anexos" %}</p>
         {% include "workspace/_anexos.html" with anexos=s.anexos.all %}
+      </div>
+    {% endif %}
+
+    {% comment %}
+      A CONVERSA — §45.
+
+      Existe para que perguntar não exija DEVOLVER. Antes disto, "qual o número
+      de série?" só saía devolvendo o pedido inteiro: ele sai da fila, perde a
+      posição e volta como se estivesse errado — que não é o que a pergunta
+      quer dizer.
+
+      Comentário interno da área não aparece aqui: a view já filtra, e o
+      template não recebe o que não pode mostrar.
+    {% endcomment %}
+    {% if s.comentarios_visiveis or s.pode_comentar %}
+      <div class="au-modal-secao">
+        <p class="au-dossie-rotulo">{% trans "Conversa" %}</p>
+        {% if s.comentarios_visiveis %}
+          <ul class="au-conversa">
+            {% for c in s.comentarios_visiveis %}
+              <li class="au-conversa-fala {% if c.autor_id == s.solicitante_id %}au-conversa-fala--minha{% endif %}">
+                <span class="au-conversa-quem">
+                  {{ c.autor.get_short_name|default:c.autor.email }}
+                  <time datetime="{{ c.criado_em|date:'c' }}">{{ c.criado_em|date:"d/m H:i" }}</time>
+                </span>
+                <span class="au-conversa-texto">{{ c.texto|linebreaksbr }}</span>
+              </li>
+            {% endfor %}
+          </ul>
+        {% endif %}
+        {% if s.pode_comentar %}
+          <form class="au-conversa-form" method="post"
+                action="{% url 'workspace:comentar_solicitacao' s.pk %}">
+            {% csrf_token %}
+            <label class="au-sr" for="texto-{{ s.pk }}">{% trans "Comentar" %}</label>
+            <textarea class="au-input" id="texto-{{ s.pk }}" name="texto" rows="2"
+                      placeholder="{% trans 'Pergunte ou complemente sem devolver o pedido' %}"></textarea>
+            <button class="au-btn au-btn--sutil au-btn--pequeno" type="submit">
+              {% trans "Comentar" %}
+            </button>
+          </form>
+        {% endif %}
       </div>
     {% endif %}
 

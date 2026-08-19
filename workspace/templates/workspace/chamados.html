@@ -1,0 +1,88 @@
+{% extends "workspace/_shell_modulo.html" %}
+{% load i18n %}
+
+{% block titulo %}{% trans "Meus chamados" %}{% endblock %}
+
+{% block rail %}{% include "workspace/_rail_servicos.html" with aba="chamados" %}{% endblock %}
+{% block trilha %}<span>{% trans "Chamados" %}</span>{% endblock %}
+{% block pagina_titulo %}{% trans "Meus chamados no iConnect" %}{% endblock %}
+{% block voltar_url %}{% url 'workspace:home' %}{% endblock %}
+
+{% block pagina_descricao %}
+  <p class="au-pagina-desc">
+    {% if abertos %}
+      <strong>{% blocktrans count n=abertos %}{{ n }} chamado ainda em aberto.{% plural %}{{ n }} chamados ainda em aberto.{% endblocktrans %}</strong>
+    {% else %}
+      {% trans "Abertos no iConnect, acompanhados daqui." %}
+    {% endif %}
+  </p>
+{% endblock %}
+
+{% block corpo %}
+{% comment %}
+  ESTA TELA NÃO ABRE CHAMADO — §38.
+
+  Abrir é no iConnect, que é onde o chamado é atendido. O Workspace faz o que
+  sobrava e ninguém fazia: direcionar, exibir status e exibir histórico. Um
+  formulário de abertura aqui seria a duplicação que o §1 proíbe, e o pedido
+  chegaria a um sistema que não sabe atendê-lo.
+
+  A leitura é em nome da PESSOA, com o JWT que a ponte SSO trouxe. O recorte por
+  papel é do outro lado — cliente vê os seus, analista vê os atribuídos —, e
+  refiltrar aqui criaria uma segunda regra de acesso sobre o mesmo dado.
+{% endcomment %}
+{% include "workspace/_iconnect_aviso.html" %}
+
+<section class="au-secao">
+  <div class="au-secao-cabeca">
+    <h2 class="au-secao-titulo">{% trans "Chamados" %}</h2>
+    <a class="au-btn au-btn--primario au-btn--pequeno" href="{{ iconnect_url }}"
+       rel="noopener noreferrer" target="_blank">
+      {% trans "Abrir chamado no iConnect" %}
+    </a>
+  </div>
+
+  {% if chamados %}
+    <div class="au-tabela">
+      <table>
+        <thead>
+          <tr>
+            <th>{% trans "Número" %}</th>
+            <th>{% trans "Assunto" %}</th>
+            <th>{% trans "Categoria" %}</th>
+            <th>{% trans "Status" %}</th>
+            <th>{% trans "Responsável" %}</th>
+            <th>{% trans "Abertura" %}</th>
+            <th>{% trans "Última atualização" %}</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for c in chamados %}
+            <tr {% if not c.aberto %}class="au-linha--encerrada"{% endif %}>
+              <td>#{{ c.numero }}</td>
+              <td>{{ c.assunto }}</td>
+              <td>{{ c.categoria }}</td>
+              <td>
+                <span class="au-etiqueta au-etiqueta--tk-{{ c.status }}">
+                  {{ c.status_rotulo }}
+                </span>
+              </td>
+              <td>{{ c.responsavel|default:"—" }}</td>
+              <td>{{ c.abertura|date:"d/m/Y"|default:"—" }}</td>
+              <td>{{ c.atualizacao|date:"d/m/Y H:i"|default:"—" }}</td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  {% elif conectado and not aviso %}
+    <div class="au-vazio">
+      <p class="au-vazio-titulo">{% trans "Nenhum chamado seu no iConnect." %}</p>
+      <p class="au-vazio-dica">
+        {% blocktrans %}Equipamento parado, acesso a sistema, rede ou manutenção predial —
+        tudo isso é chamado, e é aberto no iConnect.{% endblocktrans %}
+      </p>
+    </div>
+  {% endif %}
+</section>
+{% endblock %}

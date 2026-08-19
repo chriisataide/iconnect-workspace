@@ -1,0 +1,166 @@
+{% extends "workspace/_shell_modulo.html" %}
+{% load i18n %}
+
+{% block titulo %}{% trans "Acervo normativo" %}{% endblock %}
+
+{% block rail %}{% include "workspace/_rail_servicos.html" with aba="documentos" %}{% endblock %}
+{% block trilha %}
+  <a href="{% url 'workspace:documentacao' %}">{% trans "Documentação" %}</a>
+  <span>{% trans "Acervo" %}</span>
+{% endblock %}
+{% block pagina_titulo %}{% trans "Acervo normativo" %}{% endblock %}
+{% block voltar_url %}{% url 'workspace:documentacao' %}{% endblock %}
+
+{% block pagina_descricao %}
+  <p class="au-pagina-desc">
+    {% if vencidos %}
+      <strong>{% blocktrans count n=vencidos|length %}{{ n }} documento venceu e sumiu da vitrine.{% plural %}{{ n }} documentos venceram e sumiram da vitrine.{% endblocktrans %}</strong>
+    {% else %}
+      {% trans "O que você mantém — inclusive rascunho, vencido e revogado." %}
+    {% endif %}
+  </p>
+{% endblock %}
+
+{% block corpo %}
+{% comment %}
+  A TELA DE QUEM MANTÉM, e não a vitrine.
+
+  A diferença é o ponto: quem escreve precisa ver justamente o rascunho, o
+  vencido e o revogado, porque é isso que dá trabalho a ele. A vitrine
+  (`documentacao/`) mostra o que vale hoje, e é a tela de quem lê.
+{% endcomment %}
+{% if vencidos or a_vencer %}
+  <section class="au-secao">
+    <div class="au-secao-cabeca">
+      <h2 class="au-secao-titulo">{% trans "Vigência acabando" %}</h2>
+    </div>
+    {% comment %}
+      Em cima porque é a única coisa desta tela que pede ação, e porque a
+      consequência é silenciosa: `publicados()` tira o vencido da vitrine, então
+      um POP que passa da vigência simplesmente SOME do acervo. As pessoas
+      continuam precisando do procedimento; ele deixou de existir na tela.
+    {% endcomment %}
+    <ul class="au-prazos">
+      {% for d in vencidos %}
+        <li class="au-prazo-item au-prazo-item--vencido">
+          <span class="au-prazo-doc">{{ d.get_tipo_display }}</span>
+          <a class="au-prazo-veiculo" href="{% url 'workspace:documento' d.slug %}">
+            {{ d.titulo }}
+            <span class="au-prazo-modelo">{% trans "v" %}{{ d.versao }}</span>
+          </a>
+          <span class="au-prazo-data">
+            {% blocktrans with data=d.vigencia_fim|date:"d/m/Y" %}venceu em {{ data }}{% endblocktrans %}
+          </span>
+        </li>
+      {% endfor %}
+      {% for d in a_vencer %}
+        {% if not d.vencido %}
+          <li class="au-prazo-item">
+            <span class="au-prazo-doc">{{ d.get_tipo_display }}</span>
+            <a class="au-prazo-veiculo" href="{% url 'workspace:documento' d.slug %}">
+              {{ d.titulo }}
+              <span class="au-prazo-modelo">{% trans "v" %}{{ d.versao }}</span>
+            </a>
+            <span class="au-prazo-data">
+              {% blocktrans count n=d.dias_para_vencer %}vence em {{ n }} dia{% plural %}vence em {{ n }} dias{% endblocktrans %}
+            </span>
+          </li>
+        {% endif %}
+      {% endfor %}
+    </ul>
+  </section>
+{% endif %}
+
+<section class="au-secao">
+  <div class="au-secao-cabeca">
+    <h2 class="au-secao-titulo">{% trans "Todos os documentos" %}</h2>
+    <a class="au-btn au-btn--primario au-btn--pequeno" href="{% url 'workspace:documento_novo' %}">
+      {% trans "Novo documento" %}
+    </a>
+  </div>
+
+  {% if documentos %}
+    <div class="au-tabela">
+      <table>
+        <thead>
+          <tr>
+            <th>{% trans "Título" %}</th>
+            <th>{% trans "Tipo" %}</th>
+            <th>{% trans "Versão" %}</th>
+            <th>{% trans "Vigência" %}</th>
+            <th>{% trans "Alcance" %}</th>
+            <th>{% trans "Situação" %}</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for d in documentos %}
+            <tr>
+              <td>
+                <a href="{% url 'workspace:documento' d.slug %}">{{ d.titulo }}</a>
+                {% if d.leitura_obrigatoria %}
+                  <span class="au-selo au-selo--alerta">{% trans "leitura obrigatória" %}</span>
+                {% endif %}
+              </td>
+              <td>{{ d.get_tipo_display }}</td>
+              <td>{{ d.versao }}</td>
+              <td>
+                {{ d.vigencia_inicio|date:"d/m/Y" }}
+                {% if d.vigencia_fim %}
+                  <span class="au-list-resumo">{% trans "até" %} {{ d.vigencia_fim|date:"d/m/Y" }}</span>
+                {% endif %}
+              </td>
+              <td>
+                {% if d.para_todos %}
+                  {% trans "empresa inteira" %}
+                {% else %}
+                  <span class="au-list-resumo">{% trans "público-alvo definido" %}</span>
+                {% endif %}
+              </td>
+              <td>
+                <span class="au-etiqueta au-etiqueta--doc-{{ d.situacao }}">
+                  {{ d.get_situacao_display }}
+                </span>
+                {% if d.vencido %}
+                  <span class="au-selo au-selo--alerta">{% trans "vencido" %}</span>
+                {% endif %}
+              </td>
+              <td>
+                <div class="au-acoes-linha">
+                  <a class="au-btn au-btn--sutil au-btn--pequeno"
+                     href="{% url 'workspace:documento_editar' d.slug %}">
+                    {% trans "Editar" %}
+                  </a>
+                  {% comment %}
+                    Revogar e não excluir: quem investiga uma ocorrência precisa
+                    poder abrir o POP que valia na época. Revogado sai da
+                    vitrine e continua acessível por link direto.
+                  {% endcomment %}
+                  {% if d.situacao != "revogado" %}
+                    <form method="post"
+                          action="{% url 'workspace:documento_revogar' d.slug %}">
+                      {% csrf_token %}
+                      <button class="au-btn au-btn--sutil au-btn--pequeno" type="submit">
+                        {% trans "Revogar" %}
+                      </button>
+                    </form>
+                  {% endif %}
+                </div>
+              </td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  {% else %}
+    <div class="au-vazio">
+      <p class="au-vazio-titulo">{% trans "Nenhum documento no acervo." %}</p>
+      <p class="au-vazio-dica">
+        {% blocktrans %}POP, política, norma, instrução e manual. Documento com leitura
+        obrigatória cobra a confirmação de cada pessoa alcançada — e é essa
+        confirmação que vale numa auditoria.{% endblocktrans %}
+      </p>
+    </div>
+  {% endif %}
+</section>
+{% endblock %}

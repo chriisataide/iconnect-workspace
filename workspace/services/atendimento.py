@@ -156,9 +156,73 @@ def fila_de(pessoa, cache: dict | None = None):
         # `eventos` junto: a linha do que voltou mostra o motivo da reabertura,
         # e sem isto seria uma consulta por linha para descobrir que a imensa
         # maioria delas nunca voltou.
-        .prefetch_related("anexos", "despesas", "eventos")
+        # `comentarios__autor` junto: a fila mostra a conversa de cada pedido,
+        # e sem isto seriam duas consultas por linha — uma para os comentários e
+        # outra para o nome de quem escreveu.
+        .prefetch_related("anexos", "despesas", "eventos", "comentarios__autor")
         .order_by("criado_em")
     )
+
+
+def quem_atende(dominio: str, cache: dict | None = None) -> list:
+    """As pessoas que atendem a fila deste domínio.
+
+    É a pergunta INVERSA de `prefixos_que_atende()`, e o produto não a fazia em
+    lugar nenhum: sabia dizer "o que esta pessoa atende" e não sabia dizer "quem
+    atende isto". Sem ela, a única forma de a área descobrir trabalho novo é
+    abrir a tela da fila.
+
+    Candidatos são quem tem alguma atribuição vigente, e não a tabela inteira de
+    gente — mesma economia de `identidade.administracao.quem_administra()`:
+    perguntar `pode()` para cada colaborador da empresa custaria uma consulta por
+    pessoa para descobrir que a resposta é não para quase todas.
+
+    Superusuário fica FORA, ao contrário de `quem_administra()`. Lá o
+    superusuário é o último recurso quando ninguém tem o papel de RH — sem ele o
+    aviso não teria destinatário. Aqui ele seria só ruído: uma conta técnica
+    recebendo cópia de cada pedido de cada área da empresa.
+    """
+    from django.contrib.auth import get_user_model
+
+    from identidade.models import AtribuicaoPapel
+
+    permissao = permissao_de(dominio)
+    com_papel = AtribuicaoPapel.objects.vigentes().values_list("user_id", flat=True)
+    candidatos = (
+        get_user_model().objects.filter(pk__in=com_papel, is_active=True).distinct()
+    )
+    return [p for p in candidatos if pode(p, permissao, cache=cache)]
+
+
+def avisar_a_fila(solicitacao: SolicitacaoServico, cache: dict | None = None) -> int:
+    """Diz à área que executa que chegou pedido. Devolve quantos foram avisados.
+
+    Chamado quando o pedido ENTRA na fila — depois da aprovação, ou na hora da
+    criação quando ele foi auto-aprovado. Os dois caminhos, e não só o primeiro:
+    auto-aprovado é o caso mais comum e era o mais silencioso de todos, porque
+    nem passava por uma bandeja onde alguém veria.
+
+    Quem pediu não recebe cópia, mesmo que atenda a própria área: ele acabou de
+    clicar, e já foi avisado da aprovação pelo aviso que é dele.
+    """
+    if solicitacao.situacao not in NA_FILA:
+        return 0
+
+    url = reverse("workspace:fila")
+    avisados = 0
+    for pessoa in quem_atende(solicitacao.item.dominio, cache=cache):
+        if pessoa.pk == solicitacao.solicitante_id:
+            continue
+        _avisar_pessoa(
+            pessoa,
+            solicitacao,
+            TipoNotificacao.PEDIDO_NA_FILA,
+            f"{solicitacao.item.nome} entrou na sua fila",
+            f"Pedido de {solicitacao.solicitante.get_full_name()}.",
+            url=url,
+        )
+        avisados += 1
+    return avisados
 
 
 def _garantir_que_pode(solicitacao: SolicitacaoServico, quem, cache=None) -> None:
@@ -245,9 +309,30 @@ def concluir(solicitacao: SolicitacaoServico, quem, cache=None) -> SolicitacaoSe
         # isso só produziria dois cliques para o mesmo fim. Mas o nome fica.
         solicitacao.atendente = quem
 
+    # A BAIXA DE ESTOQUE VEM ANTES de marcar concluído, e é o que dá o "ou nada"
+    # da transação: se o saldo não cobrir, o pedido NÃO fecha. Concluir primeiro
+    # e baixar depois deixaria pedido entregue com estoque intacto — a diferença
+    # aparece na contagem física, meses depois, sem nenhuma linha suspeita.
+    #
+    # É aqui, e não no envio, que a corrida por concorrência é resolvida:
+    # `movimentar()` trava a linha de saldo, então dois atendentes despachando o
+    # último capacete ao mesmo tempo não conseguem os dois.
+    _baixar_estoque(solicitacao, quem)
+
     solicitacao.situacao = SituacaoServico.CONCLUIDA
     solicitacao.concluido_em = timezone.now()
     solicitacao.save(update_fields=["atendente", "situacao", "concluido_em"])
+
+    # O compromisso de orçamento sai do "comprometido" — §58.
+    #
+    # `orcamento.baixar()` existia desde a primeira onda e ninguém a chamava: o
+    # compromisso entrava na aprovação e só saía por cancelamento. Como
+    # `consumido = realizado + comprometido`, a mesma compra passava a contar
+    # duas vezes assim que a nota era lançada no financeiro, e a barra do centro
+    # de custo subia sozinha até recusar um pedido legítimo.
+    from workspace.services import orcamento as orc
+
+    orc.baixar_do_pedido(solicitacao)
 
     from workspace.services import historico as hst
 
@@ -259,6 +344,40 @@ def concluir(solicitacao: SolicitacaoServico, quem, cache=None) -> SolicitacaoSe
         f"Atendido por {quem.get_full_name()}.",
     )
     return solicitacao
+
+
+def _baixar_estoque(solicitacao: SolicitacaoServico, quem) -> None:
+    """Dá baixa quando o pedido é de material — §16. Silencioso quando não é.
+
+    A unidade é a de QUEM PEDIU, e não a de quem atende: o material sai da
+    prateleira que serve a pessoa. Suprimentos de São Paulo despachando para
+    Campinas dá baixa em Campinas, que é onde o capacete estava.
+    """
+    from workspace.services import catalogo as svc
+    from workspace.services import estoque as est
+
+    chaves = {c["chave"] for c in solicitacao.item.campos}
+    if not {svc.CAMPO_MATERIAL, svc.CAMPO_QUANTIDADE} <= chaves:
+        return
+
+    from workspace.models.estoque import Material
+
+    codigo = (solicitacao.dados or {}).get(svc.CAMPO_MATERIAL)
+    bruta = (solicitacao.dados or {}).get(svc.CAMPO_QUANTIDADE)
+    material = Material.objects.filter(codigo=codigo).first()
+    unidade = svc._unidade_de(solicitacao.solicitante)
+    if material is None or unidade is None or not bruta:
+        # Dado incompleto não impede a entrega: o pedido pode ser antigo, de
+        # antes do cadastro existir. Travar a conclusão por isso deixaria a fila
+        # com um pedido que ninguém consegue fechar.
+        return
+
+    try:
+        est.baixar_por_pedido(material, unidade, int(bruta), solicitacao, quem=quem)
+    except est.EstoqueError as erro:
+        # Vira `AtendimentoError` para que a tela mostre o motivo no mesmo lugar
+        # em que mostra os outros — e para que a transação inteira volte.
+        raise AtendimentoError(str(erro)) from erro
 
 
 @transaction.atomic

@@ -136,6 +136,16 @@ justificativa no PR.
 
 ## Documentação
 
+**Comece por aqui:**
+
+| Documento | O que responde | Para quem |
+|---|---|---|
+| [Guia do time](docs/EXEC_12_GUIA_DO_TIME.md) | O que o produto faz, quem vê o quê, e as decisões que qualquer mudança precisa respeitar | **todo mundo** |
+| [Operação](docs/EXEC_13_OPERACAO.md) | Subir, configurar, agendar, diagnosticar | quem opera |
+| [Entrega](docs/EXEC_11_ENTREGA.md) | A auditoria, o que foi implementado e o que ficou pendente | produto e gestão |
+
+**Referência:**
+
 | Documento | O que responde |
 |---|---|
 | [Guia de QA](docs/GUIA_QA_WORKSPACE.md) | O contrato de cada tela: para que serve, quando é útil, o que é defeito e o que é decisão |

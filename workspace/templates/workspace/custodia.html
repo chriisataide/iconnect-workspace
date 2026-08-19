@@ -1,0 +1,280 @@
+{% extends "workspace/_shell_modulo.html" %}
+{% load i18n %}
+
+{% block titulo %}{% trans "Equipamentos" %}{% endblock %}
+
+{% block rail %}{% include "workspace/_rail_servicos.html" with aba="custodia" %}{% endblock %}
+{% block trilha %}<span>{% trans "Equipamentos" %}</span>{% endblock %}
+{% block pagina_titulo %}{% trans "Equipamentos" %}{% endblock %}
+{% block voltar_url %}{% url 'workspace:home' %}{% endblock %}
+
+{% block pagina_descricao %}
+  <p class="au-pagina-desc">
+    {% if em_uso_por_mim %}
+      <strong>{% blocktrans count n=em_uso_por_mim|length %}{{ n }} item da empresa sob sua responsabilidade.{% plural %}{{ n }} itens da empresa sob sua responsabilidade.{% endblocktrans %}</strong>
+    {% else %}
+      {% trans "Nada da empresa está no seu nome." %}
+    {% endif %}
+  </p>
+{% endblock %}
+
+{% block corpo %}
+{% comment %}
+  Uma tela, dois públicos, como a de correspondências e pela mesma razão: quem
+  controla o patrimônio também recebe equipamento, e duas URLs fariam essa
+  pessoa decorar as duas.
+
+  "O que é meu" vem primeiro mesmo para quem controla — Suprimentos também usa
+  notebook.
+{% endcomment %}
+{% if a_aceitar %}
+  <section class="au-secao">
+    <div class="au-secao-cabeca">
+      <h2 class="au-secao-titulo">{% trans "Confirme o que você recebeu" %}</h2>
+      <span class="au-secao-contagem">{{ a_aceitar|length }}</span>
+    </div>
+    {% comment %}
+      Acima de tudo porque é a única coisa desta tela em que a pessoa precisa
+      agir.
+
+      `entregue_em` é Suprimentos dizendo "entreguei"; isto é a pessoa dizendo
+      "recebi". Enquanto só existe o primeiro, a única versão registrada dos
+      fatos é a de quem entregou — e é justamente essa que não vale nada no dia
+      em que o equipamento sumir.
+    {% endcomment %}
+    <ul class="au-custodia">
+      {% for c in a_aceitar %}
+        <li class="au-custodia-item au-custodia-item--aceite">
+          <span class="au-custodia-nome">
+            {{ c.material.nome }}
+            {% if c.identificacao %}
+              <span class="au-custodia-etiqueta">{{ c.identificacao }}</span>
+            {% endif %}
+          </span>
+          <span class="au-custodia-meta">
+            {% if c.entregue_por %}
+              {% blocktrans with quem=c.entregue_por.get_full_name data=c.entregue_em|date:"d/m/Y" %}entregue por {{ quem }} em {{ data }}{% endblocktrans %}
+            {% else %}
+              {{ c.entregue_em|date:"d/m/Y" }}
+            {% endif %}
+          </span>
+          <form method="post" action="{% url 'workspace:aceitar_custodia' c.pk %}">
+            {% csrf_token %}
+            <button class="au-btn au-btn--primario au-btn--pequeno" type="submit">
+              {% trans "Confirmo que recebi" %}
+            </button>
+          </form>
+        </li>
+      {% endfor %}
+    </ul>
+  </section>
+{% endif %}
+
+<section class="au-secao">
+  <div class="au-secao-cabeca">
+    <h2 class="au-secao-titulo">{% trans "No seu nome" %}</h2>
+    {% if em_uso_por_mim %}<span class="au-secao-contagem">{{ em_uso_por_mim|length }}</span>{% endif %}
+  </div>
+
+  {% if minhas %}
+    <div class="au-tabela">
+      <table>
+        <thead>
+          <tr>
+            <th>{% trans "Material" %}</th>
+            <th>{% trans "Identificação" %}</th>
+            <th class="num">{% trans "Qtd." %}</th>
+            <th>{% trans "Desde" %}</th>
+            <th>{% trans "Unidade" %}</th>
+            <th>{% trans "Situação" %}</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for c in minhas %}
+            <tr {% if not c.em_uso %}class="au-linha--encerrada"{% endif %}>
+              <td>{{ c.material.nome }}</td>
+              <td>{{ c.identificacao|default:"—" }}</td>
+              <td class="num">{{ c.quantidade }}</td>
+              <td>{{ c.entregue_em|date:"d/m/Y" }}</td>
+              <td>{{ c.unidade.nome }}</td>
+              <td>
+                <span class="au-etiqueta au-etiqueta--cst-{{ c.situacao }}">{{ c.situacao_rotulo }}</span>
+                {% if not c.em_uso and c.condicao_devolucao %}
+                  <span class="au-list-resumo">{{ c.get_condicao_devolucao_display }}</span>
+                {% endif %}
+              </td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  {% else %}
+    <div class="au-vazio">
+      <p class="au-vazio-titulo">{% trans "Nada da empresa está no seu nome." %}</p>
+      <p class="au-vazio-dica">
+        {% blocktrans %}Quando Suprimentos registrar um notebook, rádio ou ferramenta no
+        seu nome, ele aparece aqui e você é avisado.{% endblocktrans %}
+      </p>
+    </div>
+  {% endif %}
+</section>
+
+{% if controla %}
+  <section class="au-secao">
+    <div class="au-secao-cabeca">
+      <h2 class="au-secao-titulo">{% trans "Quem está com o quê" %}</h2>
+      {% if de_terceiros %}<span class="au-secao-contagem">{{ de_terceiros|length }}</span>{% endif %}
+    </div>
+    {% comment %}
+      A lista que responde a pergunta do desligamento: o que esta pessoa tem
+      para devolver? Enquanto ela não existia, a resposta vinha da memória de
+      quem entregou — e o resultado é o rádio que ninguém cobra.
+    {% endcomment %}
+
+    {% if de_terceiros %}
+      <div class="au-tabela">
+        <table>
+          <thead>
+            <tr>
+              <th>{% trans "Pessoa" %}</th>
+              <th>{% trans "Material" %}</th>
+              <th>{% trans "Identificação" %}</th>
+              <th class="num">{% trans "Qtd." %}</th>
+              <th>{% trans "Unidade" %}</th>
+              <th class="num">{% trans "Há" %}</th>
+              <th>{% trans "Aceite" %}</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for c in de_terceiros %}
+              <tr>
+                <td>{{ c.pessoa.get_full_name|default:c.pessoa.get_username }}</td>
+                <td>{{ c.material.nome }}</td>
+                <td>{{ c.identificacao|default:"—" }}</td>
+                <td class="num">{{ c.quantidade }}</td>
+                <td>{{ c.unidade.nome }}</td>
+                <td class="num">{{ c.dias_em_uso }}d</td>
+                <td>
+                  {% if c.aceita %}
+                    {{ c.aceito_em|date:"d/m/Y" }}
+                  {% else %}
+                    <span class="au-selo au-selo--alerta">{% trans "sem aceite" %}</span>
+                  {% endif %}
+                </td>
+                <td>
+                  {% if atribui %}
+                    <form class="au-custodia-baixa" method="post"
+                          action="{% url 'workspace:devolver_custodia' c.pk %}">
+                      {% csrf_token %}
+                      <label class="au-sr" for="cond-{{ c.pk }}">{% trans "Condição" %}</label>
+                      <select class="au-input au-input--compacto" id="cond-{{ c.pk }}"
+                              name="condicao">
+                        {% for valor, rotulo in condicoes %}
+                          <option value="{{ valor }}">{{ rotulo }}</option>
+                        {% endfor %}
+                      </select>
+                      <button class="au-btn au-btn--sutil au-btn--pequeno" type="submit">
+                        {% trans "Devolveu" %}
+                      </button>
+                    </form>
+                  {% endif %}
+                </td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      <p class="au-ajuda">
+        {% blocktrans %}A devolução volta o material ao razão pela condição informada.
+        Sucata entra no histórico e fica fora do saldo disponível — ninguém programa
+        a entrega de um equipamento imprestável.{% endblocktrans %}
+      </p>
+    {% else %}
+      <p class="au-agenda-livre">{% trans "Nenhum equipamento em poder de terceiros." %}</p>
+    {% endif %}
+  </section>
+{% endif %}
+
+{% if atribui %}
+  <section class="au-secao">
+    <div class="au-secao-cabeca">
+      <h2 class="au-secao-titulo">{% trans "Entregar equipamento" %}</h2>
+    </div>
+    <p class="au-ajuda">
+      {% blocktrans %}A entrega baixa o estoque da unidade de quem recebe e registra o
+      responsável. A pessoa é avisada e confirma o recebimento — é a confirmação
+      dela que transforma o registro em termo de responsabilidade.{% endblocktrans %}
+    </p>
+
+    <form class="au-form" method="post" action="{% url 'workspace:entregar_custodia' %}"
+          novalidate>
+      {% csrf_token %}
+
+      <div class="au-colunas au-colunas--duas">
+        <div class="au-campo">
+          <label class="au-rotulo" for="cst-pessoa">
+            {% trans "Para quem" %} <span class="au-obrigatorio" aria-hidden="true">*</span>
+          </label>
+          <select class="au-input" id="cst-pessoa" name="pessoa">
+            <option value="">{% trans "escolha a pessoa" %}</option>
+            {% for p in pessoas %}
+              <option value="{{ p.pk }}">{{ p.get_full_name|default:p.get_username }}</option>
+            {% endfor %}
+          </select>
+          {% comment %}
+            Você não está na lista, e é de propósito: quem opera o estoque
+            também recebe equipamento, e nesse dia quem assina a entrega é
+            outra pessoa. Segregação de função é o controle interno mais básico
+            de patrimônio.
+          {% endcomment %}
+          <p class="au-ajuda">
+            {% trans "Você não aparece na lista — entrega para si mesmo é assinada por um colega." %}
+          </p>
+        </div>
+        <div class="au-campo">
+          <label class="au-rotulo" for="cst-material">
+            {% trans "Material" %} <span class="au-obrigatorio" aria-hidden="true">*</span>
+          </label>
+          <select class="au-input" id="cst-material" name="material">
+            {% for m in materiais %}
+              <option value="{{ m.codigo }}">{{ m.nome }}</option>
+            {% endfor %}
+          </select>
+        </div>
+      </div>
+
+      <div class="au-colunas au-colunas--tres">
+        <div class="au-campo">
+          <label class="au-rotulo" for="cst-quantidade">{% trans "Quantidade" %}</label>
+          <input class="au-input" id="cst-quantidade" name="quantidade" type="number"
+                 min="1" step="1" value="1">
+        </div>
+        <div class="au-campo">
+          <label class="au-rotulo" for="cst-patrimonio">{% trans "Patrimônio" %}</label>
+          <input class="au-input" id="cst-patrimonio" name="patrimonio" type="text"
+                 maxlength="40">
+        </div>
+        <div class="au-campo">
+          <label class="au-rotulo" for="cst-serie">{% trans "Número de série" %}</label>
+          <input class="au-input" id="cst-serie" name="numero_serie" type="text"
+                 maxlength="60">
+        </div>
+      </div>
+
+      <div class="au-campo">
+        <label class="au-rotulo" for="cst-observacao">{% trans "Observação" %}</label>
+        <input class="au-input" id="cst-observacao" name="observacao" type="text"
+               maxlength="300"
+               placeholder="{% trans 'Acessórios que foram junto, estado na entrega…' %}">
+      </div>
+
+      <div class="au-form-acoes">
+        <button class="au-btn au-btn--primario" type="submit">
+          {% trans "Entregar e avisar" %}
+        </button>
+      </div>
+    </form>
+  </section>
+{% endif %}
+{% endblock %}

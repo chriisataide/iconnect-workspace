@@ -374,13 +374,25 @@ def test_contador_do_sino_conta_so_nao_lidas(equipe, item):
     assert nt.quantas_nao_lidas(equipe["gestor"]) == 0
 
 
-def test_sino_nao_aparece_na_casca_aberta(client, equipe, item):
+def test_o_sino_aparece_para_quem_entrou(client, equipe, item):
+    """Esta regra foi INVERTIDA, e a inversão é a correção.
+
+    Na época da casca sem login o topbar não podia mostrar estado de sessão
+    nenhum, e o teste daqui garantia que o sino não aparecia. Com o login de
+    volta, essa garantia passou a proteger o defeito: a pessoa recebia o aviso
+    de que o pedido dela foi aprovado e não tinha por onde vê-lo sem digitar a
+    URL da Central — o trilho lateral, único caminho, não existe na home nem em
+    tela de módulo.
+
+    O que continua valendo é o outro lado, em `test_sino_nao_existe_para_anonimo`:
+    o hub é aberto, e sino sem sessão mostraria aviso de alguém.
+    """
     _pedir(item, equipe["ana"])
     client.force_login(equipe["gestor"])
     corpo = client.get(reverse("workspace:home")).content.decode()
 
-    assert "au-sino--ativo" not in corpo
-    assert "au-sino-contagem" not in corpo
+    assert 'class="au-sino"' in corpo
+    assert "au-sino-contagem" in corpo, "há aviso não lido — o contador tem de aparecer"
 
 
 @pytest.mark.parametrize(
@@ -394,14 +406,28 @@ def test_sino_nao_aparece_na_casca_aberta(client, equipe, item):
         "workspace:aprovacoes",
     ],
 )
-def test_topbar_nao_mostra_estado_de_sessao(client, equipe, item, rota):
-    _pedir(item, equipe["ana"])
-    client.force_login(equipe["gestor"])
-    corpo = client.get(reverse(rota)).content.decode()
+def test_topbar_nao_mostra_estado_de_sessao_para_anonimo(client, equipe, item, rota):
+    """A regra que sobreviveu: **sem sessão, nada pessoal no topbar.**
 
+    Antes o teste rodava LOGADO e exigia topbar vazio — o que era a decisão da
+    casca sem login e virou obstáculo quando o login voltou. Rodando anônimo,
+    ele passa a guardar o que realmente importa, e que já vazou uma vez neste
+    produto: o hub é aberto, e visitante não pode ver contador, nome nem aviso
+    de pessoa nenhuma.
+
+    Rotas que exigem sessão redirecionam — e redirecionar também é resposta
+    certa: o que não pode é responder 200 com o dado de alguém.
+    """
+    _pedir(item, equipe["ana"])
+    resposta = client.get(reverse(rota))
+    if resposta.status_code == 302:
+        assert resposta["Location"].startswith("/entrar/")
+        return
+
+    corpo = resposta.content.decode()
     assert "au-sino" not in corpo
     assert "au-sino-contagem" not in corpo
-    assert "au-usuario" not in corpo
+    assert "au-topbar-eu" not in corpo
 
 
 def test_sino_sem_contador_quando_tudo_lido(client, equipe):

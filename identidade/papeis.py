@@ -92,6 +92,11 @@ PAPEIS_V1 = [
             "rh.ler.global",
             "fin.ler.global",
             "ops.ler.global",
+            # Comunicado da empresa é da diretoria tanto quanto do R.H. — e
+            # global, não por unidade: quem anuncia mudança de política anuncia
+            # para todo mundo.
+            "com.publicar.global",
+            "faq.manter.global",
             # O painel de indicadores. Aqui e nos Sócios porque é para eles que
             # ele existe: volume por área, tempo até resolver, onde trava.
             "ind.ler.global",
@@ -99,6 +104,10 @@ PAPEIS_V1 = [
             # notificada ao jurídico. Bloqueio sem escape faz a operação burlar
             # o sistema; escape fácil torna o bloqueio decorativo.
             "ops.excecao.certificacao",
+            # §48 — quem LIBERA exceção de certificação tem de poder VER quem
+            # está vencido. Sem isto, a diretoria decidiria sobre uma lista que
+            # não pode abrir.
+            "hab.auditoria.ler",
             "log.perda.registrar",
         ],
         "descricao": (
@@ -137,8 +146,23 @@ PAPEIS_V1 = [
             "ind.ler.global",
             "hab.ler.unidade",
             "hab.registrar.presenca",
+            # §48 — o painel de conformidade passou a exigir `hab.auditoria.ler`
+            # e não `hab.ler`: a forma `.proprio` desta última está em
+            # AUTOATENDIMENTO, e a lista NOMINAL de quem está com certificado
+            # vencido ficava aberta para todo colaborador. O R.H. responde pela
+            # conformidade numa auditoria e continua vendo o painel.
+            # §10 — ver as candidaturas a vaga interna. Permissão própria e não
+            # `rh.ler`: a forma `.proprio` daquela está em AUTOATENDIMENTO, e a
+            # lista diz quem se candidatou a quê e quem foi reprovado — que muda
+            # a relação de uma pessoa com o gestor dela.
+            "rh.recrutar.global",
+            "hab.auditoria.ler",
             "doc.publicar.assunto",
             "com.publicar.unidade",
+            # A base de conhecimento do assistente. No R.H. porque metade das
+            # perguntas repetidas da empresa é de R.H. — e quem responde a
+            # dúvida toda semana é quem sabe escrever a resposta.
+            "faq.manter.global",
         ],
         "descricao": "Pessoas: perfil, férias, documentos com validade, onboarding.",
     },
@@ -168,6 +192,8 @@ PAPEIS_V1 = [
             "com.ler.unidade",
             "com.fornecedor.cadastrar",
             "log.ler.unidade",
+            # Comprar sem ver o saldo é comprar o que já está na prateleira.
+            "log.estoque.ler.unidade",
         ],
         "descricao": (
             "Transforma requisição aprovada em pedido. NÃO aprova — quem pede não "
@@ -176,16 +202,29 @@ PAPEIS_V1 = [
     },
     {
         "chave": "logistica",
-        "nome": "Logística",
+        # O nome que a empresa usa é Suprimentos. A CHAVE continua `logistica`
+        # porque ela está gravada em toda `AtribuicaoPapel` já concedida —
+        # trocá-la revogaria o papel de quem o tem hoje.
+        "nome": "Suprimentos",
         "escopo_padrao": ESCOPO_UNIDADE,
         "permissoes": AUTOATENDIMENTO
         + [
             "log.atender.unidade",
             "log.ler.unidade",
+            # §48 — `log.estoque.ler` nasceu porque `log.ler` não servia de
+            # porta: a forma `.proprio` dela está em AUTOATENDIMENTO, e usá-la
+            # para guardar a tela de estoque abria o saldo de todas as unidades
+            # para a empresa inteira.
+            "log.estoque.ler.unidade",
             "log.movimentar.unidade",
             "log.custodia.ler.unidade",
             "log.custodia.atribuir.unidade",
             "log.inventario.contar.unidade",
+            # §18/§19 — a frota. Fica em Suprimentos e não num papel próprio:
+            # quem cuida de material também cuida de veículo, e um papel com
+            # duas permissões é um papel que ninguém concede.
+            "log.frota.ler.unidade",
+            "log.frota.operar.unidade",
             # Facilities: quem cuida de material também cuida de sala, veículo e
             # do que chega na recepção. Módulo próprio para isso seria um papel
             # com uma permissão só.

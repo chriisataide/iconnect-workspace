@@ -128,3 +128,76 @@ def test_todo_token_usado_no_css_existe():
         "token usado e nunca definido — o navegador descarta a declaração "
         f"inteira, sem avisar: {orfaos}"
     )
+
+
+def test_nenhuma_classe_base_e_redefinida_do_zero():
+    """Duas regras `.au-x { ... }` para a mesma classe base, e a de baixo vence.
+
+    Foi assim que a vitrine inteira de serviços quebrou: a grade de horas das
+    reservas nasceu com o nome `au-grade`, que já era o grid do catálogo 400
+    linhas acima. A regra nova redefiniu `display` e `grid-template-columns`, os
+    cards perderam a largura de coluna e a última linha de cada grupo esticou.
+
+    O guard de "classe usada sem CSS" fica VERDE nesse caso: a classe existe e
+    tem regra. Só a tela mostra. Este teste é o que passa a mostrar antes.
+
+    Modificador (`--`) e elemento (`-algo`) não contam: `.au-btn--primario`
+    depois de `.au-btn` é a cascata sendo usada como se deve.
+    """
+    import re
+    from collections import Counter
+    from pathlib import Path
+
+    css = Path("workspace/static/workspace/src/workspace.css").read_text()
+    # Só as regras de topo de linha, sem seletor composto: `.au-x {` sozinha é
+    # definição de base. `.au-x .au-y {` e `.au-x:hover {` são outra coisa.
+    bases = re.findall(r"(?m)^\.(au-[a-z0-9-]+)\s*\{", css)
+    bases = [c for c in bases if "--" not in c]
+
+    repetidas = {c: n for c, n in Counter(bases).items() if n > 1}
+    assert not repetidas, (
+        "classe base definida mais de uma vez — a de baixo vence e a de cima "
+        f"vira letra morta: {repetidas}"
+    )
+
+
+def test_ninguem_usa_now_date_no_lugar_de_localdate():
+    """`timezone.now().date()` é o dia em UTC, não o dia daqui.
+
+    No fuso de São Paulo os dois divergem das 21h à meia-noite — três horas por
+    dia em que "hoje" quer dizer amanhã. Código escrito de manhã passa; a suíte
+    rodada à noite reprova; e em produção o efeito é pior, porque não reprova
+    nada: a data simplesmente entra errada.
+
+    É a **quinta** armadilha de hora do dia desta suíte. As quatro anteriores
+    foram consertadas uma a uma; esta é a que impede a sexta.
+
+    O certo é `timezone.localdate()` — e, para converter um campo já gravado,
+    `timezone.localtime(campo).date()`.
+    """
+    import re
+    from pathlib import Path
+
+    aqui = Path(__file__).resolve()
+    culpados = []
+    for arquivo in Path(".").glob("*/**/*.py"):
+        partes = arquivo.parts
+        if ".venv" in partes or "migrations" in partes:
+            continue
+        # O próprio guard fica de fora: ele PRECISA escrever o padrão que
+        # procura, na regex e na explicação.
+        if arquivo.resolve() == aqui:
+            continue
+        texto = arquivo.read_text(encoding="utf-8", errors="ignore")
+        for numero, linha in enumerate(texto.splitlines(), 1):
+            # Comentário citando o padrão não é uso dele — e explicar o defeito
+            # ao lado do conserto é justamente o que se quer incentivar.
+            if linha.lstrip().startswith("#"):
+                continue
+            if re.search(r"\bnow\(\)\.date\(\)", linha) and "localtime" not in linha:
+                culpados.append(f"{arquivo}:{numero}")
+
+    assert not culpados, (
+        "use `timezone.localdate()` — `now().date()` devolve o dia em UTC:\n    "
+        + "\n    ".join(culpados)
+    )

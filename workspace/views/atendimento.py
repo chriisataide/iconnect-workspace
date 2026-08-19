@@ -16,8 +16,10 @@ from django.urls import reverse
 
 from workspace.models.catalogo import SolicitacaoServico
 from workspace.services import atendimento as atd
+from workspace.services import comentario as cmt
 from workspace.services import listagem as lst
 from workspace.services.atendimento import AtendimentoError
+from workspace.services.comentario import ComentarioError
 
 
 def _cache(request: HttpRequest) -> dict:
@@ -90,6 +92,18 @@ def atender(request: HttpRequest, pk: int) -> HttpResponse:
                 request,
                 f"{solicitacao.item.nome} concluído — o solicitante foi avisado.",
             )
+        elif acao == "comentar":
+            # §45 — perguntar sem devolver. Antes disto, "qual o número de
+            # série?" só saía devolvendo o pedido inteiro, que o tira da fila e
+            # o devolve como se estivesse errado.
+            cmt.comentar(
+                solicitacao,
+                request.user,
+                request.POST.get("texto", ""),
+                interno=bool(request.POST.get("interno")),
+                cache=cache,
+            )
+            messages.success(request, "Comentário publicado.")
         elif acao == "devolver":
             atd.devolver(
                 solicitacao, request.user, request.POST.get("motivo", ""), cache=cache
@@ -97,7 +111,7 @@ def atender(request: HttpRequest, pk: int) -> HttpResponse:
             messages.success(request, f"{solicitacao.item.nome} devolveu para quem pediu.")
         else:
             messages.error(request, "Ação desconhecida.")
-    except AtendimentoError as erro:
+    except (AtendimentoError, ComentarioError) as erro:
         messages.error(request, str(erro))
 
     return redirect(reverse("workspace:fila"))

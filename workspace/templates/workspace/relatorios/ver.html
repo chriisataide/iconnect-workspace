@@ -1,0 +1,127 @@
+{% extends "workspace/_shell_modulo.html" %}
+{% load i18n wks %}
+
+{% block titulo %}{{ relatorio.titulo }}{% endblock %}
+{% block rail %}{% include "workspace/_rail_servicos.html" with aba="relatorios" %}{% endblock %}
+{% block trilha %}
+  <a href="{% url 'workspace:relatorios' %}">{% trans "Relatórios" %}</a>
+  <span>{{ relatorio.titulo }}</span>
+{% endblock %}
+{% block pagina_titulo %}{{ relatorio.titulo }}{% endblock %}
+{% block voltar_url %}{% url 'workspace:relatorios' %}{% endblock %}
+
+{% block corpo %}
+{% comment %}
+  O PDF é GERADO NO SERVIDOR — `services/pdf.py`, com `reportlab`. Ele traz o
+  que a tela não tem: numeração "página X de Y", data de emissão em toda página
+  e a marca de RASCUNHO por cima quando ainda não foi emitido.
+
+  O `@media print` desta página continua existindo, e não é redundância: quem
+  aperta Ctrl+P na tela recebe algo legível em vez do trilho e da topbar
+  impressos. O documento oficial é o PDF.
+{% endcomment %}
+<div class="au-form-linha au-nao-imprime">
+  {% if relatorio.editavel %}
+    <a class="au-btn au-btn--sutil" href="{% url 'workspace:relatorio_editar' relatorio.pk %}">
+      {% trans "Editar" %}
+    </a>
+    {% comment %}
+      Rascunho também gera PDF — é como se confere antes de emitir. A marca
+      d'água diagonal é o que impede que ele circule como definitivo.
+    {% endcomment %}
+    <a class="au-btn au-btn--sutil"
+       href="{% url 'workspace:relatorio_pdf' relatorio.pk %}" target="_blank" rel="noopener">
+      {% trans "Conferir em PDF" %}
+    </a>
+    <form method="post" action="{% url 'workspace:relatorio_acao' relatorio.pk %}">
+      {% csrf_token %}
+      <button class="au-btn au-btn--primario" type="submit" name="acao" value="emitir">
+        {% trans "Emitir" %}
+      </button>
+    </form>
+  {% else %}
+    <a class="au-btn au-btn--primario"
+       href="{% url 'workspace:relatorio_pdf' relatorio.pk %}" target="_blank" rel="noopener">
+      <svg class="au-icon au-icon--mini" aria-hidden="true"><use href="#i-file"></use></svg>
+      {% trans "Abrir PDF" %}
+    </a>
+  {% endif %}
+  {% if relatorio.situacao != 'cancelado' %}
+    <form method="post" action="{% url 'workspace:relatorio_acao' relatorio.pk %}">
+      {% csrf_token %}
+      <button class="au-btn au-btn--sutil" type="submit" name="acao" value="cancelar">
+        {% trans "Cancelar relatório" %}
+      </button>
+    </form>
+  {% endif %}
+</div>
+
+<article class="au-folha">
+  <header class="au-folha-cabeca">
+    <div>
+      <p class="au-folha-tipo">{{ relatorio.get_tipo_display }}</p>
+      <h1 class="au-folha-titulo">{{ relatorio.titulo }}</h1>
+    </div>
+    <span class="au-etiqueta au-etiqueta--rel-{{ relatorio.situacao }}">
+      {{ relatorio.get_situacao_display }}
+    </span>
+  </header>
+
+  <dl class="au-folha-dados">
+    {% if relatorio.cliente %}
+      <div><dt>{% trans "Cliente" %}</dt><dd>{{ relatorio.cliente }}</dd></div>
+    {% endif %}
+    {% if relatorio.local %}
+      <div><dt>{% trans "Local" %}</dt><dd>{{ relatorio.local }}</dd></div>
+    {% endif %}
+    <div>
+      <dt>{% trans "Ocorrido em" %}</dt>
+      <dd>{{ relatorio.ocorrido_em|date:"d/m/Y" }}{% if relatorio.horario %} · {{ relatorio.horario|time:"H:i" }}{% endif %}</dd>
+    </div>
+    <div>
+      <dt>{% trans "Responsável" %}</dt>
+      <dd>{{ relatorio.autor.get_full_name|default:relatorio.autor.email }}</dd>
+    </div>
+    {% if relatorio.emitido_em %}
+      <div>
+        <dt>{% trans "Emitido em" %}</dt>
+        <dd>{{ relatorio.emitido_em|date:"d/m/Y H:i" }}</dd>
+      </div>
+    {% endif %}
+  </dl>
+
+  {% comment %}
+    As respostas na ordem do QUESTIONÁRIO, não na do JSON: dicionário não tem
+    ordem garantida entre versões de Python, e um relatório impresso com as
+    perguntas embaralhadas é um documento que ninguém assina.
+  {% endcomment %}
+  {% for linha in linhas %}
+    <section class="au-folha-secao">
+      <h2 class="au-folha-rotulo">{{ linha.rotulo }}</h2>
+      <p class="au-folha-texto">{{ linha.valor|linebreaksbr }}</p>
+    </section>
+  {% endfor %}
+
+  {% if relatorio.evidencias.all %}
+    <section class="au-folha-secao">
+      <h2 class="au-folha-rotulo">{% trans "Evidências" %}</h2>
+      <ul class="au-folha-evidencias">
+        {% for e in relatorio.evidencias.all %}
+          <li>{{ e.nome_original }}{% if e.legenda %} — {{ e.legenda }}{% endif %}</li>
+        {% endfor %}
+      </ul>
+    </section>
+  {% endif %}
+
+  {% if relatorio.emitido %}
+    {% comment %}
+      A linha de assinatura só aparece no EMITIDO: assinar rascunho é assinar
+      documento que ainda vai mudar.
+    {% endcomment %}
+    <footer class="au-folha-assinatura">
+      <span class="au-folha-linha"></span>
+      <span class="au-folha-nome">{{ relatorio.autor.get_full_name|default:relatorio.autor.email }}</span>
+    </footer>
+  {% endif %}
+</article>
+{% endblock %}

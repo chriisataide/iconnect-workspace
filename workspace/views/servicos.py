@@ -14,7 +14,7 @@ from django.urls import reverse
 
 from workspace.acesso import pessoa_da_requisicao
 from workspace.models.anexo import Anexo
-from workspace.models.catalogo import ItemCatalogo, TipoCampo
+from workspace.models.catalogo import ItemCatalogo, SolicitacaoServico, TipoCampo
 from workspace.services import anexos as anx
 from workspace.services import atendimento as atd
 from workspace.services import catalogo as svc
@@ -74,13 +74,12 @@ def catalogo(request: HttpRequest) -> HttpResponse:
             # `svc.minhas()` devolve vazio para anônimo, então os contadores
             # zeram sozinhos — e o trilho já esconde contador zerado (ADR-012:
             # bloco sem dado não desenha moldura).
-            "abertas": minhas.filter(situacao__in=_ABERTAS).count(),
+            "abertas": minhas.filter(situacao__in=lst.ABERTAS).count(),
             "devolvidas": minhas.filter(situacao="devolvida").count(),
         },
     )
 
 
-_ABERTAS = ["aguardando_aprovacao", "aprovada", "em_atendimento", "devolvida"]
 
 
 def pedir(request: HttpRequest, chave: str) -> HttpResponse:
@@ -110,6 +109,19 @@ def pedir(request: HttpRequest, chave: str) -> HttpResponse:
     linhas = []
     adiantamento = None
 
+    # O rascunho que está sendo retomado — §43. `rascunho_de()` só devolve o da
+    # própria pessoa: sem isso, trocar um dígito na URL abriria o formulário
+    # meio preenchido de um colega, com o que ele digitou dentro.
+    rascunho = svc.rascunho_de(
+        pessoa, request.POST.get("rascunho") or request.GET.get("rascunho")
+    )
+    if rascunho is not None and request.method == "GET":
+        # Volta o que já estava escrito. Só no GET: no POST o que vale é o que
+        # a pessoa acabou de digitar, e reescrever por cima com o valor guardado
+        # apagaria a edição no instante do envio.
+        dados = dict(rascunho.dados or {})
+        valor = rascunho.valor
+
     if request.method == "POST":
         if not pessoa.is_authenticated:
             return redirect_to_login(request.get_full_path())
@@ -126,6 +138,11 @@ def pedir(request: HttpRequest, chave: str) -> HttpResponse:
         valor = _valor_de(request.POST.get("valor"))
         linhas = _linhas_de(request)
 
+        if request.POST.get("acao") == "rascunho":
+            return _guardar_rascunho(
+                request, item, pessoa, dados, valor, arquivos, rascunho
+            )
+
         try:
             adiantamento = rmb.adiantamento_escolhido(
                 pessoa, request.POST.get("adiantamento")
@@ -139,6 +156,7 @@ def pedir(request: HttpRequest, chave: str) -> HttpResponse:
                 arquivos=arquivos,
                 linhas=linhas,
                 adiantamento=adiantamento,
+                rascunho=rascunho,
             )
         except (SolicitacaoError, AnexoError, ReembolsoError) as erro:
             # Revalida para devolver a lista completa por campo, e não só a
@@ -152,6 +170,7 @@ def pedir(request: HttpRequest, chave: str) -> HttpResponse:
                 cache=cache,
                 arquivos=arquivos,
                 linhas=linhas,
+                rascunho=rascunho,
             )
             if not impedimentos:
                 # A revalidação não reproduziu a falha — só acontece se algo
@@ -202,7 +221,9 @@ def pedir(request: HttpRequest, chave: str) -> HttpResponse:
             # quando" desabilitado ensina o que "definitivo" significa.
             "quando_modo": campo.get("quando_modo", "sumir"),
         }
-        for campo in item.campos
+        # `campos_do_item` e não `item.campos`: o campo de material tem lista
+        # DINÂMICA, montada a partir do saldo da unidade de quem está pedindo.
+        for campo in svc.campos_do_item(item, pessoa)
     ]
 
     passos = frm.passos_de(item)
@@ -244,8 +265,57 @@ def pedir(request: HttpRequest, chave: str) -> HttpResponse:
             "adiantamento_escolhido": (
                 str(adiantamento.pk) if adiantamento else request.POST.get("adiantamento", "")
             ),
+            "rascunho": rascunho,
+            # Os anexos que JÁ estão no rascunho. A tela precisa mostrá-los,
+            # senão a pessoa volta ao formulário, não vê o comprovante que
+            # mandou ontem, e anexa de novo — e o pedido chega com dois.
+            "anexos_do_rascunho": (
+                list(rascunho.anexos.all()) if rascunho is not None else []
+            ),
         },
     )
+
+
+def _guardar_rascunho(request, item, pessoa, dados, valor, arquivos, rascunho):
+    """Salva sem validar e devolve à lista — §43.
+
+    Sem validar é o ponto inteiro: o rascunho É o formulário incompleto, e
+    exigir que ele esteja completo para poder ser guardado recriaria o problema
+    que ele existe para resolver.
+    """
+    try:
+        guardado = svc.salvar_rascunho(
+            item, pessoa, dados, valor, arquivos=arquivos, rascunho=rascunho
+        )
+    except (SolicitacaoError, AnexoError) as erro:
+        messages.error(request, str(erro))
+        return redirect(reverse("workspace:minhas_solicitacoes") + "?situacao=rascunho")
+
+    messages.success(
+        request,
+        f"Rascunho de {item.nome} guardado — nada foi enviado ainda.",
+    )
+    return redirect(
+        f"{reverse('workspace:pedir', args=[item.chave])}?rascunho={guardado.pk}"
+    )
+
+
+@login_required
+def descartar_rascunho(request: HttpRequest, pk: int) -> HttpResponse:
+    """Apaga de verdade — ver `svc.descartar_rascunho` para o porquê."""
+    destino = reverse("workspace:minhas_solicitacoes") + "?situacao=rascunho"
+    if request.method != "POST":
+        return redirect(destino)
+
+    rascunho = get_object_or_404(SolicitacaoServico, pk=pk)
+    try:
+        svc.descartar_rascunho(rascunho, request.user)
+    except SolicitacaoError as erro:
+        messages.error(request, str(erro))
+    else:
+        messages.success(request, "Rascunho descartado.")
+
+    return redirect(destino)
 
 
 def _quando_igual(campo: dict) -> str:
@@ -385,7 +455,35 @@ def minhas_solicitacoes(request: HttpRequest) -> HttpResponse:
     # uma consulta por página, e antes custava uma pelo histórico inteiro da
     # pessoa — inclusive dos pedidos que a página nem mostra.
     filtradas = lst.filtrar_minhas(todas, situacao, texto)
-    pagina = lst.paginar(filtradas.prefetch_related("eventos__quem"), request.GET.get("p"))
+    pagina = lst.paginar(
+        filtradas.prefetch_related("eventos__quem", "comentarios__autor"),
+        request.GET.get("p"),
+    )
+
+    # A conversa de cada pedido, já filtrada pelo que ESTA pessoa pode ler.
+    #
+    # Anexada ao objeto em vez de calculada no template: o template não pode
+    # chamar função com argumento, e a alternativa seria um filtro custom que
+    # esconderia uma consulta por linha dentro da renderização — o N+1 mais
+    # difícil de achar, porque não aparece na view.
+    #
+    # `atende` é resolvido UMA vez para a página inteira: é a mesma pergunta
+    # para todos os pedidos do mesmo domínio, e perguntá-la por linha seria
+    # N+1 de autorização.
+    from workspace.services import comentario as cmt
+
+    quem = request.user
+    permissoes = _cache(request)
+    for solicitacao in pagina.object_list:
+        pode_ler_internos = cmt.atende(solicitacao, quem, cache=permissoes)
+        solicitacao.comentarios_visiveis = [
+            c
+            for c in solicitacao.comentarios.all()
+            if pode_ler_internos or not c.interno
+        ]
+        solicitacao.pode_comentar = cmt.pode_comentar(
+            solicitacao, quem, cache=permissoes
+        )
 
     return render(
         request,
@@ -402,7 +500,7 @@ def minhas_solicitacoes(request: HttpRequest) -> HttpResponse:
             # A contagem de abertas é da lista INTEIRA, e não da filtrada: ela
             # responde "quanto eu tenho em aberto", que não muda porque a
             # pessoa escolheu ver só as canceladas.
-            "abertas": todas.filter(situacao__in=_ABERTAS).count(),
+            "abertas": todas.filter(situacao__in=lst.ABERTAS).count(),
             # Uma consulta só para a tela inteira, e não uma por linha: serve
             # para dizer "está parado porque ninguém tem esse papel" em vez de
             # deixar o pedido em "aguardando aprovação" sem explicação. Quem lê
@@ -512,4 +610,31 @@ def reabrir(request: HttpRequest, pk: int) -> HttpResponse:
                 f"{solicitacao.item.nome} voltou para a fila — "
                 "quem atendeu foi avisado.",
             )
+    return redirect(reverse("workspace:minhas_solicitacoes"))
+
+
+@login_required
+def comentar_solicitacao(request: HttpRequest, pk: int) -> HttpResponse:
+    """Quem PEDIU comentando no próprio pedido — §45.
+
+    Rota separada da de atendimento porque o destino de volta é outro: quem
+    atende volta para a fila, quem pediu volta para "Minhas solicitações".
+    """
+    from workspace.services import comentario as cmt
+
+    if request.method != "POST":
+        return redirect(reverse("workspace:minhas_solicitacoes"))
+
+    solicitacao = get_object_or_404(
+        SolicitacaoServico.objects.select_related("item"), pk=pk
+    )
+    try:
+        cmt.comentar(
+            solicitacao, request.user, request.POST.get("texto", ""), cache=_cache(request)
+        )
+    except cmt.ComentarioError as erro:
+        messages.error(request, str(erro))
+    else:
+        messages.success(request, "Comentário publicado.")
+
     return redirect(reverse("workspace:minhas_solicitacoes"))

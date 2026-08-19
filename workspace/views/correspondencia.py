@@ -13,6 +13,7 @@ from django.contrib.auth.decorators import login_required
 from django.http import HttpRequest, HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
+from django.utils import timezone
 
 from identidade.services.autorizacao import pode
 from workspace.models.correspondencia import Correspondencia, TipoCorrespondencia
@@ -47,6 +48,10 @@ def correspondencias(request: HttpRequest) -> HttpResponse:
         "workspace/correspondencias.html",
         {
             "minhas": cor.minhas(pessoa),
+            # O que a recepção já entregou e ainda espera a palavra de quem
+            # recebeu. Em cima da lista porque é a única coisa nesta tela em que
+            # a pessoa PRECISA agir.
+            "a_confirmar": [c for c in cor.minhas(pessoa) if c.espera_confirmacao],
             "aguardando": cor.aguardando_de(pessoa),
             "opera_recepcao": opera,
             "fila": list(cor.fila(pessoa, cache=cache)) if opera else [],
@@ -61,6 +66,45 @@ def correspondencias(request: HttpRequest) -> HttpResponse:
             ),
         },
     )
+
+
+def _chegada(bruta: str | None):
+    """A data digitada, ou `None` para "agora".
+
+    Data inválida vira `None` em vez de erro: o registro é o que importa, e
+    recusar a correspondência inteira porque alguém digitou `31/02` deixaria a
+    intimação sem entrar em lugar nenhum.
+    """
+    from django.utils.dateparse import parse_date
+
+    if not bruta:
+        return None
+    dia = parse_date(bruta.strip())
+    if dia is None:
+        return None
+    # Meio-dia e não meia-noite: a data vem sem hora, e `00:00` no fuso local
+    # cai no dia anterior em UTC — o prazo da intimação passaria a contar um dia
+    # antes do que a recepção escreveu.
+    from datetime import datetime, time
+
+    return timezone.make_aware(datetime.combine(dia, time(12, 0)))
+
+
+@login_required
+def confirmar_correspondencia(request: HttpRequest, pk: int) -> HttpResponse:
+    """O destinatário diz que recebeu — §6."""
+    if request.method != "POST":
+        return redirect(reverse("workspace:correspondencias"))
+
+    correspondencia = get_object_or_404(Correspondencia, pk=pk)
+    try:
+        cor.confirmar(correspondencia, request.user)
+    except cor.CorrespondenciaError as falha:
+        messages.error(request, str(falha))
+    else:
+        messages.success(request, "Recebimento confirmado.")
+
+    return redirect(reverse("workspace:correspondencias"))
 
 
 @login_required
@@ -81,6 +125,10 @@ def registrar_correspondencia(request: HttpRequest) -> HttpResponse:
             descricao=(request.POST.get("descricao") or "").strip(),
             destinatario=destinatario,
             nome_no_envelope=(request.POST.get("nome_no_envelope") or "").strip(),
+            empresa=(request.POST.get("empresa") or "").strip(),
+            numero_rastreio=(request.POST.get("numero_rastreio") or "").strip(),
+            observacao=(request.POST.get("observacao") or "").strip(),
+            recebido_em=_chegada(request.POST.get("recebido_em")),
             cache=_cache(request),
         )
     except cor.CorrespondenciaError as falha:

@@ -21,10 +21,11 @@
   {% trans "Minhas solicitações" %}
   {% if abertas %}<span class="au-rail-contagem">{{ abertas }}</span>{% endif %}
 </a>
-{% if pendentes_aprovacao %}
+{# Ver `_rail_servicos.html`: quem pode aprovar sempre vê a porta, com "0" quando não há fila. #}
+{% if ve_aprovacoes %}
   <a class="au-rail-item" href="{% url 'workspace:aprovacoes' %}">
     <svg class="au-icon" aria-hidden="true"><use href="#i-check"></use></svg>
     {% trans "Aprovar" %}
-    <span class="au-rail-contagem au-rail-contagem--alerta">{{ pendentes_aprovacao }}</span>
+    <span class="au-rail-contagem {% if pendentes_aprovacao %}au-rail-contagem--alerta{% endif %}">{{ pendentes_aprovacao }}</span>
   </a>
 {% endif %}

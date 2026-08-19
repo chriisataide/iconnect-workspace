@@ -16,6 +16,8 @@ from django.utils import timezone
 from .models import (
     Anexo,
     Compromisso,
+    Curso,
+    Material,
     Correspondencia,
     ConfirmacaoLeitura,
     Documento,
@@ -420,3 +422,46 @@ class CorrespondenciaAdmin(admin.ModelAdmin):
             },
         ),
     )
+
+
+# ── Cadastros de referência — §58 ───────────────────────────────────
+#
+# `Material` e `Curso` eram os dois únicos modelos do produto sem NENHUMA porta:
+# não têm tela (a de estoque mostra saldo, não cadastra material; a Universidade
+# mostra matrícula, não cadastra curso) e não estavam aqui. Na prática, incluir
+# um material novo significava editar `semear_estoque.py` e rodar o comando, ou
+# abrir um shell — que é como um cadastro para de acompanhar a operação.
+#
+# Admin e não tela própria, de propósito: são cadastros de referência, mexidos
+# poucas vezes por ano por quem administra a área. Uma tela para cada seria
+# superfície nova para manter em troca de dois formulários que ninguém abre no
+# dia a dia. É exatamente o papel de retaguarda que o admin tem no resto do
+# produto.
+#
+# O RAZÃO de estoque continua fora daqui, e é decisão: `MovimentoEstoque` é um
+# livro que ninguém edita. Uma tela de admin sobre ele ofereceria justamente a
+# operação que o modelo inteiro existe para impedir.
+
+
+@admin.register(Material)
+class MaterialAdmin(admin.ModelAdmin):
+    list_display = (
+        "codigo",
+        "nome",
+        "categoria",
+        "unidade_medida",
+        "estoque_minimo",
+        "controla_patrimonio",
+        "ativo",
+    )
+    list_filter = ("ativo", "categoria", "controla_patrimonio")
+    search_fields = ("codigo", "nome")
+    ordering = ("nome",)
+
+
+@admin.register(Curso)
+class CursoAdmin(admin.ModelAdmin):
+    list_display = ("codigo", "nome", "tipo", "validade_meses", "obrigatorio", "ativo")
+    list_filter = ("ativo", "tipo", "obrigatorio")
+    search_fields = ("codigo", "nome")
+    ordering = ("nome",)

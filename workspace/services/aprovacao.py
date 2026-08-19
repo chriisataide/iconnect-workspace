@@ -92,6 +92,9 @@ class AprovacaoError(Exception):
 class Decisao:
     APROVAR = "aprovar"
     DEVOLVER = "devolver"
+    # O "não" definitivo. Ver `SituacaoServico.REJEITADA` para o porquê de não
+    # ser o mesmo que devolver.
+    REJEITAR = "rejeitar"
     CANCELAR = "cancelar"
 
 
@@ -362,6 +365,13 @@ def decidir(
             # gera um segundo envio igualmente errado.
             raise AprovacaoError("Devolver exige justificativa.")
         etapa.situacao = SituacaoEtapa.DEVOLVIDA
+    elif decisao == Decisao.REJEITAR:
+        if not justificativa.strip():
+            # Exigido pelo mesmo motivo da devolução, e com mais força: um "não"
+            # sem razão é o que faz a pessoa reabrir o mesmo pedido em outro
+            # formulário para tentar a sorte com outro aprovador.
+            raise AprovacaoError("Reprovar exige justificativa.")
+        etapa.situacao = SituacaoEtapa.REJEITADA
     else:
         raise AprovacaoError(f"Decisão desconhecida: {decisao!r}")
 
@@ -370,12 +380,23 @@ def decidir(
     etapa.justificativa = justificativa
     etapa.save(update_fields=["situacao", "decidido_por", "decidido_em", "justificativa"])
 
-    if decisao == Decisao.DEVOLVER:
-        solicitacao.situacao = SituacaoSolicitacao.DEVOLVIDA
+    if decisao in (Decisao.DEVOLVER, Decisao.REJEITAR):
+        solicitacao.situacao = (
+            SituacaoSolicitacao.DEVOLVIDA
+            if decisao == Decisao.DEVOLVER
+            else SituacaoSolicitacao.REJEITADA
+        )
         solicitacao.decidido_em = timezone.now()
         solicitacao.save(update_fields=["situacao", "decidido_em"])
+        if decisao == Decisao.REJEITAR:
+            # As etapas seguintes não vão mais acontecer, e deixá-las PENDENTE
+            # faria o pedido continuar aparecendo na bandeja de quem viria
+            # depois — um "não" que não desce a cadeia não é um não.
+            solicitacao.etapas.filter(situacao=SituacaoEtapa.PENDENTE).update(
+                situacao=SituacaoEtapa.PULADA, motivo_pulo="Pedido reprovado."
+            )
         aprovacao_decidida.send(
-            sender=None, solicitacao=solicitacao, decisao=Decisao.DEVOLVER, quem=quem
+            sender=None, solicitacao=solicitacao, decisao=decisao, quem=quem
         )
     else:
         _concluir_se_nao_ha_pendencia(solicitacao, quem)
@@ -436,6 +457,37 @@ def decidir_em_lote(
 
 
 # ── Bandeja ─────────────────────────────────────────────────────────
+
+
+def tem_bandeja(quem, cache: dict | None = None) -> bool:
+    """Esta pessoa pode aparecer como aprovadora alguma hora?
+
+    É a pergunta do TRILHO, e ela não é "tem pendência agora". Com a segunda,
+    o item sumia do menu no instante em que o aprovador terminava de usá-lo:
+    decidia o último pedido, o contador ia a zero, a porta desaparecia.
+
+    Três caminhos levam alguém à bandeja, e é preciso os três:
+
+    1. **Tem pendência.** Óbvio, e o único que a regra antiga cobria.
+    2. **Lidera alguém.** A etapa de gestor direto é montada a partir do
+       ORGANOGRAMA — `RegraAprovacao(GESTOR_DIRETO)` aponta para
+       `Lotacao.gestor`, e não para uma permissão. Um gerente recém-promovido
+       não tem `apr.aprovar` nenhum e mesmo assim vai receber o primeiro pedido
+       da equipe dele; sem este caminho, a porta só apareceria junto com ele.
+    3. **Tem `apr.aprovar`.** As etapas por PAPEL — diretoria, sócios, área.
+
+    Não vale como autorização: quem decide se esta pessoa pode aprovar ESTA
+    etapa continua sendo `_pode_decidir()`. Aqui a resposta só liga uma luz no
+    menu.
+    """
+    if quem is None or getattr(quem, "is_authenticated", False) is False:
+        return False
+
+    if pode(quem, PERMISSAO_APROVAR, cache=cache):
+        return True
+    if Lotacao.objects.filter(gestor=quem).exists():
+        return True
+    return pendentes_para(quem, cache=cache).exists()
 
 
 def pendentes_para(quem, cache: dict | None = None):
@@ -507,7 +559,21 @@ def pendentes_para(quem, cache: dict | None = None):
 
 def resumo_da_bandeja(quem, cache: dict | None = None) -> dict:
     """Os KPIs do topo da bandeja, numa passada."""
-    pendentes = list(pendentes_para(quem, cache=cache))
+    pendentes = list(
+        pendentes_para(quem, cache=cache)
+        # O pedido de serviço do outro lado, e tudo que a tela de detalhe lê
+        # dele. Sem isto a bandeja com vinte linhas faria mais de cem consultas
+        # — uma por dossiê aberto, vezes campos, anexos, despesas e eventos.
+        .select_related("servico__item", "servico__solicitante", "servico__aprovacao")
+        .prefetch_related(
+            "servico__anexos",
+            "servico__despesas__anexo",
+            "servico__eventos__quem",
+            "etapas__aprovador",
+            "etapas__papel",
+            "etapas__decidido_por",
+        )
+    )
     total = sum((s.valor or Decimal("0")) for s in pendentes)
     mais_antiga = pendentes[0] if pendentes else None
     return {
@@ -519,7 +585,13 @@ def resumo_da_bandeja(quem, cache: dict | None = None) -> dict:
 
 
 def historico(solicitacao: SolicitacaoAprovacao):
-    """Etapas em ordem, para a timeline do dossiê."""
+    """Etapas em ordem, para a timeline do dossiê.
+
+    Reaproveita o prefetch da bandeja quando ele existe — ver `etapa_atual`.
+    """
+    cache = getattr(solicitacao, "_prefetched_objects_cache", {})
+    if "etapas" in cache:
+        return sorted(cache["etapas"], key=lambda e: e.ordem)
     return solicitacao.etapas.select_related("aprovador", "papel", "decidido_por").order_by(
         "ordem"
     )

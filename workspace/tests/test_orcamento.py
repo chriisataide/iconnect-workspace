@@ -665,3 +665,73 @@ def test_fluxo_completo_com_o_provider_real(equipe):
 
     orc.baixar(Compromisso.objects.get(), movimentacao_id="777")
     assert orc.resumo("1008").comprometido == Decimal("0")
+
+
+# ── O compromisso que nunca saía — §58 ──────────────────────────────
+
+
+@pytest.mark.django_db
+def test_o_pedido_entregue_libera_o_comprometido():
+    """`orcamento.baixar()` existia e ninguém a chamava.
+
+    O compromisso entrava na aprovação e só saía por cancelamento: pedido
+    entregue continuava contando como comprometido para sempre. E como
+    `consumido = realizado + comprometido`, a mesma compra passava a contar duas
+    vezes assim que a nota era lançada no financeiro — a barra do centro de
+    custo subia sozinha até recusar um pedido legítimo.
+    """
+    from decimal import Decimal
+
+    from identidade.tests import fabricas as f
+    from workspace.models.catalogo import GrupoCatalogo, ItemCatalogo
+    from workspace.models.orcamento import Compromisso, SituacaoCompromisso
+    from workspace.services import atendimento as atd
+    from workspace.services import catalogo as svc
+
+    ana, atendente = f.pessoa("ana"), f.pessoa("suprimentos")
+    f.lotar(ana, centro_custo_codigo="1008")
+    f.lotar(atendente)
+    f.atribuir(atendente, f.papel("sup", ["log.atender.global"], escopo="global"))
+
+    item = ItemCatalogo.objects.create(
+        chave="compra-x", nome="Compra X", grupo=GrupoCatalogo.EQUIPAMENTO,
+        dominio="log.compra", exige_valor=True, exige_centro_custo=True,
+        limite_auto_aprovacao=Decimal("5000"),
+    )
+    pedido = svc.solicitar(item, ana, {}, Decimal("900"))
+    assert Compromisso.objects.ativos().count() == 1, "escriturou na aprovação"
+
+    atd.concluir(pedido, atendente)
+
+    assert Compromisso.objects.ativos().count() == 0
+    assert Compromisso.objects.get().situacao == SituacaoCompromisso.BAIXADO
+
+
+@pytest.mark.django_db
+def test_o_pedido_sem_valor_conclui_sem_compromisso_nenhum():
+    """Férias não tocam orçamento — e concluir não pode quebrar por isso."""
+    from decimal import Decimal
+
+    from identidade.tests import fabricas as f
+    from workspace.models.catalogo import GrupoCatalogo, ItemCatalogo
+    from workspace.models.orcamento import Compromisso
+    from workspace.services import atendimento as atd
+    from workspace.services import catalogo as svc
+
+    ana, atendente = f.pessoa("ana"), f.pessoa("rh")
+    f.lotar(ana)
+    f.lotar(atendente)
+    f.atribuir(atendente, f.papel("rh", ["rh.atender.global"], escopo="global"))
+
+    item = ItemCatalogo.objects.create(
+        chave="declaracao", nome="Declaração", grupo=GrupoCatalogo.TRABALHO,
+        dominio="rh.documento",
+        # Sem valor E sem cadeia: auto-aprovado, que é como o pedido chega à
+        # fila sem passar por bandeja nenhuma.
+        limite_auto_aprovacao=Decimal("0"),
+    )
+    pedido = svc.solicitar(item, ana, {})
+
+    atd.concluir(pedido, atendente)
+
+    assert not Compromisso.objects.exists()

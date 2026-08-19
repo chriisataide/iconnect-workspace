@@ -80,12 +80,35 @@ def test_o_trilho_do_anonimo_e_todo_zero(client, gente_com_coisas):
     assert rail(Req()) == {
         "eu": None,
         "abertas": 0,
+        # §43 — rascunho tem contador próprio, e o do anônimo também é zero.
+        "rascunhos": 0,
         "pendentes_aprovacao": 0,
         "nao_lidas": 0,
+        "notificacoes_recentes": (),
         "na_fila": 0,
         "administra_papeis": False,
         # O painel de indicadores segue a mesma regra: sem sessão, sem item.
+        "ve_aprovacoes": False,
+        "habilitacoes_pendentes": 0,
+        "ve_faq": False,
+        "ve_publicacoes": False,
         "ve_indicadores": False,
+        # Estoque e custódia entram na mesma regra: a porta do estoque não é
+        # oferecida a quem não pode abri-la, e "0 equipamentos para confirmar"
+        # de outra pessoa é exatamente o número que o anônimo não pode ver.
+        "ve_estoque": False,
+        "custodias_a_aceitar": 0,
+        "ve_frota": False,
+        "prazos_de_veiculo": 0,
+        # §37 — leitura obrigatória e vigência de documento seguem a mesma
+        # regra: são de UMA pessoa, e o anônimo não é ninguém.
+        "leituras_pendentes": 0,
+        "ve_documentos": False,
+        "documentos_a_vencer": 0,
+        "ve_marketing": False,
+        "prazos_de_marketing": 0,
+        "ve_candidaturas": False,
+        "chamados_abertos": 0,
     }
 
 

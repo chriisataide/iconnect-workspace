@@ -109,7 +109,7 @@
             </td>
             <td>
               <span class="au-etiqueta au-etiqueta--{{ s.situacao }}">
-                {{ s.get_situacao_display }}
+                {{ s.fase }}
               </span>
               {% if s.auto_aprovada %}
                 <span class="au-selo au-selo--medido">{% trans "automática" %}</span>
@@ -150,7 +150,27 @@
               {% endif %}
             </td>
             <td>
-              {% if s.em_aberto %}
+              {% comment %}
+                Rascunho tem OUTRAS duas ações — §43. "Cancelar" não serve: o
+                pedido nunca foi enviado, e marcá-lo como cancelado faria a aba
+                de cancelados — e a taxa de cancelamento do painel — contar
+                pedidos que nunca existiram.
+              {% endcomment %}
+              {% if s.e_rascunho %}
+                <div class="au-acoes-linha">
+                  <a class="au-btn au-btn--primario au-btn--pequeno"
+                     href="{% url 'workspace:pedir' s.item.chave %}?rascunho={{ s.pk }}">
+                    {% trans "Continuar" %}
+                  </a>
+                  <form method="post"
+                        action="{% url 'workspace:descartar_rascunho' s.pk %}">
+                    {% csrf_token %}
+                    <button class="au-btn au-btn--sutil au-btn--pequeno" type="submit">
+                      {% trans "Descartar" %}
+                    </button>
+                  </form>
+                </div>
+              {% elif s.em_aberto %}
                 <form method="post" action="{% url 'workspace:cancelar_solicitacao' s.pk %}">
                   {% csrf_token %}
                   <button class="au-btn au-btn--sutil au-btn--pequeno" type="submit">

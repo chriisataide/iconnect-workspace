@@ -22,6 +22,14 @@
   /* Crimson: ornamento de marca, NUNCA estado. Fica perto demais de
      --au-danger (#dc2626) para carregar significado de erro. O logo já usa os
      dois assim — navy é a massa, crimson é o anel. */
+  /* Texto e ícone SOBRE uma superfície de acento ou de perigo — §49.
+     Branco literal aparecia solto no `workspace.css` em três lugares, e cor
+     literal fora deste arquivo é a que ninguém encontra quando a marca muda.
+     NÃO varia por tema de propósito: `--au-accent` e `--au-danger` são escuros
+     o bastante nos dois, e trocar isto por preto no escuro daria texto preto
+     sobre roxo. */
+  --au-sobre-acento:#ffffff;
+
   --au-marca:#ed3a5b;
   --au-marca-bg:rgb(237 58 91 / .10);
 

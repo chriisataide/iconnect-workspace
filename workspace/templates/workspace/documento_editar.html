@@ -1,0 +1,159 @@
+{% extends "workspace/_shell_modulo.html" %}
+{% load i18n %}
+
+{% block titulo %}
+  {% if documento %}{{ documento.titulo }}{% else %}{% trans "Novo documento" %}{% endif %}
+{% endblock %}
+
+{% block rail %}{% include "workspace/_rail_servicos.html" with aba="documentos" %}{% endblock %}
+{% block trilha %}
+  <a href="{% url 'workspace:documentos' %}">{% trans "Acervo" %}</a>
+  <span>{% if documento %}{{ documento.titulo }}{% else %}{% trans "Novo" %}{% endif %}</span>
+{% endblock %}
+{% block pagina_titulo %}
+  {% if documento %}{% trans "Editar documento" %}{% else %}{% trans "Novo documento" %}{% endif %}
+{% endblock %}
+{% block voltar_url %}{% url 'workspace:documentos' %}{% endblock %}
+
+{% block corpo %}
+<form class="au-form" method="post" enctype="multipart/form-data" novalidate>
+  {% csrf_token %}
+
+  <div class="au-colunas au-colunas--duas">
+    <div class="au-campo">
+      <label class="au-rotulo" for="titulo">
+        {% trans "Título" %} <span class="au-obrigatorio" aria-hidden="true">*</span>
+      </label>
+      <input class="au-input" id="titulo" name="titulo" type="text" maxlength="200"
+             value="{{ documento.titulo|default:'' }}">
+    </div>
+    <div class="au-campo">
+      <label class="au-rotulo" for="tipo">{% trans "Tipo" %}</label>
+      <select class="au-input" id="tipo" name="tipo">
+        {% for valor, rotulo in tipos %}
+          <option value="{{ valor }}" {% if documento.tipo == valor %}selected{% endif %}>
+            {{ rotulo }}
+          </option>
+        {% endfor %}
+      </select>
+    </div>
+  </div>
+
+  <div class="au-campo">
+    <label class="au-rotulo" for="resumo">{% trans "Resumo" %}</label>
+    <input class="au-input" id="resumo" name="resumo" type="text" maxlength="300"
+           value="{{ documento.resumo|default:'' }}">
+    <p class="au-ajuda">{% trans "Uma linha, exibida na vitrine e na busca." %}</p>
+  </div>
+
+  <div class="au-campo">
+    <label class="au-rotulo" for="corpo">{% trans "Texto" %}</label>
+    <textarea class="au-input" id="corpo" name="corpo" rows="14">{{ documento.corpo|default:'' }}</textarea>
+    <p class="au-ajuda">
+      {% blocktrans %}Pode ficar em branco quando o documento é um PDF anexado — mas
+      texto na tela é procurável e o PDF não é.{% endblocktrans %}
+    </p>
+  </div>
+
+  <div class="au-colunas au-colunas--tres">
+    <div class="au-campo">
+      <label class="au-rotulo" for="versao">{% trans "Versão" %}</label>
+      <input class="au-input" id="versao" name="versao" type="text" maxlength="12"
+             value="{{ documento.versao|default:'1' }}">
+      {% comment %}
+        A versão é do AUTOR e não um contador automático. "2.1" quer dizer algo
+        para quem mantém a norma; um número que sobe sozinho a cada salvamento
+        invalidaria toda confirmação de leitura por causa de uma vírgula
+        corrigida — e é a confirmação que vai para a auditoria.
+      {% endcomment %}
+      <p class="au-ajuda">
+        {% trans "Trocar a versão faz todo mundo confirmar a leitura de novo." %}
+      </p>
+    </div>
+    <div class="au-campo">
+      <label class="au-rotulo" for="vigencia_inicio">{% trans "Vigente desde" %}</label>
+      <input class="au-input" id="vigencia_inicio" name="vigencia_inicio" type="date"
+             value="{{ documento.vigencia_inicio|date:'Y-m-d' }}">
+    </div>
+    <div class="au-campo">
+      <label class="au-rotulo" for="vigencia_fim">{% trans "Vigente até" %}</label>
+      <input class="au-input" id="vigencia_fim" name="vigencia_fim" type="date"
+             value="{{ documento.vigencia_fim|date:'Y-m-d' }}">
+      <p class="au-ajuda">{% trans "Em branco, não vence." %}</p>
+    </div>
+  </div>
+
+  {% comment %}
+    PÚBLICO-ALVO — o mesmo vocabulário do recorte da busca. Vazio significa a
+    empresa inteira, e não ninguém: o contrário faria todo documento já
+    existente sumir no dia em que o campo ganhasse tela, e o POP que a empresa
+    inteira precisa ler seria o primeiro a desaparecer.
+  {% endcomment %}
+  <div class="au-colunas au-colunas--duas">
+    <div class="au-campo">
+      <label class="au-rotulo" for="unidades">{% trans "Unidades" %}</label>
+      <select class="au-input" id="unidades" name="unidades" multiple size="6">
+        {% for u in unidades %}
+          <option value="{{ u.pk }}" {% if u.pk in alvo_unidades %}selected{% endif %}>
+            {{ u.nome }}
+          </option>
+        {% endfor %}
+      </select>
+      <p class="au-ajuda">{% trans "Em branco, alcança todas." %}</p>
+    </div>
+    <div class="au-campo">
+      <label class="au-rotulo" for="departamentos">{% trans "Departamentos" %}</label>
+      <select class="au-input" id="departamentos" name="departamentos" multiple size="6">
+        {% for d in departamentos %}
+          <option value="{{ d.pk }}" {% if d.pk in alvo_departamentos %}selected{% endif %}>
+            {{ d.nome }}
+          </option>
+        {% endfor %}
+      </select>
+      <p class="au-ajuda">{% trans "Em branco, alcança todos." %}</p>
+    </div>
+  </div>
+
+  <div class="au-campo">
+    <label class="au-rotulo" for="leitura_obrigatoria">
+      <input class="au-check" id="leitura_obrigatoria" name="leitura_obrigatoria"
+             type="checkbox" {% if documento.leitura_obrigatoria %}checked{% endif %}>
+      {% trans "Leitura obrigatória" %}
+    </label>
+    <p class="au-ajuda">
+      {% blocktrans %}Cada pessoa alcançada recebe aviso e precisa confirmar que leu. A
+      confirmação guarda a VERSÃO — é ela que vale numa auditoria, e não a data de
+      publicação.{% endblocktrans %}
+    </p>
+  </div>
+
+  <div class="au-campo">
+    <label class="au-rotulo" for="arquivo">{% trans "Arquivo" %}</label>
+    <input class="au-input" id="arquivo" name="arquivo" type="file">
+    {% if documento.tem_arquivo %}
+      <p class="au-ajuda">
+        {% blocktrans with nome=documento.arquivo_nome tamanho=documento.tamanho_legivel %}Já
+        anexado: {{ nome }} ({{ tamanho }}). Enviar outro substitui este.{% endblocktrans %}
+      </p>
+    {% endif %}
+  </div>
+
+  {% comment %}
+    Dois botões, um formulário: o estado sai de QUAL botão foi clicado, e não de
+    uma caixinha que a pessoa esquece de marcar — foi assim que a redação de
+    comunicados resolveu o mesmo problema.
+  {% endcomment %}
+  <div class="au-form-acoes">
+    <a class="au-btn au-btn--sutil" href="{% url 'workspace:documentos' %}">
+      {% trans "Cancelar" %}
+    </a>
+    <button class="au-btn au-btn--sutil" type="submit" name="acao" value="rascunho"
+            formnovalidate>
+      {% trans "Salvar rascunho" %}
+    </button>
+    <button class="au-btn au-btn--primario" type="submit" name="acao" value="publicar">
+      {% trans "Publicar" %}
+    </button>
+  </div>
+</form>
+{% endblock %}

@@ -107,8 +107,15 @@ def opcoes_de(campo: dict) -> list[dict]:
 
 
 def escolha_invalida(campo: dict, valor) -> bool:
-    """Valor que não está na lista. Vem do cliente, então é conferido aqui."""
-    if campo.get("tipo") != TipoCampo.ESCOLHA:
+    """Valor que não está na lista. Vem do cliente, então é conferido aqui.
+
+    Campo `dinamico` escapa daqui, e não é buraco: a lista dele não mora no
+    item — é montada a cada tela a partir de outro cadastro (o estoque, hoje).
+    Conferir contra a lista GRAVADA recusaria todo valor, porque a lista gravada
+    está vazia. Quem confere esses é o serviço do domínio, contra a tabela de
+    verdade, que é uma checagem mais forte do que a lista seria.
+    """
+    if campo.get("tipo") != TipoCampo.ESCOLHA or campo.get("dinamico"):
         return False
     if not valor:
         return False

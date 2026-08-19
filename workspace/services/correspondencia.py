@@ -77,6 +77,10 @@ def registrar(
     nome_no_envelope: str = "",
     unidade=None,
     observacao: str = "",
+    empresa: str = "",
+    numero_rastreio: str = "",
+    recebido_em=None,
+    foto=None,
     cache: dict | None = None,
 ) -> Correspondencia:
     """Registra e AVISA o destinatário, quando ele é conhecido."""
@@ -99,7 +103,14 @@ def registrar(
         nome_no_envelope=nome_no_envelope[:160],
         unidade=unidade,
         observacao=observacao[:200],
+        empresa=empresa[:120],
+        numero_rastreio=numero_rastreio[:60],
+        foto=foto or "",
         recebido_por=quem,
+        # A data de chegada é digitável porque a recepção nem sempre registra na
+        # hora: a pilha de sexta entra na segunda, e gravar "segunda" faria o
+        # prazo da intimação começar a contar dois dias tarde.
+        **({"recebido_em": recebido_em} if recebido_em else {}),
     )
 
     _avisar(correspondencia)
@@ -133,6 +144,36 @@ def _avisar(correspondencia: Correspondencia) -> None:
         dominio="cor.correspondencia",
         origem_id=str(correspondencia.pk),
     )
+
+
+@transaction.atomic
+def confirmar(correspondencia: Correspondencia, quem) -> Correspondencia:
+    """O DESTINATÁRIO diz que recebeu — §6.
+
+    É a outra metade de `entregar()`, e a distinção é o ponto: `entregar` é a
+    recepção dizendo "entreguei", `confirmar` é a pessoa dizendo "recebi".
+    Enquanto só existia o primeiro, a única versão registrada dos fatos era a de
+    quem entregou — e é exatamente essa que não vale nada quando a intimação
+    some e alguém precisa provar o que aconteceu.
+
+    Só o destinatário confirma. Nem a recepção, nem quem administra: uma
+    confirmação que outro pode dar no seu lugar não confirma nada.
+    """
+    if correspondencia.destinatario_id != getattr(quem, "pk", None):
+        raise CorrespondenciaError("Só quem recebeu pode confirmar.")
+    if correspondencia.situacao != SituacaoCorrespondencia.ENTREGUE:
+        raise CorrespondenciaError(
+            "Esta correspondência ainda não foi entregue pela recepção."
+        )
+    if correspondencia.confirmado_em is not None:
+        # Silencioso e não erro: duplo clique e voltar-no-navegador são o modo
+        # normal de isto acontecer, e uma mensagem de erro aqui assustaria sem
+        # motivo — a confirmação já está registrada.
+        return correspondencia
+
+    correspondencia.confirmado_em = timezone.now()
+    correspondencia.save(update_fields=["confirmado_em"])
+    return correspondencia
 
 
 @transaction.atomic

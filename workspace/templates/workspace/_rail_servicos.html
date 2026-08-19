@@ -21,6 +21,9 @@
    href="{% url 'workspace:documentacao' %}">
   <svg class="au-icon" aria-hidden="true"><use href="#i-book"></use></svg>
   {% trans "Documentação" %}
+  {% if leituras_pendentes %}
+    <span class="au-rail-contagem au-rail-contagem--alerta">{{ leituras_pendentes }}</span>
+  {% endif %}
 </a>
 
 <a class="au-rail-item {% if aba == 'reservas' %}au-rail-item--ativo{% endif %}"
@@ -32,6 +35,23 @@
    href="{% url 'workspace:correspondencias' %}">
   <svg class="au-icon" aria-hidden="true"><use href="#i-jornal"></use></svg>
   {% trans "Correspondências" %}
+</a>
+
+{% comment %}
+  EQUIPAMENTOS fica em CONSULTAR e é para todo mundo: a tela responde "o que eu
+  tenho da empresa", que é pergunta do colaborador, não de quem controla o
+  patrimônio. Quem controla vê a lista dos outros DENTRO dela.
+
+  O contador é o que faz o termo de responsabilidade ser assinado — o aviso do
+  sino é lido uma vez, e sem um número persistente o aceite nunca acontece.
+{% endcomment %}
+<a class="au-rail-item {% if aba == 'custodia' %}au-rail-item--ativo{% endif %}"
+   href="{% url 'workspace:custodia' %}">
+  <svg class="au-icon" aria-hidden="true"><use href="#i-cube"></use></svg>
+  {% trans "Equipamentos" %}
+  {% if custodias_a_aceitar %}
+    <span class="au-rail-contagem au-rail-contagem--alerta">{{ custodias_a_aceitar }}</span>
+  {% endif %}
 </a>
 
 <p class="au-rail-grupo">{% trans "Pedir" %}</p>
@@ -51,7 +71,7 @@
   "Atender" e "Aprovar" só aparecem para quem tem algo esperando. Rail com item
   vazio ensina o usuário a ignorar o rail.
 {% endcomment %}
-{% if ve_indicadores or administra_papeis %}
+{% if ve_indicadores or administra_papeis or ve_publicacoes or ve_faq or ve_documentos or ve_marketing or ve_candidaturas %}
   <p class="au-rail-grupo">{% trans "Acompanhar" %}</p>
   {% comment %}
     Indicadores aparece para quem tem `ind.ler` — Diretoria, Sócios e R.H. — e
@@ -72,24 +92,142 @@
       {% trans "Pessoas e papéis" %}
     </a>
   {% endif %}
+  {% comment %}
+    A REDAÇÃO. Enquanto a única porta era o Django admin, publicar exigia
+    `is_staff` — e quem escreve comunicado da empresa é o R.H. e a diretoria,
+    nenhum dos dois com `is_staff`. Na prática, publicar significava pedir para
+    outra pessoa.
+  {% endcomment %}
+  {% if ve_publicacoes %}
+    <a class="au-rail-item {% if aba == 'publicacoes' %}au-rail-item--ativo{% endif %}"
+       href="{% url 'workspace:publicacoes' %}">
+      <svg class="au-icon" aria-hidden="true"><use href="#i-megafone"></use></svg>
+      {% trans "Comunicados" %}
+    </a>
+  {% endif %}
+  {% if ve_faq %}
+    <a class="au-rail-item {% if aba == 'faq' %}au-rail-item--ativo{% endif %}"
+       href="{% url 'workspace:faq' %}">
+      <svg class="au-icon" aria-hidden="true"><use href="#i-spark"></use></svg>
+      {% trans "Base de conhecimento" %}
+    </a>
+  {% endif %}
+  {% comment %}
+    O ACERVO — §37. Separado de "Documentação", que é a vitrine de quem LÊ:
+    esta é a tela de quem MANTÉM, e mostra justamente o rascunho, o vencido e o
+    revogado, que é o trabalho dela.
+  {% endcomment %}
+  {% comment %}
+    O RADAR de marketing — §23. Fica em Acompanhar e não em Pedir: ele não pede
+    nada. A lista é do que EXISTE, com o dia em que é preciso responder; o
+    gasto continua passando pelo item "Evento ou patrocínio" do catálogo.
+  {% endcomment %}
+  {% comment %}
+    CANDIDATURAS — §10. Não é model novo: é a pergunta invertida sobre os
+    pedidos de vaga interna que já existem.
+  {% endcomment %}
+  {% if ve_candidaturas %}
+    <a class="au-rail-item {% if aba == 'candidaturas' %}au-rail-item--ativo{% endif %}"
+       href="{% url 'workspace:candidaturas' %}">
+      <svg class="au-icon" aria-hidden="true"><use href="#i-users"></use></svg>
+      {% trans "Candidaturas" %}
+    </a>
+  {% endif %}
+  {% if ve_marketing %}
+    <a class="au-rail-item {% if aba == 'marketing' %}au-rail-item--ativo{% endif %}"
+       href="{% url 'workspace:marketing' %}">
+      <svg class="au-icon" aria-hidden="true"><use href="#i-megafone"></use></svg>
+      {% trans "Oportunidades" %}
+      {% if prazos_de_marketing %}
+        <span class="au-rail-contagem au-rail-contagem--alerta">{{ prazos_de_marketing }}</span>
+      {% endif %}
+    </a>
+  {% endif %}
+  {% if ve_documentos %}
+    <a class="au-rail-item {% if aba == 'documentos' %}au-rail-item--ativo{% endif %}"
+       href="{% url 'workspace:documentos' %}">
+      <svg class="au-icon" aria-hidden="true"><use href="#i-book"></use></svg>
+      {% trans "Acervo normativo" %}
+      {% if documentos_a_vencer %}
+        <span class="au-rail-contagem au-rail-contagem--alerta">{{ documentos_a_vencer }}</span>
+      {% endif %}
+    </a>
+  {% endif %}
 {% endif %}
 
-{% if na_fila %}
+{% comment %}
+  A Universidade fica em CONSULTAR e não em Acompanhar: ela é do colaborador,
+  não de quem administra. O painel de conformidade tem link próprio de dentro
+  dela, para quem pode ver.
+{% endcomment %}
+<a class="au-rail-item {% if aba == 'relatorios' %}au-rail-item--ativo{% endif %}"
+   href="{% url 'workspace:relatorios' %}">
+  <svg class="au-icon" aria-hidden="true"><use href="#i-file"></use></svg>
+  {% trans "Relatórios" %}
+</a>
+
+<a class="au-rail-item {% if aba == 'universidade' %}au-rail-item--ativo{% endif %}"
+   href="{% url 'workspace:universidade' %}">
+  <svg class="au-icon" aria-hidden="true"><use href="#i-book"></use></svg>
+  {% trans "Universidade" %}
+  {% if habilitacoes_pendentes %}
+    <span class="au-rail-contagem au-rail-contagem--alerta">{{ habilitacoes_pendentes }}</span>
+  {% endif %}
+</a>
+
+{% if na_fila or ve_estoque or ve_frota %}
   <p class="au-rail-grupo">{% trans "Atender" %}</p>
-  <a class="au-rail-item {% if aba == 'fila' %}au-rail-item--ativo{% endif %}"
-     href="{% url 'workspace:fila' %}">
-    <svg class="au-icon" aria-hidden="true"><use href="#i-activity"></use></svg>
-    {% trans "Fila" %}
-    <span class="au-rail-contagem">{{ na_fila }}</span>
-  </a>
+  {% if na_fila %}
+    <a class="au-rail-item {% if aba == 'fila' %}au-rail-item--ativo{% endif %}"
+       href="{% url 'workspace:fila' %}">
+      <svg class="au-icon" aria-hidden="true"><use href="#i-activity"></use></svg>
+      {% trans "Fila" %}
+      <span class="au-rail-contagem">{{ na_fila }}</span>
+    </a>
+  {% endif %}
+  {% comment %}
+    O ESTOQUE é área de trabalho de Suprimentos, e por isso fica em Atender e
+    não em Consultar. Sem esta porta, o razão só era alimentado pela conclusão
+    de um pedido: dava para gastar estoque pelo produto e não dava para repor,
+    contar nem registrar o que voltou de campo.
+  {% endcomment %}
+  {% if ve_estoque %}
+    <a class="au-rail-item {% if aba == 'estoque' %}au-rail-item--ativo{% endif %}"
+       href="{% url 'workspace:estoque' %}">
+      <svg class="au-icon" aria-hidden="true"><use href="#i-truck"></use></svg>
+      {% trans "Estoque" %}
+    </a>
+  {% endif %}
+  {% comment %}
+    A FROTA ao lado do estoque, e não em Consultar: quem abre esta tela vai
+    lançar abastecimento e pagar licenciamento. O contador é de documento
+    vencido — o número que decide se o carro pode sair da garagem.
+  {% endcomment %}
+  {% if ve_frota %}
+    <a class="au-rail-item {% if aba == 'frota' %}au-rail-item--ativo{% endif %}"
+       href="{% url 'workspace:frota' %}">
+      <svg class="au-icon" aria-hidden="true"><use href="#i-pin"></use></svg>
+      {% trans "Frota" %}
+      {% if prazos_de_veiculo %}
+        <span class="au-rail-contagem au-rail-contagem--alerta">{{ prazos_de_veiculo }}</span>
+      {% endif %}
+    </a>
+  {% endif %}
 {% endif %}
 
-{% if pendentes_aprovacao %}
+{% comment %}
+  A condição é PODER APROVAR, não ter pendência. Com `{% if pendentes_aprovacao %}`
+  o item sumia do trilho justamente quando a pessoa terminava de usá-lo: aprovava
+  o último pedido e a porta desaparecia, e no dia seguinte ela não sabia por onde
+  tinha entrado. Zero é informação — "nada esperando por mim" — e é o que a
+  pessoa precisa ler para confiar que não esqueceu ninguém.
+{% endcomment %}
+{% if ve_aprovacoes %}
   <p class="au-rail-grupo">{% trans "Aprovar" %}</p>
   <a class="au-rail-item {% if aba == 'aprovacoes' %}au-rail-item--ativo{% endif %}"
      href="{% url 'workspace:aprovacoes' %}">
     <svg class="au-icon" aria-hidden="true"><use href="#i-check"></use></svg>
     {% trans "Bandeja" %}
-    <span class="au-rail-contagem au-rail-contagem--alerta">{{ pendentes_aprovacao }}</span>
+    <span class="au-rail-contagem {% if pendentes_aprovacao %}au-rail-contagem--alerta{% endif %}">{{ pendentes_aprovacao }}</span>
   </a>
 {% endif %}

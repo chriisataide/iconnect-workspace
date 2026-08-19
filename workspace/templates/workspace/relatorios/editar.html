@@ -1,0 +1,123 @@
+{% extends "workspace/_shell_modulo.html" %}
+{% load i18n wks %}
+
+{% block titulo %}{% trans "Relatório" %}{% endblock %}
+{% block rail %}{% include "workspace/_rail_servicos.html" with aba="relatorios" %}{% endblock %}
+{% block trilha %}
+  <a href="{% url 'workspace:relatorios' %}">{% trans "Relatórios" %}</a>
+  <span>{% if relatorio %}{{ relatorio.titulo }}{% else %}{% trans "Novo" %}{% endif %}</span>
+{% endblock %}
+{% block pagina_titulo %}
+  {% if relatorio %}{% trans "Editar relatório" %}{% else %}{% trans "Novo relatório" %}{% endif %}
+{% endblock %}
+{% block voltar_url %}{% url 'workspace:relatorios' %}{% endblock %}
+
+{% block pagina_descricao %}
+  <p class="au-pagina-desc">
+    {% blocktrans %}Salve como rascunho quantas vezes precisar. Ao emitir, o
+    relatório é conferido e deixa de poder ser alterado.{% endblocktrans %}
+  </p>
+{% endblock %}
+
+{% block corpo %}
+<form class="au-form" method="post" enctype="multipart/form-data" novalidate
+      action="{% if relatorio %}{% url 'workspace:relatorio_editar' relatorio.pk %}{% else %}{% url 'workspace:relatorio_novo' %}{% endif %}">
+  {% csrf_token %}
+  <input type="hidden" name="tipo" value="{{ tipo }}">
+
+  <div class="au-campo">
+    <label class="au-rotulo" for="titulo">
+      {% trans "Título" %} <span class="au-obrigatorio" aria-hidden="true">*</span>
+    </label>
+    <input class="au-input" id="titulo" name="titulo" type="text" maxlength="200"
+           value="{{ relatorio.titulo|default:'' }}" required>
+  </div>
+
+  <div class="au-colunas au-colunas--duas">
+    <div class="au-campo">
+      <label class="au-rotulo" for="cliente">{% trans "Cliente" %}</label>
+      <input class="au-input" id="cliente" name="cliente" type="text" maxlength="160"
+             value="{{ relatorio.cliente|default:'' }}">
+    </div>
+    <div class="au-campo">
+      <label class="au-rotulo" for="local">{% trans "Local" %}</label>
+      <input class="au-input" id="local" name="local" type="text" maxlength="200"
+             value="{{ relatorio.local|default:'' }}">
+    </div>
+  </div>
+
+  {% comment %}
+    A data é a DO FATO, não a do registro. São diferentes com frequência — a
+    ocorrência foi na sexta e o relatório foi escrito na segunda —, e datar pelo
+    registro faria o prazo contratual contar a partir do dia errado.
+  {% endcomment %}
+  <div class="au-colunas au-colunas--duas">
+    <div class="au-campo">
+      <label class="au-rotulo" for="ocorrido_em">{% trans "Data do ocorrido" %}</label>
+      <input class="au-input" id="ocorrido_em" name="ocorrido_em" type="date"
+             value="{{ relatorio.ocorrido_em|date:'Y-m-d' }}">
+    </div>
+    <div class="au-campo">
+      <label class="au-rotulo" for="horario">{% trans "Horário" %}</label>
+      <input class="au-input" id="horario" name="horario" type="time"
+             value="{{ relatorio.horario|time:'H:i' }}">
+    </div>
+  </div>
+
+  {% for campo in campos %}
+    <div class="au-campo">
+      <label class="au-rotulo" for="c-{{ campo.chave }}">
+        {{ campo.rotulo }}
+        {% if campo.obrigatorio %}<span class="au-obrigatorio" aria-hidden="true">*</span>{% endif %}
+      </label>
+      {% if campo.e_escolha %}
+        <select class="au-input" id="c-{{ campo.chave }}" name="{{ campo.chave }}">
+          <option value="">{% trans "escolha" %}</option>
+          {% for o in campo.opcoes %}
+            <option value="{{ o.valor }}" {% if campo.valor == o.valor %}selected{% endif %}>{{ o.rotulo }}</option>
+          {% endfor %}
+        </select>
+      {% elif campo.e_longo %}
+        <textarea class="au-input" id="c-{{ campo.chave }}" name="{{ campo.chave }}"
+                  rows="5">{{ campo.valor }}</textarea>
+      {% else %}
+        <input class="au-input" id="c-{{ campo.chave }}" name="{{ campo.chave }}"
+               type="text" value="{{ campo.valor }}">
+      {% endif %}
+      {% if campo.ajuda %}<p class="au-ajuda">{{ campo.ajuda }}</p>{% endif %}
+    </div>
+  {% endfor %}
+
+  <div class="au-campo">
+    <label class="au-rotulo" for="evidencias">{% trans "Evidências" %}</label>
+    <input class="au-input" id="evidencias" name="evidencias" type="file" multiple>
+    <p class="au-ajuda">{% trans "Fotos do local, do lacre, do que foi entregue." %}</p>
+  </div>
+
+  {% if relatorio.evidencias.all %}
+    <ul class="au-lista">
+      {% for e in relatorio.evidencias.all %}
+        <li class="au-list-row">
+          <span class="au-list-titulo">{{ e.nome_original }}</span>
+          <span class="au-list-meta">{{ e.legenda }}</span>
+        </li>
+      {% endfor %}
+    </ul>
+  {% endif %}
+
+  {% comment %}
+    Dois botões pelo mesmo motivo do comunicado: o estado sai de qual botão foi
+    clicado. "Emitir" confere os obrigatórios; "Salvar rascunho" não — campo em
+    branco no meio da redação é normal, a pessoa está escrevendo.
+  {% endcomment %}
+  <div class="au-form-acoes">
+    <a class="au-btn au-btn--sutil" href="{% url 'workspace:relatorios' %}">{% trans "Cancelar" %}</a>
+    <button class="au-btn au-btn--sutil" type="submit" name="acao" value="rascunho">
+      {% trans "Salvar rascunho" %}
+    </button>
+    <button class="au-btn au-btn--primario" type="submit" name="acao" value="emitir">
+      {% trans "Emitir" %}
+    </button>
+  </div>
+</form>
+{% endblock %}

@@ -54,7 +54,9 @@ def test_encontra_aplicativo_pela_descricao():
 
 @pytest.mark.django_db
 def test_busca_sem_acento_encontra_com_acento():
-    assert "Logística" in [r.titulo for r in buscar("logistica")["Aplicativos"]]
+    """"juridico" acha "Jurídico". Antes o caso era Logística, que virou
+    Suprimentos e deixou de ter acento para exercitar a regra."""
+    assert "Jurídico" in [r.titulo for r in buscar("juridico")["Aplicativos"]]
 
 
 @pytest.mark.django_db

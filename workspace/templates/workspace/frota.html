@@ -1,0 +1,570 @@
+{% extends "workspace/_shell_modulo.html" %}
+{% load i18n wks %}
+
+{% block titulo %}{% trans "Frota" %}{% endblock %}
+
+{% block rail %}{% include "workspace/_rail_servicos.html" with aba="frota" %}{% endblock %}
+{% block trilha %}<span>{% trans "Frota" %}</span>{% endblock %}
+{% block pagina_titulo %}{% trans "Frota" %}{% endblock %}
+{% block voltar_url %}{% url 'workspace:home' %}{% endblock %}
+
+{% block pagina_descricao %}
+  <p class="au-pagina-desc">
+    {% if prazos %}
+      <strong>{% blocktrans count n=prazos|length %}{{ n }} documento vencido ou vencendo.{% plural %}{{ n }} documentos vencidos ou vencendo.{% endblocktrans %}</strong>
+    {% else %}
+      {% trans "Documentação em dia. Consumo, gasto e prazos de cada veículo." %}
+    {% endif %}
+  </p>
+{% endblock %}
+
+{% block corpo %}
+{% comment %}
+  RESERVAR CARRO NÃO É AQUI, e o aviso é a coisa mais importante desta tela.
+
+  Veículo já existia duas vezes no produto: a grade de Reservas, com garantia de
+  não haver choque, e um item de catálogo com "período" em texto livre. Reservar
+  por um não bloqueava o outro — duas equipes na porta esperando a mesma van. O
+  item foi aposentado e sobrou um caminho só; este bloco é o que impede o
+  segundo de nascer de novo aqui.
+{% endcomment %}
+{% if prazos %}
+  <section class="au-secao">
+    <div class="au-secao-cabeca">
+      <h2 class="au-secao-titulo">{% trans "Documentos vencendo" %}</h2>
+      <span class="au-secao-contagem">{{ prazos|length }}</span>
+    </div>
+    {% comment %}
+      Uma linha por DOCUMENTO e não por veículo: o carro com licenciamento
+      vencido e seguro vencendo tem dois problemas com prazos diferentes, e uma
+      linha só faria o segundo sumir quando o primeiro fosse resolvido.
+    {% endcomment %}
+    <ul class="au-prazos">
+      {% for p in prazos %}
+        <li class="au-prazo-item {% if p.prazo.vencido %}au-prazo-item--vencido{% endif %}">
+          <span class="au-prazo-doc">{{ p.prazo.rotulo }}</span>
+          <a class="au-prazo-veiculo" href="?placa={{ p.veiculo.placa }}">
+            {{ p.veiculo.placa }}
+            <span class="au-prazo-modelo">{{ p.veiculo.modelo }}</span>
+          </a>
+          <span class="au-prazo-data">
+            {% if p.prazo.vencido %}
+              {% blocktrans with d=p.prazo.data|date:"d/m/Y" %}venceu em {{ d }}{% endblocktrans %}
+            {% else %}
+              {% blocktrans count n=p.prazo.dias %}vence em {{ n }} dia{% plural %}vence em {{ n }} dias{% endblocktrans %}
+            {% endif %}
+          </span>
+        </li>
+      {% endfor %}
+    </ul>
+  </section>
+{% endif %}
+
+<section class="au-secao">
+  <div class="au-secao-cabeca">
+    <h2 class="au-secao-titulo">{% trans "Veículos" %}</h2>
+    {% if veiculos %}<span class="au-secao-contagem">{{ veiculos|length }}</span>{% endif %}
+  </div>
+
+  {% if veiculos %}
+    <div class="au-tabela">
+      <table>
+        <thead>
+          <tr>
+            <th>{% trans "Placa" %}</th>
+            <th>{% trans "Veículo" %}</th>
+            <th>{% trans "Tipo" %}</th>
+            <th>{% trans "Unidade" %}</th>
+            <th class="num">{% trans "Odômetro" %}</th>
+            <th>{% trans "Situação" %}</th>
+            <th>{% trans "Reserva" %}</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for v in veiculos %}
+            <tr>
+              <td>{{ v.placa }}</td>
+              <td>
+                {{ v.modelo }}
+                {% if v.marca or v.ano %}
+                  <span class="au-list-resumo">{{ v.marca }} {{ v.ano|default:"" }}</span>
+                {% endif %}
+              </td>
+              <td>{{ v.get_tipo_display }}</td>
+              <td>{{ v.unidade.nome|default:"—" }}</td>
+              <td class="num">{{ v.km_atual }} km</td>
+              <td>
+                <span class="au-etiqueta au-etiqueta--frt-{{ v.situacao }}">{{ v.get_situacao_display }}</span>
+                {% if v.tem_pendencia %}
+                  <span class="au-selo au-selo--alerta">{% trans "documento" %}</span>
+                {% endif %}
+              </td>
+              <td>
+                {% comment %}
+                  O link vai para a GRADE, e não para um formulário daqui: o
+                  carro de uso comum é o mesmo recurso reservável, e uma segunda
+                  porta para marcá-lo é como duas equipes acabam na porta
+                  esperando a mesma van.
+                {% endcomment %}
+                {% if v.reservavel %}
+                  <a class="au-btn au-btn--sutil au-btn--pequeno"
+                     href="{% url 'workspace:reservar' v.recurso.codigo %}">
+                    {% trans "Reservar" %}
+                  </a>
+                {% else %}
+                  <span class="au-list-resumo">{% trans "fora da grade" %}</span>
+                {% endif %}
+              </td>
+              <td>
+                <a class="au-btn au-btn--sutil au-btn--pequeno" href="?placa={{ v.placa }}">
+                  {% trans "Abrir" %}
+                </a>
+              </td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  {% else %}
+    <div class="au-vazio">
+      <p class="au-vazio-titulo">{% trans "Nenhum veículo cadastrado." %}</p>
+      <p class="au-vazio-dica">
+        {% blocktrans %}Cadastre pela placa. O carro de uso comum pode ser amarrado ao
+        recurso reservável, e aí a reserva continua sendo feita na grade de
+        Reservas — uma porta só.{% endblocktrans %}
+      </p>
+    </div>
+  {% endif %}
+</section>
+
+{% if veiculo %}
+  <section class="au-secao">
+    <div class="au-secao-cabeca">
+      <h2 class="au-secao-titulo">
+        {{ veiculo.placa }} · {{ veiculo.modelo }}
+      </h2>
+      <a class="au-btn au-btn--sutil au-btn--pequeno" href="{% url 'workspace:frota' %}">
+        {% trans "Fechar" %}
+      </a>
+    </div>
+
+    <ul class="au-frota-numeros">
+      <li class="au-frota-numero">
+        <span class="au-frota-valor">{{ resumo.total|moeda }}</span>
+        <span class="au-frota-rotulo">{% trans "gasto total" %}</span>
+      </li>
+      <li class="au-frota-numero">
+        <span class="au-frota-valor">{{ resumo.rodados }} km</span>
+        <span class="au-frota-rotulo">{% trans "medidos entre tanques" %}</span>
+      </li>
+      <li class="au-frota-numero">
+        <span class="au-frota-valor">
+          {% if resumo.media_km_l %}{{ resumo.media_km_l }}{% else %}—{% endif %}
+        </span>
+        <span class="au-frota-rotulo">{% trans "km por litro (média)" %}</span>
+      </li>
+      <li class="au-frota-numero">
+        <span class="au-frota-valor">
+          {% if resumo.custo_por_km %}{{ resumo.custo_por_km|moeda }}{% else %}—{% endif %}
+        </span>
+        <span class="au-frota-rotulo">{% trans "custo por km" %}</span>
+      </li>
+    </ul>
+
+    {% comment %}
+      A média é a distância TOTAL sobre os litros TOTAIS, e não a média das
+      médias. As duas dão números diferentes, e a segunda dá peso igual a um
+      tanque de 8 litros e a um de 60 — um abastecimento de emergência moveria o
+      indicador do ano inteiro.
+    {% endcomment %}
+    <p class="au-ajuda">
+      {% blocktrans %}O consumo é medido de tanque a tanque, e só entram enchimentos
+      completos. Entre dois tanques parciais a conta divide a distância por um volume
+      que não corresponde a ela — e devolve um número plausível e errado.{% endblocktrans %}
+    </p>
+
+    {% if consumo %}
+      <div class="au-tabela">
+        <table>
+          <thead>
+            <tr>
+              <th>{% trans "Data" %}</th>
+              <th class="num">{% trans "Odômetro" %}</th>
+              <th class="num">{% trans "Rodados" %}</th>
+              <th class="num">{% trans "Litros" %}</th>
+              <th class="num">{% trans "R$/litro" %}</th>
+              <th class="num">{% trans "km/l" %}</th>
+              <th>{% trans "Posto" %}</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for c in consumo %}
+              <tr>
+                <td>{{ c.despesa.data|date:"d/m/Y" }}</td>
+                <td class="num">{{ c.despesa.km }}</td>
+                <td class="num">{{ c.rodados|default:"—" }}</td>
+                <td class="num">{{ c.despesa.litros }}</td>
+                <td class="num">{{ c.preco_por_litro|default:"—" }}</td>
+                <td class="num">
+                  {% if c.km_l %}
+                    {{ c.km_l }}
+                  {% else %}
+                    <span class="au-list-resumo">{% trans "primeiro tanque" %}</span>
+                  {% endif %}
+                </td>
+                <td>{{ c.despesa.fornecedor|default:"—" }}</td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    {% else %}
+      <p class="au-agenda-livre">{% trans "Nenhum abastecimento completo registrado." %}</p>
+    {% endif %}
+  </section>
+
+  <section class="au-secao">
+    <div class="au-secao-cabeca">
+      <h2 class="au-secao-titulo">{% trans "Gastos" %}</h2>
+    </div>
+
+    <ul class="au-frota-tipos">
+      {% for linha in resumo.por_tipo %}
+        <li class="au-frota-tipo">
+          <span class="au-frota-tipo-rotulo">{{ linha.rotulo }}</span>
+          <span class="au-frota-tipo-valor">{{ linha.total|moeda }}</span>
+        </li>
+      {% endfor %}
+    </ul>
+
+    {% comment %}
+      CUSTO POR MOTORISTA — §19. Por quem DIRIGIA e não por quem lançou: quem
+      digita a nota do posto é o administrativo, e o indicador mediria ele.
+    {% endcomment %}
+    {% if resumo.por_motorista %}
+      <p class="au-ajuda">{% trans "Custo por quem dirigia" %}</p>
+      <ul class="au-frota-tipos">
+        {% for linha in resumo.por_motorista %}
+          <li class="au-frota-tipo">
+            <span class="au-frota-tipo-rotulo">{{ linha.motorista }}</span>
+            <span class="au-frota-tipo-valor">{{ linha.total|moeda }}</span>
+          </li>
+        {% endfor %}
+      </ul>
+    {% endif %}
+
+    {% if despesas %}
+      <div class="au-tabela">
+        <table>
+          <thead>
+            <tr>
+              <th>{% trans "Data" %}</th>
+              <th>{% trans "Tipo" %}</th>
+              <th class="num">{% trans "Valor" %}</th>
+              <th class="num">{% trans "Odômetro" %}</th>
+              <th>{% trans "Fornecedor" %}</th>
+              <th>{% trans "Dirigia" %}</th>
+              <th>{% trans "Destino" %}</th>
+              <th>{% trans "Finalidade" %}</th>
+              <th>{% trans "Lançou" %}</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for d in despesas %}
+              <tr>
+                <td>{{ d.data|date:"d/m/Y" }}</td>
+                <td>
+                  {{ d.get_tipo_display }}
+                  {% if d.litros and not d.tanque_cheio %}
+                    <span class="au-list-resumo">{% trans "tanque parcial" %}</span>
+                  {% endif %}
+                </td>
+                <td class="num">{{ d.valor|moeda }}</td>
+                <td class="num">{{ d.km|default:"—" }}</td>
+                <td>{{ d.fornecedor|default:"—" }}</td>
+                <td>
+                  {% if d.motorista %}
+                    {{ d.motorista.get_short_name|default:d.motorista.get_full_name }}
+                  {% else %}
+                    —
+                  {% endif %}
+                </td>
+                <td>{{ d.destino|default:"—" }}</td>
+                <td>{{ d.finalidade|default:"—" }}</td>
+                <td>
+                  {% if d.quem %}
+                    {{ d.quem.get_short_name|default:d.quem.get_full_name }}
+                  {% else %}
+                    —
+                  {% endif %}
+                </td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    {% else %}
+      <p class="au-agenda-livre">{% trans "Nenhum gasto lançado para este veículo." %}</p>
+    {% endif %}
+  </section>
+
+  {% if opera %}
+    <section class="au-secao">
+      <div class="au-secao-cabeca">
+        <h2 class="au-secao-titulo">{% trans "Lançar gasto" %}</h2>
+      </div>
+      <form class="au-form" method="post"
+            action="{% url 'workspace:lancar_despesa_veiculo' veiculo.pk %}" novalidate>
+        {% csrf_token %}
+
+        <div class="au-colunas au-colunas--tres">
+          <div class="au-campo">
+            <label class="au-rotulo" for="d-tipo">{% trans "Tipo" %}</label>
+            <select class="au-input" id="d-tipo" name="tipo">
+              {% for valor, rotulo in tipos_despesa %}
+                <option value="{{ valor }}">{{ rotulo }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="au-campo">
+            <label class="au-rotulo" for="d-valor">
+              {% trans "Valor" %} <span class="au-obrigatorio" aria-hidden="true">*</span>
+            </label>
+            <input class="au-input" id="d-valor" name="valor" type="number"
+                   min="0.01" step="0.01">
+          </div>
+          <div class="au-campo">
+            <label class="au-rotulo" for="d-data">{% trans "Data" %}</label>
+            <input class="au-input" id="d-data" name="data" type="date">
+            <p class="au-ajuda">{% trans "Em branco, entende-se hoje." %}</p>
+          </div>
+        </div>
+
+        <div class="au-colunas au-colunas--tres">
+          <div class="au-campo">
+            <label class="au-rotulo" for="d-km">{% trans "Odômetro" %}</label>
+            <input class="au-input" id="d-km" name="km" type="number" min="0" step="1">
+            <p class="au-ajuda">
+              {% blocktrans with km=veiculo.km_atual %}Último registrado: {{ km }} km. O
+              odômetro não anda para trás.{% endblocktrans %}
+            </p>
+          </div>
+          <div class="au-campo">
+            <label class="au-rotulo" for="d-litros">{% trans "Litros" %}</label>
+            <input class="au-input" id="d-litros" name="litros" type="number"
+                   min="0" step="0.001">
+            <p class="au-ajuda">{% trans "Obrigatório no abastecimento — é o que rende o km/l." %}</p>
+          </div>
+          <div class="au-campo">
+            <label class="au-rotulo" for="d-fornecedor">{% trans "Posto ou fornecedor" %}</label>
+            <input class="au-input" id="d-fornecedor" name="fornecedor" type="text"
+                   maxlength="120">
+          </div>
+        </div>
+
+        <div class="au-campo">
+          <label class="au-rotulo" for="d-cheio">
+            <input class="au-check" id="d-cheio" name="tanque_cheio" type="checkbox" checked>
+            {% trans "Enchi o tanque" %}
+          </label>
+          <p class="au-ajuda">
+            {% blocktrans %}Desmarque quando abasteceu parcialmente. O lançamento entra
+            no gasto do mesmo jeito, mas fica fora da conta de consumo — que só é
+            confiável entre dois tanques cheios.{% endblocktrans %}
+          </p>
+        </div>
+
+        {% comment %}
+          MOTORISTA, DESTINO e FINALIDADE — §19.
+
+          `motorista` é separado de quem lança, e a separação é o ponto: quem
+          digita a nota do posto é o administrativo, quem dirigia é o técnico.
+          Com um campo só, "custo por técnico" mediria o administrativo.
+        {% endcomment %}
+        <div class="au-colunas au-colunas--tres">
+          <div class="au-campo">
+            <label class="au-rotulo" for="d-motorista">{% trans "Quem dirigia" %}</label>
+            <select class="au-input" id="d-motorista" name="motorista">
+              <option value="">{% trans "não informado" %}</option>
+              {% for p in pessoas %}
+                <option value="{{ p.pk }}">{{ p.get_full_name|default:p.get_username }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="au-campo">
+            <label class="au-rotulo" for="d-destino">{% trans "Destino" %}</label>
+            <input class="au-input" id="d-destino" name="destino" type="text"
+                   maxlength="160">
+          </div>
+          <div class="au-campo">
+            <label class="au-rotulo" for="d-finalidade">{% trans "Finalidade" %}</label>
+            <input class="au-input" id="d-finalidade" name="finalidade" type="text"
+                   maxlength="200" placeholder="{% trans 'Cliente, obra, entrega' %}">
+          </div>
+        </div>
+
+        <div class="au-campo">
+          <label class="au-rotulo" for="d-observacao">{% trans "Observação" %}</label>
+          <input class="au-input" id="d-observacao" name="observacao" type="text"
+                 maxlength="300">
+        </div>
+
+        <div class="au-form-acoes">
+          <button class="au-btn au-btn--primario" type="submit">
+            {% trans "Lançar" %}
+          </button>
+        </div>
+      </form>
+    </section>
+
+    <section class="au-secao">
+      <div class="au-secao-cabeca">
+        <h2 class="au-secao-titulo">{% trans "Documentos e situação" %}</h2>
+      </div>
+      <form class="au-form" method="post"
+            action="{% url 'workspace:atualizar_veiculo' veiculo.pk %}" novalidate>
+        {% csrf_token %}
+
+        <div class="au-colunas au-colunas--duas">
+          <div class="au-campo">
+            <label class="au-rotulo" for="v-licenciamento">{% trans "Licenciamento até" %}</label>
+            <input class="au-input" id="v-licenciamento" name="licenciamento_ate"
+                   type="date" value="{{ veiculo.licenciamento_ate|date:'Y-m-d' }}">
+          </div>
+          <div class="au-campo">
+            <label class="au-rotulo" for="v-seguro">{% trans "Seguro até" %}</label>
+            <input class="au-input" id="v-seguro" name="seguro_ate" type="date"
+                   value="{{ veiculo.seguro_ate|date:'Y-m-d' }}">
+          </div>
+        </div>
+
+        <div class="au-colunas au-colunas--duas">
+          <div class="au-campo">
+            <label class="au-rotulo" for="v-ipva">{% trans "IPVA até" %}</label>
+            <input class="au-input" id="v-ipva" name="ipva_ate" type="date"
+                   value="{{ veiculo.ipva_ate|date:'Y-m-d' }}">
+          </div>
+          <div class="au-campo">
+            <label class="au-rotulo" for="v-revisao">{% trans "Próxima revisão" %}</label>
+            <input class="au-input" id="v-revisao" name="revisao_em" type="date"
+                   value="{{ veiculo.revisao_em|date:'Y-m-d' }}">
+          </div>
+        </div>
+
+        <div class="au-colunas au-colunas--duas">
+          <div class="au-campo">
+            <label class="au-rotulo" for="v-situacao">{% trans "Situação" %}</label>
+            <select class="au-input" id="v-situacao" name="situacao">
+              {% for valor, rotulo in situacoes %}
+                <option value="{{ valor }}" {% if veiculo.situacao == valor %}selected{% endif %}>
+                  {{ rotulo }}
+                </option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="au-campo">
+            <label class="au-rotulo" for="v-recurso">{% trans "Recurso reservável" %}</label>
+            <select class="au-input" id="v-recurso" name="recurso">
+              <option value="">{% trans "fora da grade de reservas" %}</option>
+              {% if veiculo.recurso %}
+                <option value="{{ veiculo.recurso.pk }}" selected>{{ veiculo.recurso.nome }}</option>
+              {% endif %}
+              {% for r in recursos %}
+                <option value="{{ r.pk }}">{{ r.nome }}</option>
+              {% endfor %}
+            </select>
+            <p class="au-ajuda">
+              {% trans "Amarrado, o carro é reservado na grade de Reservas — e não aqui." %}
+            </p>
+          </div>
+        </div>
+
+        <div class="au-form-acoes">
+          <button class="au-btn au-btn--primario" type="submit">
+            {% trans "Salvar" %}
+          </button>
+        </div>
+      </form>
+    </section>
+  {% endif %}
+{% endif %}
+
+{% if opera %}
+  <section class="au-secao">
+    <div class="au-secao-cabeca">
+      <h2 class="au-secao-titulo">{% trans "Cadastrar veículo" %}</h2>
+    </div>
+    <form class="au-form" method="post"
+          action="{% url 'workspace:cadastrar_veiculo' %}" novalidate>
+      {% csrf_token %}
+
+      <div class="au-colunas au-colunas--tres">
+        <div class="au-campo">
+          <label class="au-rotulo" for="n-placa">
+            {% trans "Placa" %} <span class="au-obrigatorio" aria-hidden="true">*</span>
+          </label>
+          <input class="au-input" id="n-placa" name="placa" type="text" maxlength="8">
+          <p class="au-ajuda">{% trans "É a identidade do veículo e não muda depois." %}</p>
+        </div>
+        <div class="au-campo">
+          <label class="au-rotulo" for="n-modelo">
+            {% trans "Modelo" %} <span class="au-obrigatorio" aria-hidden="true">*</span>
+          </label>
+          <input class="au-input" id="n-modelo" name="modelo" type="text" maxlength="60">
+        </div>
+        <div class="au-campo">
+          <label class="au-rotulo" for="n-marca">{% trans "Marca" %}</label>
+          <input class="au-input" id="n-marca" name="marca" type="text" maxlength="40">
+        </div>
+      </div>
+
+      <div class="au-colunas au-colunas--tres">
+        <div class="au-campo">
+          <label class="au-rotulo" for="n-tipo">{% trans "Tipo" %}</label>
+          <select class="au-input" id="n-tipo" name="tipo">
+            {% for valor, rotulo in tipos_veiculo %}
+              <option value="{{ valor }}">{{ rotulo }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="au-campo">
+          <label class="au-rotulo" for="n-ano">{% trans "Ano" %}</label>
+          <input class="au-input" id="n-ano" name="ano" type="number" min="1950" step="1">
+        </div>
+        <div class="au-campo">
+          <label class="au-rotulo" for="n-km">{% trans "Odômetro atual" %}</label>
+          <input class="au-input" id="n-km" name="km_atual" type="number" min="0" step="1">
+        </div>
+      </div>
+
+      <div class="au-colunas au-colunas--duas">
+        <div class="au-campo">
+          <label class="au-rotulo" for="n-unidade">{% trans "Unidade" %}</label>
+          <select class="au-input" id="n-unidade" name="unidade">
+            <option value="">{% trans "não informada" %}</option>
+            {% for u in unidades %}
+              <option value="{{ u.pk }}">{{ u.nome }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="au-campo">
+          <label class="au-rotulo" for="n-recurso">{% trans "Recurso reservável" %}</label>
+          <select class="au-input" id="n-recurso" name="recurso">
+            <option value="">{% trans "fora da grade de reservas" %}</option>
+            {% for r in recursos %}
+              <option value="{{ r.pk }}">{{ r.nome }}</option>
+            {% endfor %}
+          </select>
+        </div>
+      </div>
+
+      <div class="au-form-acoes">
+        <button class="au-btn au-btn--primario" type="submit">
+          {% trans "Cadastrar" %}
+        </button>
+      </div>
+    </form>
+  </section>
+{% endif %}
+{% endblock %}

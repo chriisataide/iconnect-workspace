@@ -1,0 +1,90 @@
+{% load i18n static wks %}<!DOCTYPE html>
+{% comment %}
+  A ÚNICA tela do produto que não estende a casca — e a razão é a única que
+  justificaria.
+
+  `django.views.defaults.server_error` renderiza este template **sem request**:
+  os context processors não rodam, e `eu`, `nao_lidas`, `sugestoes_bot` e os
+  contadores do trilho não existem. Não é limitação a contornar, é proteção. A
+  casca lê o banco em cada carregamento — trilho, sino, assistente. Uma página
+  de erro que precisa consultar o banco para ser desenhada é uma página de erro
+  que falha justamente quando o banco é o problema, e aí o visitante recebe o
+  "A server error occurred." cru do Django.
+
+  Por isso aqui não há `{% templatetag openblock %} url %}` para rota com
+  argumento, nenhuma variável de contexto, nenhuma consulta. Só HTML e dois
+  `<link>`. Se até o CSS falhar, sobra um texto legível com dois links — que
+  ainda é uma página, e não uma linha de servidor.
+
+  Nada de inline: a CSP é `style-src 'self'`, sem `unsafe-inline`. Um `<style>`
+  aqui seria descartado em silêncio pelo navegador, e a tela de erro apareceria
+  sem estilo sem ninguém entender por quê.
+{% endcomment %}
+<html lang="pt-br">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light dark">
+  <meta name="theme-color" content="#2e3192">
+  <title>{% trans "Erro no servidor" %} · iConnect Workspace</title>
+
+  <link rel="icon" href="{% static 'workspace/img/favicon.ico' %}" sizes="any">
+  <link rel="stylesheet" href="{% estatico 'workspace/src/tokens.css' %}">
+  <link rel="stylesheet" href="{% estatico 'workspace/src/workspace.css' %}">
+</head>
+<body>
+  <header class="au-topbar">
+    <a class="au-brand" href="/workspace/">
+      <img class="au-brand-logo" src="{% static 'workspace/img/icodev-wordmark.png' %}"
+           alt="icodev" width="176" height="60">
+      <span class="au-brand-divisor" aria-hidden="true"></span>
+      <span class="au-brand-produto">Workspace</span>
+    </a>
+  </header>
+
+  <main class="au-main">
+    <div class="au-tela-erro">
+      <p class="au-tela-erro-codigo">500</p>
+      <h1 class="au-tela-erro-titulo">{% trans "Alguma coisa quebrou do nosso lado." %}</h1>
+      <div class="au-tela-erro-texto">
+        <p>
+          {% blocktrans %}O erro foi registrado automaticamente — você não precisa
+          reportar nem repetir o que estava fazendo.{% endblocktrans %}
+        </p>
+        {% comment %}
+          A frase abaixo existe por uma razão prática. O padrão do Workspace é
+          gravar em transação: quando algo falha no meio, nada é gravado pela
+          metade. Sem dizer isso, a pessoa reenvia o formulário por medo — e o
+          reenvio é o que de fato produz o pedido duplicado.
+        {% endcomment %}
+        <p>
+          {% blocktrans %}Se você estava enviando um formulário, ele não foi gravado
+          pela metade: ou entrou inteiro, ou não entrou. Confira em “Minhas
+          solicitações” antes de enviar de novo.{% endblocktrans %}
+        </p>
+      </div>
+
+      {% comment %}
+        Links literais e não `{% templatetag openblock %} url %}`: resolver nome
+        de rota carrega o URLconf inteiro, e um erro de importação em qualquer
+        módulo de views — que é uma das causas plausíveis de um 500 — derrubaria
+        também a página que existe para contar sobre ele.
+      {% endcomment %}
+      <div class="au-tela-erro-saidas">
+        <a class="au-btn au-btn--primario" href="/workspace/">
+          {% trans "Ir para o início" %}
+        </a>
+        <a class="au-btn au-btn--sutil" href="/workspace/minhas-solicitacoes/">
+          {% trans "Ver minhas solicitações" %}
+        </a>
+      </div>
+    </div>
+  </main>
+
+  <footer class="au-rodape">
+    <img class="au-rodape-marca" src="{% static 'workspace/img/icodev-mark.png' %}"
+         alt="" width="18" height="18" aria-hidden="true">
+    <span>{% blocktrans %}iConnect Workspace · a vida corporativa em um lugar{% endblocktrans %}</span>
+  </footer>
+</body>
+</html>

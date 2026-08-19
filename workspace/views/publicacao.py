@@ -9,14 +9,27 @@ from workspace.models import Publicacao
 
 
 def detalhe(request: HttpRequest, pk: int) -> HttpResponse:
-    """Uma publicação. 404 se não estiver no ar.
+    """Uma publicação. 404 quando não está no ar OU não é para esta pessoa.
 
-    Usa o mesmo `publicadas()` da home: rascunho e agendado não vazam por URL
-    adivinhada. Fosse `get_object_or_404(Publicacao, pk=pk)`, qualquer pessoa
-    leria o comunicado de amanhã hoje.
+    `publicadas()` não basta, e a diferença é o §48. Ela responde "está no ar?"
+    e ignora o público-alvo, que nasceu no §9 — então o comunicado endereçado ao
+    Financeiro era lido por qualquer pessoa que tivesse o número na URL, e o
+    número saía da própria busca.
+
+    `para(request.user)` é o mesmo filtro da home, e é de propósito que seja o
+    MESMO: duas definições de "quem vê isto" divergem, e a que diverge é sempre
+    a que esquece um caso.
+
+    `request.user` e não `pessoa_da_requisicao()`: aquela devolve uma pessoa de
+    REFERÊNCIA para o visitante anônimo, e usá-la aqui entregaria a ele o
+    comunicado do departamento dela. Anônimo cai no ramo sem lotação e recebe só
+    o que é geral.
+
+    404 e não 403: dizer "existe, mas não é para você" já conta que existe um
+    comunicado dirigido a outra área — e o título costuma ser a informação.
     """
-    publicacao = Publicacao.objects.publicadas().filter(pk=pk).first()
+    publicacao = Publicacao.objects.para(request.user).filter(pk=pk).first()
     if publicacao is None:
-        raise Http404("Publicação não encontrada ou fora do ar.")
+        raise Http404("Publicação não encontrada ou fora do seu alcance.")
 
     return render(request, "workspace/publicacao.html", {"publicacao": publicacao})

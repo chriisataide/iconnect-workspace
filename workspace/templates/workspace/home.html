@@ -56,10 +56,22 @@
   </section>
 
   {% comment %}
-    MEU DIA — só o que exige a pessoa hoje.
+    MEU DIA — §50 e §51.
 
-    O Workspace é aberto. A faixa concentra os links de navegação para o
-    trabalho do dia.
+    A faixa era fixa: Meu dia, Minhas solicitações, Pedir um serviço, mais um
+    card condicional de aprovações. Igual para o estagiário e para o diretor,
+    numa tela que é a única do produto sem o trilho — então tudo o que o
+    Workspace já sabia sobre a pessoa ficava invisível justamente onde ela cai
+    ao entrar.
+
+    Agora a lista vem da view, ordenada pelo que custa caro ignorar: primeiro o
+    que trava outra pessoa, depois o que trava você, depois o que você só
+    precisa saber, e por último a navegação. Nenhum card com número nasce
+    vazio (ADR-012) — card sempre visível e sempre zerado ensina a pessoa a
+    ignorar a faixa inteira, e depois a ignorar o card que finalmente tem algo.
+
+    O template não decide nada: não compara contagem, não escolhe ícone, não
+    ordena. É a regra do design system — a view agrega, o template desenha.
   {% endcomment %}
   <section class="au-secao">
     <div class="au-secao-cabeca">
@@ -67,64 +79,28 @@
     </div>
 
     <ul class="au-grade au-grade--tercos">
-      <li>
-        {% comment %}
-          A porta do Meu dia. Fica antes de tudo porque é o único card que
-          responde "o que exige você" — os outros dois respondem "onde eu vou".
-        {% endcomment %}
-        <a class="au-app au-app--ativo" href="{% url 'workspace:meu_dia' %}">
-          <span class="au-app-topo">
-            <span class="au-app-icone"><svg class="au-icon" aria-hidden="true"><use href="#i-spark"></use></svg></span>
-            <svg class="au-app-seta" aria-hidden="true"><use href="#i-seta"></use></svg>
-          </span>
-          <span class="au-app-nome">{% trans "Meu dia" %}</span>
-          <span class="au-app-desc">{% trans "Tudo o que exige você hoje, num lugar." %}</span>
-        </a>
-      </li>
-      {% if pendentes_aprovacao %}
-        {% comment %}
-          Primeiro card da primeira faixa, e só para quem tem algo esperando
-          decisão. Card de aprovação sempre visível e sempre zerado ensina o
-          aprovador a ignorá-lo.
-        {% endcomment %}
+      {% for card in cards %}
         <li>
-          <a class="au-app au-app--ativo au-app--destaque" href="{% url 'workspace:aprovacoes' %}">
+          <a class="au-app au-app--ativo {% if card.urgente %}au-app--destaque{% endif %}"
+             href="{{ card.destino }}">
             <span class="au-app-topo">
-              <span class="au-app-icone"><svg class="au-icon" aria-hidden="true"><use href="#i-check"></use></svg></span>
-              <span class="au-selo au-selo--alerta">{{ pendentes_aprovacao }}</span>
+              <span class="au-app-icone">
+                <svg class="au-icon" aria-hidden="true"><use href="#i-{{ card.icone }}"></use></svg>
+              </span>
+              {% if card.contagem %}
+                <span class="au-selo {% if card.urgente %}au-selo--alerta{% else %}au-selo--contagem{% endif %}">
+                  {{ card.contagem }}
+                </span>
+              {% else %}
+                <svg class="au-app-seta" aria-hidden="true"><use href="#i-seta"></use></svg>
+              {% endif %}
             </span>
-            <span class="au-app-nome">{% trans "Esperando você" %}</span>
-            <span class="au-app-desc">{% trans "Decisões pendentes, com o orçamento do centro de custo à vista." %}</span>
-            <span class="au-app-marca" aria-hidden="true"></span>
+            <span class="au-app-nome">{{ card.titulo }}</span>
+            <span class="au-app-desc">{{ card.descricao }}</span>
+            {% if card.urgente %}<span class="au-app-marca" aria-hidden="true"></span>{% endif %}
           </a>
         </li>
-      {% endif %}
-      <li>
-        <a class="au-app au-app--ativo" href="{% url 'workspace:minhas_solicitacoes' %}">
-          <span class="au-app-topo">
-            <span class="au-app-icone"><svg class="au-icon" aria-hidden="true"><use href="#i-file"></use></svg></span>
-            {% if abertas %}
-              <span class="au-selo au-selo--contagem">{{ abertas }}</span>
-            {% else %}
-              <svg class="au-app-seta" aria-hidden="true"><use href="#i-seta"></use></svg>
-            {% endif %}
-          </span>
-          <span class="au-app-nome">{% trans "Minhas solicitações" %}</span>
-          <span class="au-app-desc">{% trans "Férias, reembolsos e requisições que você abriu." %}</span>
-        </a>
-      </li>
-      <li>
-        <a class="au-app au-app--ativo" href="{% url 'workspace:servicos' %}">
-          <span class="au-app-topo">
-            <span class="au-app-icone"><svg class="au-icon" aria-hidden="true"><use href="#i-grid"></use></svg></span>
-            <svg class="au-app-seta" aria-hidden="true"><use href="#i-seta"></use></svg>
-          </span>
-          <span class="au-app-nome">{% trans "Pedir um serviço" %}</span>
-          <span class="au-app-desc">
-            {% blocktrans count total=total_servicos %}{{ total }} serviço no catálogo — escolha pelo problema, não pelo departamento.{% plural %}{{ total }} serviços no catálogo — escolha pelo problema, não pelo departamento.{% endblocktrans %}
-          </span>
-        </a>
-      </li>
+      {% endfor %}
     </ul>
   </section>
 

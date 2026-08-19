@@ -29,9 +29,13 @@ class Command(BaseCommand):
 
         self.stdout.write("")
         self.stdout.write(self.style.MIGRATE_HEADING("Índice de busca"))
-        self.stdout.write(f"  serviços      {contagem['servicos']}")
-        self.stdout.write(f"  documentos    {contagem['documentos']}")
-        self.stdout.write(f"  publicações   {contagem['publicacoes']}")
+        # Sai da própria contagem e não de uma lista escrita à mão: o §57
+        # acrescentou cinco origens, e um relatório com as três de antes
+        # esconderia justamente as novas.
+        for rotulo, quantas in sorted(contagem.items()):
+            if rotulo == "removidas":
+                continue
+            self.stdout.write(f"  {rotulo:18} {quantas}")
         if contagem["removidas"]:
             self.stdout.write(
                 self.style.WARNING(f"  órfãs removidas {contagem['removidas']}")

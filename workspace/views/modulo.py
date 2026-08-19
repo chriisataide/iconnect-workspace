@@ -13,8 +13,8 @@ from django.shortcuts import render
 from workspace.acesso import pessoa_da_requisicao
 from workspace.modulos import modulo_por_chave
 from workspace.services import catalogo as svc
+from workspace.services import listagem as lst
 
-_ABERTAS = ["aguardando_aprovacao", "aprovada", "em_atendimento", "devolvida"]
 LIMITE_MEUS = 5
 
 
@@ -55,7 +55,7 @@ def modulo(request: HttpRequest, chave: str) -> HttpResponse:
     # Recorte curto: a página do módulo mostra o estado, e o histórico completo
     # mora em "Minhas solicitações". Lista longa aqui empurra a vitrine.
     meus = list(pedidos[:LIMITE_MEUS])
-    abertos = pedidos.filter(situacao__in=_ABERTAS).count()
+    abertos = pedidos.filter(situacao__in=lst.ABERTAS).count()
 
     return render(
         request,

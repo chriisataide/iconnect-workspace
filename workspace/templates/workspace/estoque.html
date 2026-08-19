@@ -1,0 +1,483 @@
+{% extends "workspace/_shell_modulo.html" %}
+{% load i18n %}
+
+{% block titulo %}{% trans "Estoque" %}{% endblock %}
+
+{% block rail %}{% include "workspace/_rail_servicos.html" with aba="estoque" %}{% endblock %}
+{% block trilha %}<span>{% trans "Estoque" %}</span>{% endblock %}
+{% block pagina_titulo %}{% trans "Estoque" %}{% endblock %}
+{% block voltar_url %}{% url 'workspace:home' %}{% endblock %}
+
+{% block pagina_descricao %}
+  <p class="au-pagina-desc">
+    {% if unidade %}
+      {% blocktrans with u=unidade.nome %}O que existe em {{ u }}, o que voltou de campo e o razão de cada material.{% endblocktrans %}
+    {% else %}
+      {% trans "O que existe em todas as unidades, o que voltou de campo e o razão de cada material." %}
+    {% endif %}
+  </p>
+{% endblock %}
+
+{% block corpo %}
+{% comment %}
+  O FILTRO DE UNIDADE vem primeiro porque o saldo é POR UNIDADE, e ler "40
+  capacetes" sem saber de qual prateleira é pior que não ler nada: alguém
+  programa a entrega de um material que está a 600 km.
+{% endcomment %}
+<form class="au-filtros" method="get" action="{% url 'workspace:estoque' %}">
+  <label class="au-sr" for="unidade">{% trans "Unidade" %}</label>
+  <select class="au-input au-input--compacto" id="unidade" name="unidade">
+    <option value="todas" {% if filtro_unidade == "todas" %}selected{% endif %}>
+      {% trans "Todas as unidades" %}
+    </option>
+    {% for u in unidades %}
+      <option value="{{ u.pk }}" {% if filtro_unidade == u.pk|stringformat:"s" %}selected{% endif %}>
+        {{ u.nome }}
+      </option>
+    {% endfor %}
+  </select>
+  {% if material %}
+    <input type="hidden" name="material" value="{{ material.codigo }}">
+  {% endif %}
+  <button class="au-btn au-btn--sutil au-btn--pequeno" type="submit">
+    {% trans "Ver" %}
+  </button>
+</form>
+
+{% if em_falta %}
+  <section class="au-secao">
+    <div class="au-secao-cabeca">
+      <h2 class="au-secao-titulo">{% trans "Abaixo do mínimo" %}</h2>
+      <span class="au-secao-contagem">{{ em_falta|length }}</span>
+    </div>
+    {% comment %}
+      Em cima e em seção própria: é a única coisa desta tela que pede ação.
+      Marcar a linha lá embaixo com uma cor fazia o aviso depender de alguém
+      rolar até ele — e é a lista inteira que se rola quando o cadastro cresce.
+    {% endcomment %}
+    <ul class="au-estoque-falta">
+      {% for linha in em_falta %}
+        <li class="au-estoque-falta-item">
+          <span class="au-estoque-falta-nome">{{ linha.material.nome }}</span>
+          <span class="au-estoque-falta-unidade">{{ linha.unidade.nome }}</span>
+          <span class="au-estoque-falta-conta">
+            {% blocktrans with q=linha.quantidade m=linha.material.estoque_minimo %}{{ q }} em estoque · mínimo {{ m }}{% endblocktrans %}
+          </span>
+        </li>
+      {% endfor %}
+    </ul>
+  </section>
+{% endif %}
+
+<section class="au-secao">
+  <div class="au-secao-cabeca">
+    <h2 class="au-secao-titulo">{% trans "Saldo" %}</h2>
+    {% if saldos %}<span class="au-secao-contagem">{{ saldos|length }}</span>{% endif %}
+  </div>
+
+  {% if saldos %}
+    <div class="au-tabela">
+      <table>
+        <thead>
+          <tr>
+            <th>{% trans "Material" %}</th>
+            <th>{% trans "Unidade" %}</th>
+            <th>{% trans "Onde está" %}</th>
+            <th class="num">{% trans "Mínimo" %}</th>
+            <th class="num">{% trans "Saldo" %}</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for linha in saldos %}
+            <tr>
+              <td>
+                {{ linha.material.nome }}
+                {% if linha.material.controla_patrimonio %}
+                  <span class="au-list-resumo">{% trans "controla patrimônio" %}</span>
+                {% endif %}
+              </td>
+              <td>{{ linha.unidade.nome }}</td>
+              <td>{{ linha.localizacao|default:"—" }}</td>
+              <td class="num">{{ linha.material.estoque_minimo|default:"—" }}</td>
+              <td class="num">
+                {{ linha.quantidade }}
+                {% if linha.abaixo_do_minimo %}
+                  <span class="au-selo au-selo--alerta">{% trans "repor" %}</span>
+                {% endif %}
+              </td>
+              <td>
+                <a class="au-btn au-btn--sutil au-btn--pequeno"
+                   href="?unidade={{ filtro_unidade }}&amp;material={{ linha.material.codigo }}">
+                  {% trans "Razão" %}
+                </a>
+              </td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  {% else %}
+    <div class="au-vazio">
+      <p class="au-vazio-titulo">{% trans "Nenhum saldo por aqui." %}</p>
+      <p class="au-vazio-dica">
+        {% blocktrans %}O saldo é por unidade. Se o material existe em outra, troque o
+        filtro acima.{% endblocktrans %}
+      </p>
+    </div>
+  {% endif %}
+</section>
+
+{% comment %}
+  O RAZÃO — §15. Só do material escolhido.
+
+  O razão da empresa inteira é uma lista sem pergunta por trás: ninguém abre
+  "todos os movimentos de tudo". Quem chega aqui está conferindo UM material,
+  quase sempre porque a contagem física discordou do sistema.
+{% endcomment %}
+{% if material %}
+  <section class="au-secao">
+    <div class="au-secao-cabeca">
+      <h2 class="au-secao-titulo">
+        {% blocktrans with n=material.nome %}Razão de {{ n }}{% endblocktrans %}
+      </h2>
+      <a class="au-btn au-btn--sutil au-btn--pequeno" href="?unidade={{ filtro_unidade }}">
+        {% trans "Fechar" %}
+      </a>
+    </div>
+
+    {% if razao %}
+      <div class="au-tabela">
+        <table>
+          <thead>
+            <tr>
+              <th>{% trans "Quando" %}</th>
+              <th>{% trans "Movimento" %}</th>
+              <th>{% trans "Unidade" %}</th>
+              <th class="num">{% trans "Qtd." %}</th>
+              <th class="num">{% trans "Antes" %}</th>
+              <th class="num">{% trans "Depois" %}</th>
+              <th>{% trans "Quem" %}</th>
+              <th>{% trans "Observação" %}</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for m in razao %}
+              <tr>
+                <td>{{ m.quando|date:"d/m/Y H:i" }}</td>
+                <td>
+                  {{ m.get_tipo_display }}
+                  {% if m.condicao %}
+                    <span class="au-list-resumo">{{ m.get_condicao_display }}</span>
+                  {% endif %}
+                </td>
+                <td>{{ m.unidade.nome }}</td>
+                <td class="num">{{ m.quantidade }}</td>
+                <td class="num">{{ m.saldo_anterior }}</td>
+                <td class="num">{{ m.saldo_posterior }}</td>
+                <td>
+                  {% if m.quem %}
+                    {{ m.quem.get_short_name|default:m.quem.get_full_name }}
+                  {% else %}
+                    {% trans "sistema" %}
+                  {% endif %}
+                </td>
+                <td>{{ m.observacao|default:"—" }}</td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      <p class="au-ajuda">
+        {% blocktrans %}Nada aqui é editado nem apagado. Correção de saldo é uma
+        contagem de inventário, que entra como linha nova.{% endblocktrans %}
+      </p>
+    {% else %}
+      <p class="au-agenda-livre">{% trans "Nenhum movimento deste material nesta unidade." %}</p>
+    {% endif %}
+  </section>
+{% endif %}
+
+{% comment %}
+  A REVERSA — o §15 propriamente dito.
+
+  Material recuperado de unidade desativada é uma ENTRADA com procedência: de
+  onde veio, em que condição, de qual cliente. Uma tabela própria duplicaria o
+  razão e criaria a pergunta "o saldo soma as duas?".
+{% endcomment %}
+<section class="au-secao">
+  <div class="au-secao-cabeca">
+    <h2 class="au-secao-titulo">{% trans "O que voltou de campo" %}</h2>
+  </div>
+
+  <ul class="au-reversa-resumo">
+    {% for c in resumo_reversa %}
+      <li class="au-reversa-cartao {% if not c.no_saldo %}au-reversa-cartao--fora{% endif %}">
+        <span class="au-reversa-numero">{{ c.total }}</span>
+        <span class="au-reversa-rotulo">{{ c.rotulo }}</span>
+        {% if not c.no_saldo %}
+          <span class="au-reversa-nota">{% trans "fora do saldo disponível" %}</span>
+        {% endif %}
+      </li>
+    {% endfor %}
+  </ul>
+
+  {% if reversas %}
+    <div class="au-tabela">
+      <table>
+        <thead>
+          <tr>
+            <th>{% trans "Quando" %}</th>
+            <th>{% trans "Material" %}</th>
+            <th class="num">{% trans "Qtd." %}</th>
+            <th>{% trans "Condição" %}</th>
+            <th>{% trans "Veio de" %}</th>
+            <th>{% trans "Cliente" %}</th>
+            <th>{% trans "Patrimônio" %}</th>
+            <th>{% trans "Entrou em" %}</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for m in reversas %}
+            <tr>
+              <td>{{ m.quando|date:"d/m/Y" }}</td>
+              <td>{{ m.material.nome }}</td>
+              <td class="num">{{ m.quantidade }}</td>
+              <td>
+                {{ m.get_condicao_display }}
+                {% if m.condicao == "sucata" %}
+                  <span class="au-selo au-selo--alerta">{% trans "fora do saldo" %}</span>
+                {% endif %}
+              </td>
+              <td>{{ m.unidade_origem.nome|default:"—" }}</td>
+              <td>{{ m.cliente|default:"—" }}</td>
+              <td>{{ m.patrimonio|default:"—" }}</td>
+              <td>{{ m.unidade.nome }}</td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  {% else %}
+    <p class="au-agenda-livre">{% trans "Nada voltou de campo ainda." %}</p>
+  {% endif %}
+</section>
+
+{% if movimenta %}
+  <section class="au-secao">
+    <div class="au-secao-cabeca">
+      <h2 class="au-secao-titulo">{% trans "Registrar entrada de reversa" %}</h2>
+    </div>
+    <p class="au-ajuda">
+      {% blocktrans %}Material recuperado de unidade desativada ou de contrato encerrado.
+      A condição decide se ele volta ao saldo: sucata entra no histórico e fica fora
+      do disponível, para ninguém programar a entrega de um equipamento
+      imprestável.{% endblocktrans %}
+    </p>
+
+    <form class="au-form" method="post"
+          action="{% url 'workspace:registrar_movimento' %}" novalidate>
+      {% csrf_token %}
+      <input type="hidden" name="tipo" value="reversa">
+      <input type="hidden" name="volta_unidade" value="{{ filtro_unidade }}">
+
+      <div class="au-colunas au-colunas--duas">
+        <div class="au-campo">
+          <label class="au-rotulo" for="rev-material">
+            {% trans "Material" %} <span class="au-obrigatorio" aria-hidden="true">*</span>
+          </label>
+          <select class="au-input" id="rev-material" name="material">
+            {% for m in materiais %}
+              <option value="{{ m.codigo }}">{{ m.nome }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="au-campo">
+          <label class="au-rotulo" for="rev-condicao">
+            {% trans "Condição" %} <span class="au-obrigatorio" aria-hidden="true">*</span>
+          </label>
+          <select class="au-input" id="rev-condicao" name="condicao">
+            {% for valor, rotulo in condicoes %}
+              <option value="{{ valor }}">{{ rotulo }}</option>
+            {% endfor %}
+          </select>
+        </div>
+      </div>
+
+      <div class="au-colunas au-colunas--duas">
+        <div class="au-campo">
+          <label class="au-rotulo" for="rev-quantidade">
+            {% trans "Quantidade" %} <span class="au-obrigatorio" aria-hidden="true">*</span>
+          </label>
+          <input class="au-input" id="rev-quantidade" name="quantidade" type="number"
+                 min="1" step="1" value="1">
+        </div>
+        <div class="au-campo">
+          <label class="au-rotulo" for="rev-unidade">{% trans "Entra na unidade" %}</label>
+          <select class="au-input" id="rev-unidade" name="unidade">
+            {% for u in unidades %}
+              <option value="{{ u.pk }}" {% if unidade and u.pk == unidade.pk %}selected{% endif %}>
+                {{ u.nome }}
+              </option>
+            {% endfor %}
+          </select>
+        </div>
+      </div>
+
+      <div class="au-colunas au-colunas--duas">
+        <div class="au-campo">
+          <label class="au-rotulo" for="rev-origem">{% trans "Veio de qual unidade" %}</label>
+          <select class="au-input" id="rev-origem" name="unidade_origem">
+            <option value="">{% trans "não se aplica" %}</option>
+            {% for u in unidades %}
+              <option value="{{ u.pk }}">{{ u.nome }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="au-campo">
+          <label class="au-rotulo" for="rev-cliente">{% trans "Cliente" %}</label>
+          <input class="au-input" id="rev-cliente" name="cliente" type="text"
+                 maxlength="120">
+          <p class="au-ajuda">{% trans "De qual contrato o material voltou." %}</p>
+        </div>
+      </div>
+
+      <div class="au-colunas au-colunas--duas">
+        <div class="au-campo">
+          <label class="au-rotulo" for="rev-patrimonio">{% trans "Patrimônio" %}</label>
+          <input class="au-input" id="rev-patrimonio" name="patrimonio" type="text"
+                 maxlength="40">
+        </div>
+        <div class="au-campo">
+          <label class="au-rotulo" for="rev-observacao">{% trans "Observação" %}</label>
+          <input class="au-input" id="rev-observacao" name="observacao" type="text"
+                 maxlength="300">
+        </div>
+      </div>
+
+      <div class="au-form-acoes">
+        <button class="au-btn au-btn--primario" type="submit">
+          {% trans "Registrar a reversa" %}
+        </button>
+      </div>
+    </form>
+  </section>
+
+  <section class="au-secao">
+    <div class="au-secao-cabeca">
+      <h2 class="au-secao-titulo">{% trans "Entrada de compra" %}</h2>
+    </div>
+    <form class="au-form" method="post"
+          action="{% url 'workspace:registrar_movimento' %}" novalidate>
+      {% csrf_token %}
+      <input type="hidden" name="tipo" value="entrada">
+      <input type="hidden" name="volta_unidade" value="{{ filtro_unidade }}">
+
+      <div class="au-colunas au-colunas--tres">
+        <div class="au-campo">
+          <label class="au-rotulo" for="ent-material">{% trans "Material" %}</label>
+          <select class="au-input" id="ent-material" name="material">
+            {% for m in materiais %}
+              <option value="{{ m.codigo }}">{{ m.nome }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="au-campo">
+          <label class="au-rotulo" for="ent-unidade">{% trans "Unidade" %}</label>
+          <select class="au-input" id="ent-unidade" name="unidade">
+            {% for u in unidades %}
+              <option value="{{ u.pk }}" {% if unidade and u.pk == unidade.pk %}selected{% endif %}>
+                {{ u.nome }}
+              </option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="au-campo">
+          <label class="au-rotulo" for="ent-quantidade">{% trans "Quantidade" %}</label>
+          <input class="au-input" id="ent-quantidade" name="quantidade" type="number"
+                 min="1" step="1" value="1">
+        </div>
+      </div>
+
+      <div class="au-campo">
+        <label class="au-rotulo" for="ent-observacao">{% trans "Observação" %}</label>
+        <input class="au-input" id="ent-observacao" name="observacao" type="text"
+               maxlength="300" placeholder="{% trans 'Nota fiscal, pedido de compra…' %}">
+      </div>
+
+      <div class="au-form-acoes">
+        <button class="au-btn au-btn--primario" type="submit">
+          {% trans "Dar entrada" %}
+        </button>
+      </div>
+    </form>
+  </section>
+{% endif %}
+
+{% if conta %}
+  <section class="au-secao">
+    <div class="au-secao-cabeca">
+      <h2 class="au-secao-titulo">{% trans "Contagem de inventário" %}</h2>
+    </div>
+    {% comment %}
+      Permissão SEPARADA de movimentar, e é segregação de função: quem tira
+      material da prateleira não deveria ser quem declara quanto sobrou.
+
+      O campo é o saldo CONTADO, não a diferença. Pedir o delta obrigaria quem
+      conta a fazer a subtração de cabeça — e é aí que o inventário passa a
+      errar. Zero é contagem válida: "a prateleira está vazia" é a mais
+      importante que existe.
+    {% endcomment %}
+    <p class="au-ajuda">
+      {% blocktrans %}Digite quantos você CONTOU, não a diferença. O sistema grava a
+      correção como uma linha do razão, com o seu nome — corrigir saldo é um fato
+      registrado, e não um acerto que ninguém consegue explicar depois.{% endblocktrans %}
+    </p>
+
+    <form class="au-form" method="post"
+          action="{% url 'workspace:registrar_movimento' %}" novalidate>
+      {% csrf_token %}
+      <input type="hidden" name="tipo" value="ajuste">
+      <input type="hidden" name="volta_unidade" value="{{ filtro_unidade }}">
+
+      <div class="au-colunas au-colunas--tres">
+        <div class="au-campo">
+          <label class="au-rotulo" for="cnt-material">{% trans "Material" %}</label>
+          <select class="au-input" id="cnt-material" name="material">
+            {% for m in materiais %}
+              <option value="{{ m.codigo }}">{{ m.nome }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="au-campo">
+          <label class="au-rotulo" for="cnt-unidade">{% trans "Unidade" %}</label>
+          <select class="au-input" id="cnt-unidade" name="unidade">
+            {% for u in unidades %}
+              <option value="{{ u.pk }}" {% if unidade and u.pk == unidade.pk %}selected{% endif %}>
+                {{ u.nome }}
+              </option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="au-campo">
+          <label class="au-rotulo" for="cnt-quantidade">{% trans "Quantidade contada" %}</label>
+          <input class="au-input" id="cnt-quantidade" name="quantidade" type="number"
+                 min="0" step="1" value="0">
+        </div>
+      </div>
+
+      <div class="au-campo">
+        <label class="au-rotulo" for="cnt-observacao">{% trans "Observação" %}</label>
+        <input class="au-input" id="cnt-observacao" name="observacao" type="text"
+               maxlength="300" placeholder="{% trans 'Contagem de 18/08, prateleira B…' %}">
+      </div>
+
+      <div class="au-form-acoes">
+        <button class="au-btn au-btn--primario" type="submit">
+          {% trans "Registrar a contagem" %}
+        </button>
+      </div>
+    </form>
+  </section>
+{% endif %}
+{% endblock %}

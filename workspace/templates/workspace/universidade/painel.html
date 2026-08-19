@@ -1,0 +1,122 @@
+{% extends "workspace/_shell_modulo.html" %}
+{% load i18n wks %}
+
+{% block titulo %}{% trans "Conformidade de treinamentos" %}{% endblock %}
+{% block rail %}{% include "workspace/_rail_servicos.html" with aba="universidade" %}{% endblock %}
+{% block trilha %}
+  <a href="{% url 'workspace:universidade' %}">{% trans "Universidade" %}</a>
+  <span>{% trans "Painel" %}</span>
+{% endblock %}
+{% block pagina_titulo %}{% trans "Conformidade de treinamentos" %}{% endblock %}
+{% block voltar_url %}{% url 'workspace:universidade' %}{% endblock %}
+
+{% block corpo %}
+{% comment %}
+  A CONFORMIDADE em primeiro, e `None` quando não há matrícula nenhuma: 0% numa
+  empresa sem cursos cadastrados é um número que faz alguém agir sobre nada.
+{% endcomment %}
+<div class="au-kpi-linha">
+  <div class="au-kpi">
+    <span class="au-kpi-rotulo">{% trans "Em dia" %}</span>
+    <span class="au-kpi-valor">
+      {% if conformidade is None %}—{% else %}{{ conformidade }}%{% endif %}
+    </span>
+  </div>
+  <div class="au-kpi {% if contagem.vencido %}au-kpi--alerta{% endif %}">
+    <span class="au-kpi-rotulo">{% trans "Vencidas" %}</span>
+    <span class="au-kpi-valor">{{ contagem.vencido }}</span>
+  </div>
+  <div class="au-kpi">
+    <span class="au-kpi-rotulo">{% trans "Vencem em 30 dias" %}</span>
+    <span class="au-kpi-valor">{{ contagem.a_vencer }}</span>
+  </div>
+  <div class="au-kpi">
+    <span class="au-kpi-rotulo">{% trans "Em aberto" %}</span>
+    <span class="au-kpi-valor">{{ contagem.pendente|add:contagem.em_andamento }}</span>
+  </div>
+  <div class="au-kpi {% if contagem.atrasado %}au-kpi--alerta{% endif %}">
+    <span class="au-kpi-rotulo">{% trans "Fora do prazo" %}</span>
+    <span class="au-kpi-valor">{{ contagem.atrasado }}</span>
+  </div>
+</div>
+
+{% if criticas %}
+  <section class="au-secao">
+    <div class="au-secao-cabeca">
+      <h2 class="au-secao-titulo">{% trans "Vencidas — bloqueiam despacho" %}</h2>
+      <span class="au-secao-contagem">{{ criticas|length }}</span>
+    </div>
+    <ul class="au-lista">
+      {% for m in criticas %}
+        <li class="au-list-row">
+          <span class="au-list-titulo">{{ m.pessoa.get_full_name|default:m.pessoa.email }}</span>
+          <span class="au-list-meta">
+            {{ m.curso.nome }} ·
+            <span class="au-list-resumo au-list-resumo--alerta">
+              {% blocktrans with d=m.dias_vencido %}venceu há {{ d }} dias{% endblocktrans %}
+            </span>
+          </span>
+        </li>
+      {% endfor %}
+    </ul>
+  </section>
+{% endif %}
+
+<section class="au-secao">
+  <div class="au-secao-cabeca">
+    <h2 class="au-secao-titulo">{% trans "Por pessoa" %}</h2>
+    <span class="au-secao-contagem">{{ por_pessoa|length }}</span>
+  </div>
+
+  {% if por_pessoa %}
+    {% comment %}
+      Ordenado por quem tem PROBLEMA, não por nome: uma lista alfabética de
+      oitocentas pessoas esconde as seis que importam.
+    {% endcomment %}
+    <div class="au-tabela">
+      <table>
+        <thead>
+          <tr>
+            <th>{% trans "Pessoa" %}</th>
+            <th class="num">{% trans "Vencidas" %}</th>
+            <th class="num">{% trans "A vencer" %}</th>
+            <th>{% trans "O que está fora" %}</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for linha in por_pessoa %}
+            <tr>
+              <td>{{ linha.pessoa.get_full_name|default:linha.pessoa.email }}</td>
+              <td class="num">
+                {% if linha.vencidas %}
+                  <span class="au-etiqueta au-etiqueta--hab-vencido">{{ linha.vencidas }}</span>
+                {% else %}—{% endif %}
+              </td>
+              <td class="num">
+                {% if linha.a_vencer %}
+                  <span class="au-etiqueta au-etiqueta--hab-a_vencer">{{ linha.a_vencer }}</span>
+                {% else %}—{% endif %}
+              </td>
+              <td>
+                {% for m in linha.matriculas %}
+                  {% if m.estado == 'vencido' or m.estado == 'a_vencer' or m.estado == 'atrasado' %}
+                    <span class="au-selo">{{ m.curso.nome }}</span>
+                  {% endif %}
+                {% endfor %}
+              </td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  {% else %}
+    <div class="au-vazio">
+      <p class="au-vazio-titulo">{% trans "Nenhuma matrícula cadastrada." %}</p>
+      <p class="au-vazio-dica">
+        {% blocktrans %}Cadastre os cursos e matricule as pessoas para que o painel
+        passe a avisar antes de a habilitação vencer.{% endblocktrans %}
+      </p>
+    </div>
+  {% endif %}
+</section>
+{% endblock %}

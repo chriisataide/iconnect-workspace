@@ -4,7 +4,7 @@
 {% block titulo %}{{ publicacao.titulo }}{% endblock %}
 
 {% block conteudo %}
-  <nav class="au-voltar" aria-label="{% trans 'Navegação' %}">
+  <nav class="au-voltar-nav" aria-label="{% trans 'Navegação' %}">
     <a class="au-btn au-btn--sutil" href="{% url 'workspace:home' %}">
       <svg class="au-icon au-icon--espelhado" aria-hidden="true"><use href="#i-seta"></use></svg>
       {% trans "Workspace" %}

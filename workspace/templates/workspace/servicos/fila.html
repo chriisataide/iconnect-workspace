@@ -95,6 +95,19 @@
         <tr>
           <th>{% trans "Serviço" %}</th>
           <th>{% trans "Quem pediu" %}</th>
+          {% comment %}
+            §7 — a fila mostra SITUAÇÃO e PRIORIDADE, e não só quem pediu e há
+            quanto tempo. Sem as duas colunas, quem atende não distinguia o que
+            já foi assumido do que ninguém pegou, nem o que estourou o prazo do
+            que ainda tem folga — as duas perguntas que se faz ao abrir a tela.
+
+            A prioridade é DERIVADA do prazo prometido, nunca declarada por
+            quem pede: prioridade declarada é sempre a mesma história — no
+            primeiro mês todo mundo marca "normal", no terceiro todo mundo marca
+            "urgente", e a coluna deixa de significar qualquer coisa.
+          {% endcomment %}
+          <th>{% trans "Situação" %}</th>
+          <th>{% trans "Prioridade" %}</th>
           <th>{% trans "Esperando há" %}</th>
           <th class="num">{% trans "Valor" %}</th>
           <th>{% trans "Atendente" %}</th>
@@ -122,6 +135,14 @@
               {% endif %}
             </td>
             <td>{{ s.solicitante.get_full_name|default:s.solicitante.email }}</td>
+            <td>
+              <span class="au-etiqueta au-etiqueta--{{ s.situacao }}">{{ s.fase }}</span>
+            </td>
+            <td>
+              <span class="au-etiqueta au-etiqueta--prio-{{ s.prioridade }}">
+                {{ s.prioridade_rotulo }}
+              </span>
+            </td>
             <td>
               {% comment %}
                 Dias corridos contra o prazo PROMETIDO do item — o mesmo número
@@ -163,13 +184,76 @@
                   ele, quem recebe de volta adivinha, e adivinhar gera um
                   segundo envio igualmente errado.
                 {% endcomment %}
-                <input class="au-input au-input--compacto" type="text" name="motivo"
+                {% comment %}
+                  Rótulo de verdade, ainda que invisível — §49. `placeholder`
+                  não é rótulo: some no instante em que a pessoa digita, e o
+                  leitor de tela trata cada navegador de um jeito. Era o único
+                  campo do produto que dependia só dele.
+                {% endcomment %}
+                <label class="au-sr" for="motivo-{{ s.pk }}">
+                  {% trans "Motivo da devolução" %}
+                </label>
+                <input class="au-input au-input--compacto" id="motivo-{{ s.pk }}"
+                       type="text" name="motivo"
                        placeholder="{% trans 'motivo, para devolver' %}">
                 <button class="au-btn au-btn--sutil au-btn--pequeno" type="submit"
                         name="acao" value="devolver">
                   {% trans "Devolver" %}
                 </button>
               </form>
+
+              {% comment %}
+                PERGUNTAR SEM DEVOLVER — §45.
+
+                Devolver tira o pedido da fila, faz ele perder a posição e volta
+                como se estivesse errado. "Qual o número de série?" não é isso —
+                e enquanto essa era a única saída, a pergunta ia por WhatsApp e
+                sumia junto com a explicação de por que o pedido demorou.
+
+                `interno` marcado guarda a nota entre atendentes: "conferir se o
+                contrato cobre isso" não é assunto de quem pediu.
+              {% endcomment %}
+              <details class="au-devolver">
+                <summary class="au-btn au-btn--sutil au-btn--pequeno">
+                  {% trans "Comentar" %}
+                  {% if s.comentarios.all %}
+                    <span class="au-selo">{{ s.comentarios.all|length }}</span>
+                  {% endif %}
+                </summary>
+                <div class="au-devolver-corpo">
+                  {% if s.comentarios.all %}
+                    <ul class="au-conversa">
+                      {% for c in s.comentarios.all %}
+                        <li class="au-conversa-fala {% if c.interno %}au-conversa-fala--interna{% endif %}">
+                          <span class="au-conversa-quem">
+                            {{ c.autor.get_short_name|default:c.autor.email }}
+                            <time datetime="{{ c.criado_em|date:'c' }}">{{ c.criado_em|date:"d/m H:i" }}</time>
+                            {% if c.interno %}
+                              <span class="au-conversa-selo">{% trans "interno" %}</span>
+                            {% endif %}
+                          </span>
+                          <span class="au-conversa-texto">{{ c.texto|linebreaksbr }}</span>
+                        </li>
+                      {% endfor %}
+                    </ul>
+                  {% endif %}
+                  <form class="au-conversa-form" method="post"
+                        action="{% url 'workspace:atender' s.pk %}">
+                    {% csrf_token %}
+                    <label class="au-sr" for="c-{{ s.pk }}">{% trans "Comentário" %}</label>
+                    <textarea class="au-input" id="c-{{ s.pk }}" name="texto" rows="2"
+                              placeholder="{% trans 'Pergunte sem devolver o pedido' %}"></textarea>
+                    <label class="au-rotulo" for="int-{{ s.pk }}">
+                      <input class="au-check" id="int-{{ s.pk }}" name="interno" type="checkbox">
+                      {% trans "Só a área vê" %}
+                    </label>
+                    <button class="au-btn au-btn--sutil au-btn--pequeno" type="submit"
+                            name="acao" value="comentar">
+                      {% trans "Comentar" %}
+                    </button>
+                  </form>
+                </div>
+              </details>
             </td>
           </tr>
         {% endfor %}

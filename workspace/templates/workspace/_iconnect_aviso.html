@@ -1,0 +1,39 @@
+{% load i18n %}
+{% comment %}
+  O aviso de que a leitura do iConnect não aconteceu — §53.
+
+  Um bloco só, incluído pelas duas telas, porque a mensagem tem de ser a mesma:
+  duas versões do mesmo aviso divergem, e a que diverge é a que diz algo técnico.
+
+  Três estados diferentes, e a distinção importa:
+
+  * **não configurado** — o Workspace roda sem o iConnect, e isso é normal, não
+    falha. Dizer "erro" aqui faria uma instalação sadia parecer quebrada.
+  * **não conectado** — a pessoa entrou por senha, sem passar pelo SSO. Não há
+    token dela; o caminho é entrar pelo iConnect.
+  * **não respondeu** — tentou e não deu. A tela mostra o que sabe.
+{% endcomment %}
+{% if not configurado %}
+  <div class="au-aviso au-aviso--warning">
+    <b>{% trans "A integração com o iConnect não está configurada neste ambiente." %}</b>
+    {% blocktrans %}Os chamados continuam sendo abertos e acompanhados no iConnect.{% endblocktrans %}
+    <a href="{{ iconnect_url }}" rel="noopener noreferrer" target="_blank">
+      {% trans "Abrir o iConnect" %}
+    </a>
+  </div>
+{% elif not conectado %}
+  <div class="au-aviso au-aviso--warning">
+    <b>{% trans "Você não está conectado ao iConnect nesta sessão." %}</b>
+    {% blocktrans %}Entre pelo iConnect e volte — a ligação entre os dois é feita no
+    login, e dura enquanto você estiver aqui.{% endblocktrans %}
+    <a href="{{ iconnect_url }}" rel="noopener noreferrer" target="_blank">
+      {% trans "Entrar pelo iConnect" %}
+    </a>
+  </div>
+{% elif aviso %}
+  <div class="au-aviso au-aviso--error" role="alert">
+    <b>{{ aviso }}</b>
+    {% blocktrans %}O que está abaixo é o que o Workspace já sabia. Recarregue em
+    instantes.{% endblocktrans %}
+  </div>
+{% endif %}

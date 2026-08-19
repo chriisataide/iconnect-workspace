@@ -91,6 +91,10 @@ MIDDLEWARE = [
     # Cabeçalhos de segurança, com a CSP estrita. Nosso, e não de biblioteca:
     # são 40 linhas cuja razão de existir é ser explícita e testada.
     "iconnect_workspace.seguranca.CabecalhosDeSeguranca",
+    # A ponte SSO → JWT (§21). DEPOIS de `AuthenticationMiddleware` e de
+    # `SessionMiddleware`, porque escreve na sessão. Sem `ICONNECT_API_URL`
+    # configurada ele não faz nada além de um `if` por requisição.
+    "workspace.integracoes.middleware.PonteSSO",
 ]
 
 ROOT_URLCONF = "iconnect_workspace.urls"
@@ -113,6 +117,7 @@ TEMPLATES = [
                 # de cada view lembrar garante que uma esqueça — foi exatamente
                 # assim que a topbar já perdeu o sino uma vez.
                 "workspace.context.rail",
+                "workspace.context.assistente",
             ],
         },
     },
@@ -202,11 +207,33 @@ X_FRAME_OPTIONS = "DENY"
 SESSION_COOKIE_NAME = "wks_sessao"
 CSRF_COOKIE_NAME = "wks_csrf"
 
-# ── A única ligação com o iConnect Platform ─────────────────────────
+# ── A ligação com o iConnect Platform ───────────────────────────────
+#
+# Eram um link e nada mais. Continuam sendo **dois produtos, dois deploys, dois
+# bancos** — o que mudou é que o Workspace passou a LER o iConnect por HTTP, em
+# vez de recriar dentro de si o que já existe lá (§20, §21, §38, §52).
+#
+# A direção da leitura é sempre a mesma: o Workspace pergunta, o iConnect
+# responde. Nunca o contrário, e nunca escrita — abrir chamado continua sendo no
+# iConnect, que é onde ele é atendido.
 
-# Um link, e nada mais. É o destino do tile no launcher da home; não há API,
-# banco ou sessão em comum. Mudou o endereço do iConnect? Muda esta variável.
+# O destino do tile no launcher e dos cards que levam para fora.
 ICONNECT_URL = _env("ICONNECT_URL", "https://app.icodev.com.br/login/")
+
+# A raiz da API. VAZIA por padrão, e é isso que mantém o produto instalável sem
+# o iConnect: sem esta variável, `integracoes.disponivel()` é falso, as telas
+# que dependem dela dizem isso em português, e nada mais quebra.
+ICONNECT_API_URL = _env("ICONNECT_API_URL", "").rstrip("/")
+
+# Segundos. Curto de propósito: a chamada acontece DENTRO de uma requisição do
+# Workspace, e um iConnect lento não pode virar um Workspace lento. Estourou o
+# tempo, a tela mostra o que sabe e diz que a outra parte não respondeu.
+ICONNECT_TIMEOUT = float(_env("ICONNECT_TIMEOUT", "4"))
+
+# O segredo compartilhado do §2 da API do iConnect: quando configurado dos dois
+# lados, o `sso-exchange` exige o header `X-Workspace-Secret`. Vazio, a checagem
+# é pulada do outro lado — é o que permite o rollout independente.
+WORKSPACE_SHARED_SECRET = _env("WORKSPACE_SHARED_SECRET", "")
 
 # ── Financeiro ──────────────────────────────────────────────────────
 

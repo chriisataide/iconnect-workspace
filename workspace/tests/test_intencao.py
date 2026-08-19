@@ -313,22 +313,45 @@ def test_semente_aplicada_permite_intencao_realista():
     call_command("semear_catalogo", "--aplicar", stdout=StringIO())
 
     esperado = {
-        "quero solicitar ferias": "ferias",
+        # Férias saiu do catálogo no §10. A frase continua sendo dita, e quem
+        # responde agora é o assistente — não o motor de intenção, que só sabe
+        # apontar para item que existe.
+        "preciso de senha do erp": "acesso-sistema",
         "preciso de um notebook novo": "notebook",
         # A tela virou "Prestação de contas", mas ninguém digita isso: quem
         # gastou com Uber escreve "reembolso". O termo continua na semente
         # justamente para que a mudança de nome não quebre quem procura.
         "gastei com uber, quero reembolso": "prestacao-contas",
         "meu equipamento parou de funcionar": "equipamento-quebrado",
-        "preciso de um capacete": "epi",
-        "quero solicitar home office": "home-office",
+        # EPI, uniforme e material viraram um item só; a intenção continua
+        # chegando no lugar certo, que é o ponto da semente de termos.
+        "preciso de um capacete": "controle-materiais",
         "minha nr-35 esta vencendo": "reciclagem-nr",
-        "quero reservar um carro": "veiculo",
     }
     for frase, chave in esperado.items():
         acao = intencao.interpretar(frase)
         assert acao is not None, f"{frase!r} não virou ação"
         assert acao.item.chave == chave, f"{frase!r} → {acao.item.chave}, esperado {chave}"
+
+
+def test_reservar_carro_nao_oferece_mais_o_item_aposentado(db):
+    """§18 — o item "Veículo da empresa" duplicava a grade de Reservas.
+
+    Ele guardava o período como TEXTO LIVRE, então marcar por um caminho não
+    bloqueava o outro: duas equipes chegavam na porta esperando a mesma van. O
+    item foi desativado, e o motor de intenção só aponta para item ATIVO — quem
+    digita "reservar um carro" é atendido pelo assistente, que manda para a
+    grade.
+    """
+    from io import StringIO
+
+    from django.core.management import call_command
+
+    call_command("semear_catalogo", "--aplicar", stdout=StringIO())
+
+    acao = intencao.interpretar("quero reservar um carro")
+
+    assert acao is None or acao.item.chave != "veiculo"
 
 
 def test_fragmento_curto_nao_vira_acao(catalogo):

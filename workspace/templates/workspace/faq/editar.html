@@ -1,0 +1,98 @@
+{% extends "workspace/_shell_modulo.html" %}
+{% load i18n wks %}
+
+{% block titulo %}{% if pergunta %}{% trans "Editar pergunta" %}{% else %}{% trans "Nova pergunta" %}{% endif %}{% endblock %}
+{% block rail %}{% include "workspace/_rail_servicos.html" with aba="faq" %}{% endblock %}
+{% block trilha %}
+  <a href="{% url 'workspace:faq' %}">{% trans "Base de conhecimento" %}</a>
+  <span>{% if pergunta %}{{ pergunta.pergunta }}{% else %}{% trans "Nova" %}{% endif %}</span>
+{% endblock %}
+{% block pagina_titulo %}
+  {% if pergunta %}{% trans "Editar pergunta" %}{% else %}{% trans "Nova pergunta" %}{% endif %}
+{% endblock %}
+{% block voltar_url %}{% url 'workspace:faq' %}{% endblock %}
+
+{% block corpo %}
+<form class="au-form" method="post" novalidate
+      action="{% if pergunta %}{% url 'workspace:faq_editar' pergunta.pk %}{% else %}{% url 'workspace:faq_nova' %}{% endif %}">
+  {% csrf_token %}
+
+  <div class="au-colunas au-colunas--duas">
+    <div class="au-campo">
+      <label class="au-rotulo" for="area">
+        {% trans "Área" %} <span class="au-obrigatorio" aria-hidden="true">*</span>
+      </label>
+      <select class="au-input" id="area" name="area">
+        {% for valor, rotulo in areas %}
+          <option value="{{ valor }}" {% if pergunta.area == valor %}selected{% endif %}>{{ rotulo }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="au-campo">
+      <label class="au-rotulo" for="prioridade">{% trans "Prioridade" %}</label>
+      <input class="au-input" id="prioridade" name="prioridade" type="number"
+             min="0" max="100" value="{{ pergunta.prioridade|default:0 }}">
+      <p class="au-ajuda">{% trans "Maior aparece primeiro quando duas casam com a mesma frase." %}</p>
+    </div>
+  </div>
+
+  <div class="au-campo">
+    <label class="au-rotulo" for="pergunta">
+      {% trans "Pergunta" %} <span class="au-obrigatorio" aria-hidden="true">*</span>
+    </label>
+    <input class="au-input" id="pergunta" name="pergunta" type="text" maxlength="200"
+           value="{{ pergunta.pergunta|default:'' }}" required
+           placeholder="{% trans 'Como solicitar férias?' %}">
+  </div>
+
+  <div class="au-campo">
+    <label class="au-rotulo" for="resposta">
+      {% trans "Resposta" %} <span class="au-obrigatorio" aria-hidden="true">*</span>
+    </label>
+    <textarea class="au-input" id="resposta" name="resposta" rows="8" required>{{ pergunta.resposta|default:'' }}</textarea>
+    <p class="au-ajuda">
+      {% blocktrans %}Descreva o que o Workspace faz — qual item abrir, para onde vai,
+      quanto demora. Política que não está escrita em lugar nenhum não deve ser
+      inventada aqui.{% endblocktrans %}
+    </p>
+  </div>
+
+  <div class="au-campo">
+    <label class="au-rotulo" for="palavras_chave">{% trans "Palavras-chave" %}</label>
+    <textarea class="au-input" id="palavras_chave" name="palavras_chave" rows="5"
+              placeholder="ferias&#10;descanso&#10;folga">{{ palavras_texto }}</textarea>
+    <p class="au-ajuda">
+      {% blocktrans %}Uma por linha — como as pessoas perguntam isto, não como o
+      manual chama. É o campo que faz a pergunta ser encontrada.{% endblocktrans %}
+    </p>
+  </div>
+
+  <div class="au-colunas au-colunas--duas">
+    <div class="au-campo">
+      <label class="au-rotulo" for="url_acao">{% trans "Link da ação" %}</label>
+      <input class="au-input" id="url_acao" name="url_acao" type="text" maxlength="300"
+             value="{{ pergunta.url_acao|default:'' }}"
+             placeholder="/workspace/servicos/ferias/">
+      <p class="au-ajuda">{% trans "Caminho interno. Responder e oferecer o caminho vale mais que só responder." %}</p>
+    </div>
+    <div class="au-campo">
+      <label class="au-rotulo" for="rotulo_acao">{% trans "Texto do botão" %}</label>
+      <input class="au-input" id="rotulo_acao" name="rotulo_acao" type="text" maxlength="60"
+             value="{{ pergunta.rotulo_acao|default:'' }}" placeholder="{% trans 'Pedir férias' %}">
+    </div>
+  </div>
+
+  <div class="au-campo">
+    <label class="au-rotulo" for="ativo">
+      <input class="au-check" id="ativo" name="ativo" type="checkbox"
+             {% if not pergunta or pergunta.ativo %}checked{% endif %}>
+      {% trans "Ativa — o assistente pode responder com ela" %}
+    </label>
+  </div>
+
+  <div class="au-form-acoes">
+    <a class="au-btn au-btn--sutil" href="{% url 'workspace:faq' %}">{% trans "Cancelar" %}</a>
+    <button class="au-btn au-btn--primario" type="submit">{% trans "Salvar" %}</button>
+  </div>
+</form>
+{% endblock %}

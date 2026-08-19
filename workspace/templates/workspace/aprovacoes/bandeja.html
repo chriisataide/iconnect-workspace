@@ -184,6 +184,23 @@
           {% endif %}
 
           <div class="au-bandeja-acoes">
+            {% comment %}
+              VER O PEDIDO INTEIRO antes de decidir. A bandeja mostrava a barra
+              de orçamento e os comprovantes e não mostrava o que a pessoa tinha
+              pedido — decidir exigia abrir "Minhas solicitações" de outro
+              alguém, o que ninguém pode, ou perguntar por mensagem.
+
+              É o MESMO modal de "Minhas solicitações", e de propósito: dois
+              resumos do mesmo pedido divergem na terceira semana, e aí o
+              aprovador e o solicitante passam a ler fatos diferentes.
+            {% endcomment %}
+            {% if entrada.servico %}
+              <button class="au-btn au-btn--sutil au-btn--pequeno" type="button"
+                      data-abre-resumo="resumo-{{ entrada.servico.pk }}">
+                <svg class="au-icon au-icon--mini" aria-hidden="true"><use href="#i-search"></use></svg>
+                {% trans "Ver o pedido" %}
+              </button>
+            {% endif %}
             <button class="au-btn au-btn--primario au-btn--pequeno" type="submit"
                     form="aprovar-{{ s.pk }}">
               <svg class="au-icon au-icon--mini" aria-hidden="true"><use href="#i-check"></use></svg>
@@ -203,6 +220,33 @@
                        placeholder="{% trans 'faltou a nota fiscal' %}">
                 <button class="au-btn au-btn--sutil au-btn--pequeno" type="submit"
                         form="devolver-{{ s.pk }}">{% trans "Devolver com este motivo" %}</button>
+              </div>
+            </details>
+            {% comment %}
+              REPROVAR, separado de devolver — são decisões diferentes e a tela
+              precisa dizer isso antes do clique. Devolver mantém o pedido vivo
+              esperando correção; reprovar encerra. Enquanto só existia o
+              primeiro, negar significava devolver, e o pedido voltava em ciclo
+              até quem pediu desistir por cansaço.
+
+              Fechado num `<details>` pelo mesmo motivo do devolver: o motivo é
+              obrigatório, e um botão que reprova em um clique é um botão que
+              reprova sem querer.
+            {% endcomment %}
+            <details class="au-devolver au-devolver--recusa">
+              <summary class="au-btn au-btn--sutil au-btn--pequeno">
+                <svg class="au-icon au-icon--mini" aria-hidden="true"><use href="#i-x"></use></svg>
+                {% trans "Reprovar" %}
+              </summary>
+              <div class="au-devolver-corpo">
+                <label class="au-rotulo" for="recusa-{{ s.pk }}">
+                  {% trans "Por que está reprovando?" %}
+                </label>
+                <input class="au-input" id="recusa-{{ s.pk }}" name="justificativa"
+                       form="rejeitar-{{ s.pk }}" type="text" required
+                       placeholder="{% trans 'fora do orçamento deste ano' %}">
+                <button class="au-btn au-btn--sutil au-btn--pequeno" type="submit"
+                        form="rejeitar-{{ s.pk }}">{% trans "Reprovar em definitivo" %}</button>
               </div>
             </details>
           </div>
@@ -231,7 +275,14 @@
             action="{% url 'workspace:decidir_aprovacao' s.pk %}" hidden>
         {% csrf_token %}<input type="hidden" name="decisao" value="devolver">
       </form>
+      <form id="rejeitar-{{ s.pk }}" method="post"
+            action="{% url 'workspace:decidir_aprovacao' s.pk %}" hidden>
+        {% csrf_token %}<input type="hidden" name="decisao" value="rejeitar">
+      </form>
     {% endwith %}
+    {% if entrada.servico %}
+      {% include "workspace/servicos/_resumo_solicitacao.html" with s=entrada.servico %}
+    {% endif %}
   {% endfor %}
 {% else %}
   <div class="au-vazio">

@@ -73,6 +73,16 @@
 {% else %}
   <div class="au-vazio">
     <p class="au-vazio-titulo">{% trans "Você não tem reservas." %}</p>
+      {% comment %}
+        A dica, e não só a constatação — §49. "Você não tem reservas" é um fato;
+        o que a pessoa precisa é do caminho. Era o único estado vazio do produto
+        que parava no título.
+      {% endcomment %}
+      <p class="au-vazio-dica">
+        {% blocktrans %}Salas, veículos e equipamentos ficam em Reservas, com a agenda
+        do dia à vista — e há um atalho de “Livres agora” para quando você precisa
+        de sala já.{% endblocktrans %}
+      </p>
     <p><a class="au-btn au-btn--primario" href="{% url 'workspace:reservas' %}">
       {% trans "Ver os recursos" %}
     </a></p>

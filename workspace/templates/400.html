@@ -1,0 +1,23 @@
+{% extends "erros/_pagina.html" %}
+{% load i18n %}
+
+{% block titulo %}{% trans "Pedido inválido" %}{% endblock %}
+{% block codigo %}400{% endblock %}
+{% block cabecalho %}{% trans "O navegador mandou algo que não dá para ler." %}{% endblock %}
+
+{% block explicacao %}
+  {% comment %}
+    Na prática há duas causas, e as duas se resolvem do mesmo jeito: sessão
+    expirada com token de CSRF velho (a aba ficou aberta a noite inteira) e
+    formulário reenviado depois do prazo. Dizer isso é mais útil que "requisição
+    malformada", que não sugere nenhuma ação a ninguém.
+  {% endcomment %}
+  <p>
+    {% blocktrans %}Quase sempre é uma aba que ficou aberta tempo demais: a sessão
+    expirou e o formulário foi enviado com a credencial antiga.{% endblocktrans %}
+  </p>
+  <p>
+    {% blocktrans %}Recarregue a página e envie de novo. Se você tinha texto digitado,
+    copie antes de recarregar.{% endblocktrans %}
+  </p>
+{% endblock %}

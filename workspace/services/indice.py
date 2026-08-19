@@ -119,12 +119,27 @@ def indexar_documento(documento) -> None:
     )
 
 
-def indexar_publicacao(publicacao) -> None:
-    """Comunicado ou notícia. Só o que está no ar.
+def sujeitos_da_publicacao(publicacao) -> list[str]:
+    """O público-alvo da publicação no vocabulário do índice — §48.
 
-    Publicação não tem público-alvo ainda (é COM, onda seguinte), então entra
-    como `*`. Quando ganhar segmentação, muda só esta função.
+    Esta função nasceu de um vazamento. `indexar_publicacao` dizia "publicação
+    não tem público-alvo ainda" e gravava `["*"]`; o campo tinha nascido no §9 e
+    o comentário ficou para trás. A home filtrava certo com `.para()`, e a BUSCA
+    devolvia a todo mundo — inclusive a quem nunca entrou — o comunicado
+    endereçado a um departamento.
+
+    VAZIO significa a empresa inteira, e não ninguém: é a mesma regra de
+    `PublicacaoQuerySet.para()`, e as duas precisam concordar.
     """
+    sujeitos = [f"unidade:{pk}" for pk in publicacao.unidades.values_list("pk", flat=True)]
+    sujeitos += [
+        f"depto:{pk}" for pk in publicacao.departamentos.values_list("pk", flat=True)
+    ]
+    return sujeitos or ["*"]
+
+
+def indexar_publicacao(publicacao) -> None:
+    """Comunicado ou notícia. Só o que está no ar, e só para quem alcança."""
     from workspace.models.comunicacao import TipoPublicacao
 
     if not publicacao.no_ar:
@@ -141,7 +156,7 @@ def indexar_publicacao(publicacao) -> None:
         corpo=publicacao.corpo,
         url=f"/workspace/publicacao/{publicacao.pk}/",
         icone="megafone" if e_comunicado else "jornal",
-        sujeitos=["*"],
+        sujeitos=sujeitos_da_publicacao(publicacao),
     )
 
 
@@ -173,33 +188,191 @@ def indexar_item(item) -> None:
     )
 
 
+def indexar_faq(pergunta) -> None:
+    """Pergunta frequente — §57. Institucional, entra como `*`.
+
+    A base do assistente já era buscável POR ELE, e não pela busca do portal:
+    quem digitava "como peço férias" no ⌘K não achava a resposta que o painel
+    do canto responderia na hora.
+    """
+    if not pergunta.ativo:
+        remover("faq.pergunta", pergunta.pk)
+        return
+
+    indexar(
+        dominio="faq.pergunta",
+        origem_id=pergunta.pk,
+        origem=OrigemIndice.FAQ,
+        titulo=pergunta.pergunta,
+        subtitulo=pergunta.get_area_display(),
+        # A resposta E as palavras-chave entram no texto buscável: é o mesmo
+        # casamento que o assistente faz, e duas buscas que discordam sobre a
+        # mesma base são piores que uma busca só.
+        corpo=f"{pergunta.resposta} {' '.join(pergunta.palavras_chave or [])}",
+        url=f"/workspace/ajuda/?p={pergunta.pk}",
+        icone="spark",
+        sujeitos=["*"],
+    )
+
+
+def indexar_curso(curso) -> None:
+    """Curso da Universidade — §57. O catálogo de cursos é institucional."""
+    if not curso.ativo:
+        remover("hab.curso", curso.pk)
+        return
+
+    indexar(
+        dominio="hab.curso",
+        origem_id=curso.pk,
+        origem=OrigemIndice.CURSO,
+        titulo=curso.nome,
+        subtitulo=curso.get_tipo_display(),
+        corpo=curso.descricao or "",
+        url="/workspace/universidade/",
+        icone="book",
+        sujeitos=["*"],
+    )
+
+
+def indexar_recurso(recurso) -> None:
+    """Sala, veículo ou equipamento reservável — §57.
+
+    Quem digita "auditório" quer marcar o auditório, e antes disto a busca só
+    achava a palavra se ela aparecesse num comunicado.
+    """
+    if not recurso.ativo:
+        remover("res.recurso", recurso.pk)
+        return
+
+    indexar(
+        dominio="res.recurso",
+        origem_id=recurso.pk,
+        origem=OrigemIndice.RECURSO,
+        titulo=recurso.nome,
+        subtitulo=recurso.get_tipo_display(),
+        corpo=recurso.descricao or "",
+        url=f"/workspace/reservas/{recurso.codigo}/",
+        icone="pin",
+        sujeitos=["*"],
+    )
+
+
+def indexar_solicitacao(solicitacao) -> None:
+    """O pedido da pessoa — §57, e o único caso de conteúdo PESSOAL no índice.
+
+    Sujeito `pessoa:N` e nunca `*`: o recorte acontece no `WHERE`, então o
+    pedido de reembolso de alguém não aparece na contagem de resultado de mais
+    ninguém. É o mesmo mecanismo do público-alvo do documento — o vocabulário
+    de sujeitos foi desenhado exatamente para isto.
+
+    Só o NOME do serviço vai para o texto buscável. **O formulário não entra**:
+    ali moram atestado, dados bancários e motivo de afastamento, e um índice que
+    varre isso transforma a caixa de busca num vazador de dado sensível para
+    quem espia a tela de alguém. É a mesma regra de `listagem.filtrar_minhas`.
+    """
+    from workspace.models.catalogo import SITUACOES_NAO_ENVIADAS
+
+    if solicitacao.situacao in SITUACOES_NAO_ENVIADAS:
+        # Rascunho não é pedido: ele está no formulário, não na esteira.
+        remover("svc.solicitacao", solicitacao.pk)
+        return
+
+    indexar(
+        dominio="svc.solicitacao",
+        origem_id=solicitacao.pk,
+        origem=OrigemIndice.SOLICITACAO,
+        titulo=f"{solicitacao.item.nome} · #{solicitacao.pk}",
+        subtitulo=solicitacao.fase,
+        corpo="",
+        url="/workspace/minhas-solicitacoes/",
+        icone="file",
+        sujeitos=[f"pessoa:{solicitacao.solicitante_id}"],
+    )
+
+
+def indexar_correspondencia(correspondencia) -> None:
+    """A correspondência da pessoa — §57. Pessoal, como a solicitação.
+
+    Sem destinatário identificado não entra: não há sujeito a quem endereçar, e
+    `*` entregaria à empresa inteira o que chegou para alguém.
+    """
+    if correspondencia.destinatario_id is None:
+        remover("cor.correspondencia", correspondencia.pk)
+        return
+
+    indexar(
+        dominio="cor.correspondencia",
+        origem_id=correspondencia.pk,
+        origem=OrigemIndice.CORRESPONDENCIA,
+        titulo=correspondencia.get_tipo_display(),
+        subtitulo=correspondencia.remetente or correspondencia.descricao,
+        corpo=f"{correspondencia.numero_rastreio} {correspondencia.empresa}",
+        url="/workspace/correspondencias/",
+        icone="jornal",
+        sujeitos=[f"pessoa:{correspondencia.destinatario_id}"],
+    )
+
+
 # ── Reindexação completa ────────────────────────────────────────────
 
 
-def reindexar() -> dict[str, int]:
-    """Reconstrói o índice a partir das origens. Idempotente."""
-    from workspace.models.catalogo import ItemCatalogo
+#: `(model, função, precisa estar ativo?)` — as origens do índice em UM lugar.
+#:
+#: Uma tabela e não uma sequência de laços: cada origem nova precisa entrar na
+#: reindexação E nos sinais, e a versão que esquece um dos dois produz índice
+#: que só conserta com `reindexar_busca` rodado à mão.
+def _origens():
+    from workspace.models.catalogo import ItemCatalogo, SolicitacaoServico
     from workspace.models.comunicacao import Publicacao
     from workspace.models.conteudo import Documento
+    from workspace.models.correspondencia import Correspondencia
+    from workspace.models.faq import PerguntaFrequente
+    from workspace.models.habilitacao import Curso
+    from workspace.models.reserva import Recurso
 
-    contagem = {"documentos": 0, "publicacoes": 0, "servicos": 0, "removidas": 0}
+    return (
+        ("documentos", Documento, indexar_documento, "cnt.documento"),
+        ("publicacoes", Publicacao, indexar_publicacao, "com.publicacao"),
+        ("servicos", ItemCatalogo, indexar_item, "svc.item"),
+        ("faq", PerguntaFrequente, indexar_faq, "faq.pergunta"),
+        ("cursos", Curso, indexar_curso, "hab.curso"),
+        ("recursos", Recurso, indexar_recurso, "res.recurso"),
+        ("solicitacoes", SolicitacaoServico, indexar_solicitacao, "svc.solicitacao"),
+        (
+            "correspondencias",
+            Correspondencia,
+            indexar_correspondencia,
+            "cor.correspondencia",
+        ),
+    )
+
+
+def reindexar() -> dict[str, int]:
+    """Reconstrói o índice a partir das origens. Idempotente.
+
+    Percorre a tabela `_origens()` em vez de repetir um laço por model: cada
+    origem nova precisa entrar aqui E nos sinais, e a versão que esquece um dos
+    dois produz índice que só conserta com o comando rodado à mão.
+
+    Quem decide se a linha ENTRA é o próprio adaptador — documento vencido,
+    curso inativo e rascunho se removem sozinhos. A contagem é feita depois,
+    pelo que sobrou no índice: contar aqui exigiria repetir cada uma dessas
+    regras, e a cópia diverge.
+    """
+    contagem: dict[str, int] = {"removidas": 0}
 
     vistos: set[tuple[str, str]] = set()
-    for documento in Documento.objects.all():
-        indexar_documento(documento)
-        if documento.vigente:
-            vistos.add(("cnt.documento", str(documento.pk)))
-            contagem["documentos"] += 1
-    for publicacao in Publicacao.objects.all():
-        indexar_publicacao(publicacao)
-        if publicacao.no_ar:
-            vistos.add(("com.publicacao", str(publicacao.pk)))
-            contagem["publicacoes"] += 1
-    for item in ItemCatalogo.objects.all():
-        indexar_item(item)
-        if item.ativo:
-            vistos.add(("svc.item", str(item.pk)))
-            contagem["servicos"] += 1
+    for rotulo, model, adaptador, dominio in _origens():
+        for objeto in model.objects.all():
+            adaptador(objeto)
+        # `vistos` sai da ORIGEM e nunca do índice. Do índice, a entrada órfã —
+        # a que sobrou de um objeto apagado sem passar pelo sinal — se
+        # declararia vista e nunca seria removida, que é justamente o caso que a
+        # reindexação existe para consertar.
+        vistos |= {
+            (dominio, str(pk)) for pk in model.objects.values_list("pk", flat=True)
+        }
+        contagem[rotulo] = EntradaIndice.objects.filter(dominio=dominio).count()
 
     # Órfãs: entrada cuja origem foi apagada direto no banco, sem passar pelo
     # sinal. Reindexação é o único lugar que pode limpar isso.
@@ -214,45 +387,65 @@ def reindexar() -> dict[str, int]:
 # ── Sinais ──────────────────────────────────────────────────────────
 
 
-def _ao_salvar_documento(sender, instance, **kwargs) -> None:
-    indexar_documento(instance)
+def _ao_salvar(adaptador):
+    """Fecha o adaptador num receptor. `weak=False` no `connect` é obrigatório:
+    a função nasce aqui e morreria antes do primeiro `save()`."""
+
+    def receptor(sender, instance, **kwargs) -> None:
+        adaptador(instance)
+
+    return receptor
 
 
-def _ao_apagar_documento(sender, instance, **kwargs) -> None:
-    remover("cnt.documento", instance.pk)
+def _ao_apagar(dominio: str):
+    def receptor(sender, instance, **kwargs) -> None:
+        remover(dominio, instance.pk)
+
+    return receptor
 
 
-def _ao_salvar_publicacao(sender, instance, **kwargs) -> None:
-    indexar_publicacao(instance)
+def _ao_mudar_alvo(sender, instance, action, **kwargs) -> None:
+    """Reindexa quando o público-alvo muda — §48.
 
-
-def _ao_apagar_publicacao(sender, instance, **kwargs) -> None:
-    remover("com.publicacao", instance.pk)
-
-
-def _ao_salvar_item(sender, instance, **kwargs) -> None:
-    indexar_item(instance)
-
-
-def _ao_apagar_item(sender, instance, **kwargs) -> None:
-    remover("svc.item", instance.pk)
+    `post_save` não basta e a diferença é um vazamento: o M2M é gravado DEPOIS
+    do `save()`, então o índice guardaria o alcance anterior. Na criação, o
+    anterior é "nenhum alvo" — ou seja, a empresa inteira —, e a segmentação que
+    quem publica acabou de escolher não valeria na busca.
+    """
+    if action in ("post_add", "post_remove", "post_clear"):
+        indexar_publicacao(instance)
 
 
 def conectar() -> None:
-    """Liga os sinais. Chamado no `ready()` do app."""
-    from django.db.models.signals import post_delete, post_save
+    """Liga os sinais. Chamado no `ready()` do app.
 
-    from workspace.models.catalogo import ItemCatalogo
+    Sai da MESMA tabela `_origens()` que a reindexação: sinal e reindexação que
+    conhecem listas diferentes é como uma origem passa a existir só depois de
+    alguém rodar o comando à mão.
+    """
+    from django.db.models.signals import m2m_changed, post_delete, post_save
+
     from workspace.models.comunicacao import Publicacao
-    from workspace.models.conteudo import Documento
 
-    for model, salvar, apagar in (
-        (Documento, _ao_salvar_documento, _ao_apagar_documento),
-        (Publicacao, _ao_salvar_publicacao, _ao_apagar_publicacao),
-        (ItemCatalogo, _ao_salvar_item, _ao_apagar_item),
-    ):
+    for _rotulo, model, adaptador, dominio in _origens():
         nome = model.__name__.lower()
-        post_save.connect(salvar, sender=model, dispatch_uid=f"wks.indice.save.{nome}")
+        post_save.connect(
+            _ao_salvar(adaptador),
+            sender=model,
+            dispatch_uid=f"wks.indice.save.{nome}",
+            weak=False,
+        )
         post_delete.connect(
-            apagar, sender=model, dispatch_uid=f"wks.indice.delete.{nome}"
+            _ao_apagar(dominio),
+            sender=model,
+            dispatch_uid=f"wks.indice.delete.{nome}",
+            weak=False,
+        )
+
+    # O público-alvo da publicação é M2M, e M2M não dispara `post_save`.
+    for atributo in ("unidades", "departamentos"):
+        m2m_changed.connect(
+            _ao_mudar_alvo,
+            sender=getattr(Publicacao, atributo).through,
+            dispatch_uid=f"wks.indice.alvo.{atributo}",
         )

@@ -1,0 +1,90 @@
+{% extends "workspace/_shell_modulo.html" %}
+{% load i18n wks %}
+
+{% block titulo %}{% trans "Base de conhecimento" %}{% endblock %}
+{% block rail %}{% include "workspace/_rail_servicos.html" with aba="faq" %}{% endblock %}
+{% block trilha %}<span>{% trans "Base de conhecimento" %}</span>{% endblock %}
+{% block pagina_titulo %}{% trans "Base de conhecimento" %}{% endblock %}
+{% block voltar_url %}{% url 'workspace:home' %}{% endblock %}
+
+{% block pagina_descricao %}
+  <p class="au-pagina-desc">
+    {% blocktrans %}O que o assistente responde antes de encaminhar alguém para um
+    setor. Cada resposta aqui é uma pergunta a menos na mesa de quem responderia.{% endblocktrans %}
+  </p>
+{% endblock %}
+
+{% block corpo %}
+<div class="au-form-linha">
+  <a class="au-btn au-btn--primario" href="{% url 'workspace:faq_nova' %}">
+    <svg class="au-icon au-icon--mini" aria-hidden="true"><use href="#i-spark"></use></svg>
+    {% trans "Nova pergunta" %}
+  </a>
+  <a class="au-btn au-btn--sutil" href="{% url 'workspace:ajuda' %}">
+    {% trans "Ver como fica" %}
+  </a>
+</div>
+
+{% if perguntas %}
+  <div class="au-tabela">
+    <table>
+      <thead>
+        <tr>
+          <th>{% trans "Pergunta" %}</th>
+          <th>{% trans "Área" %}</th>
+          <th>{% trans "Palavras-chave" %}</th>
+          <th class="num">{% trans "Prioridade" %}</th>
+          <th>{% trans "Situação" %}</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for p in perguntas %}
+          <tr>
+            <td><a href="{% url 'workspace:faq_editar' p.pk %}">{{ p.pergunta }}</a></td>
+            <td>{{ p.get_area_display }}</td>
+            {% comment %}
+              As palavras-chave à vista, e não escondidas na edição: é o campo
+              que faz a pergunta ser encontrada, e o defeito mais comum da base
+              é uma pergunta boa que ninguém acha porque a lista está vazia.
+            {% endcomment %}
+            <td>
+              {% if p.palavras_chave %}
+                {% for t in p.palavras_chave %}<span class="au-selo">{{ t }}</span>{% endfor %}
+              {% else %}
+                <span class="au-list-resumo au-list-resumo--alerta">
+                  {% trans "sem palavras-chave" %}
+                </span>
+              {% endif %}
+            </td>
+            <td class="num">{{ p.prioridade }}</td>
+            <td>
+              {% if p.ativo %}
+                <span class="au-etiqueta au-etiqueta--pub-no_ar">{% trans "Ativa" %}</span>
+              {% else %}
+                <span class="au-etiqueta au-etiqueta--pub-rascunho">{% trans "Desativada" %}</span>
+              {% endif %}
+            </td>
+            <td>
+              <form method="post" action="{% url 'workspace:faq_excluir' p.pk %}">
+                {% csrf_token %}
+                <button class="au-btn au-btn--sutil au-btn--pequeno" type="submit">
+                  {% trans "Excluir" %}
+                </button>
+              </form>
+            </td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+{% else %}
+  <div class="au-vazio">
+    <p class="au-vazio-titulo">{% trans "A base está vazia." %}</p>
+    <p class="au-vazio-dica">
+      {% blocktrans %}Comece pelas perguntas que o seu setor responde toda semana —
+      são elas que o assistente vai parar de encaminhar.{% endblocktrans %}
+    </p>
+  </div>
+{% endif %}
+{% endblock %}

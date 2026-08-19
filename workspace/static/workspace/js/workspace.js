@@ -602,3 +602,113 @@
     abrir(linha.dataset.abreResumo);
   });
 })();
+
+/* ── O ASSISTENTE (§3) ────────────────────────────────────────────────
+ *
+ * Progressive enhancement, e aqui isso não é purismo: sem este arquivo o
+ * `<details>` continua abrindo e o formulário continua funcionando — ele faz
+ * `GET` para `/workspace/ajuda/`, que responde a mesma coisa em página cheia.
+ * O que o JS acrescenta é responder SEM sair da tela.
+ *
+ * Uma primeira camada de atendimento que só funciona com JS carregado falha
+ * exatamente para quem está na rede ruim do canteiro de obra.
+ */
+(function () {
+  'use strict';
+
+  var painel = document.querySelector('.au-bot-form[data-assistente]');
+  if (!painel) return;
+
+  var saida = document.getElementById('bot-resposta');
+  var campo = document.getElementById('bot-q');
+  var endereco = painel.getAttribute('data-assistente');
+
+  function texto(tag, classe, conteudo) {
+    var no = document.createElement(tag);
+    if (classe) no.className = classe;
+    // `textContent` e nunca `innerHTML`: a resposta vem do banco, e o banco é
+    // editável por quem mantém a FAQ. Um `<script>` numa resposta de FAQ seria
+    // XPS armazenado com autor conhecido — o pior tipo, porque parece conteúdo.
+    no.textContent = conteudo;
+    return no;
+  }
+
+  function desenhar(dados) {
+    saida.textContent = '';
+    saida.hidden = false;
+    if (dados.pergunta) saida.appendChild(texto('p', 'au-bot-pergunta', dados.pergunta));
+    saida.appendChild(texto('p', 'au-bot-texto', dados.texto));
+
+    // §56 — quem respondeu fica visível. Resposta escrita e conferida por
+    // alguém da empresa tem outro peso que resposta gerada por aproximação, e
+    // apagar a diferença é o que faz alguém citar o portal numa reunião com
+    // informação que ninguém revisou.
+    if (dados.de_ia) {
+      saida.appendChild(
+        texto('p', 'au-bot-origem', 'Resposta gerada automaticamente — confira antes de usar.')
+      );
+    }
+
+    if (!dados.acoes || !dados.acoes.length) return;
+    var lista = document.createElement('ul');
+    lista.className = 'au-bot-acoes';
+    dados.acoes.forEach(function (acao) {
+      var item = document.createElement('li');
+      var link = document.createElement('a');
+      link.className = 'au-bot-acao';
+      link.href = acao.url;
+      link.textContent = acao.rotulo;
+      item.appendChild(link);
+      lista.appendChild(item);
+    });
+    saida.appendChild(lista);
+  }
+
+  function perguntar(pergunta) {
+    if (!pergunta) return;
+    saida.hidden = false;
+    saida.textContent = '';
+    saida.appendChild(texto('p', 'au-bot-texto', 'Procurando…'));
+
+    fetch(endereco + '?q=' + encodeURIComponent(pergunta), {
+      headers: { 'X-Requested-With': 'fetch' }
+    })
+      .then(function (r) { return r.ok ? r.json() : Promise.reject(r.status); })
+      .then(desenhar)
+      .catch(function () {
+        // Mensagem de gente, não de máquina: quem lê isto quer saber o que
+        // fazer agora, não qual código HTTP voltou.
+        saida.textContent = '';
+        saida.appendChild(
+          texto('p', 'au-bot-texto', 'Não consegui responder agora. Tente de novo, ou veja o catálogo de serviços.')
+        );
+      });
+  }
+
+  painel.addEventListener('submit', function (e) {
+    e.preventDefault();
+    perguntar(campo.value.trim());
+  });
+
+  document.addEventListener('click', function (e) {
+    var atalho = e.target.closest('[data-bot-pergunta]');
+    if (!atalho) return;
+    campo.value = atalho.getAttribute('data-bot-pergunta');
+    perguntar(campo.value);
+  });
+})();
+
+/* Botão "Salvar em PDF" — abre o diálogo de impressão do navegador.
+ *
+ * `window.print()` e não geração no servidor: o projeto não tem dependência de
+ * terceiros em execução, e `weasyprint`/`reportlab` são escolha de arquitetura.
+ * A folha impressa sai igual à da tela — ver `@media print` no CSS.
+ *
+ * Sem JS o botão não aparece de propósito (ele nasce sem `hidden`, mas o Ctrl+P
+ * do navegador continua funcionando e produz o mesmo resultado). */
+(function () {
+  'use strict';
+  document.addEventListener('click', function (e) {
+    if (e.target.closest('[data-imprimir]')) window.print();
+  });
+})();

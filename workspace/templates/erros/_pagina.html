@@ -1,0 +1,37 @@
+{% extends "workspace/_shell.html" %}
+{% load i18n %}
+
+{% comment %}
+  Base das telas de erro que a aplicação ainda consegue desenhar por inteiro —
+  400, 403 e 404.
+
+  Ela ESTENDE a casca, e o 500 não. A diferença não é estética: 400, 403 e 404
+  acontecem com o sistema saudável, e a coisa mais útil que se pode oferecer a
+  quem bateu numa delas é a navegação inteira — o trilho, a busca, o sino. Uma
+  tela de erro sem saída obriga a pessoa a usar o botão do navegador, e o
+  histórico dela depois de um redirecionamento não leva onde ela espera.
+
+  O 500 é o oposto: ele aparece quando alguma coisa já falhou, e a casca lê o
+  banco em cada carregamento (contadores do trilho, painel do sino). Uma página
+  de erro que consulta o banco para ser desenhada é uma página de erro que não
+  aparece justamente quando o banco é o problema. Ver `500.html`.
+{% endcomment %}
+
+{% block conteudo %}
+<div class="au-tela-erro">
+  <p class="au-tela-erro-codigo">{% block codigo %}{% endblock %}</p>
+  <h1 class="au-tela-erro-titulo">{% block cabecalho %}{% endblock %}</h1>
+  <div class="au-tela-erro-texto">{% block explicacao %}{% endblock %}</div>
+
+  <div class="au-tela-erro-saidas">
+    {% block saidas %}
+      <a class="au-btn au-btn--primario" href="{% url 'workspace:home' %}">
+        {% trans "Ir para o início" %}
+      </a>
+      <a class="au-btn au-btn--sutil" href="{% url 'workspace:ajuda' %}">
+        {% trans "Perguntar ao assistente" %}
+      </a>
+    {% endblock %}
+  </div>
+</div>
+{% endblock %}

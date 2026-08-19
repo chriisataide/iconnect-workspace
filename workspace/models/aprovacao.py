@@ -42,6 +42,8 @@ class SituacaoSolicitacao(models.TextChoices):
     AGUARDANDO = "aguardando", "Aguardando aprovação"
     APROVADA = "aprovada", "Aprovada"
     DEVOLVIDA = "devolvida", "Devolvida"
+    # Ver `SituacaoServico.REJEITADA`: devolver é "corrija"; reprovar é "não".
+    REJEITADA = "rejeitada", "Reprovada"
     CANCELADA = "cancelada", "Cancelada"
 
 
@@ -49,6 +51,7 @@ class SituacaoEtapa(models.TextChoices):
     PENDENTE = "pendente", "Pendente"
     APROVADA = "aprovada", "Aprovada"
     DEVOLVIDA = "devolvida", "Devolvida"
+    REJEITADA = "rejeitada", "Reprovada"
     PULADA = "pulada", "Pulada"
 
 
@@ -168,7 +171,23 @@ class SolicitacaoAprovacao(models.Model):
 
     @property
     def etapa_atual(self):
-        """A etapa que está esperando decisão, ou None."""
+        """A etapa que está esperando decisão, ou None.
+
+        Usa o prefetch quando ele existe, e volta ao banco quando não.
+
+        Sem isto a propriedade custa uma consulta POR CHAMADA, e a bandeja a
+        chama seis vezes por linha — no cabeçalho, na trilha de degraus e duas
+        vezes dentro do modal de detalhe. Medido: cinco pedidos rendiam trinta e
+        uma consultas só nesta tabela. O `prefetch_related("etapas")` da bandeja
+        não ajudava sozinho, porque `.filter()` sobre o gerenciador ignora o
+        cache e refaz a consulta.
+        """
+        cache = getattr(self, "_prefetched_objects_cache", {})
+        if "etapas" in cache:
+            pendentes = [
+                e for e in cache["etapas"] if e.situacao == SituacaoEtapa.PENDENTE
+            ]
+            return min(pendentes, key=lambda e: e.ordem, default=None)
         return self.etapas.filter(situacao=SituacaoEtapa.PENDENTE).order_by("ordem").first()
 
     @property

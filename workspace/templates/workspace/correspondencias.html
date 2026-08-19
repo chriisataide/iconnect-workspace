@@ -27,6 +27,49 @@
   A ordem coloca "o que é meu" primeiro mesmo para quem opera: a recepcionista
   também recebe carta.
 {% endcomment %}
+{% comment %}
+  A CONFIRMAÇÃO DE RECEBIMENTO — §6.
+
+  Fica ACIMA de tudo porque é a única coisa nesta tela em que a pessoa precisa
+  agir; o resto ela só lê.
+
+  `retirado_em` é a recepção dizendo "entreguei"; isto aqui é a pessoa dizendo
+  "recebi". Enquanto só existia o primeiro, a única versão registrada dos fatos
+  era a de quem entregou — e é exatamente essa que não vale nada quando a
+  intimação some e alguém precisa provar o que aconteceu.
+{% endcomment %}
+{% if a_confirmar %}
+  <section class="au-secao">
+    <div class="au-secao-cabeca">
+      <h2 class="au-secao-titulo">{% trans "Confirme o que você recebeu" %}</h2>
+      <span class="au-secao-contagem">{{ a_confirmar|length }}</span>
+    </div>
+    <ul class="au-corresp">
+      {% for c in a_confirmar %}
+        <li class="au-corresp-item">
+          <span class="au-corresp-tipo">{{ c.get_tipo_display }}</span>
+          <span class="au-corresp-texto">
+            {% if c.remetente %}<b>{{ c.remetente }}</b>{% endif %}
+            {% if c.descricao %}<span class="au-corresp-desc">{{ c.descricao }}</span>{% endif %}
+            <span class="au-corresp-desc">
+              {% blocktrans with data=c.retirado_em|date:"d/m/Y" %}entregue pela recepção em {{ data }}{% endblocktrans %}
+            </span>
+          </span>
+          <span class="au-corresp-meta">
+            <form method="post"
+                  action="{% url 'workspace:confirmar_correspondencia' c.pk %}">
+              {% csrf_token %}
+              <button class="au-btn au-btn--primario au-btn--pequeno" type="submit">
+                {% trans "Confirmo que recebi" %}
+              </button>
+            </form>
+          </span>
+        </li>
+      {% endfor %}
+    </ul>
+  </section>
+{% endif %}
+
 <section class="au-secao">
   <div class="au-secao-cabeca">
     <h2 class="au-secao-titulo">{% trans "Para você" %}</h2>
@@ -128,6 +171,10 @@
               <th>{% trans "Tipo" %}</th>
               <th>{% trans "Para" %}</th>
               <th>{% trans "De" %}</th>
+              <th>{% trans "Descrição" %}</th>
+              <th>{% trans "Rastreio" %}</th>
+              <th>{% trans "Chegou" %}</th>
+              <th>{% trans "Recebido por" %}</th>
               <th class="num">{% trans "Espera" %}</th>
               <th></th>
             </tr>
@@ -150,7 +197,16 @@
                     </span>
                   {% endif %}
                 </td>
-                <td>{{ c.remetente|default:"—" }}</td>
+                <td>
+                  {{ c.remetente|default:"—" }}
+                  {% if c.empresa %}
+                    <span class="au-list-resumo">{{ c.empresa }}</span>
+                  {% endif %}
+                </td>
+                <td>{{ c.descricao|default:"—" }}</td>
+                <td>{{ c.numero_rastreio|default:"—" }}</td>
+                <td>{{ c.recebido_em|date:"d/m/Y" }}</td>
+                <td>{{ c.recebido_por.get_full_name|default:c.recebido_por.email }}</td>
                 <td class="num">{{ c.dias_esperando }}d</td>
                 <td>
                   {% if c.destinatario %}
@@ -223,6 +279,7 @@
         <div class="au-campo">
           <label class="au-rotulo" for="remetente">{% trans "Remetente" %}</label>
           <input class="au-input" id="remetente" name="remetente" type="text" maxlength="160">
+          <p class="au-ajuda">{% trans "Quem mandou — pessoa, órgão, cliente." %}</p>
         </div>
         <div class="au-campo">
           <label class="au-rotulo" for="descricao">{% trans "O que é" %}</label>
@@ -236,6 +293,43 @@
         <button class="au-btn au-btn--primario" type="submit">
           {% trans "Registrar e avisar" %}
         </button>
+      </div>
+
+      {% comment %}
+        EMPRESA, RASTREIO e CHEGADA — §6.
+
+        `empresa` não repete `remetente`: remetente é QUEM mandou, empresa é POR
+        ONDE veio. São as duas perguntas que a recepção faz ao procurar um
+        extravio, e num campo só uma delas sempre se perde.
+
+        A data é digitável porque a recepção nem sempre registra na hora: a
+        pilha de sexta entra na segunda, e gravar "segunda" faria o prazo da
+        intimação começar a contar dois dias tarde.
+      {% endcomment %}
+      <div class="au-colunas au-colunas--duas">
+        <div class="au-campo">
+          <label class="au-rotulo" for="empresa">{% trans "Empresa que entregou" %}</label>
+          <input class="au-input" id="empresa" name="empresa" type="text" maxlength="120"
+                 placeholder="{% trans 'Correios, transportadora, cartório' %}">
+        </div>
+        <div class="au-campo">
+          <label class="au-rotulo" for="numero_rastreio">{% trans "Número de rastreio" %}</label>
+          <input class="au-input" id="numero_rastreio" name="numero_rastreio"
+                 type="text" maxlength="60">
+        </div>
+      </div>
+
+      <div class="au-colunas au-colunas--duas">
+        <div class="au-campo">
+          <label class="au-rotulo" for="recebido_em">{% trans "Data de chegada" %}</label>
+          <input class="au-input" id="recebido_em" name="recebido_em" type="date">
+          <p class="au-ajuda">{% trans "Em branco, entende-se agora." %}</p>
+        </div>
+        <div class="au-campo">
+          <label class="au-rotulo" for="observacao">{% trans "Observações" %}</label>
+          <input class="au-input" id="observacao" name="observacao" type="text"
+                 maxlength="200">
+        </div>
       </div>
     </form>
   </section>

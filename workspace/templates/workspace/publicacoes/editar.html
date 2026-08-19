@@ -1,0 +1,157 @@
+{% extends "workspace/_shell_modulo.html" %}
+{% load i18n wks %}
+
+{% block titulo %}{% if publicacao %}{% trans "Editar" %}{% else %}{% trans "Escrever" %}{% endif %}{% endblock %}
+{% block rail %}{% include "workspace/_rail_servicos.html" with aba="publicacoes" %}{% endblock %}
+{% block trilha %}
+  <a href="{% url 'workspace:publicacoes' %}">{% trans "Comunicados" %}</a>
+  <span>{% if publicacao %}{{ publicacao.titulo }}{% else %}{% trans "Novo" %}{% endif %}</span>
+{% endblock %}
+{% block pagina_titulo %}
+  {% if publicacao %}{% trans "Editar publicação" %}{% else %}{% trans "Escrever" %}{% endif %}
+{% endblock %}
+{% block voltar_url %}{% url 'workspace:publicacoes' %}{% endblock %}
+
+{% block corpo %}
+{% comment %}
+  `enctype` porque a tela aceita imagem e anexo. Sem ele o navegador manda só os
+  nomes dos arquivos, e o upload falha em silêncio — o formulário envia, a
+  mensagem diz "salvo", e a imagem não está lá.
+{% endcomment %}
+<form class="au-form" method="post" enctype="multipart/form-data" novalidate
+      action="{% if publicacao %}{% url 'workspace:publicacao_editar' publicacao.pk %}{% else %}{% url 'workspace:publicacao_nova' %}{% endif %}">
+  {% csrf_token %}
+
+  <div class="au-campo">
+    <label class="au-rotulo" for="titulo">
+      {% trans "Título" %} <span class="au-obrigatorio" aria-hidden="true">*</span>
+    </label>
+    <input class="au-input" id="titulo" name="titulo" type="text" maxlength="200"
+           value="{{ publicacao.titulo|default:'' }}" required>
+  </div>
+
+  <div class="au-colunas au-colunas--duas">
+    <div class="au-campo">
+      <label class="au-rotulo" for="tipo">{% trans "Categoria" %}</label>
+      <select class="au-input" id="tipo" name="tipo">
+        {% for valor, rotulo in tipos %}
+          <option value="{{ valor }}" {% if publicacao.tipo == valor %}selected{% endif %}>{{ rotulo }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="au-campo">
+      <label class="au-rotulo" for="prioridade">{% trans "Prioridade" %}</label>
+      <select class="au-input" id="prioridade" name="prioridade">
+        {% for valor, rotulo in prioridades %}
+          <option value="{{ valor }}" {% if publicacao.prioridade == valor %}selected{% endif %}>{{ rotulo }}</option>
+        {% endfor %}
+      </select>
+    </div>
+  </div>
+
+  <div class="au-campo">
+    <label class="au-rotulo" for="resumo">{% trans "Resumo" %}</label>
+    <input class="au-input" id="resumo" name="resumo" type="text" maxlength="300"
+           value="{{ publicacao.resumo|default:'' }}">
+    <p class="au-ajuda">{% trans "Uma linha — é o que aparece no card da home." %}</p>
+  </div>
+
+  <div class="au-campo">
+    <label class="au-rotulo" for="corpo">{% trans "Conteúdo" %}</label>
+    <textarea class="au-input" id="corpo" name="corpo" rows="10">{{ publicacao.corpo|default:'' }}</textarea>
+  </div>
+
+  <div class="au-colunas au-colunas--duas">
+    <div class="au-campo">
+      <label class="au-rotulo" for="imagem">{% trans "Imagem" %}</label>
+      <input class="au-input" id="imagem" name="imagem" type="file" accept="image/*">
+      {% if publicacao.imagem %}
+        <p class="au-ajuda">{% trans "Já existe uma imagem. Enviar outra substitui." %}</p>
+      {% endif %}
+    </div>
+    <div class="au-campo">
+      <label class="au-rotulo" for="anexo">{% trans "Anexo" %}</label>
+      <input class="au-input" id="anexo" name="anexo" type="file">
+      <p class="au-ajuda">{% trans "PDF da política, ata, planilha." %}</p>
+    </div>
+  </div>
+
+  {% comment %}
+    PÚBLICO-ALVO. Em branco alcança todo mundo, e a ajuda diz isso ANTES da
+    lista: uma caixa de seleção vazia se lê como "ninguém marcado ainda", que é
+    a leitura oposta da verdadeira.
+  {% endcomment %}
+  <div class="au-colunas au-colunas--duas">
+    <div class="au-campo">
+      <label class="au-rotulo" for="unidades">{% trans "Unidades" %}</label>
+      <p class="au-ajuda">{% trans "Nenhuma marcada = todas." %}</p>
+      <select class="au-input" id="unidades" name="unidades" multiple size="5">
+        {% for u in unidades %}
+          <option value="{{ u.pk }}" {% if u.pk in alvo_unidades %}selected{% endif %}>{{ u.nome }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="au-campo">
+      <label class="au-rotulo" for="departamentos">{% trans "Departamentos" %}</label>
+      <p class="au-ajuda">{% trans "Nenhum marcado = todos." %}</p>
+      <select class="au-input" id="departamentos" name="departamentos" multiple size="5">
+        {% for d in departamentos %}
+          <option value="{{ d.pk }}" {% if d.pk in alvo_departamentos %}selected{% endif %}>{{ d.nome }}</option>
+        {% endfor %}
+      </select>
+    </div>
+  </div>
+
+  <div class="au-colunas au-colunas--duas">
+    <div class="au-campo">
+      <label class="au-rotulo" for="publicar_em">{% trans "Publicar em" %}</label>
+      <input class="au-input" id="publicar_em" name="publicar_em" type="datetime-local"
+             value="{{ publicacao.publicar_em|date:'Y-m-d\TH:i' }}">
+      <p class="au-ajuda">{% trans "Data futura agenda a publicação." %}</p>
+    </div>
+    <div class="au-campo">
+      <label class="au-rotulo" for="expira_em">{% trans "Expira em" %}</label>
+      <input class="au-input" id="expira_em" name="expira_em" type="datetime-local"
+             value="{{ publicacao.expira_em|date:'Y-m-d\TH:i' }}">
+      <p class="au-ajuda">{% trans "Em branco, não expira." %}</p>
+    </div>
+  </div>
+
+  <div class="au-campo">
+    <label class="au-rotulo" for="fixado">
+      <input class="au-check" id="fixado" name="fixado" type="checkbox"
+             {% if publicacao.fixado %}checked{% endif %}>
+      {% trans "Destaque — fixa no topo da lista" %}
+    </label>
+  </div>
+
+  {% comment %}
+    DOIS BOTÕES, um formulário. O estado sai de qual botão foi clicado, e não de
+    uma caixinha "publicado" que a pessoa esquece de marcar — e aí escreve o
+    comunicado inteiro e ele não vai ao ar.
+  {% endcomment %}
+  <div class="au-form-acoes">
+    <a class="au-btn au-btn--sutil" href="{% url 'workspace:publicacoes' %}">{% trans "Cancelar" %}</a>
+    <button class="au-btn au-btn--sutil" type="submit" name="acao" value="rascunho">
+      {% trans "Salvar rascunho" %}
+    </button>
+    <button class="au-btn au-btn--primario" type="submit" name="acao" value="publicar">
+      {% trans "Publicar" %}
+    </button>
+  </div>
+</form>
+
+{% if publicacao and not publicacao.publicado and not publicacao.arquivado %}
+  {% comment %}
+    Excluir só aparece para rascunho que nunca foi ao ar. O que já foi publicado
+    não se apaga: alguém leu, alguém agiu, e "o que a empresa comunicou em
+    março" precisa de resposta. Para isso existe arquivar.
+  {% endcomment %}
+  <form class="au-form-linha" method="post"
+        action="{% url 'workspace:publicacao_acao' publicacao.pk %}">
+    {% csrf_token %}
+    <button class="au-btn au-btn--sutil au-btn--pequeno" type="submit"
+            name="acao" value="excluir">{% trans "Excluir rascunho" %}</button>
+  </form>
+{% endif %}
+{% endblock %}

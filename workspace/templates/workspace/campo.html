@@ -1,0 +1,176 @@
+{% extends "workspace/_shell_modulo.html" %}
+{% load i18n %}
+
+{% block titulo %}{% trans "Campo" %}{% endblock %}
+
+{% block rail %}{% include "workspace/_rail_servicos.html" with aba="campo" %}{% endblock %}
+{% block trilha %}<span>{% trans "Campo" %}</span>{% endblock %}
+{% block pagina_titulo %}{% trans "Equipe em campo" %}{% endblock %}
+{% block voltar_url %}{% url 'workspace:frota' %}{% endblock %}
+
+{% block pagina_descricao %}
+  <p class="au-pagina-desc">
+    {% trans "Onde a equipe está, o que vai atender, e a quilometragem já auditada." %}
+  </p>
+{% endblock %}
+
+{% block corpo %}
+{% comment %}
+  NADA AQUI É COLETADO PELO WORKSPACE — §18 e §1.
+
+  O GPS vem do app do técnico, que já alimenta `POST /fsm/api/tracking/batch/`
+  no iConnect. A otimização de rota também é de lá
+  (`POST /fsm/api/tecnicos/<id>/otimizar-rota/`), e a quilometragem tem módulo
+  próprio, com auditoria e aprovação financeira.
+
+  Um segundo rastreamento produziria duas verdades sobre onde a mesma pessoa
+  está — e a que diverge seria a que alguém usou para despachar. O Workspace lê.
+
+  A divisão entre os dois produtos, aqui, é limpa: o iConnect é dono da
+  OPERAÇÃO (onde está, que OS, quantos km); o Workspace é dono do ATIVO (placa,
+  licenciamento, seguro, combustível, custo) — que o FSM não tem.
+{% endcomment %}
+{% include "workspace/_iconnect_aviso.html" %}
+
+<section class="au-secao">
+  <div class="au-secao-cabeca">
+    <h2 class="au-secao-titulo">{% trans "Onde a equipe está" %}</h2>
+    {% if posicoes %}<span class="au-secao-contagem">{{ posicoes|length }}</span>{% endif %}
+  </div>
+
+  {% if posicoes %}
+    <div class="au-tabela">
+      <table>
+        <thead>
+          <tr>
+            <th>{% trans "Técnico" %}</th>
+            <th>{% trans "Situação" %}</th>
+            <th class="num">{% trans "Velocidade" %}</th>
+            <th class="num">{% trans "Bateria" %}</th>
+            <th>{% trans "Última posição" %}</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for p in posicoes %}
+            <tr>
+              <td>{{ p.tecnico }}</td>
+              <td>
+                {% if p.em_movimento %}
+                  <span class="au-etiqueta au-etiqueta--tk-em_andamento">{% trans "Em deslocamento" %}</span>
+                {% else %}
+                  <span class="au-etiqueta au-etiqueta--tk-aguardando">{% trans "Parado" %}</span>
+                {% endif %}
+              </td>
+              <td class="num">{% if p.velocidade %}{{ p.velocidade }} km/h{% else %}—{% endif %}</td>
+              <td class="num">{% if p.bateria %}{{ p.bateria }}%{% else %}—{% endif %}</td>
+              <td>{{ p.quando|default:"—" }}</td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% comment %}
+      SEM MAPA nesta tela, e é decisão. Um mapa exige tile server de terceiro —
+      requisição para fora em toda abertura, e a CSP do produto é `default-src
+      'self'`. Afrouxá-la para desenhar um mapa que o painel do iConnect já
+      tem (`/fsm/painel/mapa/`) seria pagar em segurança por uma segunda cópia.
+    {% endcomment %}
+    <p class="au-ajuda">
+      {% blocktrans %}A posição vem do app do técnico, pelo FSM do iConnect. O mapa em
+      tempo real fica lá, no painel de campo.{% endblocktrans %}
+      <a href="{{ iconnect_url }}" rel="noopener noreferrer" target="_blank">
+        {% trans "Abrir o painel de campo" %}
+      </a>
+    </p>
+  {% elif conectado and not aviso %}
+    <p class="au-agenda-livre">{% trans "Ninguém em campo agora." %}</p>
+  {% endif %}
+</section>
+
+<section class="au-secao">
+  <div class="au-secao-cabeca">
+    <h2 class="au-secao-titulo">{% trans "Ordens do dia" %}</h2>
+    {% if ordens %}<span class="au-secao-contagem">{{ ordens|length }}</span>{% endif %}
+  </div>
+
+  {% if ordens %}
+    <div class="au-tabela">
+      <table>
+        <thead>
+          <tr>
+            <th class="num">{% trans "Ordem" %}</th>
+            <th>{% trans "O que" %}</th>
+            <th>{% trans "Cliente" %}</th>
+            <th>{% trans "Técnico" %}</th>
+            <th>{% trans "Onde" %}</th>
+            <th class="num">{% trans "Rota" %}</th>
+            <th class="num">{% trans "Estimado" %}</th>
+            <th>{% trans "Status" %}</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for o in ordens %}
+            <tr>
+              <td class="num">{{ o.codigo }}</td>
+              <td>
+                {{ o.titulo }}
+                {% if o.sla_violado %}
+                  <span class="au-selo au-selo--alerta">{% trans "SLA estourado" %}</span>
+                {% endif %}
+              </td>
+              <td>{{ o.cliente|default:"—" }}</td>
+              <td>{{ o.tecnico|default:"—" }}</td>
+              <td>{{ o.cidade }}{% if o.uf %}/{{ o.uf }}{% endif %}</td>
+              {% comment %}
+                A SEQUÊNCIA vem calculada do FSM. Reordenar aqui seria escrever
+                um segundo otimizador que discorda do primeiro na ordem das
+                paradas — e o técnico segue o app, não esta tela.
+              {% endcomment %}
+              <td class="num">{{ o.sequencia|default:"—" }}</td>
+              <td class="num">{% if o.duracao_min %}{{ o.duracao_min }} min{% else %}—{% endif %}</td>
+              <td>{{ o.status }}</td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  {% elif conectado and not aviso %}
+    <p class="au-agenda-livre">{% trans "Nenhuma ordem de serviço em campo." %}</p>
+  {% endif %}
+</section>
+
+{% if rotas %}
+  <section class="au-secao">
+    <div class="au-secao-cabeca">
+      <h2 class="au-secao-titulo">{% trans "Quilometragem auditada" %}</h2>
+      <span class="au-secao-contagem">{{ rotas|length }}</span>
+    </div>
+    {% comment %}
+      Vem do módulo KM Audit do iConnect, que já tem auditoria, lançamento e
+      aprovação financeira. Aqui é leitura: quem audita continua auditando lá.
+    {% endcomment %}
+    <div class="au-tabela">
+      <table>
+        <thead>
+          <tr>
+            <th>{% trans "Data" %}</th>
+            <th>{% trans "Técnico" %}</th>
+            <th class="num">{% trans "KM" %}</th>
+            <th>{% trans "Situação" %}</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for r in rotas %}
+            <tr>
+              <td>{{ r.data|default:"—" }}</td>
+              <td>{{ r.tecnico|default:"—" }}</td>
+              <td class="num">{{ r.km|default:"—" }}</td>
+              <td>{{ r.situacao|default:"—" }}</td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </section>
+{% endif %}
+{% endblock %}

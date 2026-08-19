@@ -421,7 +421,7 @@ body {
 }
 .au-app--ativo:hover .au-app-icone {
   background: var(--au-accent);
-  color: #ffffff;
+  color: var(--au-sobre-acento);
 }
 
 .au-app-seta {
@@ -576,7 +576,11 @@ body {
 
 /* ── Artigo (comunicado / notícia) ──────────────────────────── */
 
-.au-voltar { margin-bottom: var(--au-6); }
+/* O `<nav>` que envolve o botão de voltar do ARTIGO. Nome próprio porque
+   `au-voltar` já é o BOTÃO — dois usos diferentes com o mesmo nome, e o
+   segundo apagava este em silêncio: o artigo ficava sem a margem e o `<nav>`
+   ganhava borda de botão. */
+.au-voltar-nav { margin-bottom: var(--au-6); }
 .au-icon--espelhado { transform: scaleX(-1); }
 
 .au-artigo { max-width: 720px; }
@@ -909,6 +913,11 @@ body {
 .au-etiqueta--aprovada             { color: var(--au-success-text); background: var(--au-success-bg); }
 .au-etiqueta--concluida            { color: var(--au-success-text); background: var(--au-success-bg); }
 .au-etiqueta--devolvida            { color: var(--au-danger-text);  background: var(--au-danger-bg); }
+/* Reprovada usa o cinza de terminado, e não o vermelho de devolvida: as duas
+   são "não deu certo" para quem lê rápido, e é justamente essa confusão que a
+   cor tem de desfazer. Vermelho pede ação — devolvida espera correção.
+   Reprovada não espera nada de ninguém. */
+.au-etiqueta--rejeitada            { color: var(--au-neutral-text); background: var(--au-neutral-bg); }
 .au-etiqueta--dominio {
   font-family: var(--au-mono);
   font-weight: 500;
@@ -1067,6 +1076,319 @@ body {
 
 .au-devolver summary { cursor: pointer; list-style: none; }
 .au-devolver summary::-webkit-details-marker { display: none; }
+/* REPROVAR pesa mais que devolver, e a tela precisa dizer isso antes do clique.
+   Os dois abrem a mesma gaveta com o mesmo campo de motivo; sem diferença de
+   cor, escolher entre "devolva para corrigir" e "não vai acontecer" vira
+   questão de ler com atenção o rótulo de dois botões vizinhos. */
+.au-devolver--recusa > summary { color: var(--au-danger-text); }
+
+/* Card que SAI do Workspace (§11). Borda pontilhada porque a diferença precisa
+   ser vista antes do clique, e sem depender de ler o selo — link que muda de
+   produto sem avisar é o que faz alguém perder o que digitou do outro lado. */
+.au-app--externo { border-style: dashed; }
+
+/* ── CONVERSA NO PEDIDO (§45) ─────────────────────────────────────────
+   Falas empilhadas, não balões alinhados em lados opostos. Balão de chat
+   sugere tempo real e resposta imediata, e isto é uma conversa que anda em
+   dias — a expectativa que a forma cria é a que o produto não cumpre.
+
+   Quem PEDIU aparece com barra à esquerda; quem atende, sem. A diferença é
+   sutil de propósito: são duas pessoas resolvendo o mesmo pedido, não dois
+   lados de uma negociação. */
+.au-conversa { list-style: none; margin: 0 0 var(--au-3); padding: 0; display: flex; flex-direction: column; gap: var(--au-3); }
+.au-conversa-fala { display: flex; flex-direction: column; gap: 2px; padding-left: var(--au-3); border-left: 2px solid var(--au-border); }
+.au-conversa-fala--minha { border-left-color: var(--au-accent); }
+.au-conversa-fala--interna { border-left-color: var(--au-warning); background: var(--au-warning-bg); padding: var(--au-2) var(--au-3); border-radius: var(--au-r-sm); }
+.au-conversa-quem { font-size: var(--au-t-xs); color: var(--au-text-subtle); display: flex; gap: var(--au-2); }
+.au-conversa-texto { font-size: var(--au-t-sm); color: var(--au-text); line-height: 1.5; }
+.au-conversa-selo { font-size: var(--au-t-2xs); font-weight: 700; text-transform: uppercase; letter-spacing: .04em; color: var(--au-warning-text); }
+.au-conversa-form { display: flex; flex-direction: column; align-items: flex-start; gap: var(--au-2); }
+.au-conversa-form .au-input { width: 100%; }
+
+/* ── RELATÓRIO DE CAMPO (§34–36) ──────────────────────────────────────
+   A "folha" é o documento que sai impresso. Largura fixa em `ch` e não em `%`:
+   o que se lê aqui é texto corrido de relatório, e linha de 140 caracteres é
+   linha que ninguém termina. */
+.au-etiqueta--rel-rascunho  { color: var(--au-text-subtle);  background: var(--au-surface-sunken); }
+.au-etiqueta--rel-emitido   { color: var(--au-success-text); background: var(--au-success-bg); }
+.au-etiqueta--rel-cancelado { color: var(--au-danger-text);  background: var(--au-danger-bg); }
+
+.au-folha {
+  max-width: 76ch;
+  padding: var(--au-6);
+  background: var(--au-surface);
+  border: 1px solid var(--au-border);
+  border-radius: var(--au-r-md);
+}
+.au-folha-cabeca {
+  display: flex; align-items: flex-start; justify-content: space-between; gap: var(--au-4);
+  padding-bottom: var(--au-4); margin-bottom: var(--au-4);
+  border-bottom: 2px solid var(--au-text);
+}
+.au-folha-tipo {
+  margin: 0; font-size: var(--au-t-xs); text-transform: uppercase;
+  letter-spacing: .06em; color: var(--au-text-subtle);
+}
+.au-folha-titulo { margin: 0; font-size: var(--au-t-xl); font-weight: 700; color: var(--au-text); }
+
+.au-folha-dados {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: var(--au-3); margin: 0 0 var(--au-5);
+}
+.au-folha-dados dt {
+  font-size: var(--au-t-xs); text-transform: uppercase; letter-spacing: .04em;
+  color: var(--au-text-subtle);
+}
+.au-folha-dados dd { margin: 2px 0 0; font-size: var(--au-t-base); color: var(--au-text); }
+
+.au-folha-secao { margin-bottom: var(--au-5); }
+.au-folha-rotulo {
+  margin: 0 0 var(--au-2); font-size: var(--au-t-sm); font-weight: 700;
+  text-transform: uppercase; letter-spacing: .04em; color: var(--au-text-muted);
+}
+.au-folha-texto { margin: 0; font-size: var(--au-t-base); line-height: 1.65; color: var(--au-text); }
+.au-folha-evidencias { margin: 0; padding-left: var(--au-4); font-size: var(--au-t-base); }
+
+.au-folha-assinatura {
+  margin-top: var(--au-10); display: flex; flex-direction: column;
+  align-items: center; gap: var(--au-2);
+}
+.au-folha-linha { width: min(320px, 100%); border-top: 1px solid var(--au-text); }
+.au-folha-nome { font-size: var(--au-t-sm); color: var(--au-text-muted); }
+
+/* A EXPORTAÇÃO EM PDF é isto: a impressão do navegador, com a folha sozinha na
+   página. Sem trilho, sem topbar, sem botão — e sem biblioteca no servidor. */
+@media print {
+  .au-topbar, .au-rail, .au-rodape, .au-bot, .au-pagina-cabeca,
+  .au-trilha, .au-nao-imprime { display: none !important; }
+  body, .au-folha { background: #fff; }
+  .au-folha { max-width: none; border: none; padding: 0; }
+  .au-folha-secao { break-inside: avoid; }
+}
+
+/* ── HABILITAÇÃO (§27–31) ─────────────────────────────────────────────
+   Prefixo `hab-` pelo mesmo motivo de `pub-`: `vencido` e `a_vencer` colidiriam
+   com estados de pedido e de publicação no mesmo arquivo, e a primeira mudança
+   de paleta pintaria uma NR com a cor de um comunicado arquivado.
+
+   VENCIDO em vermelho e A_VENCER em amarelo, e a diferença não é decorativa:
+   habilitação vencida bloqueia despacho HOJE; a vencer é agenda. */
+.au-etiqueta--hab-vencido      { color: var(--au-danger-text);  background: var(--au-danger-bg); }
+.au-etiqueta--hab-a_vencer     { color: var(--au-warning-text); background: var(--au-warning-bg); }
+.au-etiqueta--hab-atrasado     { color: var(--au-danger-text);  background: var(--au-danger-bg); }
+.au-etiqueta--hab-pendente     { color: var(--au-warning-text); background: var(--au-warning-bg); }
+.au-etiqueta--hab-em_andamento { color: var(--au-accent-text);  background: var(--au-accent-bg); }
+.au-etiqueta--hab-concluido    { color: var(--au-success-text); background: var(--au-success-bg); }
+.au-etiqueta--hab-dispensado   { color: var(--au-text-subtle);  background: var(--au-surface-sunken); }
+
+/* ── A PÁGINA DE AJUDA (§3) ───────────────────────────────────────────
+   Um `<details>` por pergunta. Aberta, a lista inteira são três telas de
+   rolagem; fechada, ela responde "o que dá para perguntar aqui" — que é a
+   dúvida de quem chega. */
+.au-faq { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
+.au-faq-item { border-bottom: 1px solid var(--au-border); }
+.au-faq-pergunta {
+  cursor: pointer; padding: var(--au-3) 0;
+  font-size: var(--au-t-md); font-weight: 600; color: var(--au-text);
+}
+.au-faq-resposta {
+  display: flex; flex-direction: column; align-items: flex-start; gap: var(--au-3);
+  padding: 0 0 var(--au-4) var(--au-4);
+  font-size: var(--au-t-base); color: var(--au-text-muted); line-height: 1.6;
+  max-width: 68ch;
+}
+.au-faq-resposta p { margin: 0; }
+
+/* ── O ASSISTENTE (§3) ────────────────────────────────────────────────
+   Canto inferior direito, fixo. `position: fixed` e não `sticky`: sticky dentro
+   do fluxo gruda no fim do conteúdo, e em página curta o botão sobe para o meio
+   da tela.
+
+   `z-index` acima do modal-backdrop do `<dialog>` seria errado — quando a
+   paleta está aberta o assistente deve ficar ATRÁS dela, senão o botão flutua
+   sobre um diálogo modal e recebe clique que era para ser bloqueado. */
+.au-bot {
+  position: fixed; right: var(--au-5); bottom: var(--au-5); z-index: 40;
+}
+.au-bot > summary {
+  cursor: pointer; list-style: none;
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 48px; height: 48px;
+  border-radius: var(--au-r-full);
+  background: var(--au-accent); color: var(--au-text-inverse);
+  box-shadow: var(--au-e-3);
+}
+.au-bot > summary::-webkit-details-marker { display: none; }
+.au-bot > summary:hover { background: var(--au-accent-700); }
+.au-bot[open] > summary { background: var(--au-accent-800); }
+
+.au-bot-painel {
+  position: absolute; right: 0; bottom: calc(100% + var(--au-3));
+  width: min(360px, calc(100vw - var(--au-6)));
+  max-height: min(70vh, 560px); overflow-y: auto;
+  display: flex; flex-direction: column; gap: var(--au-3);
+  padding: var(--au-4);
+  background: var(--au-surface); border: 1px solid var(--au-border);
+  border-radius: var(--au-r-lg); box-shadow: var(--au-e-3);
+}
+.au-bot-cabeca { display: flex; align-items: baseline; justify-content: space-between; gap: var(--au-2); }
+.au-bot-titulo { font-size: var(--au-t-md); font-weight: 650; color: var(--au-text); }
+.au-bot-tudo { font-size: var(--au-t-sm); color: var(--au-accent); text-decoration: none; }
+.au-bot-tudo:hover { text-decoration: underline; }
+.au-bot-form { display: flex; gap: var(--au-2); }
+.au-bot-form .au-input { flex: 1 1 auto; }
+
+.au-bot-resposta {
+  display: flex; flex-direction: column; gap: var(--au-2);
+  padding: var(--au-3);
+  background: var(--au-surface-sunken); border-radius: var(--au-r-md);
+}
+.au-bot-pergunta { margin: 0; font-size: var(--au-t-sm); font-weight: 650; color: var(--au-text); }
+.au-bot-texto { margin: 0; font-size: var(--au-t-sm); color: var(--au-text); line-height: 1.5; }
+.au-bot-acoes { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: var(--au-2); }
+.au-bot-acao {
+  font-size: var(--au-t-sm); color: var(--au-accent-text); text-decoration: none;
+  padding: 2px var(--au-2); background: var(--au-surface); border-radius: var(--au-r-full);
+  border: 1px solid var(--au-border);
+}
+.au-bot-acao:hover { border-color: var(--au-accent); }
+
+.au-bot-dica { margin: 0; font-size: var(--au-t-xs); color: var(--au-text-subtle); text-transform: uppercase; letter-spacing: .04em; }
+.au-bot-sugestoes { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--au-1); }
+/* Botão e não link: clicar aqui PERGUNTA, não navega. Um `<a href="#">` faria o
+   leitor de tela anunciar "link" para algo que não leva a lugar nenhum. */
+.au-bot-sugestao {
+  width: 100%; text-align: left; cursor: pointer;
+  padding: var(--au-2); border: none; background: none;
+  font-family: inherit; font-size: var(--au-t-sm); color: var(--au-text-muted);
+  border-radius: var(--au-r-sm);
+}
+.au-bot-sugestao:hover { background: var(--au-surface-sunken); color: var(--au-text); }
+
+@media (max-width: 640px) {
+  /* No celular o botão dividiria espaço com a barra do navegador. Sobe o
+     suficiente para não brigar com ela. */
+  .au-bot { right: var(--au-3); bottom: var(--au-4); }
+}
+
+/* ── SITUAÇÃO DE PUBLICAÇÃO (§9) ──────────────────────────────────────
+   Prefixo `pub-` e não os nomes soltos: `arquivado` e `expirado` colidiriam
+   com estados de pedido e de reserva no mesmo arquivo, e a primeira mudança de
+   paleta pintaria um comunicado com a cor de uma solicitação cancelada. */
+.au-etiqueta--pub-no_ar     { color: var(--au-success-text); background: var(--au-success-bg); }
+.au-etiqueta--pub-agendado  { color: var(--au-warning-text); background: var(--au-warning-bg); }
+.au-etiqueta--pub-rascunho  { color: var(--au-text-subtle);  background: var(--au-surface-sunken); }
+.au-etiqueta--pub-expirado  { color: var(--au-text-subtle);  background: var(--au-surface-sunken); }
+.au-etiqueta--pub-arquivado { color: var(--au-text-subtle);  background: var(--au-surface-sunken); }
+
+/* ── DISPONIBILIDADE DE RECURSO (§32) ─────────────────────────────────
+   `au-horas` e NÃO `au-grade`: `au-grade` já era o grid do catálogo, definido
+   400 linhas acima. Como este bloco vem depois, ele venceu por ordem de
+   cascata e transformou a vitrine inteira de serviços num flex-wrap — os cards
+   pararam de ter largura de coluna e a última linha de cada grupo esticou.
+
+   O defeito não aparece em teste: a classe existe, o CSS existe, e o guard de
+   "classe sem regra" fica verde. Só aparece na tela. */
+   A grade responde "onde tem buraco", que a lista de reservas não responde:
+   ler 10h–11h e 14h–15h e deduzir o vão é conta que a pessoa faz de cabeça.
+
+   `flex-wrap` e faixas de largura fixa em vez de grid de colunas: o número de
+   horas é o mesmo para todo recurso, mas a largura da tela não é — no celular
+   as faixas quebram em duas linhas em vez de espremer treze colunas. */
+.au-horas {
+  list-style: none; margin: var(--au-2) 0 0; padding: 0;
+  display: flex; flex-wrap: wrap; gap: 2px;
+}
+.au-horas-faixa { flex: 0 0 auto; }
+.au-horas-hora {
+  display: block; min-width: 40px; padding: 3px 0;
+  font-size: var(--au-t-xs); font-variant-numeric: tabular-nums; text-align: center;
+  color: var(--au-success-text); background: var(--au-success-bg);
+  border-radius: var(--au-r-sm); text-decoration: none;
+}
+a.au-horas-hora:hover { background: var(--au-success); color: var(--au-text-inverse); }
+/* Ocupada em NEUTRO e não em vermelho: sala reservada não é erro nem alerta —
+   é o estado normal de uma sala útil. Vermelho aqui pintaria de problema o dia
+   em que a agenda funcionou. */
+.au-horas-faixa--ocupada .au-horas-hora {
+  color: var(--au-text-subtle); background: var(--au-surface-sunken);
+}
+
+.au-livres {
+  display: flex; flex-wrap: wrap; align-items: baseline; gap: var(--au-2);
+  margin-bottom: var(--au-4); padding: var(--au-3);
+  background: var(--au-success-bg); border-radius: var(--au-r-md);
+}
+.au-livres-rotulo {
+  font-size: var(--au-t-sm); font-weight: 600; color: var(--au-success-text);
+}
+.au-livres-lista {
+  list-style: none; margin: 0; padding: 0;
+  display: flex; flex-wrap: wrap; gap: var(--au-2);
+}
+.au-livres-item {
+  font-size: var(--au-t-sm); color: var(--au-success-text); text-decoration: none;
+  padding: 2px var(--au-2); background: var(--au-surface); border-radius: var(--au-r-full);
+}
+.au-livres-item:hover { text-decoration: underline; }
+
+/* ── O SINO ───────────────────────────────────────────────────────────
+   `<details>` no topbar. `position: relative` no próprio <details> e não no
+   <header>: o painel se ancora no sino, e ancorá-lo no header o faria nascer
+   na esquerda da tela em vez de embaixo do ícone. */
+.au-sino { position: relative; }
+.au-sino > summary {
+  cursor: pointer; list-style: none; position: relative;
+  display: inline-flex; align-items: center; justify-content: center;
+}
+.au-sino > summary::-webkit-details-marker { display: none; }
+.au-sino > summary:hover { background: var(--au-surface-sunken); color: var(--au-text); }
+
+/* O contador MONTADO no ícone, e não ao lado: ao lado ele empurra o botão de
+   sair para a esquerda toda vez que um aviso chega, e a barra dança. */
+.au-sino-contagem {
+  position: absolute; top: -1px; right: -1px;
+  min-width: 15px; height: 15px; padding: 0 3px;
+  display: inline-flex; align-items: center; justify-content: center;
+  border-radius: var(--au-r-full);
+  background: var(--au-danger);
+  color: var(--au-sobre-acento);
+  font-size: 9px; font-weight: 700; line-height: 1;
+  font-variant-numeric: tabular-nums;
+  /* Anel na cor do fundo separa o selo do ícone sem sombra. */
+  box-shadow: 0 0 0 1.5px var(--au-surface);
+}
+
+.au-sino-painel {
+  position: absolute; top: calc(100% + var(--au-2)); right: 0; z-index: 50;
+  width: min(340px, calc(100vw - var(--au-6)));
+  display: flex; flex-direction: column; gap: var(--au-2);
+  padding: var(--au-3);
+  background: var(--au-surface); border: 1px solid var(--au-border);
+  border-radius: var(--au-r-md); box-shadow: var(--au-e-3);
+}
+.au-sino-cabeca {
+  margin: 0; font-size: var(--au-t-sm); font-weight: 600; color: var(--au-text-muted);
+}
+.au-sino-lista { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
+.au-sino-item {
+  display: flex; flex-direction: column; gap: 2px;
+  padding: var(--au-2) 0; border-top: 1px solid var(--au-border);
+}
+/* A barra à esquerda é o que separa lido de não lido sem depender de cor de
+   texto — que some para quem não distingue as duas. */
+.au-sino-item--nova { border-left: 2px solid var(--au-accent); padding-left: var(--au-2); }
+.au-sino-link { font-size: var(--au-t-sm); color: var(--au-text); text-decoration: none; }
+.au-sino-link:hover { text-decoration: underline; }
+.au-sino-quando { font-size: var(--au-t-xs); color: var(--au-text-subtle); }
+.au-sino-vazio { margin: 0; font-size: var(--au-t-sm); color: var(--au-text-subtle); }
+.au-sino-rodape { display: flex; }
+.au-sino-tudo {
+  font-size: var(--au-t-sm); color: var(--au-accent); text-decoration: none;
+  padding-top: var(--au-2); border-top: 1px solid var(--au-border);
+}
+.au-sino-tudo:hover { text-decoration: underline; }
+
 .au-devolver-corpo {
   display: flex; flex-direction: column; gap: var(--au-2);
   margin-top: var(--au-3); padding: var(--au-3);
@@ -1159,30 +1481,6 @@ body {
   /* Lote no celular é erro esperando acontecer — quem aprova no celular está
      entre reuniões e precisa decidir um a um. */
   .au-check, .au-lote-barra { display: none; }
-}
-
-/* ── Sino da topbar ────────────────────────────────────────────────
-   Leva à Central; não abre painel. Ver comentário em `_shell.html`. */
-.au-sino {
-  position: relative;
-  display: inline-flex; align-items: center; justify-content: center;
-  width: 32px; height: 32px;
-  border-radius: var(--au-r-sm);
-  color: var(--au-text-muted);
-}
-.au-sino:hover { background: var(--au-surface-sunken); color: var(--au-text); }
-.au-sino--ativo { color: var(--au-accent-text); }
-.au-sino-contagem {
-  position: absolute; top: -1px; right: -1px;
-  min-width: 15px; height: 15px; padding: 0 3px;
-  display: inline-flex; align-items: center; justify-content: center;
-  border-radius: var(--au-r-full);
-  background: var(--au-danger);
-  color: #fff;
-  font-size: 9px; font-weight: 700; line-height: 1;
-  font-variant-numeric: tabular-nums;
-  /* Anel na cor do fundo separa o selo do ícone sem sombra. */
-  box-shadow: 0 0 0 1.5px var(--au-surface);
 }
 
 /* ── Meu dia ───────────────────────────────────────────────────────
@@ -2114,7 +2412,7 @@ a.au-notif-titulo:hover { color: var(--au-accent-text); text-decoration: underli
 
 .au-porta-lado {
   padding: var(--au-8) var(--au-6);
-  background: linear-gradient(160deg, #2b2e8a 0%, #212369 100%);
+  background: linear-gradient(160deg, var(--au-accent-700) 0%, var(--au-accent-800) 100%);
   color: rgb(255 255 255 / .88);
   display: flex;
   flex-direction: column;
@@ -2357,3 +2655,387 @@ tr[data-abre-resumo]:focus-visible {
   font-variant-numeric: tabular-nums;
 }
 .au-timeline-acao { font-weight: 600; }
+
+/* ── Estoque e custódia — §15 e §17 ─────────────────────────────────
+   O modelo e o serviço de estoque existiam desde a onda de Suprimentos e não
+   havia tela nenhuma: dava para GASTAR estoque pela conclusão de um pedido e
+   não dava para repor, contar nem registrar o que voltou de campo.
+
+   Classes com prefixo próprio (`au-estoque-`, `au-reversa-`, `au-custodia-`) e
+   nada de redefinir base: `au-grade` já foi redefinida uma vez neste arquivo e
+   derrubou o catálogo inteiro por cascata, 400 linhas depois da definição
+   original. */
+
+.au-colunas--tres {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--au-4);
+}
+
+/* Abaixo do mínimo. Seção própria em cima, e não uma cor na linha lá embaixo:
+   marcar a linha faz o aviso depender de alguém rolar até ele, e é a lista
+   inteira que se rola quando o cadastro cresce. */
+.au-estoque-falta {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: var(--au-1);
+}
+.au-estoque-falta-item {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--au-2);
+  padding: var(--au-2) var(--au-3);
+  border-left: 3px solid var(--au-warning);
+  background: var(--au-warning-bg);
+  border-radius: var(--au-r-sm);
+  font-size: var(--au-t-sm);
+}
+.au-estoque-falta-nome { font-weight: 600; }
+.au-estoque-falta-unidade { color: var(--au-text-muted); }
+.au-estoque-falta-conta {
+  margin-left: auto;
+  color: var(--au-warning-text);
+  font-variant-numeric: tabular-nums;
+}
+
+/* O resumo da reversa. Sempre as quatro condições, mesmo zeradas: omitir a que
+   não teve movimento faria "0 em sucata" sumir da tela, e é esse número que
+   alguém precisa ler para acreditar que a coluna existe. */
+.au-reversa-resumo {
+  list-style: none;
+  margin: 0 0 var(--au-4);
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(9rem, 1fr));
+  gap: var(--au-3);
+}
+.au-reversa-cartao {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: var(--au-3);
+  border: 1px solid var(--au-border);
+  border-radius: var(--au-r-md);
+  background: var(--au-surface);
+}
+/* Sucata entra no razão e NÃO no saldo. O cartão precisa dizer isso, senão
+   alguém soma os quatro números e programa uma entrega impossível. */
+.au-reversa-cartao--fora {
+  background: var(--au-surface-sunken);
+  border-style: dashed;
+}
+.au-reversa-numero {
+  font-size: var(--au-t-xl);
+  font-weight: 650;
+  font-variant-numeric: tabular-nums;
+  color: var(--au-text);
+}
+.au-reversa-rotulo { font-size: var(--au-t-sm); color: var(--au-text-muted); }
+.au-reversa-nota { font-size: var(--au-t-xs); color: var(--au-text-subtle); }
+
+/* Custódia — lista, não tabela, na parte "confirme o que você recebeu": são
+   poucas linhas e o que importa é reconhecer o equipamento, não comparar
+   colunas. */
+.au-custodia {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  border-top: 1px solid var(--au-border);
+}
+.au-custodia-item {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  gap: var(--au-3);
+  align-items: center;
+  padding: var(--au-3) 0;
+  border-bottom: 1px solid var(--au-border);
+}
+.au-custodia-item--aceite { border-left: 3px solid var(--au-accent); padding-left: var(--au-3); }
+.au-custodia-nome { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.au-custodia-etiqueta {
+  font-size: var(--au-t-xs);
+  color: var(--au-text-subtle);
+  font-variant-numeric: tabular-nums;
+}
+.au-custodia-meta {
+  font-size: var(--au-t-xs);
+  color: var(--au-text-subtle);
+  white-space: nowrap;
+}
+.au-custodia-baixa { display: flex; gap: var(--au-2); align-items: center; }
+
+/* Prefixo `cst-` como `rel-`, `hab-` e `pub-`: `au-etiqueta--devolvida` já
+   existe e é vermelha, porque no pedido devolver é o pedido voltando errado.
+   Aqui devolver é o fim feliz da custódia, e reusar a classe pintaria de perigo
+   exatamente a linha que está resolvida. */
+.au-etiqueta--cst-em_uso    { color: var(--au-accent-text);  background: var(--au-accent-bg); }
+.au-etiqueta--cst-a_aceitar { color: var(--au-warning-text); background: var(--au-warning-bg); }
+.au-etiqueta--cst-devolvida { color: var(--au-success-text); background: var(--au-success-bg); }
+
+/* A linha do que já terminou. Esmaecida e não escondida: o histórico é o que
+   responde "o que já passou pelas mãos desta pessoa" no desligamento. */
+.au-linha--encerrada { opacity: .6; }
+
+@media (max-width: 640px) {
+  .au-colunas--tres { grid-template-columns: 1fr; }
+  .au-custodia-item { grid-template-columns: minmax(0, 1fr); }
+  .au-estoque-falta-conta { margin-left: 0; }
+}
+
+/* ── Telas de erro — §53 ────────────────────────────────────────────
+   400, 403, 404 e 500 nunca tiveram template: o produto entregava a tela de
+   depuração do Django em desenvolvimento e a página cinza padrão em produção —
+   sem marca, sem saída, e no caso do 403 sem explicar por que o acesso foi
+   negado, que é a informação de que a pessoa precisa para resolver.
+
+   Centralizada e estreita: é uma tela de UMA frase, e uma frase que ocupa a
+   largura do monitor não se lê.
+
+   `au-tela-erro` e não `au-erro`: aquela já existe e é a mensagem de erro de
+   UM CAMPO — texto vermelho pequeno abaixo do input, em `pedir.html` e nas
+   despesas. Reusar o nome teria transformado cada aviso de formulário num
+   bloco centrado de 34rem, e por cascata: a definição de baixo vence, e a de
+   cima vira letra morta 1900 linhas acima sem ninguém notar. Foi assim que o
+   `au-grade` derrubou o catálogo inteiro uma vez. */
+
+.au-tela-erro {
+  max-width: 34rem;
+  margin: 0 auto;
+  padding: var(--au-8) var(--au-4);
+  text-align: center;
+}
+
+/* O código grande e apagado. Ele é a informação MENOS útil da tela — quem lê
+   "404" já sabe que algo deu errado —, então ele não compete com a frase. */
+.au-tela-erro-codigo {
+  margin: 0;
+  font-size: var(--au-t-xl);
+  font-weight: 650;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: .08em;
+  color: var(--au-text-subtle);
+}
+
+.au-tela-erro-titulo {
+  margin: var(--au-2) 0 var(--au-4);
+  font-size: var(--au-t-lg);
+  line-height: 1.25;
+  color: var(--au-text);
+}
+
+.au-tela-erro-texto {
+  display: grid;
+  gap: var(--au-3);
+  margin: 0 0 var(--au-6);
+  font-size: var(--au-t-base);
+  line-height: 1.55;
+  color: var(--au-text-muted);
+  text-align: left;
+}
+.au-tela-erro-texto p { margin: 0; }
+
+/* As saídas. Botões e não uma linha de links: o erro é onde a navegação
+   falhou, e um link discreto no meio de um parágrafo é a forma mais rápida de
+   a pessoa recorrer ao botão do navegador — que, depois de um redirecionamento,
+   não leva onde ela espera. */
+.au-tela-erro-saidas {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--au-2);
+  justify-content: center;
+}
+
+/* ── Frota — §18 e §19 ──────────────────────────────────────────────
+   Prefixo `au-frota-`/`au-prazo-` e nada de nome genérico: `au-erro` já
+   provou nesta mesma sessão que um nome curto e óbvio já está tomado, e a
+   redefinição vence por cascata sem nenhum aviso. */
+
+/* Os prazos. Lista e não tabela: são poucas linhas, o que importa é reconhecer
+   a placa, e a urgência precisa aparecer na borda — coluna de tabela com
+   "vencido" escrito se lê depois de tudo o mais. */
+.au-prazos { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--au-1); }
+.au-prazo-item {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--au-2);
+  padding: var(--au-2) var(--au-3);
+  border-left: 3px solid var(--au-warning);
+  background: var(--au-warning-bg);
+  border-radius: var(--au-r-sm);
+  font-size: var(--au-t-sm);
+}
+.au-prazo-item--vencido {
+  border-left-color: var(--au-danger);
+  background: var(--au-danger-bg);
+}
+.au-prazo-doc {
+  min-width: 8rem;
+  font-size: var(--au-t-xs);
+  text-transform: uppercase;
+  letter-spacing: .04em;
+  color: var(--au-text-subtle);
+}
+.au-prazo-veiculo { font-weight: 600; display: flex; gap: var(--au-2); align-items: baseline; }
+.au-prazo-modelo { font-weight: 400; color: var(--au-text-muted); }
+.au-prazo-data {
+  margin-left: auto;
+  color: var(--au-warning-text);
+  font-variant-numeric: tabular-nums;
+}
+.au-prazo-item--vencido .au-prazo-data { color: var(--au-danger-text); }
+
+/* Os quatro números do veículo. Gasto, distância, km/l e custo por km — as
+   perguntas que se faz sobre um carro, nessa ordem. */
+.au-frota-numeros {
+  list-style: none;
+  margin: 0 0 var(--au-4);
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(10rem, 1fr));
+  gap: var(--au-3);
+}
+.au-frota-numero {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: var(--au-3);
+  border: 1px solid var(--au-border);
+  border-radius: var(--au-r-md);
+  background: var(--au-surface);
+}
+.au-frota-valor {
+  font-size: var(--au-t-lg);
+  font-weight: 650;
+  font-variant-numeric: tabular-nums;
+  color: var(--au-text);
+}
+.au-frota-rotulo { font-size: var(--au-t-xs); color: var(--au-text-muted); }
+
+/* O gasto por tipo. Linha e não gráfico: são seis valores, e uma barra
+   proporcional aqui pediria escala, legenda e uma decisão sobre o que fazer
+   quando cinco deles forem zero. */
+.au-frota-tipos {
+  list-style: none;
+  margin: 0 0 var(--au-4);
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--au-2);
+}
+.au-frota-tipo {
+  display: flex;
+  gap: var(--au-2);
+  align-items: baseline;
+  padding: var(--au-1) var(--au-3);
+  border: 1px solid var(--au-border);
+  border-radius: var(--au-r-full);
+  font-size: var(--au-t-sm);
+}
+.au-frota-tipo-rotulo { color: var(--au-text-muted); }
+.au-frota-tipo-valor { font-weight: 600; font-variant-numeric: tabular-nums; }
+
+.au-etiqueta--frt-ativo      { color: var(--au-success-text); background: var(--au-success-bg); }
+.au-etiqueta--frt-manutencao { color: var(--au-warning-text); background: var(--au-warning-bg); }
+.au-etiqueta--frt-baixado    { color: var(--au-text-subtle);  background: var(--au-surface-sunken); }
+
+@media (max-width: 640px) {
+  .au-prazo-data { margin-left: 0; }
+}
+
+/* ── Rascunho — §43 ─────────────────────────────────────────────────
+   Cinza e não colorido: rascunho não é um estado do pedido no fluxo, é a
+   ausência dele. Pintar de amarelo o poria ao lado de "aguardando aprovação"
+   na leitura da tela, e é justamente essa confusão que o §43 desfaz — nada foi
+   enviado, nenhum prazo corre, ninguém foi avisado. */
+.au-etiqueta--rascunho { color: var(--au-text-subtle); background: var(--au-surface-sunken); }
+
+/* Duas ações na mesma célula: "Continuar" é um link e "Descartar" é um
+   formulário com POST e CSRF, então eles não cabem no mesmo elemento. */
+.au-acoes-linha { display: flex; gap: var(--au-2); align-items: center; }
+
+/* Situação do documento no acervo — §37. Prefixo `doc-` como `rel-`, `hab-`,
+   `pub-` e `cst-`: `au-etiqueta--rascunho` já existe e é do §43, e reusá-la
+   aqui amarraria dois significados ao mesmo nome. */
+.au-etiqueta--doc-vigente  { color: var(--au-success-text); background: var(--au-success-bg); }
+.au-etiqueta--doc-rascunho { color: var(--au-text-subtle);  background: var(--au-surface-sunken); }
+.au-etiqueta--doc-revogado { color: var(--au-danger-text);  background: var(--au-danger-bg); }
+
+/* Situação da oportunidade de marketing — §23. Prefixo `mkt-` pela mesma regra
+   dos outros: `au-etiqueta--aprovada` já existe e é do pedido de serviço, e um
+   nome com dois significados é o que faz a cor certa aparecer na tela errada. */
+.au-etiqueta--mkt-radar      { color: var(--au-text-subtle);  background: var(--au-surface-sunken); }
+.au-etiqueta--mkt-avaliando  { color: var(--au-warning-text); background: var(--au-warning-bg); }
+.au-etiqueta--mkt-aprovada   { color: var(--au-accent-text);  background: var(--au-accent-bg); }
+.au-etiqueta--mkt-descartada { color: var(--au-neutral-text); background: var(--au-neutral-bg); }
+.au-etiqueta--mkt-realizada  { color: var(--au-success-text); background: var(--au-success-bg); }
+
+/* ── Movimento reduzido — §49 ───────────────────────────────────────
+   Oito transições e um `translateY(-2px)` no hover de cada card, e nenhuma
+   delas perguntava a preferência do sistema. Para quem tem distúrbio
+   vestibular, uma vitrine de vinte cards que "sobem" ao passar o mouse é
+   desconforto físico, não capricho de estilo — é o WCAG 2.3.3.
+
+   `!important` aqui é legítimo e raro: a regra existe para VENCER qualquer
+   animação declarada acima, inclusive as que alguém acrescentar depois sem
+   lembrar deste bloco. É o único lugar do arquivo onde ele aparece. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: .01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: .01ms !important;
+    scroll-behavior: auto !important;
+  }
+  /* O deslocamento some junto: encurtar a transição de um movimento não tira
+     o movimento, só o faz acontecer de uma vez. */
+  .au-app--ativo:hover,
+  .au-card:hover {
+    transform: none !important;
+  }
+}
+
+/* A procedência da resposta do assistente — §56. Discreta e sempre presente:
+   texto conferido por alguém da empresa tem outro peso que texto gerado por
+   aproximação, e a diferença tem de estar na tela, não no código. */
+.au-bot-origem {
+  margin: var(--au-2) 0 0;
+  font-size: var(--au-t-xs);
+  color: var(--au-text-subtle);
+}
+
+/* Prioridade da fila — §7. DERIVADA do prazo prometido, nunca declarada por
+   quem pede: no primeiro mês todo mundo marca "normal", no terceiro todo mundo
+   marca "urgente", e a coluna deixa de significar qualquer coisa.
+
+   Prefixo `prio-` como os outros: `au-etiqueta--atrasado` já existe e é do
+   estado de uma matrícula. */
+.au-etiqueta--prio-atrasado  { color: var(--au-danger-text);  background: var(--au-danger-bg); }
+.au-etiqueta--prio-no_limite { color: var(--au-warning-text); background: var(--au-warning-bg); }
+.au-etiqueta--prio-normal    { color: var(--au-text-subtle);  background: var(--au-surface-sunken); }
+
+/* Resultado da candidatura — §10. Derivado da máquina de estados do pedido:
+   concluída é aprovado, reprovada é não seguiu. Prefixo `rec-` como os outros. */
+.au-etiqueta--rec-aprovado   { color: var(--au-success-text); background: var(--au-success-bg); }
+.au-etiqueta--rec-reprovado  { color: var(--au-neutral-text); background: var(--au-neutral-bg); }
+.au-etiqueta--rec-em_analise { color: var(--au-warning-text); background: var(--au-warning-bg); }
+
+/* Status de chamado do iConnect — §21. Prefixo `tk-` como os outros: o
+   vocabulário é do outro produto, e misturá-lo com o estado das solicitações
+   daqui faria uma tela mostrar a cor de "aprovada" para um chamado. */
+.au-etiqueta--tk-aberto       { color: var(--au-accent-text);  background: var(--au-accent-bg); }
+.au-etiqueta--tk-open         { color: var(--au-accent-text);  background: var(--au-accent-bg); }
+.au-etiqueta--tk-em_andamento { color: var(--au-warning-text); background: var(--au-warning-bg); }
+.au-etiqueta--tk-in_progress  { color: var(--au-warning-text); background: var(--au-warning-bg); }
+.au-etiqueta--tk-aguardando   { color: var(--au-text-subtle);  background: var(--au-surface-sunken); }
+.au-etiqueta--tk-pending      { color: var(--au-text-subtle);  background: var(--au-surface-sunken); }
+.au-etiqueta--tk-waiting      { color: var(--au-text-subtle);  background: var(--au-surface-sunken); }
+.au-etiqueta--tk-resolvido    { color: var(--au-success-text); background: var(--au-success-bg); }
+.au-etiqueta--tk-resolved     { color: var(--au-success-text); background: var(--au-success-bg); }
+.au-etiqueta--tk-encerrado    { color: var(--au-neutral-text); background: var(--au-neutral-bg); }
+.au-etiqueta--tk-closed       { color: var(--au-neutral-text); background: var(--au-neutral-bg); }
+.au-etiqueta--tk-fechado      { color: var(--au-neutral-text); background: var(--au-neutral-bg); }

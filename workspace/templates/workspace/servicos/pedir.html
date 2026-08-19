@@ -30,6 +30,38 @@
       {% include "workspace/servicos/_trilha_passos.html" with atual=1 %}
     {% endif %}
 
+    {% comment %}
+      O RASCUNHO retomado — §43.
+
+      O campo escondido é o que amarra este envio à linha guardada: sem ele o
+      envio criaria um pedido NOVO e deixaria o rascunho para trás com os
+      anexos dentro, e a pessoa ficaria com dois registros da mesma coisa — um
+      enviado sem comprovante, outro com o comprovante e nunca enviado.
+    {% endcomment %}
+    {% if rascunho %}
+      <input type="hidden" name="rascunho" value="{{ rascunho.pk }}">
+      <div class="au-aviso">
+        <b>{% trans "Você está continuando um rascunho." %}</b>
+        {% blocktrans with quando=rascunho.criado_em|date:"d/m/Y H:i" %}Guardado em
+        {{ quando }}. Nada foi enviado ainda — nenhum prazo está correndo e
+        ninguém foi avisado.{% endblocktrans %}
+      </div>
+
+      {% comment %}
+        Os anexos que JÁ estão no rascunho. Sem esta lista a pessoa volta ao
+        formulário, não vê o comprovante que mandou ontem, e anexa de novo — e
+        o pedido chega com dois.
+      {% endcomment %}
+      {% if anexos_do_rascunho %}
+        <p class="au-ajuda">
+          {% trans "Já guardados neste rascunho:" %}
+          {% for a in anexos_do_rascunho %}
+            <a href="{% url 'workspace:baixar_anexo' a.pk %}">{{ a.nome_original }}</a>{% if not forloop.last %},{% endif %}
+          {% endfor %}
+        </p>
+      {% endif %}
+    {% endif %}
+
     {% if impedimentos %}
       <div class="au-aviso au-aviso--error" role="alert">
         <b>{% trans "Corrija antes de enviar:" %}</b>
@@ -162,7 +194,20 @@
     {% endif %}
 
     <div class="au-form-acoes">
-      <a class="au-btn au-btn--sutil" href="{% url 'workspace:servicos' %}">{% trans "Cancelar" %}</a>
+      {% comment %}
+        "Cancelar" volta para de onde a pessoa veio, e não sempre para o
+        catálogo — §8. Quem está continuando um rascunho veio da lista de
+        rascunhos, e mandá-lo para a vitrine faz o rascunho sumir de vista no
+        exato clique em que ele decidiu não mexer nele agora.
+      {% endcomment %}
+      {% if rascunho %}
+        <a class="au-btn au-btn--sutil"
+           href="{% url 'workspace:minhas_solicitacoes' %}?situacao=rascunho">
+          {% trans "Cancelar" %}
+        </a>
+      {% else %}
+        <a class="au-btn au-btn--sutil" href="{% url 'workspace:servicos' %}">{% trans "Cancelar" %}</a>
+      {% endif %}
       {% comment %}
         Os dois botões de navegação nascem `hidden` e o JS os revela. É a ordem
         certa da degradação: sem JS não há passos, e um "Continuar" que não
@@ -174,6 +219,20 @@
         </button>
         <button class="au-btn au-btn--primario" type="button" data-passo-seguir hidden>
           {% trans "Continuar" %}
+        </button>
+      {% endif %}
+      {% comment %}
+        GUARDAR RASCUNHO — §43. Só para quem está identificado: rascunho é da
+        pessoa, e sem sessão não há de quem ele seja.
+
+        `formnovalidate` porque o rascunho é, por definição, o formulário
+        incompleto: deixar o navegador exigir os campos obrigatórios aqui
+        recriaria exatamente o problema que este botão existe para resolver.
+      {% endcomment %}
+      {% if identificada %}
+        <button class="au-btn au-btn--sutil" type="submit" name="acao" value="rascunho"
+                formnovalidate>
+          {% trans "Guardar rascunho" %}
         </button>
       {% endif %}
       <button class="au-btn au-btn--primario" type="submit" data-enviar>

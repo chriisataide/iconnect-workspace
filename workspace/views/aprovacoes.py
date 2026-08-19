@@ -16,6 +16,7 @@ from django.urls import reverse
 from workspace.acesso import pessoa_da_requisicao
 from workspace.models.aprovacao import SolicitacaoAprovacao
 from workspace.services import aprovacao as apr
+from workspace.services import mapa_aprovacao as mapa
 from workspace.services import orcamento as orc
 
 
@@ -99,7 +100,9 @@ def _despesas_de(solicitacao: SolicitacaoAprovacao) -> list:
     servico = _servico_de(solicitacao)
     if servico is None:
         return []
-    return list(servico.despesas.select_related("anexo"))
+    # `.all()` e não `.select_related("anexo")`: o segundo IGNORA o prefetch da
+    # bandeja e volta ao banco uma vez por linha. O anexo vem no prefetch.
+    return list(servico.despesas.all())
 
 
 def _anexos_de(solicitacao: SolicitacaoAprovacao) -> list:
@@ -122,6 +125,14 @@ def _dossie(solicitacao: SolicitacaoAprovacao) -> dict:
 
     return {
         "solicitacao": solicitacao,
+        # O PEDIDO do outro lado da aprovação. É ele que carrega o formulário
+        # preenchido, os anexos e a linha do tempo — a bandeja mostrava
+        # orçamento e comprovação e nada do que a pessoa efetivamente pediu,
+        # então decidir exigia abrir outra tela ou perguntar.
+        #
+        # `None` é caso real: uma aprovação pode nascer de outro domínio que não
+        # o catálogo, e nesse caso não há pedido de serviço nenhum.
+        "servico": _servico_de(solicitacao),
         # Aprovar reembolso sem poder abrir o comprovante é exatamente o
         # carimbo que esta tela existe para evitar.
         "anexos": _anexos_de(solicitacao),
@@ -154,6 +165,9 @@ def bandeja(request: HttpRequest) -> HttpResponse:
         {
             "resumo": resumo,
             "itens": [_dossie(s) for s in resumo["solicitacoes"]],
+            # O modal de detalhe marca a etapa parada em papel sem dono, do
+            # mesmo jeito que em "Minhas solicitações".
+            "papeis_orfaos": mapa.papeis_sem_titular(),
         },
     )
 
@@ -185,6 +199,7 @@ def decidir(request: HttpRequest, pk: int) -> HttpResponse:
         rotulo = {
             apr.Decisao.APROVAR: "aprovada",
             apr.Decisao.DEVOLVER: "devolvida",
+            apr.Decisao.REJEITAR: "reprovada",
             apr.Decisao.CANCELAR: "cancelada",
         }.get(decisao, "decidida")
         messages.success(request, f"{solicitacao.titulo} · {rotulo}.")

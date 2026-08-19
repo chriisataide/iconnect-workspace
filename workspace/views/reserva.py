@@ -48,15 +48,20 @@ def reservas(request: HttpRequest) -> HttpResponse:
 
     grupos = []
     for rotulo, recursos in res.agrupados_para(pessoa).items():
-        grupos.append(
-            {
-                "rotulo": rotulo,
-                "recursos": [
-                    {"recurso": r, "agenda": list(res.agenda_do_dia(r, dia))}
-                    for r in recursos
-                ],
-            }
-        )
+        entradas = []
+        for recurso in recursos:
+            agenda = list(res.agenda_do_dia(recurso, dia))
+            entradas.append(
+                {
+                    "recurso": recurso,
+                    "agenda": agenda,
+                    # A agenda já carregada é REPASSADA para a grade: buscá-la
+                    # de novo lá dentro daria uma consulta por recurso, que é o
+                    # N+1 clássico de tela de calendário.
+                    "grade": res.grade_do_dia(recurso, agenda=agenda, dia=dia),
+                }
+            )
+        grupos.append({"rotulo": rotulo, "recursos": entradas})
 
     return render(
         request,
@@ -67,6 +72,9 @@ def reservas(request: HttpRequest) -> HttpResponse:
             "ontem": dia - timedelta(days=1),
             "amanha": dia + timedelta(days=1),
             "e_hoje": dia == timezone.localdate(),
+            # "Preciso de uma sala AGORA" é o motivo de a pessoa abrir esta
+            # tela, e a resposta exigia percorrer a agenda de cada recurso.
+            "livres_agora": res.livres_agora(pessoa, dia=dia),
             "autenticado": True,
             "total": sum(len(g["recursos"]) for g in grupos),
             "minhas_futuras": (

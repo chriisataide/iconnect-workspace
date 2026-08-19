@@ -40,6 +40,23 @@
       <ul class="au-grade">
         {% for entrada in grupo.itens %}
           <li>
+            {% comment %}
+              Item que LEVA PARA FORA (§11) — ver `modulo.html`. O card avisa
+              antes do clique que muda de produto.
+            {% endcomment %}
+            {% if entrada.item.leva_para_fora %}
+            <a class="au-app au-app--ativo au-app--externo" href="{{ entrada.item.url_externa }}"
+               target="_blank" rel="noopener">
+              <span class="au-app-topo">
+                <span class="au-app-icone">
+                  <svg class="au-icon" aria-hidden="true"><use href="#i-{{ entrada.item.icone }}"></use></svg>
+                </span>
+                <span class="au-selo">{% trans "abre no iConnect" %}</span>
+              </span>
+              <span class="au-app-nome">{{ entrada.item.nome }}</span>
+              <span class="au-app-desc">{{ entrada.item.descricao_curta }}</span>
+            </a>
+            {% else %}
             <a class="au-app au-app--ativo" href="{% url 'workspace:pedir' entrada.item.chave %}">
               <span class="au-app-topo">
                 <span class="au-app-icone">
@@ -62,6 +79,7 @@
                 {% endif %}
               </span>
             </a>
+            {% endif %}
           </li>
         {% endfor %}
       </ul>

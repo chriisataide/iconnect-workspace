@@ -172,6 +172,7 @@ def ao_chegar_a_vez(sender, solicitacao, etapa, **kwargs) -> None:
 _TITULO_POR_DECISAO = {
     apr.Decisao.APROVAR: ("{titulo} foi aprovado", TipoNotificacao.PEDIDO_APROVADO),
     apr.Decisao.DEVOLVER: ("{titulo} foi devolvido", TipoNotificacao.PEDIDO_DEVOLVIDO),
+    apr.Decisao.REJEITAR: ("{titulo} foi reprovado", TipoNotificacao.PEDIDO_REJEITADO),
     apr.Decisao.CANCELAR: ("{titulo} foi cancelado", TipoNotificacao.PEDIDO_CANCELADO),
 }
 
@@ -193,9 +194,11 @@ def ao_decidir(sender, solicitacao, decisao, quem, **kwargs) -> None:
         return
 
     motivo = ""
-    if decisao == apr.Decisao.DEVOLVER:
+    if decisao in (apr.Decisao.DEVOLVER, apr.Decisao.REJEITAR):
         etapa = solicitacao.etapas.exclude(justificativa="").order_by("-decidido_em").first()
         motivo = etapa.justificativa if etapa else ""
+        # O motivo VAI no corpo do aviso, e não só na tela. Quem foi reprovado
+        # precisa saber por quê no momento em que descobre que foi.
 
     criar(
         destinatario=solicitacao.solicitante,

@@ -1,0 +1,75 @@
+{% extends "workspace/_shell_modulo.html" %}
+{% load i18n wks %}
+
+{% block titulo %}{% trans "Ajuda" %}{% endblock %}
+{% block rail %}{% include "workspace/_rail_servicos.html" with aba="ajuda" %}{% endblock %}
+{% block trilha %}<span>{% trans "Ajuda" %}</span>{% endblock %}
+{% block pagina_titulo %}{% trans "Perguntas frequentes" %}{% endblock %}
+{% block voltar_url %}{% url 'workspace:home' %}{% endblock %}
+
+{% block pagina_descricao %}
+  <p class="au-pagina-desc">
+    {% blocktrans %}O que os setores respondem toda semana, respondido uma vez. Se
+    não achar aqui, o assistente no canto da tela procura por você.{% endblocktrans %}
+  </p>
+{% endblock %}
+
+{% block corpo %}
+{% comment %}
+  Esta página existe por três razões, e nenhuma é redundância com o painel:
+  funciona sem JavaScript, o ⌘F do navegador acha nela o que o painel esconde, e
+  é para onde o painel manda quem quer LER tudo em vez de perguntar.
+
+  Se o `q` veio da busca, ele é mostrado — quem chegou sem JS precisa saber que a
+  pergunta foi recebida.
+{% endcomment %}
+{% if busca %}
+  <div class="au-faixa">
+    <span class="au-faixa-texto">
+      {% blocktrans %}Você perguntou: “{{ busca }}”. Procure abaixo, ou use a busca do navegador.{% endblocktrans %}
+    </span>
+  </div>
+{% endif %}
+
+{% if grupos %}
+  {% for grupo in grupos %}
+    <section class="au-secao">
+      <div class="au-secao-cabeca">
+        <h2 class="au-secao-titulo">{{ grupo.rotulo }}</h2>
+        <span class="au-secao-contagem">{{ grupo.perguntas|length }}</span>
+      </div>
+
+      <ul class="au-faq">
+        {% for p in grupo.perguntas %}
+          {% comment %}
+            `<details>` por pergunta: a lista inteira aberta são três telas de
+            rolagem, e fechada ela responde "o que dá para perguntar aqui" —
+            que é a dúvida de quem chega.
+          {% endcomment %}
+          <li class="au-faq-item">
+            <details>
+              <summary class="au-faq-pergunta">{{ p.pergunta }}</summary>
+              <div class="au-faq-resposta">
+                <p>{{ p.resposta|linebreaksbr }}</p>
+                {% if p.url_acao %}
+                  <a class="au-btn au-btn--sutil au-btn--pequeno" href="{{ p.url_acao }}">
+                    {{ p.rotulo_acao|default:_("Abrir") }}
+                  </a>
+                {% endif %}
+              </div>
+            </details>
+          </li>
+        {% endfor %}
+      </ul>
+    </section>
+  {% endfor %}
+{% else %}
+  <div class="au-vazio">
+    <p class="au-vazio-titulo">{% trans "A base ainda está vazia." %}</p>
+    <p class="au-vazio-dica">
+      {% blocktrans %}Quem tem permissão pode cadastrar perguntas — é o que tira a
+      dúvida repetida da mesa do setor.{% endblocktrans %}
+    </p>
+  </div>
+{% endif %}
+{% endblock %}
