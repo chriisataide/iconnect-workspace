@@ -18,6 +18,120 @@
 {% endblock %}
 
 {% block corpo %}
+{% comment %}
+  §34 — RELATÓRIOS FICA AQUI DENTRO, e não como item solto no trilho.
+
+  O pedido é literal: "criar novo card dentro do card principal de documento".
+  E é o certo conceitualmente — relatório de entrega e de ocorrência SÃO
+  documentos: o que muda é que estes a empresa produz, e os do acervo ela
+  segue. Duas portas separadas na navegação fariam a pessoa procurar em
+  "Documentação" o relatório que ela acabou de emitir.
+{% endcomment %}
+<section class="au-secao">
+  <div class="au-secao-cabeca">
+    <h2 class="au-secao-titulo">{% trans "Ferramentas de documento" %}</h2>
+  </div>
+
+  <ul class="au-grade au-grade--tercos">
+    <li>
+      <a class="au-app au-app--ativo" href="{% url 'workspace:relatorios' %}">
+        <span class="au-app-topo">
+          <span class="au-app-icone">
+            <svg class="au-icon" aria-hidden="true"><use href="#i-file"></use></svg>
+          </span>
+          <svg class="au-app-seta" aria-hidden="true"><use href="#i-seta"></use></svg>
+        </span>
+        <span class="au-app-nome">{% trans "Relatórios" %}</span>
+        <span class="au-app-desc">
+          {% trans "Relatório de entrega e de ocorrência, com assistente e PDF." %}
+        </span>
+      </a>
+    </li>
+    {% if mantem_acervo %}
+      <li>
+        <a class="au-app au-app--ativo" href="{% url 'workspace:documentos' %}">
+          <span class="au-app-topo">
+            <span class="au-app-icone">
+              <svg class="au-icon" aria-hidden="true"><use href="#i-book"></use></svg>
+            </span>
+            <svg class="au-app-seta" aria-hidden="true"><use href="#i-seta"></use></svg>
+          </span>
+          <span class="au-app-nome">{% trans "Acervo normativo" %}</span>
+          <span class="au-app-desc">
+            {% trans "Escrever, revisar e revogar — inclusive o que saiu da vitrine." %}
+          </span>
+        </a>
+      </li>
+    {% endif %}
+  </ul>
+</section>
+
+{% comment %}
+  §37 — RECENTES.
+
+  Por `atualizado_em` e não por `criado_em`: a pergunta é "o que mudou desde a
+  última vez que olhei", e a revisão de uma norma antiga é justamente a mudança
+  que importa. Ordenar por criação esconderia a v2 do POP de 2023 embaixo de um
+  manual novo que ninguém esperava.
+
+  Sem "favoritos" ao lado, e é decisão: favorito exige tabela por pessoa, tela
+  para gerenciar, e depende de alguém lembrar de marcar. Num acervo de dezenas
+  de documentos, "os últimos que mudaram" responde a mesma pergunta sem pedir
+  nada a ninguém.
+{% endcomment %}
+{% if recentes and not filtrado %}
+  <section class="au-secao">
+    <div class="au-secao-cabeca">
+      <h2 class="au-secao-titulo">{% trans "Mexeram nestes por último" %}</h2>
+    </div>
+    <ul class="au-recentes">
+      {% for doc in recentes %}
+        <li>
+          <a class="au-recente" href="{% url 'workspace:documento' doc.slug %}">
+            <span class="au-recente-titulo">{{ doc.titulo }}</span>
+            <span class="au-recente-meta">
+              {% if doc.categoria %}{{ doc.categoria }} · {% endif %}v{{ doc.versao }}
+              · {{ doc.atualizado_em|date:"d/m/Y" }}
+            </span>
+          </a>
+        </li>
+      {% endfor %}
+    </ul>
+  </section>
+{% endif %}
+
+{% comment %}
+  §37 — FILTROS. Categoria e texto.
+
+  A busca olha título e resumo, e NÃO o corpo: o corpo de um POP tem centenas
+  de palavras e casaria com quase tudo — um filtro que devolve o acervo inteiro
+  é o mesmo que nenhum filtro. Quem precisa procurar dentro do texto usa a
+  busca global, que indexa o corpo com recorte por público-alvo.
+{% endcomment %}
+{% if categorias or busca %}
+  <form class="au-filtros" method="get" role="search">
+    <div class="au-filtros-chips">
+      <a class="au-chip {% if not categoria_atual %}au-chip--ativo{% endif %}"
+         href="{% url 'workspace:documentacao' %}">{% trans "Todas" %}</a>
+      {% for c in categorias %}
+        <a class="au-chip {% if categoria_atual == c %}au-chip--ativo{% endif %}"
+           href="?categoria={{ c|urlencode }}">{{ c }}</a>
+      {% endfor %}
+    </div>
+    <div class="au-filtros-busca">
+      {% if categoria_atual %}
+        <input type="hidden" name="categoria" value="{{ categoria_atual }}">
+      {% endif %}
+      <label class="au-sr" for="q">{% trans "Procurar" %}</label>
+      <input class="au-input au-input--compacto" id="q" name="q" type="search"
+             value="{{ busca }}" placeholder="{% trans 'Título ou resumo…' %}">
+      <button class="au-btn au-btn--sutil au-btn--pequeno" type="submit">
+        {% trans "Filtrar" %}
+      </button>
+    </div>
+  </form>
+{% endif %}
+
 {% if grupos %}
   {% for grupo in grupos %}
     <section class="au-secao">
@@ -54,10 +168,26 @@
   {% endfor %}
 {% else %}
   <div class="au-vazio">
-    <p class="au-vazio-titulo">{% trans "Nenhum documento em vigor." %}</p>
+    <p class="au-vazio-titulo">
+      {% if filtrado %}
+        {% trans "Nenhum documento com este filtro." %}
+      {% else %}
+        {% trans "Nenhum documento em vigor." %}
+      {% endif %}
+    </p>
     <p class="au-vazio-dica">
-      {% blocktrans %}POP, políticas e normas publicados aparecem aqui. Publique em
-      <b>Admin › iConnect Workspace › Documentos</b>.{% endblocktrans %}
+      {% comment %}
+        A dica dizia "publique no Admin › Documentos", e ficou para trás quando o
+        §37 trouxe a redação para dentro do produto. Dica que aponta para um
+        caminho abandonado é pior que dica nenhuma: manda a pessoa procurar
+        `is_staff` que ela não tem.
+      {% endcomment %}
+      {% if filtrado %}
+        {% blocktrans %}O acervo continua aqui — é este filtro que não encontra
+        nenhum.{% endblocktrans %}
+      {% else %}
+        {% blocktrans %}POP, políticas e normas publicados aparecem aqui.{% endblocktrans %}
+      {% endif %}
     </p>
   </div>
 {% endif %}

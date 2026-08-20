@@ -46,9 +46,19 @@ def documentacao(request: HttpRequest) -> HttpResponse:
     pessoa = pessoa_da_requisicao(request)
     quem = request.user if request.user.is_authenticated else None
 
+    categoria = request.GET.get("categoria", "")
+    texto = request.GET.get("q", "")
+    categorias = cnt.categorias_de(pessoa, cache=cache)
+    # Categoria forjada na URL vira "sem filtro" e não lista vazia: a pessoa
+    # colou um link velho, e uma tela vazia faz o acervo parecer apagado.
+    if categoria not in categorias:
+        categoria = ""
+
     grupos = [
         {"rotulo": rotulo, "documentos": documentos}
-        for rotulo, documentos in cnt.agrupado_para(pessoa, cache=cache).items()
+        for rotulo, documentos in cnt.agrupado_para(
+            pessoa, cache=cache, categoria=categoria, texto=texto
+        ).items()
     ]
     return render(
         request,
@@ -60,6 +70,17 @@ def documentacao(request: HttpRequest) -> HttpResponse:
                 len(cnt.pendentes_de_leitura(quem, cache=cache)) if quem else 0
             ),
             "total": sum(len(g["documentos"]) for g in grupos),
+            # §37 — filtros e recentes.
+            "categorias": categorias,
+            "categoria_atual": categoria,
+            "busca": texto,
+            "filtrado": bool(categoria or texto.strip()),
+            # Os recentes ignoram o filtro de propósito: eles respondem "o que
+            # mudou", que é outra pergunta — e recalculá-los a cada filtro faria
+            # a faixa piscar sem motivo.
+            "recentes": cnt.recentes_para(pessoa, cache=cache),
+            # §37 — quem MANTÉM o acervo chega por aqui.
+            "mantem_acervo": cnt.pode_publicar(request.user, cache=cache),
         },
     )
 
@@ -221,6 +242,7 @@ def documento_editar(request: HttpRequest, slug: str | None = None) -> HttpRespo
                 slug=request.POST.get("slug", ""),
                 titulo=request.POST.get("titulo", ""),
                 tipo=request.POST.get("tipo", ""),
+                categoria=request.POST.get("categoria", ""),
                 resumo=request.POST.get("resumo", ""),
                 corpo=request.POST.get("corpo", ""),
                 versao=request.POST.get("versao", ""),
@@ -252,6 +274,17 @@ def documento_editar(request: HttpRequest, slug: str | None = None) -> HttpRespo
         {
             "documento": doc,
             "tipos": TipoDocumento.choices,
+            # As categorias que já existem viram sugestão no formulário: texto
+            # livre sem lista vira "Segurança", "segurança" e "SEGURANCA" como
+            # três assuntos diferentes na mesma tabela.
+            "categorias": sorted(
+                {
+                    c
+                    for c in Documento.objects.exclude(categoria="")
+                    .values_list("categoria", flat=True)
+                    .distinct()
+                }
+            ),
             "unidades": Unidade.objects.order_by("nome"),
             "departamentos": Departamento.objects.order_by("nome"),
             "alvo_unidades": alvo_unidades,

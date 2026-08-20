@@ -87,22 +87,41 @@ def test_todo_modulo_registrado_tem_tile(client):
     chaves = {a.chave for a in apps}
 
     assert {m.chave for m in MODULOS} <= chaves, "módulo sem tile na home"
-    # Os dois destinos que NÃO são módulo: a Platform e o HelpDesk dela.
-    assert {"iconnect", "helpdesk"} <= chaves
+    # O único destino que NÃO é módulo: a Platform. O tile do HelpDesk saiu no
+    # §38 — ver `test_launcher.test_o_helpdesk_saiu_da_faixa_de_aplicativos`.
+    assert "iconnect" in chaves
+
+
+@pytest.fixture
+def app_sem_destino():
+    """Um app registrado e SEM página, devolvido ao fim.
+
+    O catálogo é estado de processo, semeado no `ready()`: sem devolver, o tile
+    inventado sobreviveria para os testes seguintes — e o próximo a falhar
+    culparia a home.
+    """
+    from workspace import launcher
+    from workspace.launcher import AppSpec, registrar_app
+
+    registrar_app(AppSpec(chave="futuro", nome="Sistema futuro"))
+    yield
+    launcher._apps.pop("futuro", None)
 
 
 @pytest.mark.django_db
-def test_sistema_inexistente_aparece_como_em_breve(client):
-    """Não esconder o que não existe — o Workspace comunica o roadmap."""
-    resposta = client.get(reverse("workspace:home"))
-    # `helpdesk` é o único "em breve" permanente, por desenho: chamado abre no
-    # iConnect Platform, e uma segunda fila aqui seria duas verdades sobre o
-    # mesmo chamado. RH e Documentação já ocuparam este lugar e ganharam página
-    # — exemplo que muda a cada onda não serve de exemplo.
-    helpdesk = next(a for a in resposta.context["apps"] if a.chave == "helpdesk")
+def test_sistema_inexistente_aparece_como_em_breve(client, app_sem_destino):
+    """Não esconder o que não existe — o Workspace comunica o roadmap.
 
-    assert not helpdesk.disponivel
-    assert helpdesk.destino == ""
+    O teste registra um app SEM destino em vez de apontar para um tile real.
+    Apontava para o `helpdesk`, que saiu no §38, e antes dele para RH e
+    Documentação, que ganharam página: um teste ancorado num card específico
+    quebra a cada onda e ensina a mexer no teste em vez de olhar o mecanismo.
+    """
+    resposta = client.get(reverse("workspace:home"))
+    futuro = next(a for a in resposta.context["apps"] if a.chave == "futuro")
+
+    assert not futuro.disponivel
+    assert futuro.destino == ""
     assert "Em breve" in resposta.content.decode()
 
 

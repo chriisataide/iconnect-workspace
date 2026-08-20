@@ -13,6 +13,21 @@ from workspace.models import Publicacao, TipoPublicacao
 from workspace.services.busca import buscar, normalizar
 
 
+@pytest.fixture
+def app_sem_destino():
+    """Um app registrado e SEM página, devolvido ao fim.
+
+    O catálogo é estado de processo: sem devolver, o tile inventado sobreviveria
+    para os testes seguintes — e o próximo a falhar culparia a busca.
+    """
+    from workspace import launcher
+    from workspace.launcher import AppSpec, registrar_app
+
+    registrar_app(AppSpec(chave="futuro", nome="Sistema futuro"))
+    yield
+    launcher._apps.pop("futuro", None)
+
+
 # ── Normalização ─────────────────────────────────────────────────
 
 
@@ -60,14 +75,19 @@ def test_busca_sem_acento_encontra_com_acento():
 
 
 @pytest.mark.django_db
-def test_app_em_breve_aparece_marcado_como_indisponivel():
-    # HelpDesk é o único "em breve" PERMANENTE, por desenho: chamado abre no
-    # iConnect Platform. RH e Documentação já ocuparam este lugar e ganharam
-    # página — exemplo que muda a cada onda não serve de exemplo.
-    helpdesk = next(
-        r for r in buscar("chamado")["Aplicativos"] if r.titulo == "HelpDesk"
+def test_app_em_breve_aparece_marcado_como_indisponivel(app_sem_destino):
+    """O teste apontava para o tile do HelpDesk, que saiu no §38 — e antes dele
+    para RH e Documentação, que ganharam página.
+
+    Um teste ancorado num card específico quebra a cada onda e ensina a mexer no
+    teste em vez de olhar o mecanismo. Agora ele registra um app SEM destino e
+    verifica o que importa: a busca marca como indisponível o que não tem para
+    onde levar.
+    """
+    futuro = next(
+        r for r in buscar("futuro")["Aplicativos"] if r.titulo == "Sistema futuro"
     )
-    assert not helpdesk.disponivel
+    assert not futuro.disponivel
 
 
 @pytest.mark.django_db
@@ -193,11 +213,12 @@ def test_resultado_de_app_com_url_name_e_resolvido():
 
 
 @pytest.mark.django_db
-def test_resultado_de_app_em_breve_nao_tem_url():
-    helpdesk = next(
-        r for r in buscar("chamado")["Aplicativos"] if r.titulo == "HelpDesk"
+def test_resultado_de_app_em_breve_nao_tem_url(app_sem_destino):
+    """Link para lugar nenhum é pior que resultado que se anuncia indisponível."""
+    futuro = next(
+        r for r in buscar("futuro")["Aplicativos"] if r.titulo == "Sistema futuro"
     )
-    assert helpdesk.url == ""
+    assert futuro.url == ""
 
 
 @pytest.mark.django_db

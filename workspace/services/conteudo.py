@@ -18,7 +18,7 @@ from __future__ import annotations
 
 from datetime import timedelta
 
-from django.db import transaction
+from django.db import models, transaction
 from django.utils import timezone
 
 from identidade.services.autorizacao import subjects_de
@@ -52,14 +52,33 @@ def visiveis_para(pessoa, cache: dict | None = None):
     return Documento.objects.publicados().para_subjects(subjects)
 
 
-def agrupado_para(pessoa, cache: dict | None = None) -> dict[str, list[Documento]]:
+def agrupado_para(
+    pessoa,
+    cache: dict | None = None,
+    categoria: str = "",
+    texto: str = "",
+) -> dict[str, list[Documento]]:
     """Por tipo, na ordem de declaração do enum — que é ordem de busca.
 
     Alfabética poria "Instrução de trabalho" antes de "POP", quando POP é o que a
     maioria vem procurar. Mesmo raciocínio do catálogo de serviços.
+
+    `categoria` e `texto` são os filtros do §37. O texto olha **título e
+    resumo**, e não o corpo: o corpo de um POP tem centenas de palavras e
+    casaria com quase tudo — um filtro que devolve o acervo inteiro é o mesmo
+    que nenhum filtro.
     """
+    consulta = visiveis_para(pessoa, cache=cache).select_related("dono")
+    if categoria:
+        consulta = consulta.filter(categoria=categoria)
+    if texto.strip():
+        consulta = consulta.filter(
+            models.Q(titulo__icontains=texto.strip())
+            | models.Q(resumo__icontains=texto.strip())
+        )
+
     por_tipo: dict[str, list[Documento]] = {}
-    for documento in visiveis_para(pessoa, cache=cache).select_related("dono"):
+    for documento in consulta:
         por_tipo.setdefault(documento.tipo, []).append(documento)
 
     agrupado: dict[str, list[Documento]] = {}
@@ -68,6 +87,49 @@ def agrupado_para(pessoa, cache: dict | None = None) -> dict[str, list[Documento
         if itens:
             agrupado[tipo.label] = itens
     return agrupado
+
+
+def categorias_de(pessoa, cache: dict | None = None) -> list[str]:
+    """As categorias que ESTA pessoa alcança — §33 e §37.
+
+    Do alcance dela e não da tabela inteira: uma lista de filtros que oferece
+    "Jurídico" a quem não tem nenhum documento jurídico é um filtro que sempre
+    devolve vazio, e filtro que devolve vazio ensina a não usar filtro.
+    """
+    return sorted(
+        {
+            categoria
+            for categoria in visiveis_para(pessoa, cache=cache)
+            .exclude(categoria="")
+            .values_list("categoria", flat=True)
+            if categoria
+        }
+    )
+
+
+#: Quantos documentos cabem em "vistos por último". Seis é o que cabe numa
+#: faixa sem rolar; mais que isso deixa de ser atalho e vira uma segunda lista.
+LIMITE_RECENTES = 6
+
+
+def recentes_para(pessoa, cache: dict | None = None) -> list[Documento]:
+    """Os últimos publicados ou revisados — §37.
+
+    **Por `atualizado_em`, e não por `criado_em`.** A pergunta que esta faixa
+    responde é *"o que mudou desde a última vez que olhei"*, e a revisão de uma
+    norma antiga é justamente a mudança que importa — ordenar por criação
+    esconderia a v2 do POP de 2023 embaixo de um manual novo que ninguém espera.
+
+    Sem "favoritos" ao lado, e é decisão: favorito exige uma tabela por pessoa,
+    uma tela para gerenciar, e depende de a pessoa lembrar de marcar. Num acervo
+    de dezenas de documentos, "os últimos que mudaram" responde a mesma pergunta
+    sem pedir nada a ninguém.
+    """
+    return list(
+        visiveis_para(pessoa, cache=cache)
+        .select_related("dono")
+        .order_by("-atualizado_em")[:LIMITE_RECENTES]
+    )
 
 
 def pode_ver(documento: Documento, pessoa, cache: dict | None = None) -> bool:
@@ -299,6 +361,7 @@ def salvar(
     slug: str,
     titulo: str,
     tipo: str,
+    categoria: str = "",
     resumo: str = "",
     corpo: str = "",
     versao: str = "",
@@ -338,6 +401,7 @@ def salvar(
 
     documento.titulo = titulo.strip()[:200]
     documento.tipo = tipo
+    documento.categoria = categoria.strip()[:60]
     documento.resumo = resumo.strip()[:300]
     documento.corpo = corpo
     # A versão é do AUTOR e não um contador automático. "2.1" quer dizer algo

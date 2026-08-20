@@ -25,6 +25,19 @@
     <span class="au-rail-contagem au-rail-contagem--alerta">{{ leituras_pendentes }}</span>
   {% endif %}
 </a>
+{% comment %}
+  §34 — Relatórios é FILHO de Documentação, e não item solto.
+
+  O pedido é literal ("dentro do card principal de documento") e é o certo:
+  relatório de entrega e de ocorrência SÃO documentos — o que muda é que estes
+  a empresa produz, e os do acervo ela segue. Recuado no trilho e com card na
+  própria tela de Documentação, para que as duas navegações concordem.
+{% endcomment %}
+<a class="au-rail-item au-rail-item--filho {% if aba == 'relatorios' %}au-rail-item--ativo{% endif %}"
+   href="{% url 'workspace:relatorios' %}">
+  <svg class="au-icon" aria-hidden="true"><use href="#i-file"></use></svg>
+  {% trans "Relatórios" %}
+</a>
 
 <a class="au-rail-item {% if aba == 'reservas' %}au-rail-item--ativo{% endif %}"
    href="{% url 'workspace:reservas' %}">
@@ -160,12 +173,6 @@
   não de quem administra. O painel de conformidade tem link próprio de dentro
   dela, para quem pode ver.
 {% endcomment %}
-<a class="au-rail-item {% if aba == 'relatorios' %}au-rail-item--ativo{% endif %}"
-   href="{% url 'workspace:relatorios' %}">
-  <svg class="au-icon" aria-hidden="true"><use href="#i-file"></use></svg>
-  {% trans "Relatórios" %}
-</a>
-
 <a class="au-rail-item {% if aba == 'universidade' %}au-rail-item--ativo{% endif %}"
    href="{% url 'workspace:universidade' %}">
   <svg class="au-icon" aria-hidden="true"><use href="#i-book"></use></svg>

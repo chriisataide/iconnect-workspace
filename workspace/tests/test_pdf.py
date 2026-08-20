@@ -349,3 +349,87 @@ def test_o_pdf_nao_e_guardado_em_disco(tecnico):
 
     assert "Queda de energia" in primeiro
     assert "tulo corrigido" in segundo
+
+
+# ── §35 · a assinatura de quem recebeu ──────────────────────────────
+
+
+@pytest.mark.django_db
+def test_a_entrega_leva_duas_assinaturas(pessoa):
+    """Um relatório de entrega prova que ALGUÉM RECEBEU — e prova sem a
+    assinatura de quem recebeu não prova nada: é a versão dos fatos de quem
+    entregou, que é justamente a que não vale quando o cliente diz que faltou
+    item. Mesmo raciocínio do §6 na correspondência e do aceite do §17.
+    """
+    from workspace.services import pdf as pdf_service
+    from workspace.services import relatorio as rel
+
+    documento = rel.salvar(
+        pessoa,
+        None,
+        tipo=TipoRelatorio.ENTREGA,
+        titulo="Entrega de câmeras",
+        cliente="Loja Alfa",
+        local="Unidade Centro",
+        dados={
+            "responsavel_cliente": "Marina Duarte",
+            "itens": "4 câmeras IP",
+            # `completo` é o valor do enum. Com "parcial" ou "divergente", o
+            # questionário passa a exigir "o que ficou pendente" — que é a única
+            # informação que importa numa entrega que não fechou.
+            "conferido": "completo",
+        },
+    )
+    rel.emitir(documento, pessoa)
+
+    bruto = pdf_service.gerar(documento)
+
+    # O PDF é binário comprimido; o que dá para afirmar sem decodificá-lo é que
+    # o bloco de assinatura foi montado com os dois nomes.
+    blocos = pdf_service._assinatura(documento, pdf_service._estilos())
+    achatado = str(blocos)
+    assert "Marina Duarte" in achatado
+    assert "Quem recebeu" in achatado
+    assert "Quem executou" in achatado
+    assert bruto.startswith(b"%PDF")
+
+
+@pytest.mark.django_db
+def test_a_ocorrencia_leva_uma_assinatura_so(pessoa):
+    """É o relato de quem esteve lá. Pedir a assinatura de outra pessoa criaria
+    uma linha em branco que ninguém sabe quem preenche."""
+    from workspace.services import pdf as pdf_service
+    from workspace.services import relatorio as rel
+
+    documento = rel.salvar(
+        pessoa,
+        None,
+        tipo=TipoRelatorio.OCORRENCIA,
+        titulo="Queda de energia",
+        local="Base RJ",
+        dados={
+            "o_que_aconteceu": "Faltou energia às 3h.",
+            "acoes": "Gerador acionado.",
+            "resultado": "resolvido",
+            "conclusao": "Sem perda de gravação.",
+        },
+    )
+    rel.emitir(documento, pessoa)
+
+    achatado = str(pdf_service._assinatura(documento, pdf_service._estilos()))
+
+    assert "Quem executou" in achatado
+    assert "Quem recebeu" not in achatado
+
+
+@pytest.mark.django_db
+def test_rascunho_nao_leva_assinatura_nenhuma(pessoa):
+    """Assinar rascunho é assinar documento que ainda vai mudar."""
+    from workspace.services import pdf as pdf_service
+    from workspace.services import relatorio as rel
+
+    documento = rel.salvar(
+        pessoa, None, tipo=TipoRelatorio.ENTREGA, titulo="Rascunho", dados={}
+    )
+
+    assert pdf_service._assinatura(documento, pdf_service._estilos()) == []

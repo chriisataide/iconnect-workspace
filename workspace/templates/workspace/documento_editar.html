@@ -39,6 +39,26 @@
     </div>
   </div>
 
+  {% comment %}
+    CATEGORIA — §33. Separada do tipo: tipo é a natureza (POP, política),
+    categoria é o assunto (Segurança, Pessoas, Operação).
+
+    Texto livre COM sugestão das que já existem. Sem a lista, "Segurança",
+    "segurança" e "SEGURANCA" viram três assuntos diferentes na mesma tabela;
+    com `<select>` fechado, criar uma família nova exigiria deploy.
+  {% endcomment %}
+  <div class="au-campo">
+    <label class="au-rotulo" for="categoria">{% trans "Categoria" %}</label>
+    <input class="au-input" id="categoria" name="categoria" type="text"
+           maxlength="60" list="categorias-existentes"
+           value="{{ documento.categoria|default:'' }}"
+           placeholder="{% trans 'Segurança, Pessoas, Operação…' %}">
+    <datalist id="categorias-existentes">
+      {% for c in categorias %}<option value="{{ c }}"></option>{% endfor %}
+    </datalist>
+    <p class="au-ajuda">{% trans "O assunto, não a natureza. Agrupa o acervo na vitrine." %}</p>
+  </div>
+
   <div class="au-campo">
     <label class="au-rotulo" for="resumo">{% trans "Resumo" %}</label>
     <input class="au-input" id="resumo" name="resumo" type="text" maxlength="300"

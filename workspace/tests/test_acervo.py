@@ -586,3 +586,193 @@ def test_confirmar_a_leitura_tira_o_card(cenario, client):
 
     assert "leituras" not in [c.chave for c in cards]
     assert ConfirmacaoLeitura.objects.count() == 1
+
+
+# ── §33 · a tabela do prompt, coluna por coluna ─────────────────────
+
+
+def test_categoria_e_separada_do_tipo(cenario):
+    """Tipo é a NATUREZA (POP, política); categoria é o ASSUNTO (Segurança,
+    Pessoas). Quem procura a política de segurança do trabalho não sabe se ela é
+    norma ou POP — sabe que é de segurança."""
+    doc = salvar(cenario, categoria="Segurança")
+
+    assert doc.categoria == "Segurança"
+    assert doc.tipo == TipoDocumento.POP
+
+
+def test_a_tabela_do_acervo_tem_as_oito_colunas(cenario, client):
+    salvar(
+        cenario, categoria="Segurança",
+        arquivo=SimpleUploadedFile("pop.pdf", PDF, content_type="application/pdf"),
+    )
+    client.force_login(cenario["dono"])
+
+    corpo = client.get(reverse("workspace:documentos")).content.decode()
+
+    for coluna in ("Nome", "Categoria", "Tipo", "Dono", "Versão", "Vigência",
+                   "Anexo", "Situação"):
+        assert f">{coluna}<" in corpo, coluna
+
+
+def test_o_acervo_mostra_quem_ainda_nao_tem_arquivo(cenario, client):
+    """A pergunta que faz alguém abrir vinte documentos um a um."""
+    salvar(cenario, titulo="Sem PDF")
+    client.force_login(cenario["dono"])
+
+    corpo = client.get(reverse("workspace:documentos")).content.decode()
+
+    assert "sem arquivo" in corpo
+
+
+def test_o_editor_sugere_as_categorias_que_ja_existem(cenario, client):
+    """Sem a lista, "Segurança", "segurança" e "SEGURANCA" viram três assuntos
+    diferentes na mesma tabela."""
+    salvar(cenario, categoria="Segurança")
+    client.force_login(cenario["dono"])
+
+    resposta = client.get(reverse("workspace:documento_novo"))
+
+    assert "Segurança" in resposta.context["categorias"]
+    assert "categorias-existentes" in resposta.content.decode()
+
+
+# ── §37 · filtros e recentes ────────────────────────────────────────
+
+
+def test_o_filtro_por_categoria(cenario, client):
+    salvar(cenario, titulo="POP de altura", categoria="Segurança")
+    salvar(cenario, titulo="Política de férias", categoria="Pessoas")
+    client.force_login(cenario["ana"])
+
+    corpo = client.get(
+        reverse("workspace:documentacao"), {"categoria": "Segurança"}
+    ).content.decode()
+
+    assert "POP de altura" in corpo
+    assert "Política de férias" not in corpo
+
+
+def test_categoria_forjada_na_url_nao_esvazia_a_tela(cenario, client):
+    """A pessoa colou um link velho, e uma tela vazia faz o acervo parecer
+    apagado."""
+    salvar(cenario, titulo="POP qualquer", categoria="Segurança")
+    client.force_login(cenario["ana"])
+
+    resposta = client.get(reverse("workspace:documentacao"), {"categoria": "'; drop"})
+
+    assert resposta.context["categoria_atual"] == ""
+    assert "POP qualquer" in resposta.content.decode()
+
+
+def test_a_busca_olha_titulo_e_resumo_e_nao_o_corpo(cenario, client):
+    """O corpo de um POP tem centenas de palavras e casaria com quase tudo — um
+    filtro que devolve o acervo inteiro é o mesmo que nenhum filtro."""
+    salvar(cenario, titulo="POP de altura", resumo="Trabalho em altura.")
+    salvar(cenario, titulo="Política de compras", corpo="fala sobre altura também")
+    client.force_login(cenario["ana"])
+
+    corpo = client.get(
+        reverse("workspace:documentacao"), {"q": "altura"}
+    ).content.decode()
+
+    assert "POP de altura" in corpo
+    assert "Política de compras" not in corpo
+
+
+def test_as_categorias_oferecidas_sao_as_que_a_pessoa_alcanca(cenario, client):
+    """Um filtro que oferece "Jurídico" a quem não tem nenhum documento jurídico
+    sempre devolve vazio — e filtro que devolve vazio ensina a não usar filtro."""
+    salvar(
+        cenario, titulo="Só do financeiro", categoria="Jurídico",
+        unidades=[], departamentos=[str(cenario["dep"].pk)],
+    )
+    de_fora = f.pessoa("bruno")
+    f.lotar(de_fora, dep=f.departamento("OPS", "Operações"))
+    client.force_login(de_fora)
+
+    resposta = client.get(reverse("workspace:documentacao"))
+
+    assert "Jurídico" not in resposta.context["categorias"]
+
+
+def test_os_recentes_saem_por_atualizacao_e_nao_por_criacao(cenario, client):
+    """A revisão de uma norma antiga é justamente a mudança que importa —
+    ordenar por criação esconderia a v2 do POP de 2023 embaixo de um manual novo
+    que ninguém esperava."""
+    velho = salvar(cenario, titulo="POP antigo")
+    salvar(cenario, titulo="Manual novo")
+    cnt.salvar(
+        cenario["dono"], velho, slug="", titulo="POP antigo — revisado",
+        tipo=TipoDocumento.POP, versao="2", publicar=True,
+    )
+    client.force_login(cenario["ana"])
+
+    recentes = client.get(reverse("workspace:documentacao")).context["recentes"]
+
+    assert recentes[0].titulo == "POP antigo — revisado"
+
+
+def test_os_recentes_somem_quando_ha_filtro(cenario, client):
+    """Eles respondem "o que mudou", que é outra pergunta — recalculá-los a cada
+    filtro faria a faixa piscar sem motivo."""
+    salvar(cenario, categoria="Segurança")
+    client.force_login(cenario["ana"])
+
+    corpo = client.get(
+        reverse("workspace:documentacao"), {"categoria": "Segurança"}
+    ).content.decode()
+
+    assert "Mexeram nestes por último" not in corpo
+
+
+def test_a_dica_do_estado_vazio_com_filtro_diz_que_e_o_filtro(cenario, client):
+    client.force_login(cenario["ana"])
+
+    corpo = client.get(
+        reverse("workspace:documentacao"), {"q": "nao existe nada assim"}
+    ).content.decode()
+
+    assert "é este filtro que não encontra" in corpo
+
+
+# ── §34 · Relatórios mora dentro de Documentação ────────────────────
+
+
+def test_a_documentacao_leva_aos_relatorios(cenario, client):
+    """§34 é literal: "criar novo card dentro do card principal de documento".
+
+    E é o certo: relatório de entrega e de ocorrência SÃO documentos — o que
+    muda é que estes a empresa produz, e os do acervo ela segue.
+    """
+    client.force_login(cenario["ana"])
+
+    corpo = client.get(reverse("workspace:documentacao")).content.decode()
+
+    assert reverse("workspace:relatorios") in corpo
+    assert "Ferramentas de documento" in corpo
+
+
+def test_o_acervo_so_aparece_para_quem_mantem(cenario, client):
+    client.force_login(cenario["ana"])
+    assert reverse("workspace:documentos") not in client.get(
+        reverse("workspace:documentacao")
+    ).content.decode()
+
+    client.force_login(cenario["dono"])
+    assert reverse("workspace:documentos") in client.get(
+        reverse("workspace:documentacao")
+    ).content.decode()
+
+
+def test_relatorios_nao_e_mais_item_solto_no_trilho(cenario, client):
+    """Duas portas separadas fariam a pessoa procurar em "Documentação" o
+    relatório que ela acabou de emitir."""
+    from pathlib import Path
+
+    trilho = Path("workspace/templates/workspace/_rail_servicos.html").read_text(
+        encoding="utf-8"
+    )
+
+    assert "au-rail-item--filho" in trilho
+    assert trilho.index("workspace:documentacao") < trilho.index("workspace:relatorios")

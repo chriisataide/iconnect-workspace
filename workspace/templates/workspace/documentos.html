@@ -83,11 +83,22 @@
     <div class="au-tabela">
       <table>
         <thead>
+          {% comment %}
+            As colunas do §33: nome, categoria, tipo, usuário, data, versão,
+            situação e anexo. Categoria é separada de tipo porque respondem
+            perguntas diferentes — tipo é a natureza (POP, política), categoria
+            é o assunto (Segurança, Pessoas). Quem procura a política de
+            segurança do trabalho não sabe se ela é norma ou POP; sabe que é de
+            segurança.
+          {% endcomment %}
           <tr>
-            <th>{% trans "Título" %}</th>
+            <th>{% trans "Nome" %}</th>
+            <th>{% trans "Categoria" %}</th>
             <th>{% trans "Tipo" %}</th>
+            <th>{% trans "Dono" %}</th>
             <th>{% trans "Versão" %}</th>
             <th>{% trans "Vigência" %}</th>
+            <th>{% trans "Anexo" %}</th>
             <th>{% trans "Alcance" %}</th>
             <th>{% trans "Situação" %}</th>
             <th></th>
@@ -102,12 +113,35 @@
                   <span class="au-selo au-selo--alerta">{% trans "leitura obrigatória" %}</span>
                 {% endif %}
               </td>
+              <td>{{ d.categoria|default:"—" }}</td>
               <td>{{ d.get_tipo_display }}</td>
+              <td>
+                {% if d.dono %}
+                  {{ d.dono.get_short_name|default:d.dono.get_full_name }}
+                {% else %}
+                  —
+                {% endif %}
+              </td>
               <td>{{ d.versao }}</td>
               <td>
                 {{ d.vigencia_inicio|date:"d/m/Y" }}
                 {% if d.vigencia_fim %}
                   <span class="au-list-resumo">{% trans "até" %} {{ d.vigencia_fim|date:"d/m/Y" }}</span>
+                {% endif %}
+              </td>
+              {% comment %}
+                O ANEXO na tabela, e não só na tela do documento: quem mantém o
+                acervo precisa ver de relance qual norma ainda não tem o PDF
+                subido — e essa é a pergunta que faz alguém abrir vinte
+                documentos um a um.
+              {% endcomment %}
+              <td>
+                {% if d.tem_arquivo %}
+                  <a href="{% url 'workspace:baixar_documento' d.slug %}">
+                    {{ d.tamanho_legivel }}
+                  </a>
+                {% else %}
+                  <span class="au-list-resumo">{% trans "sem arquivo" %}</span>
                 {% endif %}
               </td>
               <td>

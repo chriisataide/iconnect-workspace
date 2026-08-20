@@ -84,6 +84,18 @@ class Documento(models.Model):
         db_index=True,
     )
     titulo = models.CharField(max_length=200)
+    # §33 — a CATEGORIA, separada do tipo.
+    #
+    # `tipo` é a natureza do documento (POP, política, norma); `categoria` é o
+    # assunto (Segurança, Pessoas, Operação, Qualidade). São duas perguntas
+    # diferentes e a tabela do §33 pede as duas: quem procura a política de
+    # segurança do trabalho não sabe se ela é norma ou POP — sabe que é de
+    # segurança.
+    #
+    # Texto livre e não `choices`: a lista de assuntos de uma empresa muda sem
+    # deploy, e um enum aqui obrigaria a migração toda vez que a Qualidade
+    # criasse uma família nova.
+    categoria = models.CharField(max_length=60, blank=True, db_index=True)
     resumo = models.CharField(
         max_length=300, blank=True, help_text="Uma linha. Aparece na lista."
     )

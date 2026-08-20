@@ -116,9 +116,14 @@ def catalogo_semente() -> list[AppSpec]:
     senão volta o bug que este arquivo já teve — mapa que não leva a lugar
     nenhum. Módulo sem fatia de catálogo continua "em breve".
 
-    `iconnect` é o único destino externo: leva ao login da Platform. `helpdesk`
-    fica sem página de propósito — chamado se abre lá, e uma segunda fila aqui
-    seria duas verdades sobre o mesmo chamado.
+    `iconnect` é o único destino externo, e leva ao login da Platform — a porta
+    para o produto inteiro, não para uma função dele.
+
+    O tile `helpdesk` existia aqui e saiu no §38: ele levava para fora e não
+    fazia mais nada, enquanto `/workspace/chamados/` faz as quatro coisas que o
+    §38 pede do Workspace — direciona, integra, exibe status e exibe histórico.
+    Manter os dois deixaria na home um atalho que faz menos, e o atalho cego
+    seria o mais clicado, porque estava na primeira tela.
     """
     from workspace.modulos import MODULOS
 
@@ -165,13 +170,17 @@ def catalogo_semente() -> list[AppSpec]:
             # sinal fraco — o que importa é não ter borda de marca.
             ordem=110,
         ),
-        AppSpec(
-            chave="helpdesk",
-            nome="HelpDesk",
-            descricao="Chamados — abre dentro do iConnect Platform",
-            icone="ticket",
-            ordem=120,
-        ),
+        # O card "HelpDesk" SAIU daqui — §38.
+        #
+        # Ele levava para fora e não fazia mais nada. Desde o §21 existe
+        # `/workspace/chamados/`, que faz as quatro coisas que o §38 pede do
+        # Workspace: direciona (o botão abre o iConnect), integra, exibe status
+        # e exibe histórico. Manter os dois deixaria na home um atalho que faz
+        # menos — e o card cego seria o mais clicado, porque estava na primeira
+        # tela.
+        #
+        # O tile do `iconnect` continua: ele é a porta para a Platform inteira,
+        # não para uma função dela.
     ]
 
 

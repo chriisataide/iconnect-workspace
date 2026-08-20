@@ -92,13 +92,17 @@ def test_nenhum_tile_de_aplicativo_tem_destaque():
     assert not com_destaque, f"tiles em destaque: {com_destaque}"
 
 
-def test_ordem_coloca_os_destinos_da_platform_no_fim():
-    """As duas entradas que levam à Platform ficam juntas, no fim."""
+def test_ordem_coloca_a_platform_no_fim():
+    """A Platform é um destino entre outros, e fica no fim da faixa.
+
+    Eram duas entradas — `iconnect` e `helpdesk`. O tile do HelpDesk saiu no
+    §38: ele levava para fora e não fazia mais nada, enquanto
+    `/workspace/chamados/` direciona, integra e mostra status e histórico.
+    """
     ordens = {s.chave: s.ordem for s in catalogo_semente()}
-    maior_modulo = max(v for k, v in ordens.items() if k not in {"iconnect", "helpdesk"})
+    maior_modulo = max(v for k, v in ordens.items() if k != "iconnect")
 
     assert ordens["iconnect"] > maior_modulo
-    assert ordens["helpdesk"] > maior_modulo
 
 
 # ── O nome do produto ───────────────────────────────────────────────

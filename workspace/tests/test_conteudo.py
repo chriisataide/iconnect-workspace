@@ -445,11 +445,18 @@ def test_modulo_com_rota_propria_nao_usa_a_pagina_de_catalogo(client, pessoas):
     assert client.get(reverse("workspace:modulo", args=("documentacao",))).status_code == 404
 
 
-def test_vitrine_sem_documento_orienta_onde_publicar(client, pessoas):
+def test_vitrine_sem_documento_diz_o_que_apareceria_ali(client, pessoas):
+    """A dica apontava para `Admin › Documentos`, e ficou para trás quando o §37
+    trouxe a redação para dentro do produto.
+
+    Dica que aponta para um caminho abandonado é pior que dica nenhuma: mandava
+    a pessoa procurar `is_staff`, que quem escreve norma não tem.
+    """
     corpo = client.get(reverse("workspace:documentacao")).content.decode()
 
     assert "Nenhum documento em vigor." in corpo
-    assert "Documentos" in corpo
+    assert "POP, políticas e normas" in corpo
+    assert "Admin" not in corpo
 
 
 def test_corpo_nao_e_renderizado_como_html(client, pessoas):

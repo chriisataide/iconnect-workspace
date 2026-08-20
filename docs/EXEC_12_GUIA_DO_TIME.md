@@ -5,7 +5,7 @@
 > Se você vai **operar** (deploy, cron, variáveis), o documento é o [EXEC_13_OPERACAO](EXEC_13_OPERACAO.md).
 > Se você quer saber **o que mudou na última rodada**, é o [EXEC_11_ENTREGA](EXEC_11_ENTREGA.md).
 >
-> **19 de agosto de 2026** · 2.291 testes · cobertura 98,52%
+> **19 de agosto de 2026** · 2.308 testes · cobertura 98,52%
 
 ---
 
@@ -54,7 +54,7 @@ contas  →  identidade  →  workspace
 
 | quem | telas |
 |---|---|
-| **todo colaborador** | Início, Meu dia, Notificações, Catálogo, Minhas solicitações, Documentação, Reservas, Correspondências, Equipamentos, Universidade, Relatórios, Meus chamados, Assistente |
+| **todo colaborador** | Início, Meu dia, Notificações, Catálogo, Minhas solicitações, Documentação (com Relatórios dentro), Reservas, Correspondências, Equipamentos, Universidade, Meus chamados, Assistente |
 | **quem aprova** | Bandeja de aprovação |
 | **quem atende uma fila** | Fila de atendimento |
 | **Suprimentos** | Estoque, Custódia (lista de todos), Frota, Campo |

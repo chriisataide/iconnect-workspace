@@ -24,7 +24,7 @@ def test_semente_traz_todo_modulo_mais_a_platform():
 
     chaves = {s.chave for s in launcher.catalogo_semente()}
 
-    assert chaves == {m.chave for m in MODULOS} | {"iconnect", "helpdesk"}
+    assert chaves == {m.chave for m in MODULOS} | {"iconnect"}
 
 
 def test_iconnect_e_o_unico_destino_fora_do_portal():
@@ -37,10 +37,17 @@ def test_iconnect_e_o_unico_destino_fora_do_portal():
     assert externos == ["iconnect"]
 
 
-def test_helpdesk_nao_ganha_pagina_no_portal():
-    """Chamado se abre no iConnect — duplicar aqui criaria uma segunda fila."""
-    helpdesk = next(s for s in launcher.catalogo_semente() if s.chave == "helpdesk")
-    assert not helpdesk.disponivel
+def test_o_helpdesk_saiu_da_faixa_de_aplicativos():
+    """§38 — o tile levava para fora e não fazia mais nada.
+
+    Desde o §21 existe `/workspace/chamados/`, que faz as quatro coisas que o
+    §38 pede do Workspace: direciona, integra, exibe status e exibe histórico.
+    Manter os dois deixaria na home um atalho que faz menos — e o atalho cego
+    seria o mais clicado, porque estava na primeira tela.
+    """
+    chaves = {s.chave for s in launcher.catalogo_semente()}
+
+    assert "helpdesk" not in chaves
 
 
 def test_disponivel_reflete_ter_destino():
@@ -65,7 +72,7 @@ def test_semear_e_idempotente(catalogo_vazio):
     from workspace.modulos import MODULOS
 
     chaves = [s.chave for s in apps_disponiveis()]
-    esperado = len(MODULOS) + 2  # + iConnect Platform e HelpDesk
+    esperado = len(MODULOS) + 1  # + iConnect Platform (o HelpDesk saiu no §38)
     assert len(chaves) == len(set(chaves)) == esperado
 
 

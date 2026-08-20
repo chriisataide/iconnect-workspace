@@ -47,7 +47,7 @@ from reportlab.platypus import (
     TableStyle,
 )
 
-from workspace.models.relatorio import Relatorio
+from workspace.models.relatorio import Relatorio, TipoRelatorio
 from workspace.services import relatorio as rel
 
 MARGEM = 20 * mm
@@ -240,21 +240,64 @@ def _ficha(relatorio: Relatorio) -> Table:
 
 
 def _assinatura(relatorio: Relatorio, estilos: dict) -> list:
-    """Só no emitido. Assinar rascunho é assinar documento que ainda vai mudar."""
+    """As linhas de assinatura. Só no emitido — assinar rascunho é assinar
+    documento que ainda vai mudar.
+
+    **Entrega leva DUAS assinaturas; ocorrência leva uma.** A diferença é o que
+    cada documento prova. Um relatório de ocorrência é o relato de quem esteve
+    lá: uma assinatura basta, e pedir a de outra pessoa criaria uma linha em
+    branco que ninguém sabe quem preenche.
+
+    Um relatório de entrega prova que **alguém recebeu**, e prova sem a
+    assinatura de quem recebeu não prova nada — é a versão dos fatos de quem
+    entregou, que é justamente a que não vale quando o cliente diz que faltou
+    item. É o mesmo raciocínio do §6 na correspondência e do aceite de custódia
+    no §17.
+
+    O nome de quem recebeu vem do questionário (`responsavel_cliente`) e é
+    IMPRESSO abaixo da linha: assinatura sobre linha anônima obriga quem confere
+    a decifrar a letra para saber quem assinou.
+    """
     if not relatorio.emitido:
         return []
 
-    risco = Table([[""]], colWidths=[80 * mm], rowHeights=[0.1])
-    risco.setStyle(TableStyle([("LINEABOVE", (0, 0), (-1, 0), 0.7, TINTA)]))
-    return [
-        Spacer(1, 22 * mm),
-        risco,
-        Spacer(1, 2 * mm),
-        Paragraph(
-            _escapar(relatorio.autor.get_full_name() or relatorio.autor.email),
-            estilos["assinatura"],
-        ),
-    ]
+    def _linha(rotulo: str, nome: str) -> Table:
+        risco = Table([[""]], colWidths=[75 * mm], rowHeights=[0.1])
+        risco.setStyle(TableStyle([("LINEABOVE", (0, 0), (-1, 0), 0.7, TINTA)]))
+        return [
+            risco,
+            Spacer(1, 2 * mm),
+            Paragraph(_escapar(nome), estilos["assinatura"]),
+            Paragraph(_escapar(rotulo), estilos["assinatura"]),
+        ]
+
+    autor = relatorio.autor.get_full_name() or relatorio.autor.email
+    de_quem_entregou = _linha("Quem executou", autor)
+
+    if relatorio.tipo != TipoRelatorio.ENTREGA:
+        return [Spacer(1, 22 * mm), *de_quem_entregou]
+
+    recebeu = (relatorio.dados or {}).get("responsavel_cliente", "")
+    de_quem_recebeu = _linha("Quem recebeu", recebeu or " ")
+
+    # Lado a lado numa tabela sem borda: duas colunas de 75 mm cabem na folha
+    # com margem, e empilhadas empurrariam a segunda para a página seguinte num
+    # relatório com muitas evidências — assinatura órfã em página em branco é o
+    # jeito mais comum de um documento assinado voltar sem uma das assinaturas.
+    par = Table(
+        [[de_quem_entregou, de_quem_recebeu]],
+        colWidths=[82 * mm, 82 * mm],
+    )
+    par.setStyle(
+        TableStyle(
+            [
+                ("VALIGN", (0, 0), (-1, -1), "TOP"),
+                ("LEFTPADDING", (0, 0), (-1, -1), 0),
+                ("RIGHTPADDING", (0, 0), (-1, -1), 0),
+            ]
+        )
+    )
+    return [Spacer(1, 22 * mm), par]
 
 
 def gerar(relatorio: Relatorio) -> bytes:

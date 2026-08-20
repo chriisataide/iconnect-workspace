@@ -2,7 +2,7 @@
 
 > **Documento de entrega.** Responde ao §61 do prompt mestre, seção por seção (A–G).
 >
-> **19 de agosto de 2026** · 2.291 testes · cobertura 98,52% · ratchet verde
+> **19 de agosto de 2026** · 2.308 testes · cobertura 98,52% · ratchet verde
 
 ---
 
@@ -57,13 +57,32 @@ E um quarto, introduzido pelo próprio §57 e pego pelo teste: a busca usava `pe
 | **`multiBuild` sem duas passagens** | o rodapé do PDF imprimia "Página 1" sem total |
 | **`timezone.now().date()`** | quinta classe de *flake* de relógio: depois das 21h local, a data em UTC já é a de amanhã |
 
-### A.4 Riscos que permanecem
+### A.4 O que a revisão de documentos encontrou (§33, §34, §37, §38)
+
+Uma releitura do prompt seção por seção achou quatro coisas — três delas
+construídas e uma delas construída **no lugar errado**.
+
+| § | estado antes | correção |
+|---|---|---|
+| **33** | upload existia; a tabela do acervo tinha 6 das 8 colunas pedidas | `categoria` virou campo do modelo (separada de `tipo`: tipo é a natureza — POP, política —, categoria é o assunto — Segurança, Pessoas). Entraram também `dono` e `anexo` |
+| **34** | Relatórios existia, mas como item **solto no trilho** | o pedido é literal — *"card dentro do card principal de documento"* — e é o certo: relatório de entrega e de ocorrência **são** documentos. Agora há card na tela de Documentação e item filho no trilho |
+| **35** | assistente, campos e PDF prontos; **faltava a assinatura de quem recebeu** | entrega leva **duas** assinaturas; ocorrência leva uma. Um relatório de entrega prova que alguém recebeu, e prova sem a assinatura de quem recebeu é a versão dos fatos de quem entregou — a que não vale quando o cliente diz que faltou item |
+| **37** | acervo, validade, obrigatórios, versão, histórico e busca prontos | entraram **filtros por categoria e texto** e a faixa **"mexeram nestes por último"** |
+| **38** | o card **HelpDesk continuava na home** | removido. Ele levava para fora e não fazia mais nada, enquanto `/workspace/chamados/` faz as quatro coisas que o §38 pede — direciona, integra, exibe status, exibe histórico |
+
+**O que do §37 NÃO foi feito, e por quê** (o prompt pede justificativa):
+
+- **Favoritos** — exige tabela por pessoa, tela para gerenciar, e depende de alguém lembrar de marcar. Num acervo de dezenas de documentos, *"os últimos que mudaram"* responde a mesma pergunta sem pedir nada a ninguém.
+- **Modelos / biblioteca de templates** — o questionário estruturado dos relatórios (§35–36) já é o modelo, e é melhor que um `.docx` em branco: ele cobra o campo que falta.
+- **Assinatura digital com certificado** — é outro produto. A linha de assinatura no PDF resolve o caso real (papel assinado no local); ICP-Brasil exige integração, custódia de chave e decisão jurídica.
+
+### A.5 Riscos que permanecem
 
 1. **Prazo de guarda do atestado médico (LGPD).** Dado de saúde sem política de retenção escrita. Decisão de negócio + jurídico.
 2. **Enviar texto para provedor de IA externo.** Contrato, relatório de ocorrência e pergunta de colaborador saem da empresa no dia em que um provedor for registrado. Por isso o padrão do produto é **não ter provedor nenhum**.
 3. **`pip-audit` não roda no CI.** Dependência vulnerável é trabalho de ferramenta, não de suíte.
 
-### A.5 Melhorias recomendadas e não feitas
+### A.6 Melhorias recomendadas e não feitas
 
 - **Índice unificado com `tsvector`** quando o acervo crescer — hoje o recorte já acontece no `WHERE`, mas o casamento é por `icontains` normalizado.
 - **`ExclusionConstraint` para reservas** quando o desenvolvimento rodar PostgreSQL. Hoje a garantia mora no serviço, com `select_for_update` no recurso; uma constraint que existe em produção e não em desenvolvimento é pior que nenhuma.
@@ -170,7 +189,7 @@ Sessão Django com cookie próprio (`wks_sessao`), `HttpOnly`, `SameSite=Lax`, `
 
 ### D.3 Migrações
 
-**26 migrações** (`0024`–`0049`), das quais **5 são de dados**: `0026` (trabalho remoto), `0034` (RH reorganizado), `0037` (reembolso e PJ), `0044` (veículo só na grade) e as de catálogo. Todas reversíveis; nenhuma apaga linha.
+**27 migrações** (`0024`–`0050`), das quais **5 são de dados**: `0026` (trabalho remoto), `0034` (RH reorganizado), `0037` (reembolso e PJ), `0044` (veículo só na grade) e as de catálogo. Todas reversíveis; nenhuma apaga linha.
 
 ### D.4 Integridade
 
@@ -229,7 +248,7 @@ A partição é de três conjuntos disjuntos, e há teste que exige que cubram t
 
 ## F. Testes
 
-**2.291 testes · cobertura 98,52% · ratchet verde** (contas 97,37% · financas 100% · identidade 99,66% · workspace 98,38%).
+**2.308 testes · cobertura 98,52% · ratchet verde** (contas 97,37% · financas 100% · identidade 99,66% · workspace 98,38%).
 
 67 arquivos de teste. Os fluxos obrigatórios do §59:
 

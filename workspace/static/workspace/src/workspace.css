@@ -3039,3 +3039,35 @@ tr[data-abre-resumo]:focus-visible {
 .au-etiqueta--tk-encerrado    { color: var(--au-neutral-text); background: var(--au-neutral-bg); }
 .au-etiqueta--tk-closed       { color: var(--au-neutral-text); background: var(--au-neutral-bg); }
 .au-etiqueta--tk-fechado      { color: var(--au-neutral-text); background: var(--au-neutral-bg); }
+
+/* ── Recentes da documentação — §37 ─────────────────────────────────
+   Atalho e não segunda lista: seis itens numa faixa que não rola. Por
+   `atualizado_em`, porque a pergunta é "o que mudou desde a última vez que
+   olhei" — e a revisão de uma norma antiga é justamente a mudança que importa. */
+.au-recentes {
+  list-style: none; margin: 0; padding: 0;
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(15rem, 1fr));
+  gap: var(--au-2);
+}
+.au-recente {
+  display: flex; flex-direction: column; gap: 2px;
+  padding: var(--au-3);
+  border: 1px solid var(--au-border);
+  border-radius: var(--au-r-md);
+  background: var(--au-surface);
+  text-decoration: none;
+  transition: border-color .12s, background .12s;
+}
+.au-recente:hover { border-color: var(--au-accent); background: var(--au-accent-bg); }
+.au-recente-titulo { font-size: var(--au-t-sm); font-weight: 600; color: var(--au-text); }
+.au-recente-meta { font-size: var(--au-t-xs); color: var(--au-text-subtle); }
+
+/* Item de trilho que é FILHO de outro — §34. Relatórios mora sob Documentação:
+   relatório de entrega e de ocorrência são documentos, e duas portas separadas
+   fariam a pessoa procurar em "Documentação" o relatório que acabou de emitir. */
+.au-rail-item--filho {
+  margin-left: var(--au-5);
+  border-left: 1px solid var(--au-border);
+  padding-left: var(--au-3);
+  border-radius: 0 var(--au-r-sm) var(--au-r-sm) 0;
+}
