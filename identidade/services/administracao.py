@@ -106,6 +106,44 @@ def pessoas_administraveis():
     )
 
 
+def definir_centro_de_custo(pessoa, codigo: str, quem) -> Lotacao:
+    """Grava em que centro de custo a pessoa é debitada.
+
+    ## Por que isto não existia, e o que custava
+
+    `Lotacao.centro_custo_codigo` é lido em três lugares que decidem dinheiro: o
+    pedido do catálogo o copia na hora de nascer, a bandeja de aprovação monta
+    a barra de orçamento com ele, e o compromisso é baixado por ele. O campo era
+    populado por um `semear` e por mais nada — a única porta para corrigi-lo era
+    o `/admin/`, que pede `is_staff`.
+
+    O efeito prático: pessoa admitida depois da carga entra sem centro de custo,
+    o primeiro pedido dela que exige um é recusado com "sua lotação não tem
+    centro de custo", e quem pode resolver (o R.H.) não tem onde.
+
+    ## Vazio é resposta válida
+
+    Limpar o campo é diferente de apontá-lo para o lugar errado, e o produto já
+    sabe dizer o primeiro: o catálogo recusa o pedido explicando o que falta. É
+    por isso que string vazia passa em vez de virar erro.
+    """
+    if not pode_administrar(quem):
+        raise AdministracaoError("Você não administra lotações.")
+
+    lotacao = Lotacao.objects.filter(user=pessoa).first()
+    if lotacao is None:
+        # Sem lotação a pessoa não está no organograma, e centro de custo solto
+        # não tem onde morar. Dizer isso é melhor que criar uma lotação vazia
+        # pelas costas de quem clicou.
+        raise AdministracaoError(
+            f"{pessoa} não tem lotação. Cadastre a lotação antes do centro de custo."
+        )
+
+    lotacao.centro_custo_codigo = (codigo or "").strip()[:20]
+    lotacao.save(update_fields=["centro_custo_codigo", "atualizado_em"])
+    return lotacao
+
+
 def atribuicoes_de(pessoa):
     return (
         AtribuicaoPapel.objects.filter(user=pessoa)

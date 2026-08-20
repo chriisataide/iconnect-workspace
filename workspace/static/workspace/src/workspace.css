@@ -672,6 +672,19 @@ body {
   gap: 2px;
   padding-right: var(--au-4);
   border-right: 1px solid var(--au-border);
+  /* O TRILHO ROLA SOZINHO.
+     `sticky` prega o topo na viewport; quando a lista é mais alta que a tela —
+     que é o caso de quem atende fila, publica, mantém acervo e administra
+     papéis ao mesmo tempo —, o que passa da borda de baixo fica INALCANÇÁVEL:
+     rolar a página não move um elemento pregado. Com altura máxima e rolagem
+     própria, os últimos itens voltam a existir.
+     `overscroll-behavior: contain` é o que separa as duas rolagens. Sem ele,
+     chegar ao fim do trilho continua a rolagem na página atrás — o gesto
+     "descer no menu" vira "descer na tela", que é justamente a confusão que
+     esta caixa existe para acabar. */
+  max-height: calc(100vh - var(--au-topbar-h) - var(--au-8));
+  overflow-y: auto;
+  overscroll-behavior: contain;
 }
 
 .au-rail-grupo {
@@ -1362,6 +1375,13 @@ a.au-horas-hora:hover { background: var(--au-success); color: var(--au-text-inve
 .au-sino-painel {
   position: absolute; top: calc(100% + var(--au-2)); right: 0; z-index: 50;
   width: min(340px, calc(100vw - var(--au-6)));
+  /* Teto e rolagem própria, como no painel do assistente ao lado.
+     `LIMITE_DO_SINO` já dizia "antes de virar rolagem" e a rolagem não
+     existia: o painel pende de uma topbar `sticky`, então o que passa da borda
+     de baixo da janela fica inalcançável — rolar a página não move nada aqui.
+     Cinco avisos cabem numa tela de notebook e não cabem num telefone
+     deitado. */
+  max-height: min(70vh, 480px); overflow-y: auto; overscroll-behavior: contain;
   display: flex; flex-direction: column; gap: var(--au-2);
   padding: var(--au-3);
   background: var(--au-surface); border: 1px solid var(--au-border);
@@ -1470,6 +1490,9 @@ a.au-horas-hora:hover { background: var(--au-success); color: var(--au-text-inve
     flex-direction: row; flex-wrap: wrap;
     padding: 0 0 var(--au-4);
     border-right: 0; border-bottom: 1px solid var(--au-border);
+    /* Deitado, o trilho não é mais uma coluna alta: devolver a altura livre
+       evita uma segunda barra de rolagem em cima da faixa de chips. */
+    max-height: none; overflow-y: visible;
   }
   .au-rail-grupo { display: none; }
   .au-colunas--assimetrica { grid-template-columns: 1fr; }
@@ -1918,7 +1941,6 @@ a.au-notif-titulo:hover { color: var(--au-accent-text); text-decoration: underli
   font-size: var(--au-t-xs); color: var(--au-text-subtle); white-space: nowrap;
 }
 .au-corresp-acao { display: flex; gap: var(--au-2); align-items: center; }
-.au-input--compacto { height: 28px; padding: 0 var(--au-2); font-size: var(--au-t-sm); }
 
 @media (max-width: 640px) {
   .au-colunas--duas { grid-template-columns: 1fr; }
@@ -2231,8 +2253,17 @@ a.au-notif-titulo:hover { color: var(--au-accent-text); text-decoration: underli
   align-items: center;
   justify-content: space-between;
   gap: var(--au-3);
+  /* MARGEM DOS DOIS LADOS, e não só embaixo.
+     `.au-secao` só declara `margin-top`, então qualquer coisa que venha DEPOIS
+     de uma seção e não traga margem própria encosta nela. Em Oportunidades é
+     exatamente o que acontecia: a faixa "Precisa decidir" — que só aparece
+     quando existe uma oportunidade com prazo — nascia colada na barra de
+     filtros, sem um pixel entre o bloco colorido e os chips.
+     `:first-child` volta a zero para as telas em que a barra abre o corpo. */
+  margin-top: var(--au-8);
   margin-bottom: var(--au-4);
 }
+.au-filtros:first-child { margin-top: 0; }
 
 .au-filtros-chips { display: flex; flex-wrap: wrap; gap: var(--au-2); }
 .au-filtros-busca { display: flex; align-items: center; gap: var(--au-2); }
@@ -2592,9 +2623,22 @@ tr[data-abre-resumo]:focus-visible {
   margin: 0;
 }
 
+/* CAMPO COMPACTO — a única declaração desta classe.
+   Ela existia DUAS vezes no arquivo, escrita em ondas diferentes: a de
+   correspondências dava `height: 28px` e a da fila de atendimento dava
+   `width: 11rem`. A segunda ganhava por cascata e passava a impor onze rem a
+   todo campo compacto do produto, inclusive aos dois campos que decidem uma
+   oportunidade de marketing dentro de uma célula de tabela — e a linha
+   estourava a largura da coluna, empurrando a etiqueta de situação por cima do
+   que estivesse ao lado.
+   Largura é LIMITE, não medida: `max-width` deixa o campo encolher onde o
+   espaço é pouco, `width` obrigava a coluna a crescer. */
 .au-input--compacto {
-  width: 11rem;
-  padding: var(--au-1) var(--au-2);
+  height: 28px;
+  width: 100%;
+  max-width: 11rem;
+  min-width: 0;
+  padding: 0 var(--au-2);
   font-size: var(--au-t-sm);
 }
 
@@ -2765,7 +2809,18 @@ tr[data-abre-resumo]:focus-visible {
   color: var(--au-text-subtle);
   white-space: nowrap;
 }
-.au-custodia-baixa { display: flex; gap: var(--au-2); align-items: center; }
+/* A ação dentro da célula: campos + botão numa linha, que QUEBRA.
+   Sem `flex-wrap`, três controles lado a lado impõem uma largura mínima à
+   coluna e a tabela cresce até empurrar as colunas vizinhas uma sobre a outra.
+   `min-width: 0` é o par obrigatório: item de flex não encolhe abaixo do
+   conteúdo sem ele, e a quebra nunca acontece. */
+.au-custodia-baixa {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--au-2);
+  align-items: center;
+  min-width: 0;
+}
 
 /* Prefixo `cst-` como `rel-`, `hab-` e `pub-`: `au-etiqueta--devolvida` já
    existe e é vermelha, porque no pedido devolver é o pedido voltando errado.

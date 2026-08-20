@@ -34,6 +34,7 @@ python manage.py createsuperuser
 python manage.py semear_papeis            --aplicar   # os papéis e suas permissões
 python manage.py importar_organograma docs/exemplos/organograma-inicial.csv --aplicar
 python manage.py semear_acessos           --aplicar   # dá papel a quem está no organograma
+python manage.py semear_centros_custo     --aplicar   # um CentroCusto por código usado na lotação
 
 # 2 · WORKSPACE. O saldo de estoque é POR UNIDADE — sem unidade, não tem onde morar.
 python manage.py semear_regras_aprovacao  --aplicar   # a cadeia por faixa de valor
@@ -59,6 +60,14 @@ python manage.py semear_perfis --aplicar
 Cria **um usuário por papel**, com o nome do papel: quem entra como `compras@icodev.com.br` atende Compras; `financeiro@` vê a fila do Financeiro; `colaborador@` não vê fila nenhuma — e é esse o teste.
 
 Convive com o organograma de propósito: o organograma prova que o produto funciona com gente de verdade; estes perfis provam **o que** cada papel alcança.
+
+### Os centros de custo, e por que eles vêm logo depois do organograma
+
+`semear_centros_custo` lê os códigos que já estão em `Lotacao.centro_custo_codigo` e cria um `CentroCusto` para cada um. Ele **não** define orçamento — isso é decisão do Financeiro, e "não definido" é o que a bandeja de aprovação precisa dizer enquanto ninguém decidiu.
+
+Sem este passo o ambiente fica num estado que confunde: toda pessoa tem um código e nenhum código existe. A consequência aparece longe daqui, na bandeja: *"o CC 1042 não tem orçamento mensal definido — não consigo calcular o impacto desta aprovação"*. Quem estava testando o fluxo lê isso e conclui que a barra de orçamento está quebrada; ela não está, não havia o que ler.
+
+O orçamento de cada centro se define depois, **dentro do produto**: *Pessoas e papéis › Centros de custo*. É a mesma tela onde se troca o centro de custo de uma pessoa.
 
 > **O que os seeders criam é plausível e inventado.** Quantidade de estoque, placa de veículo, prazo de curso: substitua pelos dados reais. O que **não** é inventado é a forma — sala de duas pessoas tem duração máxima menor que auditório, a matriz recebe o lote cheio e as bases uma fração.
 

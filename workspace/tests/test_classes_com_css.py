@@ -161,6 +161,40 @@ def test_nenhuma_classe_base_e_redefinida_do_zero():
     )
 
 
+def test_nenhum_modificador_e_declarado_duas_vezes():
+    """A mesma armadilha do teste acima, um degrau abaixo — e ela escapou.
+
+    O guard de classe BASE ignora modificadores de propósito: `.au-btn--primario`
+    depois de `.au-btn` é a cascata funcionando. O que ele não vê é o mesmo
+    modificador escrito duas vezes, em ondas diferentes, por duas pessoas que
+    precisavam da mesma palavra.
+
+    Foi o que aconteceu com `.au-input--compacto`. A onda de correspondências
+    declarou `height: 28px`; a da fila de atendimento, quinhentas linhas abaixo,
+    declarou `width: 11rem`. A segunda venceu e passou a impor onze rem a todo
+    campo compacto do produto — inclusive aos dois que decidem uma oportunidade
+    de marketing dentro de uma célula de tabela. A coluna estourava, e a
+    etiqueta de situação ia parar por cima da vizinha.
+
+    Nada reprovava: a classe existia, tinha CSS, e o contraste passava. Só a
+    tela mostrava, numa tela que ninguém tinha reaberto desde a onda anterior.
+    """
+    import re
+    from collections import Counter
+    from pathlib import Path
+
+    css = Path("workspace/static/workspace/src/workspace.css").read_text()
+    # Modificadores em regra de topo de linha, sem seletor composto — mesma
+    # leitura do teste de base, só que olhando para o que ele descarta.
+    mods = re.findall(r"(?m)^\.(au-[a-z0-9-]+--[a-z0-9_-]+)\s*\{", css)
+
+    repetidos = {c: n for c, n in Counter(mods).items() if n > 1}
+    assert not repetidos, (
+        "modificador declarado mais de uma vez — a segunda declaração vence "
+        f"em silêncio e leva junto telas que ninguém abriu: {repetidos}"
+    )
+
+
 def test_ninguem_usa_now_date_no_lugar_de_localdate():
     """`timezone.now().date()` é o dia em UTC, não o dia daqui.
 

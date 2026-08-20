@@ -108,6 +108,31 @@ def test_o_catalogo_nao_cresce_em_consultas_com_o_catalogo(client, ana, django_a
     assert depois == antes, "dobrar o catálogo não pode dobrar as consultas"
 
 
+def test_minhas_nao_cresce_em_consultas_com_os_pedidos(client, ana, django_assert_num_queries):
+    """A fase de um pedido aguardando aprovação diz DE QUEM é a vez, e isso lê a
+    etapa da cadeia.
+
+    `SolicitacaoAprovacao.etapa_atual` volta ao banco quando não encontra o
+    prefetch — uma consulta por linha, numa lista que só cresce. O prefetch mora
+    em `catalogo.minhas()`; este teste é o que percebe se alguém o tirar.
+    """
+    item = ItemCatalogo.objects.create(
+        chave="pedido-x", nome="Pedido X", grupo=GrupoCatalogo.EQUIPAMENTO,
+        dominio="com.x", prazo_prometido_dias=3,
+        campos=[{"chave": "o_que", "rotulo": "O quê", "obrigatorio": True}],
+    )
+    for i in range(3):
+        svc.solicitar(item, ana, {"o_que": f"p{i}"})
+    client.force_login(ana)
+    antes = len(_consultas(client, reverse("workspace:minhas_solicitacoes")))
+
+    for i in range(3, 9):
+        svc.solicitar(item, ana, {"o_que": f"p{i}"})
+    depois = len(_consultas(client, reverse("workspace:minhas_solicitacoes")))
+
+    assert depois == antes, "triplicar os pedidos não pode aumentar as consultas"
+
+
 def _consultas(client, url):
     from django.db import connection, reset_queries
     from django.test.utils import override_settings

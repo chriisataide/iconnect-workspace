@@ -76,8 +76,17 @@ def publicacao_editar(request: HttpRequest, pk: int | None = None) -> HttpRespon
     _garantir(request)
     cache = _cache(request)
     publicacao = get_object_or_404(Publicacao, pk=pk) if pk else None
+    # O QUE A TELA DEVOLVE QUANDO A GRAVAÇÃO FALHA.
+    #
+    # Antes, um erro de validação re-renderizava o formulário a partir do
+    # OBJETO — que é `None` numa publicação nova. O comunicado inteiro
+    # desaparecia da tela, sobrando uma faixa vermelha em cima de campos
+    # vazios. Perder o texto por causa de uma data digitada errada é o tipo de
+    # coisa que faz alguém parar de usar a tela e voltar para o e-mail.
+    valores = _valores_de(publicacao)
 
     if request.method == "POST":
+        valores = _valores_do_post(request)
         try:
             salva = pub.salvar(
                 request.user,
@@ -115,18 +124,86 @@ def publicacao_editar(request: HttpRequest, pk: int | None = None) -> HttpRespon
         "workspace/publicacoes/editar.html",
         {
             "publicacao": publicacao,
+            "valores": valores,
             "tipos": TipoPublicacao.choices,
             "prioridades": Prioridade.choices,
             "unidades": Unidade.objects.order_by("nome"),
             "departamentos": Departamento.objects.order_by("nome"),
-            "alvo_unidades": (
-                {u.pk for u in publicacao.unidades.all()} if publicacao else set()
-            ),
-            "alvo_departamentos": (
-                {d.pk for d in publicacao.departamentos.all()} if publicacao else set()
-            ),
+            "alvo_unidades": valores["unidades"],
+            "alvo_departamentos": valores["departamentos"],
         },
     )
+
+
+def _valores_de(publicacao: Publicacao | None) -> dict:
+    """O que preencher no formulário a partir do objeto (ou do nada)."""
+    if publicacao is None:
+        return {
+            "titulo": "", "tipo": TipoPublicacao.COMUNICADO, "resumo": "", "corpo": "",
+            "prioridade": Prioridade.NORMAL.value, "fixado": False,
+            "publicar_em": "", "expira_em": "",
+            "unidades": set(), "departamentos": set(),
+        }
+    return {
+        "titulo": publicacao.titulo,
+        "tipo": publicacao.tipo,
+        "resumo": publicacao.resumo,
+        "corpo": publicacao.corpo,
+        "prioridade": publicacao.prioridade,
+        "fixado": publicacao.fixado,
+        "publicar_em": _para_campo(publicacao.publicar_em),
+        "expira_em": _para_campo(publicacao.expira_em),
+        "unidades": {u.pk for u in publicacao.unidades.all()},
+        "departamentos": {d.pk for d in publicacao.departamentos.all()},
+    }
+
+
+def _valores_do_post(request: HttpRequest) -> dict:
+    """O que a pessoa acabou de digitar — para devolver intacto quando falha.
+
+    Os arquivos NÃO voltam, e não há como fazê-los voltar: o navegador não
+    aceita valor inicial em `<input type="file">`, por segurança. É por isso
+    que a ajuda ao lado do campo avisa para reanexar.
+    """
+    inteiros = lambda chave: {  # noqa: E731 - duas linhas, uma expressão
+        int(v) for v in request.POST.getlist(chave) if v.isdigit()
+    }
+    return {
+        "titulo": request.POST.get("titulo", ""),
+        "tipo": request.POST.get("tipo", TipoPublicacao.COMUNICADO),
+        "resumo": request.POST.get("resumo", ""),
+        "corpo": request.POST.get("corpo", ""),
+        # INT e não a string crua: o template compara com os valores de
+        # `Prioridade.choices`, que são inteiros. `"1" == 1` é falso, e o
+        # `<select>` voltaria em "Normal" depois de um erro — trocando a
+        # prioridade da pessoa em silêncio, no exato momento em que ela já
+        # está irritada com a tela.
+        "prioridade": _inteiro(request.POST.get("prioridade"), Prioridade.NORMAL.value),
+        "fixado": bool(request.POST.get("fixado")),
+        "publicar_em": request.POST.get("publicar_em", ""),
+        "expira_em": request.POST.get("expira_em", ""),
+        "unidades": inteiros("unidades"),
+        "departamentos": inteiros("departamentos"),
+    }
+
+
+def _inteiro(bruto, padrao: int) -> int:
+    try:
+        return int(bruto)
+    except (TypeError, ValueError):
+        return padrao
+
+
+def _para_campo(momento) -> str:
+    r"""`datetime` → o formato que `<input type="datetime-local">` entende.
+
+    Feito aqui e não no template porque o formulário passou a ler de um dicionário
+    (para poder devolver o que a pessoa digitou), e `|date:'Y-m-d\TH:i'` sobre
+    uma string já formatada devolveria vazio.
+    """
+    if not momento:
+        return ""
+    return timezone.localtime(momento).strftime("%Y-%m-%dT%H:%M")
 
 
 @login_required

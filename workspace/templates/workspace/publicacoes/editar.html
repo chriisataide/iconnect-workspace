@@ -27,23 +27,33 @@
       {% trans "Título" %} <span class="au-obrigatorio" aria-hidden="true">*</span>
     </label>
     <input class="au-input" id="titulo" name="titulo" type="text" maxlength="200"
-           value="{{ publicacao.titulo|default:'' }}" required>
+           value="{{ valores.titulo }}" required>
   </div>
 
   <div class="au-colunas au-colunas--duas">
     <div class="au-campo">
-      <label class="au-rotulo" for="tipo">{% trans "Categoria" %}</label>
+      {% comment %}
+        O RÓTULO DIZ "Tipo", que é a palavra usada em todo o resto do produto —
+        a lista da redação tem uma coluna "Tipo", o e-mail de aviso diz "novo
+        comunicado". Este campo dizia "Categoria", e era o ÚNICO lugar onde a
+        escolha entre comunicado e notícia acontece: quem procurava por onde
+        escolher passava direto por ele.
+      {% endcomment %}
+      <label class="au-rotulo" for="tipo">{% trans "Tipo" %}</label>
       <select class="au-input" id="tipo" name="tipo">
         {% for valor, rotulo in tipos %}
-          <option value="{{ valor }}" {% if publicacao.tipo == valor %}selected{% endif %}>{{ rotulo }}</option>
+          <option value="{{ valor }}" {% if valores.tipo == valor %}selected{% endif %}>{{ rotulo }}</option>
         {% endfor %}
       </select>
+      <p class="au-ajuda">
+        {% trans "Comunicado é aviso da empresa; notícia é o que aconteceu. Cada um tem seu card na home." %}
+      </p>
     </div>
     <div class="au-campo">
       <label class="au-rotulo" for="prioridade">{% trans "Prioridade" %}</label>
       <select class="au-input" id="prioridade" name="prioridade">
         {% for valor, rotulo in prioridades %}
-          <option value="{{ valor }}" {% if publicacao.prioridade == valor %}selected{% endif %}>{{ rotulo }}</option>
+          <option value="{{ valor }}" {% if valores.prioridade == valor %}selected{% endif %}>{{ rotulo }}</option>
         {% endfor %}
       </select>
     </div>
@@ -52,13 +62,13 @@
   <div class="au-campo">
     <label class="au-rotulo" for="resumo">{% trans "Resumo" %}</label>
     <input class="au-input" id="resumo" name="resumo" type="text" maxlength="300"
-           value="{{ publicacao.resumo|default:'' }}">
+           value="{{ valores.resumo }}">
     <p class="au-ajuda">{% trans "Uma linha — é o que aparece no card da home." %}</p>
   </div>
 
   <div class="au-campo">
     <label class="au-rotulo" for="corpo">{% trans "Conteúdo" %}</label>
-    <textarea class="au-input" id="corpo" name="corpo" rows="10">{{ publicacao.corpo|default:'' }}</textarea>
+    <textarea class="au-input" id="corpo" name="corpo" rows="10">{{ valores.corpo }}</textarea>
   </div>
 
   <div class="au-colunas au-colunas--duas">
@@ -68,6 +78,12 @@
       {% if publicacao.imagem %}
         <p class="au-ajuda">{% trans "Já existe uma imagem. Enviar outra substitui." %}</p>
       {% endif %}
+      {% comment %}
+        O arquivo é o único campo que NÃO volta quando a gravação falha: o
+        navegador não aceita valor inicial em `<input type="file">`, por
+        segurança. Dizer isso é melhor que a pessoa achar que anexou.
+      {% endcomment %}
+      <p class="au-ajuda">{% trans "Se aparecer um erro acima, reanexe o arquivo — só ele não volta." %}</p>
     </div>
     <div class="au-campo">
       <label class="au-rotulo" for="anexo">{% trans "Anexo" %}</label>
@@ -106,13 +122,13 @@
     <div class="au-campo">
       <label class="au-rotulo" for="publicar_em">{% trans "Publicar em" %}</label>
       <input class="au-input" id="publicar_em" name="publicar_em" type="datetime-local"
-             value="{{ publicacao.publicar_em|date:'Y-m-d\TH:i' }}">
+             value="{{ valores.publicar_em }}">
       <p class="au-ajuda">{% trans "Data futura agenda a publicação." %}</p>
     </div>
     <div class="au-campo">
       <label class="au-rotulo" for="expira_em">{% trans "Expira em" %}</label>
       <input class="au-input" id="expira_em" name="expira_em" type="datetime-local"
-             value="{{ publicacao.expira_em|date:'Y-m-d\TH:i' }}">
+             value="{{ valores.expira_em }}">
       <p class="au-ajuda">{% trans "Em branco, não expira." %}</p>
     </div>
   </div>
@@ -120,7 +136,7 @@
   <div class="au-campo">
     <label class="au-rotulo" for="fixado">
       <input class="au-check" id="fixado" name="fixado" type="checkbox"
-             {% if publicacao.fixado %}checked{% endif %}>
+             {% if valores.fixado %}checked{% endif %}>
       {% trans "Destaque — fixa no topo da lista" %}
     </label>
   </div>

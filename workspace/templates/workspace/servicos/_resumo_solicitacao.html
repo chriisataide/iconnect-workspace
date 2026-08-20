@@ -61,6 +61,18 @@
                 {% trans "parado: ninguém tem este papel hoje" %}
               </span>
             {% endif %}
+          {% elif s.atendente %}
+            {{ s.atendente.get_short_name|default:s.atendente.get_full_name }}
+            <span class="au-list-resumo">{% trans "assumiu o atendimento" %}</span>
+          {% elif s.area_responsavel %}
+            {% comment %}
+              APROVADO NÃO É "ninguém". Enquanto esta linha caía no ramo de
+              baixo, o pedido aprovado dizia "não está em fila de aprovação" —
+              tecnicamente certo e lido como "não está em fila nenhuma". Ele
+              está: na da área que executa, que agora tem nome aqui também.
+            {% endcomment %}
+            {{ s.area_responsavel }}
+            <span class="au-list-resumo">{% trans "a área ainda não assumiu" %}</span>
           {% else %}
             {% trans "ninguém — o pedido não está em fila de aprovação" %}
           {% endif %}

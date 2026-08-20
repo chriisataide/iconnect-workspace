@@ -65,6 +65,10 @@ PERFIS: list[tuple[str, str, str | None]] = [
     ("marketing", "Marketing", "gestor"),
     ("juridico", "Jurídico", "gestor"),
     ("logistica", "Suprimentos", "gestor"),
+    # A RECEPÇÃO tem perfil próprio desde a rodada de testes de agosto: quem foi
+    # exercitar o aviso de encomenda não achou por onde entrar, porque a função
+    # só existia dentro de Suprimentos.
+    ("recepcao", "Recepção", "gestor"),
     ("operacao", "Operação", "gestor"),
     ("sesmt", "SESMT", "gestor"),
     ("ti", "TI", "gestor"),

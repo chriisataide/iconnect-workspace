@@ -2,8 +2,7 @@
 
 Era o jeito mais silencioso de o produto perder um pedido. A cadeia manda para
 "Compras", ninguém tem o papel de Compras, e a etapa **não aparece na bandeja
-de pessoa nenhuma** — etapa por papel não gera notificação, de propósito, e o
-contador da bandeja de todo mundo continua zerado.
+de pessoa nenhuma**: o contador da bandeja de todo mundo continua zerado.
 
 Do lado de quem pediu: "aguardando aprovação", para sempre. Do outro lado não
 havia lado.
@@ -13,10 +12,23 @@ O que estes testes protegem:
 1. **Quem pode conceder o papel é avisado.** É a única pessoa capaz de tirar o
    pedido dali, e o aviso leva à tela de papéis — não à bandeja, porque quem
    recebe não tem o que decidir.
-2. **Papel COM titular continua em silêncio.** O aviso é para o defeito, não
-   para o funcionamento normal.
-3. **Quem pediu vê o motivo da parada.** Não pode consertar, mas silêncio é o
+2. **Quem pediu vê o motivo da parada.** Não pode consertar, mas silêncio é o
    que faz a pessoa mandar e-mail perguntando.
+
+## A segunda metade, de agosto
+
+A etapa por papel COM titular também era silenciosa, e isso era decisão
+explícita: "Financeiro" são três pessoas, e três avisos significariam que
+aprovar um deixaria dois órfãos apontando para um pedido já decidido.
+
+O relato do testador mostrou o custo: *pedi um adiantamento, o gestor aprovou,
+fui no Financeiro e não tinha nada*. Estava lá — na etapa por papel do
+Financeiro, sem que ninguém tivesse sido avisado. Quem pediu achou que o pedido
+sumiu; o Financeiro não sabia que tinha um.
+
+A resposta para a notificação órfã não é calar. É `encerrar_avisos_da_vez()`,
+que marca as irmãs como lidas assim que o degrau anda — e é a última seção
+deste arquivo que a mantém honesta.
 """
 
 from __future__ import annotations
@@ -203,3 +215,125 @@ def test_pedido_com_aprovador_de_verdade_nao_ganha_a_marca(client, cenario):
     corpo = client.get(reverse("workspace:minhas_solicitacoes")).content.decode()
 
     assert "ninguém tem este papel hoje" not in corpo
+
+
+# ── A etapa por papel deixou de ser silenciosa ──────────────────────
+#
+# Era silêncio de propósito, e a razão era boa: "Financeiro" são três pessoas, e
+# três notificações significariam que aprovar uma deixaria duas órfãs apontando
+# para um pedido já decidido. O aviso seria o contador da bandeja.
+#
+# A rodada de testes de agosto mostrou que o contador não basta. Relato do
+# testador: pedi um adiantamento, o gestor aprovou, fui no Financeiro e não
+# tinha nada. Estava lá — na etapa por papel do Financeiro, sem que ninguém
+# tivesse sido avisado. Os dois lados concluíram que o pedido se perdeu.
+#
+# A resposta para a notificação órfã não é calar: é limpar as irmãs quando o
+# degrau anda.
+
+
+def test_quem_tem_o_papel_e_avisado(cenario):
+    titular = f.pessoa("titular")
+    f.lotar(titular)
+    f.atribuir(titular, cenario["compras"])
+
+    pedir(cenario)
+
+    assert Notificacao.objects.de(titular).filter(
+        tipo=TipoNotificacao.VEZ_DE_APROVAR
+    ).exists()
+
+
+def test_todos_os_titulares_sao_avisados(cenario):
+    """A etapa não é de ninguém em particular — é de quem tiver o crachá.
+    Avisar só um faria a fila depender de quem o acaso escolheu."""
+    titulares = []
+    for nome in ("um", "dois", "tres"):
+        pessoa = f.pessoa(nome)
+        f.lotar(pessoa)
+        f.atribuir(pessoa, cenario["compras"])
+        titulares.append(pessoa)
+
+    pedir(cenario)
+
+    for titular in titulares:
+        assert Notificacao.objects.de(titular).filter(
+            tipo=TipoNotificacao.VEZ_DE_APROVAR
+        ).exists(), titular
+
+
+def test_decidir_apaga_o_aviso_dos_outros_titulares(cenario):
+    """A objeção original ao aviso por papel, resolvida: quem não clicou não
+    fica com "espera sua decisão" apontando para um pedido já decidido."""
+    from workspace.services import aprovacao as apr
+
+    quem_decide, o_outro = f.pessoa("decide"), f.pessoa("outro")
+    for pessoa in (quem_decide, o_outro):
+        f.lotar(pessoa)
+        f.atribuir(pessoa, cenario["compras"])
+    pedido = pedir(cenario)
+
+    apr.decidir(pedido.aprovacao, quem_decide, "aprovar")
+
+    assert not Notificacao.objects.de(o_outro).nao_lidas().filter(
+        tipo=TipoNotificacao.VEZ_DE_APROVAR
+    ).exists()
+
+
+def test_o_aviso_da_vez_anda_junto_com_a_cadeia(cenario):
+    """Dois degraus: o aviso do primeiro é encerrado e o do segundo nasce.
+
+    É o caso do adiantamento — gestor direto, depois o papel da área —, e é
+    onde o silêncio doeu.
+    """
+    from workspace.models import RegraAprovacao, TipoAprovador
+    from workspace.services import aprovacao as apr
+
+    gestor, titular = f.pessoa("gestor"), f.pessoa("titular")
+    f.lotar(gestor)
+    f.lotar(titular)
+    f.atribuir(titular, cenario["compras"])
+    Lotacao.objects.filter(user=cenario["ana"]).update(gestor=gestor)
+    RegraAprovacao.objects.create(
+        dominio="com.", tipo=TipoAprovador.GESTOR_DIRETO, ordem=10
+    )
+
+    pedido = pedir(cenario)
+    assert Notificacao.objects.de(gestor).nao_lidas().filter(
+        tipo=TipoNotificacao.VEZ_DE_APROVAR
+    ).exists(), "o primeiro degrau avisa"
+    assert not Notificacao.objects.de(titular).nao_lidas().filter(
+        tipo=TipoNotificacao.VEZ_DE_APROVAR
+    ).exists(), "o segundo degrau ainda não é a vez de ninguém"
+
+    apr.decidir(pedido.aprovacao, gestor, "aprovar")
+
+    assert not Notificacao.objects.de(gestor).nao_lidas().filter(
+        tipo=TipoNotificacao.VEZ_DE_APROVAR
+    ).exists(), "o gestor já decidiu — o aviso dele não vale mais"
+    assert Notificacao.objects.de(titular).nao_lidas().filter(
+        tipo=TipoNotificacao.VEZ_DE_APROVAR
+    ).exists(), "agora é a vez do papel, e o papel precisa saber"
+
+
+def test_a_fase_diz_de_quem_e_a_vez(cenario):
+    """"Aguardando aprovação" sozinho é a mesma frase antes e depois de o
+    gestor aprovar — e quem pediu conclui que o clique dele não fez nada."""
+    from workspace.models import RegraAprovacao, TipoAprovador
+    from workspace.services import aprovacao as apr
+
+    gestor = f.pessoa("gestor")
+    f.lotar(gestor)
+    f.atribuir(f.pessoa("titular"), cenario["compras"])
+    Lotacao.objects.filter(user=cenario["ana"]).update(gestor=gestor)
+    RegraAprovacao.objects.create(
+        dominio="com.", tipo=TipoAprovador.GESTOR_DIRETO, ordem=10
+    )
+
+    pedido = pedir(cenario)
+    assert pedido.fase == f"Aguardando aprovação · {gestor.get_short_name()}"
+
+    apr.decidir(pedido.aprovacao, gestor, "aprovar")
+    pedido.refresh_from_db()
+
+    assert pedido.fase == "Aguardando aprovação · Compras"

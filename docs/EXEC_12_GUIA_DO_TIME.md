@@ -57,8 +57,9 @@ contas  →  identidade  →  workspace
 | **todo colaborador** | Início, Meu dia, Notificações, Catálogo, Minhas solicitações, Documentação (com Relatórios dentro), Reservas, Correspondências, Equipamentos, Universidade, Meus chamados, Assistente |
 | **quem aprova** | Bandeja de aprovação |
 | **quem atende uma fila** | Fila de atendimento |
-| **Suprimentos** | Estoque, Custódia (lista de todos), Frota, Campo |
-| **R.H.** | Comunicados, Acervo normativo, Candidaturas, Pessoas e papéis, Painel da Universidade |
+| **Suprimentos** | Estoque, Custódia (lista de todos), Frota, Campo, Correspondências (registrar) |
+| **Recepção** | Correspondências (registrar) — e mais nada |
+| **R.H.** | Comunicados, Acervo normativo, Candidaturas, Pessoas e papéis (com **Centros de custo**), Painel da Universidade |
 | **Marketing** | Radar de oportunidades |
 | **Diretoria e Sócios** | Indicadores |
 
@@ -77,6 +78,8 @@ O tile leva à vitrine daquele departamento — a fatia do catálogo que ele ate
 
 Mudar o domínio de um item muda as duas. Foi assim que Viagem saiu do Financeiro para Suprimentos (§13) com uma linha.
 
+O nome da área que executa **não** é uma tabela escrita à mão: sai do papel que declara `<raiz>.atender`, a mesma fonte que decide quem vê a fila. É isso que faz a tela dizer *"Aprovada · aguardando Financeiro"* em vez de *"aguardando a área"* — e é isso que faz um pedido cair em *"Aprovada · sem área responsável"* quando nenhum papel atende aquela raiz, que é o diagnóstico que interessa.
+
 | prefixo | área |
 |---|---|
 | `rh.` | R.H. |
@@ -87,7 +90,7 @@ Mudar o domínio de um item muda as duas. Foi assim que Viagem saiu do Financeir
 | `ops.` | Operações |
 | `mkt.` | Marketing |
 | `jur.` | Jurídico |
-| `hab.` | Universidade |
+| `hab.` | Universidade (quem ATENDE a fila é a Segurança do Trabalho) |
 | `ven.` | Vendas |
 | `res.` `cor.` `cnt.` `apr.` `ind.` `doc.` `faq.` | recursos, correspondência, conteúdo, aprovação, indicadores, documentos, FAQ |
 

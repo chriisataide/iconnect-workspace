@@ -100,6 +100,60 @@ def test_contrato_base_devolve_vazio():
     assert base.orcamento_mensal("X") is None
     assert base.realizado_no_mes("X", date(2026, 8, 1)) == Decimal("0")
     assert base.centro_custo_existe("X") is False
+    assert base.centros() == []
+    # `None` e não exceção: a tela do R.H. precisa dizer "cadastro financeiro
+    # indisponível" em vez de fingir que gravou.
+    assert base.salvar_centro("1042", "Operações") is None
+
+
+# ── Cadastro de centro de custo ─────────────────────────────────────
+
+
+def test_sem_provider_a_lista_de_centros_e_vazia(sem_provider):
+    """O Workspace roda sem domínio financeiro instalado — a mesma razão de
+    `resumo()` responder "sem orçamento" em vez de estourar."""
+    assert orc.centros_de_custo() == []
+
+
+def test_sem_provider_salvar_devolve_none(sem_provider):
+    assert orc.salvar_centro_de_custo("1042", "Operações") is None
+
+
+def test_codigo_vazio_e_recusado():
+    with pytest.raises(orc.OrcamentoError, match="código"):
+        orc.salvar_centro_de_custo("  ", "Operações")
+
+
+def test_nome_vazio_e_recusado():
+    """Centro de custo sem nome é um número que ninguém reconhece na hora de
+    escolher a quem debitar."""
+    with pytest.raises(orc.OrcamentoError, match="nome"):
+        orc.salvar_centro_de_custo("1042", "   ")
+
+
+@pytest.mark.django_db
+def test_o_provider_de_financas_le_e_escreve_centros():
+    """A escrita passa pelo MESMO contrato da leitura, e é por isso que a view
+    do R.H. não importa `financas`."""
+    from financas.models import CentroCusto
+
+    provider = provedor.obter()
+    provider.salvar_centro("1042", "Operações", Decimal("50000"))
+
+    assert CentroCusto.objects.filter(codigo="1042").exists()
+    achado = next(c for c in provider.centros() if c.codigo == "1042")
+    assert achado.nome == "Operações"
+    assert achado.orcamento_mensal == Decimal("50000")
+
+
+@pytest.mark.django_db
+def test_o_centro_inativo_continua_na_lista():
+    """Alguém pode estar lotado nele. Esconder o código faria a tela do R.H.
+    mostrar centro de custo em branco para quem tem um."""
+    provider = provedor.obter()
+    provider.salvar_centro("9000", "Desativado", None, ativo=False)
+
+    assert "9000" in {c.codigo for c in provider.centros()}
 
 
 # ── Competência ─────────────────────────────────────────────────────

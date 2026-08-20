@@ -391,6 +391,42 @@ class SolicitacaoServico(models.Model):
         return f"{self.item.nome} · {self.solicitante.get_full_name()}"
 
     @property
+    def esperando_decisao_de(self) -> str:
+        """De quem é a etapa da vez — pessoa ou papel —, ou `""`.
+
+        Etapa NOMINAL devolve o nome curto de quem decide; etapa por PAPEL
+        devolve o nome do papel, porque ela não é de ninguém em particular: é
+        de quem tiver o crachá. Chamá-la pelo papel é o certo — "Financeiro" é
+        a resposta útil, e listar as três pessoas que o ocupam hoje seria uma
+        etiqueta que muda quando alguém sai de férias.
+
+        Barato em lista: `etapa_atual` usa o `prefetch` quando ele existe, e
+        `catalogo.minhas()` e `atendimento.fila_de()` o trazem.
+        """
+        aprovacao = self.aprovacao
+        if aprovacao is None:
+            return ""
+        etapa = aprovacao.etapa_atual
+        if etapa is None:
+            return ""
+        if etapa.aprovador_id:
+            return etapa.aprovador.get_short_name() or etapa.aprovador.get_full_name()
+        return etapa.papel.nome if etapa.papel_id else ""
+
+    @property
+    def area_responsavel(self) -> str:
+        """A área que executa este pedido, pelo nome — ou `""` quando não há.
+
+        Sai do papel que declara `<raiz>.atender`, que é a MESMA fonte do
+        roteamento da fila. Uma tabela de nomes escrita à parte diria o que
+        alguém achava que era verdade, e a primeira divergência apareceria
+        justamente quando alguém criasse uma área nova.
+        """
+        from workspace.services.atendimento import area_de
+
+        return area_de(self.item.dominio)
+
+    @property
     def fase(self) -> str:
         """O que a tela diz, e não só o nome do estado — §43.
 
@@ -412,15 +448,28 @@ class SolicitacaoServico(models.Model):
             # "Rascunho" sozinho deixa a dúvida que importa: já mandei ou não?
             return "Rascunho · não enviado"
         if self.situacao == S.APROVADA:
-            return "Aprovada · aguardando a área"
+            # A ÁREA TEM NOME. "aguardando a área" resolveu metade do §43 e
+            # deixou a outra metade: quem pediu adiantamento, viu o gestor
+            # aprovar e leu isto foi procurar no Financeiro sem saber se era ali.
+            # Sem área nenhuma a frase muda de assunto — o pedido está numa fila
+            # que ninguém pode abrir, e isso é o que a tela precisa contar.
+            area = self.area_responsavel
+            return f"Aprovada · aguardando {area}" if area else "Aprovada · sem área responsável"
         if self.situacao == S.EM_ATENDIMENTO:
             if self.atendente_id:
                 return f"Em andamento · {self.atendente.get_short_name() or self.atendente.get_full_name()}"
-            return "Em andamento"
+            area = self.area_responsavel
+            return f"Em andamento · {area}" if area else "Em andamento"
         if self.situacao == S.DEVOLVIDA:
             return "Devolvida · esperando você corrigir"
         if self.situacao == S.AGUARDANDO_APROVACAO:
-            return "Aguardando aprovação"
+            # QUEM está segurando, e não só "alguém". Sem o nome, o pedido de
+            # adiantamento cujo gestor já aprovou continua dizendo a mesma frase
+            # de antes de ele aprovar — e quem pediu conclui que o clique do
+            # gestor não fez nada. Fez: a cadeia andou um degrau, e o degrau
+            # seguinte é de outra pessoa.
+            quem = self.esperando_decisao_de
+            return f"Aguardando aprovação · {quem}" if quem else "Aguardando aprovação"
         return self.get_situacao_display()
 
     @property

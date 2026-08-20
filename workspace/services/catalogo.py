@@ -716,7 +716,26 @@ def minhas(pessoa):
         .select_related("item", "aprovacao")
         # `prefetch` e não N+1: a tela lista os anexos de cada linha, e sem isto
         # uma pessoa com 30 pedidos faria 31 consultas só para os arquivos.
-        .prefetch_related("anexos")
+        #
+        # As ETAPAS entram pelo mesmo motivo: a fase de um pedido aguardando
+        # aprovação diz de quem é a vez, e `etapa_atual` consulta o banco
+        # quando não encontra o prefetch — uma consulta por linha, na segunda
+        # tela mais aberta do produto.
+        .prefetch_related(
+            "anexos",
+            # As DESPESAS eram um N+1 puro e antigo: o modal de cada linha lista
+            # a compra item a item, e sem o prefetch são dezesseis consultas
+            # para dezesseis pedidos — na segunda tela mais aberta do produto,
+            # crescendo com o histórico de cada pessoa. `despesa__anexo` junto
+            # porque a lista mostra o comprovante de cada valor.
+            "despesas__anexo",
+            "eventos",
+            # As ETAPAS: a fase de um pedido aguardando aprovação diz de quem é
+            # a vez, e `etapa_atual` consulta o banco quando não encontra o
+            # prefetch — de novo uma consulta por linha.
+            "aprovacao__etapas__aprovador",
+            "aprovacao__etapas__papel",
+        )
         .order_by("-criado_em")
     )
 

@@ -26,12 +26,27 @@
     {% comment %}
       Empty state explica O QUE é, POR QUE está vazio e QUAL a próxima ação
       (Etapa 6 §8.6). "Nada publicado ainda" sozinho não ajuda ninguém.
+
+      A DICA APONTAVA PARA O DJANGO ADMIN, e ficou apontando depois que a
+      redação entrou no produto. Quem lia era mandado para uma tela que exige
+      `is_staff` — que o R.H. e a diretoria não têm, nem devem ter. É o mesmo
+      comentário defasado que o acervo normativo tinha, no módulo ao lado.
+
+      Para quem NÃO publica a dica é outra: não há ação a oferecer, e sugerir
+      uma seria mandar a pessoa bater numa porta trancada.
     {% endcomment %}
     <div class="au-vazio">
       <p class="au-vazio-titulo">{{ vazio }}</p>
-      <p class="au-vazio-dica">
-        {% blocktrans %}Publique em <b>Admin › iConnect Workspace › Publicações</b>.{% endblocktrans %}
-      </p>
+      {% if ve_publicacoes %}
+        <p class="au-vazio-dica">
+          {% blocktrans %}Escreva o primeiro em <b>Comunicados</b>, no menu à esquerda de qualquer módulo.{% endblocktrans %}
+          <a href="{% url 'workspace:publicacao_nova' %}">{% trans "Escrever agora" %}</a>
+        </p>
+      {% else %}
+        <p class="au-vazio-dica">
+          {% blocktrans %}Quando o R.H. ou a diretoria publicarem algo, aparece aqui.{% endblocktrans %}
+        </p>
+      {% endif %}
     </div>
   {% endif %}
 </article>

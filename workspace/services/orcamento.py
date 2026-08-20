@@ -99,6 +99,45 @@ def resumo(centro_custo_codigo: str, competencia: date | None = None) -> ResumoO
     )
 
 
+# ── Cadastro de centro de custo ─────────────────────────────────────
+
+
+class OrcamentoError(Exception):
+    """O cadastro de orçamento não pode ser gravado assim."""
+
+
+def centros_de_custo() -> list:
+    """A lista de centros de custo, ou vazia quando não há domínio financeiro.
+
+    Vazia e não erro: o Workspace roda sem `financas` instalado — é a mesma
+    razão de `resumo()` responder "sem orçamento" em vez de estourar.
+    """
+    provider = provedor.obter()
+    return provider.centros() if provider else []
+
+
+def salvar_centro_de_custo(codigo: str, nome: str, orcamento_mensal=None, ativo: bool = True):
+    """Cria ou atualiza um centro de custo pelo contrato. `None` sem domínio.
+
+    Quem chama precisa tratar o `None`: sem provider registrado a tela tem de
+    dizer que o cadastro financeiro não está disponível, e não fingir que
+    gravou.
+    """
+    codigo = (codigo or "").strip()
+    nome = (nome or "").strip()
+    if not codigo:
+        raise OrcamentoError("O código do centro de custo é obrigatório.")
+    if not nome:
+        raise OrcamentoError("O centro de custo precisa de um nome.")
+
+    provider = provedor.obter()
+    if provider is None:
+        return None
+    return provider.salvar_centro(
+        codigo=codigo[:20], nome=nome[:120], orcamento_mensal=orcamento_mensal, ativo=ativo
+    )
+
+
 # ── Escrituração ────────────────────────────────────────────────────
 
 

@@ -37,3 +37,17 @@ class WorkspaceConfig(AppConfig):
         from .services.indice import conectar as conectar_indice
 
         conectar_indice()
+
+        # O nome da área que executa cada domínio sai do papel que declara
+        # `<raiz>.atender`, e é memoizado — a fase de um pedido aprovado o
+        # pergunta uma vez por linha de lista. Criar, renomear ou desativar um
+        # papel invalida o memo na hora; sem isto a tela mostraria o nome antigo
+        # até o próximo deploy.
+        from django.db.models.signals import post_delete, post_save
+
+        from identidade.models import Papel
+
+        from .services.atendimento import esquecer_areas
+
+        post_save.connect(esquecer_areas, sender=Papel, dispatch_uid="wks_areas")
+        post_delete.connect(esquecer_areas, sender=Papel, dispatch_uid="wks_areas")

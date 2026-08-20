@@ -152,6 +152,16 @@ urlpatterns = [
     path("pessoas/", views.pessoas, name="pessoas"),
     path("pessoas/conceder/", views.conceder_papel, name="conceder_papel"),
     path("papel/<int:pk>/encerrar/", views.revogar_papel, name="revogar_papel"),
+    # CENTRO DE CUSTO — o campo que decide dinheiro e não tinha tela.
+    #
+    # Duas rotas porque são duas decisões diferentes: em que centro a PESSOA é
+    # debitada (lotação, de identidade) e quais centros EXISTEM com que teto
+    # (cadastro, do domínio financeiro, alcançado pelo contrato). Juntá-las num
+    # formulário só faria corrigir o CC de alguém exigir redigitar o orçamento
+    # do mês.
+    path("pessoas/centro-custo/", views.definir_centro_custo,
+         name="definir_centro_custo"),
+    path("centros-custo/", views.salvar_centro_custo, name="salvar_centro_custo"),
     # Aprovações
     path("aprovacoes/", views.bandeja, name="aprovacoes"),
     path("aprovacoes/<int:pk>/decidir/", views.decidir_aprovacao, name="decidir_aprovacao"),

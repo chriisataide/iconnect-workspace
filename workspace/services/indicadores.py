@@ -153,6 +153,13 @@ def panorama(pessoa, dias: int = PERIODO_PADRAO, cache: dict | None = None) -> d
     por_area: dict[str, dict] = defaultdict(
         lambda: {
             "abertos": 0,
+            # Dos abertos, quantos ainda esperam DECISÃO — e não trabalho da
+            # área. A coluna "Abertos" somava os dois, e o efeito era o painel
+            # dizer ao T.I. que ele tinha quatro pedidos abertos quando os
+            # quatro estavam parados na mesa de um gestor: quem abria a tela do
+            # T.I. procurando o que fazer não achava nada, e concluía que o
+            # produto estava mentindo. Estava misturando duas filas.
+            "aguardando": 0,
             "concluidos": 0,
             # Quantos JÁ FORAM entregues alguma vez — inclui o que voltou e
             # ainda está aberto. É o denominador honesto da taxa de reabertura:
@@ -195,6 +202,8 @@ def panorama(pessoa, dias: int = PERIODO_PADRAO, cache: dict | None = None) -> d
             # assim que passasse o prazo prometido do item. O gestor tinha dito
             # não meses antes; o painel da área continuava cobrando.
             area["abertos"] += 1
+            if situacao == SituacaoServico.AGUARDANDO_APROVACAO:
+                area["aguardando"] += 1
             # Atraso só faz sentido no que AINDA está aberto: o que já foi
             # entregue tem o tempo real medido na coluna do lado, e contar as
             # duas coisas juntas somaria o mesmo pedido duas vezes.
@@ -223,6 +232,10 @@ def panorama(pessoa, dias: int = PERIODO_PADRAO, cache: dict | None = None) -> d
                 "nome": _NOME_DA_AREA.get(raiz, raiz.upper()),
                 "total": total,
                 "abertos": dados["abertos"],
+                "aguardando": dados["aguardando"],
+                # O que de fato depende da área: aprovado esperando alguém
+                # assumir, e o que já está em andamento.
+                "com_a_area": dados["abertos"] - dados["aguardando"],
                 "concluidos": dados["concluidos"],
                 "devolvidos": dados["devolvidos"],
                 "atrasados": dados["atrasados"],

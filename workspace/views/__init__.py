@@ -13,7 +13,13 @@ O Workspace é aberto; views que precisam de pessoa usam `workspace.acesso`.
 """
 
 from .atendimento import atender, fila
-from .pessoas import conceder_papel, pessoas, revogar_papel
+from .pessoas import (
+    conceder_papel,
+    definir_centro_custo,
+    pessoas,
+    revogar_papel,
+    salvar_centro_custo,
+)
 from .aprovacoes import bandeja, decidir as decidir_aprovacao, decidir_em_lote as aprovar_em_lote
 from .busca import buscar_view
 from .conteudo import (
@@ -94,6 +100,8 @@ __all__ = [
     "pessoas",
     "conceder_papel",
     "revogar_papel",
+    "definir_centro_custo",
+    "salvar_centro_custo",
     "reservas",
     "reservar",
     "registrar_correspondencia",

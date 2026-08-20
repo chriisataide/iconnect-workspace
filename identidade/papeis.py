@@ -238,6 +238,26 @@ PAPEIS_V1 = [
         ),
     },
     {
+        "chave": "recepcao",
+        "nome": "Recepção",
+        "escopo_padrao": ESCOPO_UNIDADE,
+        "permissoes": AUTOATENDIMENTO
+        + [
+            # A recepção REGISTRA o que chega e acompanha o que ainda não foi
+            # retirado. Só isso.
+            "cor.registrar.global",
+            "cor.ler.unidade",
+        ],
+        "descricao": (
+            "Quem recebe carta, encomenda e intimação na portaria. Registra a "
+            "chegada, que é o que dispara o aviso para o destinatário, e "
+            "acompanha o que ainda está na mesa. Nada de estoque, custódia nem "
+            "frota: a função existia dentro de Suprimentos e continua lá para "
+            "quem já a exerce, mas dar o almoxarifado inteiro a quem só atende "
+            "a portaria é escopo que ninguém pediu."
+        ),
+    },
+    {
         "chave": "ti",
         "nome": "TI",
         "escopo_padrao": ESCOPO_GLOBAL,

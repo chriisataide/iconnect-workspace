@@ -266,3 +266,46 @@ def test_a_auditoria_e_somente_leitura():
     ]
 
     assert escrita == []
+
+
+# ── A recepção ──────────────────────────────────────────────────────
+#
+# A função existia e não tinha crachá: `cor.registrar.global` morava só dentro
+# de Suprimentos, com o comentário "quem cuida de material também cuida do que
+# chega na recepção". Quem foi exercitar o aviso de encomenda na rodada de
+# testes de agosto não achou por onde entrar, porque não havia perfil de
+# recepção para entrar.
+#
+# O papel novo NÃO tira nada de Suprimentos: quem registra correspondência hoje
+# continua registrando. O que ele acrescenta é poder dar a portaria a alguém
+# sem dar junto o almoxarifado inteiro.
+
+
+def _com_papel(chave, nome, escopo="unidade"):
+    pessoa = f.pessoa(nome)
+    f.lotar(pessoa)
+    papel = next(p for p in PAPEIS_V1 if p["chave"] == chave)
+    f.atribuir(pessoa, f.papel(chave, papel["permissoes"], escopo=escopo), escopo=escopo)
+    return pessoa
+
+
+def test_a_recepcao_registra_o_que_chega():
+    from workspace.services import correspondencia as cor
+
+    assert pode(_com_papel("recepcao", "portaria"), cor.PERMISSAO_REGISTRAR)
+
+
+def test_a_recepcao_nao_ganha_o_almoxarifado_junto():
+    """Portaria não é estoque. Dar as duas coisas no mesmo crachá é o tipo de
+    escopo que ninguém pediu e que ninguém revisa depois."""
+    portaria = _com_papel("recepcao", "portaria")
+
+    assert not est.pode_movimentar(portaria)
+    assert not cst.pode_atribuir(portaria)
+
+
+def test_suprimentos_continua_registrando_correspondencia():
+    """O papel novo não tira nada de quem exerce a função hoje — §60."""
+    from workspace.services import correspondencia as cor
+
+    assert pode(_com_papel("logistica", "almox"), cor.PERMISSAO_REGISTRAR)

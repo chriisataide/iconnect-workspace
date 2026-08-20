@@ -284,6 +284,28 @@ def test_expiracao_antes_da_publicacao_e_recusada(cenario):
         escrever(cenario, publicar_em=agora + timedelta(days=2), expira_em=agora)
 
 
+def test_expiracao_no_passado_e_recusada_mesmo_sem_data_de_publicacao(cenario):
+    """A ARMADILHA que fez alguém dizer que publicar comunicado não funciona.
+
+    A checagem exigia as DUAS datas preenchidas. No formulário de publicação
+    nova o campo "Publicar em" nasce vazio — não há objeto para preenchê-lo —,
+    então quem digitava só a expiração e errava o ano caía num buraco mudo: a
+    validação era pulada, a publicação era gravada, a tela dizia "Comunicado
+    publicado." e ele não aparecia para ninguém. Nem para quem escreveu.
+    """
+    with pytest.raises(PublicacaoError, match="antes de aparecer"):
+        escrever(cenario, expira_em=timezone.now() - timedelta(days=1))
+
+
+def test_expiracao_no_passado_nao_grava_nada(cenario):
+    """Recusar e gravar é pior que só recusar: a redação encheria de comunicado
+    invisível que ninguém sabe explicar."""
+    with pytest.raises(PublicacaoError):
+        escrever(cenario, expira_em=timezone.now() - timedelta(days=1))
+
+    assert not Publicacao.objects.exists()
+
+
 def test_editar_nao_rouba_a_autoria(cenario):
     """Quem corrigiu uma vírgula não passa a assinar o comunicado de outra
     pessoa."""
@@ -340,6 +362,69 @@ def test_data_invalida_nao_perde_o_texto(client, cenario):
     )
 
     assert Publicacao.objects.get().corpo == "Texto longo"
+
+
+def test_erro_devolve_o_que_a_pessoa_digitou(client, cenario):
+    """Um erro de validação re-renderizava o formulário a partir do OBJETO —
+    que é `None` numa publicação nova. O comunicado inteiro sumia da tela e
+    sobrava uma faixa vermelha em cima de campos vazios.
+
+    Perder o texto por causa de uma data digitada errada é o que faz alguém
+    parar de usar a tela e voltar para o e-mail.
+    """
+    client.force_login(cenario["editor"])
+
+    corpo = client.post(
+        reverse("workspace:publicacao_nova"),
+        {
+            "titulo": "Mudança na política de despesas",
+            "corpo": "Texto que custa caro reescrever",
+            "resumo": "Uma linha",
+            "tipo": TipoPublicacao.NOTICIA,
+            "prioridade": "2",
+            "acao": "publicar",
+            "expira_em": "2020-01-01T08:00",
+        },
+    ).content.decode()
+
+    assert "Mudança na política de despesas" in corpo
+    assert "Texto que custa caro reescrever" in corpo
+    assert "Uma linha" in corpo
+    # O tipo e a prioridade voltam SELECIONADOS. Sem isto o formulário devolve
+    # a notícia como comunicado e a urgente como normal — trocando a escolha da
+    # pessoa em silêncio, no momento em que ela já está irritada com a tela.
+    assert f'value="{TipoPublicacao.NOTICIA}" selected' in corpo
+    assert 'value="2" selected' in corpo
+
+
+def test_erro_mantem_o_publico_alvo_marcado(client, cenario):
+    """Remarcar cinco departamentos porque a data estava errada é o tipo de
+    coisa que se faz uma vez e nunca mais."""
+    client.force_login(cenario["editor"])
+
+    corpo = client.post(
+        reverse("workspace:publicacao_nova"),
+        {
+            "titulo": "Aviso", "tipo": TipoPublicacao.COMUNICADO, "acao": "publicar",
+            "departamentos": [str(cenario["financeiro"].pk)],
+            "expira_em": "2020-01-01T08:00",
+        },
+    ).content.decode()
+
+    assert f'value="{cenario["financeiro"].pk}" selected' in corpo
+
+
+def test_o_campo_do_tipo_se_chama_tipo(client, cenario):
+    """Era rotulado "Categoria", e é o ÚNICO lugar onde se escolhe entre
+    comunicado e notícia. O resto do produto diz "Tipo" — a lista da redação
+    tem uma coluna com esse nome —, e quem procurava por onde escolher passava
+    direto pelo campo."""
+    client.force_login(cenario["editor"])
+
+    corpo = client.get(reverse("workspace:publicacao_nova")).content.decode()
+
+    assert ">Tipo<" in corpo
+    assert "Categoria" not in corpo
 
 
 def test_a_lista_mostra_o_que_nao_esta_no_ar(client, cenario):

@@ -100,6 +100,67 @@ def permissao_de(dominio: str) -> str:
     return f"{_raiz(dominio)}.{SUFIXO_ATENDER}"
 
 
+# ── Qual área executa isto ───────────────────────────────────────────
+#
+# "Aprovada · aguardando a área" foi a fase escrita no §43, e ela resolveu
+# metade do problema: a pessoa parou de achar que a máquina de estados estava
+# quebrada. A outra metade continuou de pé — QUAL área. Quem pediu um
+# adiantamento, viu o gestor aprovar e leu "aguardando a área" foi procurar no
+# Financeiro, não achou nada, e concluiu que o pedido tinha se perdido. Ele
+# estava na fila certa; a frase é que não dizia onde.
+#
+# O nome sai do PAPEL que declara `<raiz>.atender`, e não de uma tabela escrita
+# à mão aqui. É a mesma fonte que decide quem vê a fila — então a tela não pode
+# discordar da roteamento. Um papel novo com `xyz.atender` faz o nome aparecer
+# sozinho; um domínio sem nenhum papel de atendimento aparece como órfão, que é
+# justamente o diagnóstico que interessa.
+
+_areas: dict[str, str] | None = None
+
+
+def areas_por_raiz() -> dict[str, str]:
+    """`{"fin": "Financeiro", "rh": "R.H.", ...}` — quem executa cada raiz.
+
+    Memoizado no processo: são quinze linhas de `Papel` e a pergunta é feita uma
+    vez por linha de lista. `esquecer_areas()` é ligado aos sinais de `Papel`
+    em `apps.py`, então criar, renomear ou desativar um papel invalida na hora.
+    """
+    global _areas
+    if _areas is None:
+        from identidade.models import Papel
+
+        mapa: dict[str, str] = {}
+        for papel in Papel.objects.filter(ativo=True).only("nome", "permissoes"):
+            for permissao in papel.permissoes or []:
+                partes = permissao.split(".")
+                if len(partes) >= 2 and partes[1] == SUFIXO_ATENDER:
+                    # `setdefault`: quando dois papéis atendem a mesma raiz, o
+                    # primeiro em ordem alfabética de nome nomeia a área. É
+                    # arbitrário e é melhor que "Compras / Suprimentos" numa
+                    # etiqueta de tabela.
+                    mapa.setdefault(partes[0], papel.nome)
+        _areas = mapa
+    return _areas
+
+
+def esquecer_areas(*args, **kwargs) -> None:
+    """Invalida o memo. Ligado aos sinais de `Papel`; usado também nos testes."""
+    global _areas
+    _areas = None
+
+
+def area_de(dominio: str) -> str:
+    """O nome da área que executa este domínio, ou `""` quando não há nenhuma.
+
+    String vazia é resposta legítima e importante: significa que o pedido vai
+    ser aprovado e cair numa fila que ninguém pode abrir. A tela precisa dizer
+    isso em vez de inventar um nome.
+    """
+    if not dominio:
+        return ""
+    return areas_por_raiz().get(_raiz(dominio), "")
+
+
 def prefixos_que_atende(pessoa, cache: dict | None = None) -> list[str]:
     """As fatias de catálogo que esta pessoa atende.
 
@@ -152,14 +213,23 @@ def fila_de(pessoa, cache: dict | None = None):
             svc.q_dominios(prefixos, campo="item__dominio"),
             situacao__in=NA_FILA,
         )
-        .select_related("item", "solicitante", "atendente")
+        .select_related("item", "solicitante", "atendente", "aprovacao")
         # `eventos` junto: a linha do que voltou mostra o motivo da reabertura,
         # e sem isto seria uma consulta por linha para descobrir que a imensa
         # maioria delas nunca voltou.
         # `comentarios__autor` junto: a fila mostra a conversa de cada pedido,
         # e sem isto seriam duas consultas por linha — uma para os comentários e
         # outra para o nome de quem escreveu.
-        .prefetch_related("anexos", "despesas", "eventos", "comentarios__autor")
+        .prefetch_related(
+            "anexos",
+            "despesas",
+            "eventos",
+            "comentarios__autor",
+            # A fase de um pedido diz de quem é a vez quando ele ainda espera
+            # decisão. Sem o prefetch, `etapa_atual` volta ao banco por linha.
+            "aprovacao__etapas__aprovador",
+            "aprovacao__etapas__papel",
+        )
         .order_by("criado_em")
     )
 

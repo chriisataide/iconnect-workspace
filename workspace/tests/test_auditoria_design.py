@@ -234,3 +234,130 @@ def test_o_estado_vazio_explica_o_que_fazer():
             sem_dica.append(caminho.name)
 
     assert sem_dica == [], f"estado vazio sem dica: {sem_dica}"
+
+
+# ── Limites de elemento: nada por cima de nada ──────────────────────
+#
+# A rodada de testes de agosto trouxe duas queixas com a mesma raiz — elemento
+# sem limite declarado. Uma era visível ("o status da oportunidade sobrepôs a
+# barra da tela"); a outra era silenciosa: o trilho do módulo, pregado no topo
+# por `position: sticky`, ficava mais alto que a viewport para quem tem muitos
+# itens, e os últimos ficavam INALCANÇÁVEIS — rolar a página não move um
+# elemento pregado.
+
+
+def _css() -> str:
+    from pathlib import Path
+
+    return Path("workspace/static/workspace/src/workspace.css").read_text()
+
+
+def test_o_trilho_rola_por_conta_propria():
+    """`position: sticky` sem altura máxima é uma promessa quebrada: o que
+    passa da borda de baixo não é alcançável por rolagem nenhuma."""
+    import re
+
+    css = _css()
+    bloco = re.search(r"(?m)^\.au-rail \{(.*?)\}", css, re.S)
+    assert bloco, "o bloco .au-rail sumiu"
+    corpo = bloco.group(1)
+
+    assert "max-height" in corpo, ".au-rail é sticky e não tem teto de altura"
+    assert "overflow-y: auto" in corpo, ".au-rail não rola sozinho"
+    assert "overscroll-behavior: contain" in corpo, (
+        "sem `overscroll-behavior`, chegar ao fim do trilho continua rolando a "
+        "página atrás — o gesto 'descer no menu' vira 'descer na tela'"
+    )
+
+
+def test_campo_compacto_tem_largura_maxima_e_nao_largura_fixa():
+    """`width: 11rem` num campo dentro de célula de tabela obriga a COLUNA a
+    crescer, e a linha empurra as vizinhas até uma passar por cima da outra.
+    Largura de campo em tabela é limite, não medida."""
+    import re
+
+    css = _css()
+    bloco = re.search(r"(?m)^\.au-input--compacto \{(.*?)\}", css, re.S)
+    assert bloco, "o bloco .au-input--compacto sumiu"
+    corpo = bloco.group(1)
+
+    assert "max-width" in corpo
+    assert "min-width: 0" in corpo, (
+        "sem `min-width: 0` o campo não encolhe abaixo do próprio conteúdo, e "
+        "a quebra do flex nunca acontece"
+    )
+
+
+def test_acao_dentro_de_celula_pode_quebrar_linha():
+    """Três controles lado a lado numa célula impõem uma largura mínima à
+    coluna. Sem `flex-wrap`, a tabela cresce até estourar o container."""
+    import re
+
+    css = _css()
+    bloco = re.search(r"(?m)^\.au-custodia-baixa \{(.*?)\}", css, re.S)
+    assert bloco, "o bloco .au-custodia-baixa sumiu"
+    assert "flex-wrap: wrap" in bloco.group(1)
+
+
+def test_o_resumo_abre_a_partir_do_gatilho_e_nao_do_ancestral():
+    """O BOTÃO "Ver o pedido" da bandeja não abria nada, e o gestor clicava no
+    vazio.
+
+    O guard de clique perguntava "existe um <a>, <button> ou <form> acima do
+    alvo?" antes de olhar para o gatilho. Na tabela de "Minhas solicitações"
+    isso funcionava — o gatilho é a própria `<tr>` e não há form no meio. Na
+    bandeja, o gatilho é um `<button>` DENTRO do formulário de aprovação em
+    lote: `closest('form')` achava esse formulário e a função voltava antes de
+    considerar o gatilho.
+
+    A ordem é a correção, e este teste protege a ordem: achar o gatilho
+    primeiro, e só então perguntar se o clique tinha dono ENTRE ele e o alvo.
+    """
+    from pathlib import Path
+
+    js = Path("workspace/static/workspace/js/workspace.js").read_text()
+    trecho = js[js.index("Resumo de um pedido, em modal") :]
+    trecho = trecho[: trecho.index("O ASSISTENTE")]
+
+    posicao_gatilho = trecho.index("closest('[data-abre-resumo]')")
+    posicao_dono = trecho.index("closest('a, button, form")
+    assert posicao_gatilho < posicao_dono, (
+        "o guard de dono voltou a rodar antes de achar o gatilho — o botão da "
+        "bandeja volta a não abrir nada"
+    )
+    assert "gatilho.contains(dono)" in trecho, (
+        "sem o teste de continência, clicar em 'Cancelar' dentro de uma linha "
+        "abriria o resumo por cima da ação"
+    )
+
+
+def test_todo_painel_preso_na_tela_tem_teto_de_altura():
+    """Elemento que se prende à janela e empilha filhos precisa de teto.
+
+    Três blocos do produto fazem isso: o trilho do módulo, o painel do sino e o
+    painel do assistente. Preso significa que rolar a PÁGINA não o move — então
+    o que passar da borda de baixo da janela fica inalcançável, e não há gesto
+    que traga de volta. É a mesma falha em três lugares, e dois deles a tinham:
+    o trilho de quem acumula papéis, e o sino, cuja constante `LIMITE_DO_SINO`
+    já dizia "antes de virar rolagem" enquanto a rolagem não existia.
+
+    A regra é mecânica de propósito: `position` preso + `flex-direction:
+    column` ⇒ `max-height` e `overflow`. Um painel novo que esqueça os dois
+    reprova aqui, e não na tela de alguém.
+    """
+    import re
+
+    css = re.sub(r"/\*.*?\*/", "", _css(), flags=re.S)
+    faltando = []
+    for bloco in re.finditer(r"(?m)^([^{@}\n][^{}]*)\{([^{}]*)\}", css):
+        seletor, corpo = bloco.group(1).strip(), bloco.group(2)
+        preso = re.search(r"position:\s*(sticky|fixed|absolute)", corpo)
+        if not preso or "flex-direction: column" not in corpo:
+            continue
+        if "max-height" not in corpo or "overflow" not in corpo:
+            faltando.append(seletor)
+
+    assert not faltando, (
+        "painel preso na janela e sem teto de altura — o que passar da borda "
+        f"de baixo não é alcançável por rolagem nenhuma: {faltando}"
+    )

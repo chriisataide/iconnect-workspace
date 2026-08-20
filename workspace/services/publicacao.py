@@ -93,10 +93,23 @@ def salvar(
         raise PublicacaoError("O título é obrigatório.")
     if tipo not in TipoPublicacao.values:
         raise PublicacaoError("Tipo de publicação inválido.")
-    if expira_em and publicar_em and expira_em <= publicar_em:
-        # Publicação que expira antes de sair nunca aparece para ninguém, e
-        # quem escreveu só descobre quando pergunta por que ninguém leu.
-        raise PublicacaoError("A expiração tem de ser depois da publicação.")
+
+    # A EXPIRAÇÃO É COMPARADA COM A DATA QUE VAI VALER, e não só com a que veio
+    # do formulário.
+    #
+    # A checagem antiga exigia as duas datas preenchidas — e no formulário de
+    # publicação NOVA o campo "Publicar em" nasce vazio, porque não há objeto
+    # para preenchê-lo. Quem escrevia um comunicado, preenchia só "Expira em" e
+    # errava o ano caía num buraco silencioso: a validação era pulada, a
+    # publicação era gravada, a tela dizia "Comunicado publicado." e ele não
+    # aparecia para ninguém — nem para quem escreveu. A conclusão de quem via
+    # isso é exatamente "publicar comunicado não funciona".
+    efetivo = publicar_em or (publicacao.publicar_em if publicacao else timezone.now())
+    if expira_em and expira_em <= efetivo:
+        raise PublicacaoError(
+            "A expiração tem de ser depois da publicação — do jeito que está, "
+            "isto sairia do ar antes de aparecer para alguém."
+        )
 
     novo = publicacao is None
     publicacao = publicacao or Publicacao(autor=pessoa)

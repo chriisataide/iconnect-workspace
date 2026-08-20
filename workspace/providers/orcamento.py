@@ -21,8 +21,29 @@ from __future__ import annotations
 
 import threading
 from abc import ABC
+from dataclasses import dataclass
 from datetime import date
 from decimal import Decimal
+
+
+@dataclass(frozen=True)
+class CentroDeCusto:
+    """O que o Workspace precisa saber de um centro de custo, e nada mais.
+
+    Dataclass e não o model de `financas`: devolver o model faria a tela do
+    R.H. depender do schema do app financeiro, que é exatamente o acoplamento
+    que este contrato existe para impedir. `orcamento_mensal` continua podendo
+    ser `None` — sem orçamento definido é diferente de zero, e a bandeja
+    depende dessa diferença.
+    """
+
+    codigo: str
+    nome: str
+    orcamento_mensal: Decimal | None = None
+    ativo: bool = True
+
+    def __str__(self) -> str:
+        return f"{self.codigo} · {self.nome}"
 
 
 class OrcamentoProvider(ABC):
@@ -45,6 +66,34 @@ class OrcamentoProvider(ABC):
 
     def centro_custo_existe(self, centro_custo_codigo: str) -> bool:
         return False
+
+    # ── Cadastro ─────────────────────────────────────────────────────
+    #
+    # Ler e ESCREVER pelo mesmo contrato. O R.H. lota alguém num centro de
+    # custo que ainda não existe, o pedido dessa pessoa cai numa bandeja que
+    # não sabe calcular impacto, e o aprovador vê "CC sem orçamento definido" —
+    # sem nenhuma tela no produto onde resolver isso. A única porta era o
+    # `/admin/`, que pede `is_staff`.
+    #
+    # A escrita continua sendo do domínio financeiro: o Workspace descreve o
+    # que quer e não conhece o model. É a mesma fronteira da leitura, na outra
+    # direção — e é por isso que ela mora aqui, e não num `import financas`
+    # dentro de uma view.
+
+    def centros(self) -> list["CentroDeCusto"]:
+        """Todos os centros de custo, ativos primeiro. Lista vazia por padrão."""
+        return []
+
+    def salvar_centro(
+        self,
+        codigo: str,
+        nome: str,
+        orcamento_mensal: Decimal | None = None,
+        ativo: bool = True,
+    ) -> "CentroDeCusto | None":
+        """Cria ou atualiza um centro de custo. `None` quando o domínio não
+        aceita escrita — e aí a tela diz isso em vez de fingir que gravou."""
+        return None
 
     def __repr__(self) -> str:  # pragma: no cover - conveniência de depuração
         return f"<{type(self).__name__} key={self.key!r}>"

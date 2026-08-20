@@ -403,8 +403,28 @@ def test_a_aba_filtra_pelo_estado_real(cenario):
 
 def test_a_fase_diz_o_que_aprovada_significa(cenario):
     """"Aprovada" é tecnicamente certo e produziu a queixa. A fase diz que é
-    meio do caminho."""
-    assert cenario["pedido"].fase == "Aprovada · aguardando a área"
+    meio do caminho — e desde a rodada de testes de agosto diz TAMBÉM de quem
+    é o meio do caminho.
+
+    "aguardando a área" mandou quem pediu um adiantamento procurar no
+    Financeiro sem saber se era ali. O nome sai do papel que declara
+    `<raiz>.atender`, que é a mesma fonte do roteamento da fila: a frase não
+    pode discordar de para onde o pedido de fato foi.
+    """
+    assert cenario["pedido"].fase == "Aprovada · aguardando Ti"
+
+
+def test_a_fase_denuncia_o_dominio_que_ninguem_atende(cenario):
+    """Sem papel de atendimento, o pedido é aprovado e cai numa fila que
+    ninguém pode abrir. Dizer "aguardando a área" ali é apontar para o vazio."""
+    from identidade.models import Papel
+
+    from workspace.services.atendimento import esquecer_areas
+
+    Papel.objects.filter(chave="ti").update(ativo=False)
+    esquecer_areas()
+
+    assert cenario["pedido"].fase == "Aprovada · sem área responsável"
 
 
 def test_a_fase_de_em_andamento_diz_quem_esta_com_ele(cenario):
@@ -430,4 +450,4 @@ def test_a_tela_mostra_a_fase_e_nao_o_estado_cru(client, cenario):
 
     corpo = client.get(reverse("workspace:minhas_solicitacoes")).content.decode()
 
-    assert "Aprovada · aguardando a área" in corpo
+    assert "Aprovada · aguardando Ti" in corpo

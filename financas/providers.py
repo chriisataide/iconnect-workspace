@@ -12,7 +12,7 @@ from decimal import Decimal
 
 from django.db.models import Sum
 
-from workspace.providers.orcamento import OrcamentoProvider
+from workspace.providers.orcamento import CentroDeCusto, OrcamentoProvider
 
 
 class OrcamentoLocal(OrcamentoProvider):
@@ -48,3 +48,44 @@ class OrcamentoLocal(OrcamentoProvider):
         from .models import CentroCusto
 
         return CentroCusto.objects.ativos().filter(codigo=centro_custo_codigo).exists()
+
+    # ── Cadastro ─────────────────────────────────────────────────────
+
+    def centros(self) -> list[CentroDeCusto]:
+        from .models import CentroCusto
+
+        # Inativo entra na lista, no fim. Ele precisa aparecer porque alguém
+        # ainda pode estar lotado nele — esconder o código faria a tela do R.H.
+        # mostrar uma pessoa com centro de custo em branco quando ela tem um.
+        return [
+            CentroDeCusto(
+                codigo=c.codigo,
+                nome=c.nome,
+                orcamento_mensal=c.orcamento_mensal,
+                ativo=c.ativo,
+            )
+            for c in CentroCusto.objects.order_by("-ativo", "codigo")
+        ]
+
+    def salvar_centro(
+        self,
+        codigo: str,
+        nome: str,
+        orcamento_mensal: Decimal | None = None,
+        ativo: bool = True,
+    ) -> CentroDeCusto:
+        from .models import CentroCusto
+
+        # `update_or_create` pela chave que o resto do sistema usa. O código é
+        # o que está gravado na lotação de cada pessoa: trocá-lo seria migração
+        # de dados, então ele é a identidade e não um campo editável.
+        centro, _ = CentroCusto.objects.update_or_create(
+            codigo=codigo,
+            defaults={"nome": nome, "orcamento_mensal": orcamento_mensal, "ativo": ativo},
+        )
+        return CentroDeCusto(
+            codigo=centro.codigo,
+            nome=centro.nome,
+            orcamento_mensal=centro.orcamento_mensal,
+            ativo=centro.ativo,
+        )

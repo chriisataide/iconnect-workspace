@@ -74,6 +74,121 @@
   </div>
 </section>
 
+{% comment %}
+  CENTROS DE CUSTO.
+
+  O campo `centro_custo_codigo` da lotação decide dinheiro em três lugares — o
+  pedido o copia ao nascer, a bandeja monta a barra de orçamento com ele, e o
+  compromisso é baixado por ele — e era escrito só pelo `semear`. Quem entrava
+  na empresa depois da carga ficava sem centro de custo, o primeiro pedido que
+  exigisse um era recusado, e o R.H. não tinha onde digitar a resposta.
+
+  A seção some quando não há domínio financeiro registrado: cadastro que não
+  grava em lugar nenhum é pior que cadastro que não existe.
+{% endcomment %}
+{% if centros or centros_orfaos %}
+<section class="au-secao">
+  <div class="au-secao-cabeca">
+    <h2 class="au-secao-titulo">{% trans "Centros de custo" %}</h2>
+    {% if centros %}<span class="au-secao-contagem">{{ centros|length }}</span>{% endif %}
+  </div>
+
+  {% if centros_orfaos %}
+    {% comment %}
+      Código usado numa lotação e ausente do cadastro. É a origem do
+      "CC sem orçamento definido" que aparece na bandeja — e lá ele aparece
+      tarde demais, na hora de decidir.
+    {% endcomment %}
+    <p class="au-aviso au-aviso--warning" role="note">
+      <b>{% trans "Sem cadastro:" %}</b>
+      {% for codigo in centros_orfaos %}<code>{{ codigo }}</code>{% if not forloop.last %} · {% endif %}{% endfor %}
+      — {% trans "alguém está lotado nestes códigos e eles não existem aqui. A bandeja de aprovação não consegue calcular impacto neles." %}
+    </p>
+  {% endif %}
+
+  {% if centros %}
+    <div class="au-tabela">
+      <table>
+        <thead>
+          <tr>
+            <th>{% trans "Código" %}</th>
+            <th>{% trans "Nome" %}</th>
+            <th class="num">{% trans "Orçamento do mês" %}</th>
+            <th>{% trans "Situação" %}</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for centro in centros %}
+            <tr {% if not centro.ativo %}class="au-linha--encerrada"{% endif %}>
+              <td><code>{{ centro.codigo }}</code></td>
+              <td>{{ centro.nome }}</td>
+              <td class="num">
+                {% if centro.orcamento_mensal %}
+                  R$ {{ centro.orcamento_mensal|moeda }}
+                {% else %}
+                  <span class="au-list-meta">{% trans "não definido" %}</span>
+                {% endif %}
+              </td>
+              <td>
+                {% if centro.ativo %}
+                  <span class="au-etiqueta au-etiqueta--aprovada">{% trans "ativo" %}</span>
+                {% else %}
+                  <span class="au-etiqueta">{% trans "inativo" %}</span>
+                {% endif %}
+              </td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  {% endif %}
+
+  <form method="post" action="{% url 'workspace:salvar_centro_custo' %}" class="au-form">
+    {% csrf_token %}
+    <div class="au-colunas-form">
+      <div class="au-campo">
+        <label class="au-rotulo" for="cc-codigo">
+          {% trans "Código" %} <span class="au-obrigatorio" aria-hidden="true">*</span>
+        </label>
+        <input class="au-input" id="cc-codigo" name="codigo" type="text" maxlength="20"
+               placeholder="1042" required>
+        <p class="au-ajuda">
+          {% trans "Reenviar um código que já existe atualiza o nome e o orçamento." %}
+        </p>
+      </div>
+
+      <div class="au-campo">
+        <label class="au-rotulo" for="cc-nome">
+          {% trans "Nome" %} <span class="au-obrigatorio" aria-hidden="true">*</span>
+        </label>
+        <input class="au-input" id="cc-nome" name="nome" type="text" maxlength="120"
+               placeholder="{% trans 'Operações · Matriz' %}" required>
+      </div>
+
+      <div class="au-campo">
+        <label class="au-rotulo" for="cc-orcamento">{% trans "Orçamento mensal" %}</label>
+        <input class="au-input" id="cc-orcamento" name="orcamento_mensal" type="text"
+               inputmode="decimal" placeholder="50000">
+        <p class="au-ajuda">
+          {% trans "Em branco é “não definido”, que é diferente de zero: a bandeja precisa dizer que não sabe, em vez de mostrar 0% e parecer folga." %}
+        </p>
+      </div>
+    </div>
+
+    <div class="au-campo">
+      <label class="au-rotulo" for="cc-ativo">
+        <input class="au-check" id="cc-ativo" name="ativo" type="checkbox" checked>
+        {% trans "Ativo — aceita novas lotações e novos pedidos" %}
+      </label>
+    </div>
+
+    <div class="au-form-acoes">
+      <button class="au-btn au-btn--primario" type="submit">{% trans "Salvar centro de custo" %}</button>
+    </div>
+  </form>
+</section>
+{% endif %}
+
 <section class="au-secao">
   <div class="au-secao-cabeca">
     <h2 class="au-secao-titulo">{% trans "Conceder um papel" %}</h2>
@@ -148,6 +263,7 @@
         <tr>
           <th>{% trans "Pessoa" %}</th>
           <th>{% trans "Lotação" %}</th>
+          <th>{% trans "Centro de custo" %}</th>
           <th>{% trans "Papéis" %}</th>
         </tr>
       </thead>
@@ -166,6 +282,52 @@
                 {% if linha.lotacao.unidade %}{{ linha.lotacao.unidade.codigo }}{% endif %}
                 {% if linha.lotacao.departamento %}· {{ linha.lotacao.departamento.codigo }}{% endif %}
               </span>
+            </td>
+            <td>
+              {% comment %}
+                Um formulário por linha, como os papéis logo ao lado: mudar o
+                centro de custo de uma pessoa é POST com CSRF, e um formulário
+                só para a tabela inteira faria salvar um significar salvar
+                vinte e três.
+              {% endcomment %}
+              <form class="au-custodia-baixa" method="post"
+                    action="{% url 'workspace:definir_centro_custo' %}">
+                {% csrf_token %}
+                <input type="hidden" name="pessoa" value="{{ linha.pessoa.pk }}">
+                <label class="au-sr" for="cc-{{ linha.pessoa.pk }}">
+                  {% trans "Centro de custo" %}
+                </label>
+                {% if centros %}
+                  <select class="au-input au-input--compacto" id="cc-{{ linha.pessoa.pk }}"
+                          name="centro_custo_codigo">
+                    <option value="">{% trans "— nenhum —" %}</option>
+                    {% for centro in centros %}
+                      <option value="{{ centro.codigo }}"
+                              {% if centro.codigo == linha.lotacao.centro_custo_codigo %}selected{% endif %}>
+                        {{ centro.codigo }} · {{ centro.nome }}
+                      </option>
+                    {% endfor %}
+                    {% comment %}
+                      O código órfão entra como opção da própria linha. Sem
+                      isto, abrir a tela e salvar qualquer outra coisa APAGARIA
+                      em silêncio o centro de custo de quem está num código não
+                      cadastrado — o `<select>` não teria como reapresentá-lo.
+                    {% endcomment %}
+                    {% if linha.lotacao.centro_custo_codigo in centros_orfaos %}
+                      <option value="{{ linha.lotacao.centro_custo_codigo }}" selected>
+                        {{ linha.lotacao.centro_custo_codigo }} · {% trans "sem cadastro" %}
+                      </option>
+                    {% endif %}
+                  </select>
+                {% else %}
+                  <input class="au-input au-input--compacto" id="cc-{{ linha.pessoa.pk }}"
+                         name="centro_custo_codigo" type="text" maxlength="20"
+                         value="{{ linha.lotacao.centro_custo_codigo }}">
+                {% endif %}
+                <button class="au-btn au-btn--sutil au-btn--pequeno" type="submit">
+                  {% trans "Salvar" %}
+                </button>
+              </form>
             </td>
             <td>
               {% for atribuicao in linha.atribuicoes %}

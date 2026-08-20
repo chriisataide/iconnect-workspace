@@ -88,7 +88,15 @@
       <tr>
         <th>{% trans "Área" %}</th>
         <th class="num">{% trans "Pedidos" %}</th>
-        <th class="num">{% trans "Abertos" %}</th>
+        {% comment %}
+          DUAS COLUNAS onde havia uma. "Abertos" somava o que espera decisão de
+          um gestor com o que espera trabalho da área — e é a diferença entre
+          "você deve quatro respostas" e "quatro pedidos estão parados com
+          outra pessoa". Quem lia o painel do T.I. via quatro abertos, ia
+          procurar o que fazer e não achava nada.
+        {% endcomment %}
+        <th class="num">{% trans "Com a área" %}</th>
+        <th class="num">{% trans "Aguardando aprovação" %}</th>
         <th class="num">{% trans "Até aprovar" %}</th>
         <th class="num">{% trans "Até resolver" %}</th>
         <th class="num">{% trans "Além do prazo" %}</th>
@@ -103,7 +111,12 @@
             <span class="au-list-meta"><code>{{ area.dominio }}.</code></span>
           </td>
           <td class="num">{{ area.total }}</td>
-          <td class="num">{{ area.abertos }}</td>
+          <td class="num">{{ area.com_a_area }}</td>
+          <td class="num">
+            {% if area.aguardando %}
+              <span class="au-selo">{{ area.aguardando }}</span>
+            {% else %}—{% endif %}
+          </td>
           {% comment %}
             "—" e não "0" quando não há amostra: zero diria "resolve no mesmo
             dia", que é o oposto de "ainda não sei".

@@ -130,43 +130,103 @@ def _avisar_que_o_papel_nao_tem_dono(solicitacao, etapa) -> None:
         )
 
 
-def ao_chegar_a_vez(sender, solicitacao, etapa, **kwargs) -> None:
-    """Avisa quem tem a etapa da vez.
+def _titulares_do_papel(papel_id: int) -> list:
+    """Quem ocupa o papel hoje. Lista vazia quando ninguém ocupa."""
+    from django.contrib.auth import get_user_model
 
-    Só etapa NOMINAL. Etapa por papel não tem destinatário único — "Diretoria"
-    são três pessoas, e criar três linhas aqui significaria que aprovar uma
-    deixaria duas notificações órfãs apontando para um pedido já decidido.
-    Para essas, o aviso é o contador da bandeja, que reflete o estado real.
+    from identidade.models import AtribuicaoPapel
 
-    **Menos quando o papel não tem ninguém.** Aí não há bandeja em que o pedido
-    apareça: a etapa não tem destinatário, e o contador de todo mundo continua
-    zerado enquanto o pedido espera para sempre. Esse é o único caso em que
-    etapa por papel gera aviso — e ele vai para quem pode conceder o papel, que
-    é a única pessoa capaz de tirar o pedido dali.
+    ids = (
+        AtribuicaoPapel.objects.vigentes()
+        .filter(papel_id=papel_id, papel__ativo=True)
+        .values_list("user_id", flat=True)
+    )
+    return list(get_user_model().objects.filter(pk__in=ids, is_active=True))
+
+
+def encerrar_avisos_da_vez(solicitacao) -> int:
+    """Marca como lidos os "espera sua decisão" deste pedido.
+
+    É o que torna possível avisar uma etapa por PAPEL. O motivo de não avisar
+    era real: "Financeiro" são três pessoas, e aprovar uma deixaria duas
+    notificações órfãs apontando para um pedido já decidido. A resposta certa
+    para isso não é calar — é limpar as irmãs quando o degrau anda.
     """
-    if etapa.aprovador_id is None:
-        if etapa.papel_id:
-            _avisar_que_o_papel_nao_tem_dono(solicitacao, etapa)
-        return
+    from django.utils import timezone
 
+    return (
+        Notificacao.objects.nao_lidas()
+        .filter(
+            tipo=TipoNotificacao.VEZ_DE_APROVAR,
+            dominio=solicitacao.dominio,
+            origem_id=str(solicitacao.pk),
+        )
+        .update(lida_em=timezone.now())
+    )
+
+
+def ao_chegar_a_vez(sender, solicitacao, etapa, **kwargs) -> None:
+    """Avisa quem tem a etapa da vez — pessoa nomeada ou quem tem o papel.
+
+    ## Por que a etapa por papel passou a avisar
+
+    Ela era silenciosa de propósito, e a razão era boa: "Financeiro" são três
+    pessoas, e criar três linhas significaria que aprovar uma deixaria duas
+    notificações órfãs apontando para um pedido já decidido. O aviso seria o
+    contador da bandeja, que reflete o estado real.
+
+    O que a rodada de testes de agosto mostrou é que o contador não basta. O
+    gestor aprova um adiantamento, o pedido anda para a etapa do papel
+    Financeiro, e **ninguém é avisado**: quem pediu vê o estado mudar e vai
+    procurar no Financeiro, o Financeiro não recebeu nada, e a conclusão dos
+    dois lados é a de que o pedido se perdeu.
+
+    A resposta para a notificação órfã não é calar — é `encerrar_avisos_da_vez`,
+    que marca as irmãs como lidas assim que o degrau anda.
+
+    **Papel sem ninguém** continua sendo caso à parte: não há bandeja em que o
+    pedido apareça, e o aviso vai para quem pode conceder o papel, que é a
+    única pessoa capaz de tirar o pedido dali.
+    """
     # Reusa o filtro de moeda em vez de formatar aqui: dois lugares formatando
     # dinheiro divergem, e é a segunda cópia que esquece o separador de milhar.
     from workspace.templatetags.wks import moeda
+
+    if etapa.aprovador_id:
+        destinatarios = [etapa.aprovador]
+    elif etapa.papel_id:
+        destinatarios = _titulares_do_papel(etapa.papel_id)
+        if not destinatarios:
+            _avisar_que_o_papel_nao_tem_dono(solicitacao, etapa)
+            return
+    else:  # pragma: no cover - `clean()` exige aprovador ou papel
+        return
 
     de = solicitacao.solicitante.get_short_name() or solicitacao.solicitante.get_username()
     corpo = f"De {de}"
     if solicitacao.valor:
         corpo += f" · R$ {moeda(solicitacao.valor)}"
 
-    criar(
-        destinatario=etapa.aprovador,
-        tipo=TipoNotificacao.VEZ_DE_APROVAR,
-        titulo=f"{solicitacao.titulo} espera sua decisão",
-        corpo=corpo,
-        url=_url_da_bandeja(),
-        dominio=solicitacao.dominio,
-        origem_id=str(solicitacao.pk),
-    )
+    for destinatario in destinatarios:
+        criar(
+            destinatario=destinatario,
+            tipo=TipoNotificacao.VEZ_DE_APROVAR,
+            titulo=f"{solicitacao.titulo} espera sua decisão",
+            corpo=corpo,
+            url=_url_da_bandeja(),
+            dominio=solicitacao.dominio,
+            origem_id=str(solicitacao.pk),
+        )
+
+
+def ao_aprovar_um_degrau(sender, solicitacao, etapa, quem, **kwargs) -> None:
+    """A cadeia andou: o aviso do degrau anterior deixa de valer.
+
+    Roda ANTES de `vez_de` — o motor emite `etapa_aprovada` e só então anuncia
+    a vez seguinte —, então o pedido nunca fica sem aviso nenhum: as linhas
+    velhas viram lidas e as novas nascem em seguida.
+    """
+    encerrar_avisos_da_vez(solicitacao)
 
 
 _TITULO_POR_DECISAO = {
@@ -184,6 +244,11 @@ def ao_decidir(sender, solicitacao, decisao, quem, **kwargs) -> None:
     emitido quando o pedido inteiro se resolve. Avisar a cada degrau faria um
     pedido de R$ 400.000 render três notificações que dizem quase nada.
     """
+    # O pedido saiu da esteira de decisão: ninguém mais precisa decidir nada.
+    # Sem isto, uma etapa por papel com três titulares deixaria duas linhas
+    # "espera sua decisão" no sino de quem não chegou a clicar.
+    encerrar_avisos_da_vez(solicitacao)
+
     entrada = _TITULO_POR_DECISAO.get(decisao)
     if entrada is None:  # pragma: no cover - Decisao só tem três valores
         return
@@ -214,6 +279,9 @@ def ao_decidir(sender, solicitacao, decisao, quem, **kwargs) -> None:
 def conectar() -> None:
     """Liga os ouvintes. Chamado no `ready()` do app."""
     apr.vez_de.connect(ao_chegar_a_vez, dispatch_uid="workspace.notificacoes.vez")
+    apr.etapa_aprovada.connect(
+        ao_aprovar_um_degrau, dispatch_uid="workspace.notificacoes.degrau"
+    )
     apr.aprovacao_decidida.connect(
         ao_decidir, dispatch_uid="workspace.notificacoes.decidida"
     )

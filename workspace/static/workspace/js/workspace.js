@@ -582,13 +582,23 @@
       return;
     }
 
-    // A ação nunca rouba um clique que já tinha dono: dentro da linha existem
-    // o link do anexo e o botão de cancelar, e abrir o resumo por cima deles
-    // faria o cancelar virar roleta.
-    if (e.target.closest('a, button:not([data-abre-resumo]), form')) return;
-
     var gatilho = e.target.closest('[data-abre-resumo]');
-    if (gatilho) abrir(gatilho.dataset.abreResumo);
+    if (!gatilho) return;
+
+    // A ação nunca rouba um clique que já tinha dono: dentro da linha de
+    // "Minhas solicitações" existem o link do anexo e o botão de cancelar, e
+    // abrir o resumo por cima deles faria o cancelar virar roleta.
+    //
+    // O teste é "há um dono ENTRE o clique e o gatilho?", e não "há um dono em
+    // algum lugar acima?". A versão anterior perguntava a segunda coisa e por
+    // isso o botão "Ver o pedido" da bandeja de aprovação nunca abria nada: ele
+    // vive dentro do <form> de aprovação em lote, `closest('form')` encontrava
+    // esse formulário e a função voltava antes de olhar para o gatilho. O
+    // gestor clicava, e a tela não fazia absolutamente nada.
+    var dono = e.target.closest('a, button, form, input, select, textarea, label');
+    if (dono && dono !== gatilho && gatilho.contains(dono)) return;
+
+    abrir(gatilho.dataset.abreResumo);
   });
 
   // Enter e espaço na linha focada. Sem isto, `tabindex` só daria o foco e não

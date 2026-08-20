@@ -49,7 +49,10 @@ from dataclasses import dataclass
 from django.http import HttpRequest
 from django.urls import reverse
 
-#: Quantos avisos cabem no painel do sino antes de virar rolagem.
+#: Quantos avisos o painel do sino traz. O painel tem rolagem própria
+#: (`.au-sino-painel`), então o número é sobre RELEVÂNCIA e não sobre espaço: o
+#: sino responde "o que aconteceu agora", e a lista inteira mora em
+#: `/workspace/notificacoes/`.
 LIMITE_DO_SINO = 5
 
 #: Os contadores de quem não entrou. Tudo zero, e nenhum item pessoal aparece.

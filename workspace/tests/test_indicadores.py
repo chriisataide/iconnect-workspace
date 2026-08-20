@@ -281,3 +281,54 @@ def test_periodo_da_lista_e_respeitado(client, cenario):
     contexto = client.get(reverse("workspace:indicadores"), {"dias": 30}).context
 
     assert contexto["dias"] == 30
+
+
+# ── "Abertos" eram duas filas somadas ───────────────────────────────
+
+
+def test_o_painel_separa_o_que_espera_decisao_do_que_espera_a_area(cenario):
+    """A coluna "Abertos" somava o que espera DECISÃO de um gestor com o que
+    espera TRABALHO da área.
+
+    O efeito foi relatado assim: o painel dizia que o T.I. tinha um chamado
+    pendente, e no perfil do T.I. não havia nada a fazer — porque o pedido
+    estava parado na mesa de um gestor, e o T.I. não aprova nada. Quem lia
+    concluía que o produto estava mentindo; ele estava misturando duas filas.
+    """
+    pedidos = pedir(cenario["compra"], cenario["ana"], n=3)
+    # Sem cadeia montada o pedido nasce liberado. Aqui interessa o CONTRÁRIO:
+    # dois parados esperando decisão de alguém, um já liberado esperando a área.
+    SolicitacaoServico.objects.filter(
+        pk__in=[p.pk for p in pedidos[1:]]
+    ).update(situacao=SituacaoServico.AGUARDANDO_APROVACAO)
+    SolicitacaoServico.objects.filter(pk=pedidos[0].pk).update(
+        situacao=SituacaoServico.APROVADA
+    )
+
+    compras = area(ind.panorama(cenario["chefia"]), "com")
+
+    assert compras["abertos"] == 3
+    assert compras["aguardando"] == 2
+    assert compras["com_a_area"] == 1
+
+
+def test_o_que_ja_esta_em_andamento_conta_como_da_area(cenario):
+    pedido = pedir(cenario["compra"], cenario["ana"])[0]
+    SolicitacaoServico.objects.filter(pk=pedido.pk).update(
+        situacao=SituacaoServico.EM_ATENDIMENTO
+    )
+
+    compras = area(ind.panorama(cenario["chefia"]), "com")
+
+    assert compras["aguardando"] == 0
+    assert compras["com_a_area"] == 1
+
+
+def test_a_tela_mostra_as_duas_colunas(client, cenario):
+    pedir(cenario["compra"], cenario["ana"])
+    client.force_login(cenario["chefia"])
+
+    corpo = client.get(reverse("workspace:indicadores")).content.decode()
+
+    assert "Com a área" in corpo
+    assert "Aguardando aprovação" in corpo
