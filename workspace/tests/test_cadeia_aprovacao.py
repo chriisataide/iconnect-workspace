@@ -6,6 +6,11 @@ Decidido em 12/08/2026, substituindo o chute de R$ 10.000 que estava nas telas:
     R$ 50.000 …  300.000  + diretoria
     acima de R$ 300.000   + sócios
 
+Em 20/08/2026 o degrau da ÁREA saiu da cadeia. Ele não sumiu: virou a FILA —
+quem atende conclui ou devolve com o motivo. Ver
+`semear_regras_aprovacao` para o porquê, e `test_reenvio.py` para a volta que
+faltava para devolver ser a resposta certa.
+
 O que estes testes protegem é a **cumulatividade**. As faixas somam etapas, não
 as substituem: um pedido de R$ 400.000 passa pelos três degraus, na ordem. Se
 alguém trocar isso por faixas excludentes, um pedido grande passaria a ser
@@ -45,9 +50,9 @@ def hierarquia():
     """Sócio → diretor → gerente → analista, com os papéis atribuídos.
 
     Mais `comprador`, que não está na linha de comando de ninguém: ele responde
-    pela ÁREA. Desde que a cadeia ganhou o degrau por área, uma requisição de
-    compra passa pelo gestor E por Compras — são perguntas diferentes, e é por
-    isso que ele aparece aqui e não na hierarquia.
+    pela ÁREA. Ele continua aqui depois de 20/08 justamente para provar que a
+    área NÃO aparece mais na cadeia — quem some sem deixar teste é quem volta
+    por engano na onda seguinte.
     """
     socio, diretor, gerente, analista = (
         f.pessoa(n) for n in ("socio", "diretor", "gerente", "analista")
@@ -106,66 +111,61 @@ def test_comando_cria_os_degraus_por_valor(cadeia):
     assert regras[2].papel.chave == "socios"
 
 
-def test_comando_cria_o_degrau_da_area(cadeia):
-    """Depois do gestor, antes da diretoria: a área revisa o que é dela.
+def test_o_degrau_da_area_saiu_da_cadeia(cadeia):
+    """Ele existiu entre 17 e 20/08, e a razão de sair está no seeder.
 
-    São perguntas diferentes. O gestor sabe se a equipe aguenta a ausência; o
-    R.H. sabe se a pessoa tem saldo e se o período é legal. Só o gestor aprova
-    pedido que o R.H. vai ter de desfazer.
+    Resumo: com ele, a área tocava o mesmo pedido DUAS vezes — aprovava na
+    bandeja e depois executava na fila. Quem pedia via "aguardando aprovação"
+    depois de o gestor já ter aprovado, sem nada ter mudado de mãos.
 
-    O domínio casa por PREFIXO — `rh.` alcança `rh.ferias` e o item de R.H. que
-    nascer amanhã. Sem isso, cada item novo precisaria da própria regra, e a
-    falta dela não faria barulho nenhum.
+    A revisão da área não desapareceu: virou a fila, onde quem atende conclui
+    ou devolve com o motivo. O que tornou isso possível foi o reenvio —
+    enquanto devolver era um beco, reprovar na bandeja era a única forma de
+    dizer não sem prender o pedido para sempre.
     """
-    por_area = {
-        r.dominio: r
-        for r in RegraAprovacao.objects.filter(ativa=True, ordem=15).select_related("papel")
-    }
-
-    assert por_area["rh."].papel.chave == "rh"
-    assert por_area["fin."].papel.chave == "financeiro"
-    assert por_area["com."].papel.chave == "compras"
-    for regra in por_area.values():
-        assert regra.tipo == TipoAprovador.PAPEL
-        assert 10 < regra.ordem < 20, "a área entra depois do gestor e antes da diretoria"
+    assert not RegraAprovacao.objects.filter(ativa=True, ordem=15).exists()
 
 
-def test_comando_e_reexecutavel_sem_duplicar(cadeia):
-    antes = RegraAprovacao.objects.filter(ativa=True).count()
+def test_a_regra_retirada_e_desativada_e_nao_apagada(cadeia):
+    """§60. O caminho de quem JÁ tinha o degrau no banco.
+
+    Numa instalação nova a regra nem chega a existir. Numa que rodou o seeder
+    entre 17 e 20/08, ela existe e é referenciada por `EtapaAprovacao` de todo
+    pedido que passou por ela — apagá-la levaria junto a explicação de por que
+    aquele pedido teve um degrau a mais em setembro.
+    """
+    antiga = RegraAprovacao.objects.create(
+        dominio="com.",
+        valor_minimo=Decimal("0"),
+        tipo=TipoAprovador.PAPEL,
+        papel=Papel.objects.get(chave="compras"),
+        ordem=15,
+    )
+
     call_command("semear_regras_aprovacao", "--aplicar", stdout=StringIO())
 
-    assert RegraAprovacao.objects.filter(ativa=True).count() == antes
+    antiga.refresh_from_db()
+    assert antiga.ativa is False, "foi desativada"
+    assert RegraAprovacao.objects.filter(pk=antiga.pk).exists(), "e continua no banco"
 
 
-def test_simulacao_nao_grava():
-    call_command("semear_papeis", "--aplicar", stdout=StringIO())
-    call_command("semear_regras_aprovacao", stdout=StringIO())
+def test_semear_de_novo_nao_ressuscita_o_degrau(cadeia):
+    """Reexecutável sem desfazer a decisão: rodar o seeder duas vezes não pode
+    trazer de volta o que ele acabou de retirar."""
+    call_command("semear_regras_aprovacao", "--aplicar", stdout=StringIO())
 
-    assert not RegraAprovacao.objects.exists()
-
-
-def test_comando_avisa_quando_o_papel_nao_existe():
-    """Sem `semear_papeis` antes, a cadeia não pode ser montada — e o comando
-    tem de dizer isso em vez de criar meia cadeia."""
-    saida = StringIO()
-    call_command("semear_regras_aprovacao", "--aplicar", stdout=saida)
-
-    texto = saida.getvalue()
-    assert "PAPÉIS AUSENTES" in texto
-    assert "semear_papeis" in texto
-    assert not RegraAprovacao.objects.filter(papel__isnull=False).exists()
+    assert not RegraAprovacao.objects.filter(ativa=True, ordem=15).exists()
 
 
 # ── As faixas, cumulativas ──────────────────────────────────────────
 
 
-def test_ate_50k_para_no_gestor_e_na_area(cadeia, hierarquia):
-    """Abaixo do teto, sem diretoria — mas Compras revisa toda requisição."""
+def test_ate_50k_para_no_gestor(cadeia, hierarquia):
+    """Abaixo do teto, um degrau só. A área revisa DEPOIS, na fila."""
     _, etapas = _etapas("49999.99", hierarquia["analista"])
 
-    assert len(etapas) == 2
+    assert len(etapas) == 1
     assert etapas[0].aprovador == hierarquia["gerente"]
-    assert etapas[1].papel.chave == "compras"
 
 
 def test_no_limite_de_50k_a_diretoria_entra(cadeia, hierarquia):
@@ -176,21 +176,19 @@ def test_no_limite_de_50k_a_diretoria_entra(cadeia, hierarquia):
     """
     _, etapas = _etapas("50000", hierarquia["analista"])
 
-    assert len(etapas) == 3
+    assert len(etapas) == 2
     assert etapas[0].aprovador == hierarquia["gerente"]
-    assert etapas[1].papel.chave == "compras"
-    assert etapas[2].papel.chave == "diretoria"
+    assert etapas[1].papel.chave == "diretoria"
 
 
 def test_acima_de_300k_os_socios_entram_sem_tirar_ninguem(cadeia, hierarquia):
     """A regra central: faixas somam, não substituem."""
     _, etapas = _etapas("400000", hierarquia["analista"])
 
-    assert len(etapas) == 4
+    assert len(etapas) == 3
     assert etapas[0].aprovador == hierarquia["gerente"]
-    assert etapas[1].papel.chave == "compras"
-    assert etapas[2].papel.chave == "diretoria"
-    assert etapas[3].papel.chave == "socios"
+    assert etapas[1].papel.chave == "diretoria"
+    assert etapas[2].papel.chave == "socios"
 
 
 def test_ordem_dos_degraus_e_de_baixo_para_cima(cadeia, hierarquia):
@@ -214,12 +212,6 @@ def test_gerente_nao_decide_a_etapa_por_papel_acima_dele(cadeia, hierarquia):
     solicitacao, _ = _etapas("400000", hierarquia["analista"])
     apr.decidir(solicitacao, hierarquia["gerente"], apr.Decisao.APROVAR)
 
-    solicitacao.refresh_from_db()
-    assert solicitacao.etapa_atual.papel.chave == "compras"
-    with pytest.raises(apr.AprovacaoError):
-        apr.decidir(solicitacao, hierarquia["gerente"], apr.Decisao.APROVAR)
-
-    apr.decidir(solicitacao, hierarquia["comprador"], apr.Decisao.APROVAR)
     solicitacao.refresh_from_db()
     assert solicitacao.etapa_atual.papel.chave == "diretoria"
     with pytest.raises(apr.AprovacaoError):
@@ -254,7 +246,6 @@ def test_a_cadeia_completa_de_400k(cadeia, hierarquia):
     solicitacao, _ = _etapas("400000", hierarquia["analista"])
 
     apr.decidir(solicitacao, hierarquia["gerente"], apr.Decisao.APROVAR)
-    apr.decidir(solicitacao, hierarquia["comprador"], apr.Decisao.APROVAR)
     apr.decidir(solicitacao, hierarquia["diretor"], apr.Decisao.APROVAR)
     apr.decidir(solicitacao, hierarquia["socio"], apr.Decisao.APROVAR)
 
@@ -269,7 +260,7 @@ def test_gerente_nao_conclui_sozinho_acima_do_teto(cadeia, hierarquia):
 
     solicitacao.refresh_from_db()
     assert solicitacao.situacao == "aguardando"
-    assert solicitacao.etapa_atual.papel.chave == "compras"
+    assert solicitacao.etapa_atual.papel.chave == "diretoria"
 
 
 # ── A bandeja mostra só a etapa da vez ──────────────────────────────
@@ -307,12 +298,8 @@ def test_o_pedido_aparece_para_cada_um_na_sua_vez(cadeia, hierarquia):
     apr.decidir(solicitacao, hierarquia["gerente"], apr.Decisao.APROVAR)
 
     assert not apr.pendentes_para(hierarquia["gerente"]).exists()
-    # A vez é da ÁREA antes de subir: Compras revisa a requisição.
-    assert list(apr.pendentes_para(hierarquia["comprador"])) == [solicitacao]
-    assert not apr.pendentes_para(hierarquia["diretor"]).exists()
-
-    apr.decidir(solicitacao, hierarquia["comprador"], apr.Decisao.APROVAR)
-
+    # A área NÃO entra na cadeia: ela recebe o pedido na fila, depois de
+    # aprovado. Ver `test_reenvio.py`.
     assert not apr.pendentes_para(hierarquia["comprador"]).exists()
     assert list(apr.pendentes_para(hierarquia["diretor"])) == [solicitacao]
     assert not apr.pendentes_para(hierarquia["socio"]).exists()

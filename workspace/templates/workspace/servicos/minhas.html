@@ -170,6 +170,28 @@
                     </button>
                   </form>
                 </div>
+              {% elif s.pode_reenviar %}
+                {% comment %}
+                  DEVOLVIDO era um beco. O pedido voltava com o motivo escrito,
+                  ficava "em aberto" para sempre, e a única saída da pessoa era
+                  abrir OUTRO — perdendo histórico, anexos e conversa, e
+                  deixando o primeiro aberto na conta de quem atende.
+
+                  "Corrigir e reenviar" leva ao MESMO formulário, preenchido com
+                  o que ela escreveu, e o envio promove a mesma linha.
+                {% endcomment %}
+                <div class="au-acoes-linha">
+                  <a class="au-btn au-btn--primario au-btn--pequeno"
+                     href="{% url 'workspace:pedir' s.item.chave %}?devolvido={{ s.pk }}">
+                    {% trans "Corrigir e reenviar" %}
+                  </a>
+                  <form method="post" action="{% url 'workspace:cancelar_solicitacao' s.pk %}">
+                    {% csrf_token %}
+                    <button class="au-btn au-btn--sutil au-btn--pequeno" type="submit">
+                      {% trans "Cancelar" %}
+                    </button>
+                  </form>
+                </div>
               {% elif s.em_aberto %}
                 <form method="post" action="{% url 'workspace:cancelar_solicitacao' s.pk %}">
                   {% csrf_token %}

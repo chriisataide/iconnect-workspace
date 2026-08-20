@@ -61,6 +61,12 @@ Cria **um usuário por papel**, com o nome do papel: quem entra como `compras@ic
 
 Convive com o organograma de propósito: o organograma prova que o produto funciona com gente de verdade; estes perfis provam **o que** cada papel alcança.
 
+### Ao atualizar uma instalação que já existia
+
+`semear_regras_aprovacao --aplicar` **desativa** o degrau de revisão de área (ordem 15), retirado da cadeia em 20/08/2026. Ele não é apagado: `EtapaAprovacao` de todo pedido que passou por ele aponta para aquela linha, e apagá-la levaria junto a explicação de por que aquele pedido teve um degrau a mais.
+
+Efeito prático depois de rodar: um pedido aprovado pelo gestor passa a cair **direto na fila da área**, em vez de esperar uma segunda aprovação da mesma área. Pedidos que já estavam parados naquele degrau continuam lá — a etapa deles já existe — e seguem normalmente quando alguém a decidir.
+
 ### Os centros de custo, e por que eles vêm logo depois do organograma
 
 `semear_centros_custo` lê os códigos que já estão em `Lotacao.centro_custo_codigo` e cria um `CentroCusto` para cada um. Ele **não** define orçamento — isso é decisão do Financeiro, e "não definido" é o que a bandeja de aprovação precisa dizer enquanto ninguém decidiu.

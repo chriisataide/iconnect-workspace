@@ -115,12 +115,23 @@ def pedir(request: HttpRequest, chave: str) -> HttpResponse:
     rascunho = svc.rascunho_de(
         pessoa, request.POST.get("rascunho") or request.GET.get("rascunho")
     )
-    if rascunho is not None and request.method == "GET":
+    # O pedido DEVOLVIDO que está sendo corrigido. Mesmo mecanismo do rascunho,
+    # e `devolvido_de()` faz a mesma conferência de dono e de estado.
+    #
+    # Enquanto isto não existia, devolver era um beco: o pedido voltava com o
+    # motivo escrito, ficava "em aberto" para sempre, e a única saída era abrir
+    # OUTRO pedido — perdendo o histórico, os anexos e a conversa, e deixando o
+    # primeiro aberto na conta de quem atende.
+    devolvido = svc.devolvido_de(
+        pessoa, request.POST.get("devolvido") or request.GET.get("devolvido")
+    )
+    retomado = rascunho or devolvido
+    if retomado is not None and request.method == "GET":
         # Volta o que já estava escrito. Só no GET: no POST o que vale é o que
         # a pessoa acabou de digitar, e reescrever por cima com o valor guardado
         # apagaria a edição no instante do envio.
-        dados = dict(rascunho.dados or {})
-        valor = rascunho.valor
+        dados = dict(retomado.dados or {})
+        valor = retomado.valor
 
     if request.method == "POST":
         if not pessoa.is_authenticated:
@@ -157,6 +168,7 @@ def pedir(request: HttpRequest, chave: str) -> HttpResponse:
                 linhas=linhas,
                 adiantamento=adiantamento,
                 rascunho=rascunho,
+                devolvido=devolvido,
             )
         except (SolicitacaoError, AnexoError, ReembolsoError) as erro:
             # Revalida para devolver a lista completa por campo, e não só a
@@ -170,7 +182,7 @@ def pedir(request: HttpRequest, chave: str) -> HttpResponse:
                 cache=cache,
                 arquivos=arquivos,
                 linhas=linhas,
-                rascunho=rascunho,
+                retomado=rascunho or devolvido,
             )
             if not impedimentos:
                 # A revalidação não reproduziu a falha — só acontece se algo
@@ -266,11 +278,18 @@ def pedir(request: HttpRequest, chave: str) -> HttpResponse:
                 str(adiantamento.pk) if adiantamento else request.POST.get("adiantamento", "")
             ),
             "rascunho": rascunho,
-            # Os anexos que JÁ estão no rascunho. A tela precisa mostrá-los,
-            # senão a pessoa volta ao formulário, não vê o comprovante que
-            # mandou ontem, e anexa de novo — e o pedido chega com dois.
+            # O pedido devolvido que está sendo corrigido, e o motivo pelo qual
+            # ele voltou. O motivo VAI para a tela do formulário e não só para
+            # a lista: quem está corrigindo precisa dele à vista enquanto
+            # digita, não numa aba anterior que já fechou.
+            "devolvido": devolvido,
+            "motivo_da_devolucao": devolvido.motivo_devolucao if devolvido else "",
+            # Os anexos que JÁ estão na linha retomada. A tela precisa
+            # mostrá-los, senão a pessoa volta ao formulário, não vê o
+            # comprovante que mandou ontem, e anexa de novo — e o pedido chega
+            # com dois.
             "anexos_do_rascunho": (
-                list(rascunho.anexos.all()) if rascunho is not None else []
+                list(retomado.anexos.all()) if retomado is not None else []
             ),
         },
     )

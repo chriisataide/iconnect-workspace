@@ -53,6 +53,11 @@ class AcaoSolicitacao(models.TextChoices):
     ASSUMIDA = "assumida", "Atendimento assumido"
     CONCLUIDA = "concluida", "Concluído"
     REABERTA = "reaberta", "Reaberto — não resolveu"
+    # O pedido que voltou, foi corrigido e seguiu de novo. Linha PRÓPRIA e não
+    # `CRIADA` de novo: a timeline precisa distinguir "nasceu" de "voltou
+    # corrigido", senão o mesmo pedido aparece nascendo duas vezes e ninguém
+    # entende por que a cadeia de aprovação tem dois começos.
+    REENVIADA = "reenviada", "Reenviado depois de corrigir"
     ACERTO = "acerto", "Acerto do adiantamento confirmado"
 
 

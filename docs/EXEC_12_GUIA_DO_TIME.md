@@ -69,6 +69,31 @@ contas  →  identidade  →  workspace
 
 O tile leva à vitrine daquele departamento — a fatia do catálogo que ele atende (`ItemCatalogo.dominio`).
 
+### O fluxo de um pedido — os quatro passos
+
+Vale para **todos** os módulos: Financeiro, R.H., Operação, Suprimentos, Redes, Vendas e Universidade. O que muda entre eles é só quem é a área.
+
+```
+  1  colaborador abre no módulo        →  bandeja do GESTOR dele
+  2  gestor aprova                     →  fila da ÁREA do módulo onde foi aberto
+  3  a área conclui                    →  fim
+     ou devolve com o motivo           →  volta para quem pediu, EDITÁVEL
+  4  a pessoa corrige e reenvia        →  recomeça do passo 1
+```
+
+Acima de R$ 50.000 a diretoria entra entre 1 e 2; acima de R$ 300.000, os sócios também. As faixas **somam** degraus, não os substituem.
+
+**A área toca o pedido uma vez.** Até 20/08/2026 havia um degrau a mais — a área aprovava na bandeja e depois executava na fila —, e o efeito era um pedido que continuava dizendo "aguardando aprovação" depois de o gestor já ter aprovado, sem nada ter mudado de mãos. A revisão da área não sumiu: ela é a fila.
+
+**Devolver tem volta.** Foi o que tornou o parágrafo acima possível. Enquanto devolver era um beco — o pedido voltava, ficava aberto para sempre e a única saída era abrir outro —, reprovar na bandeja era a única forma de dizer não sem prender o pedido. Agora o pedido devolvido volta editável, com o motivo à vista no formulário, e o botão *Enviar solicitação* o promove: **mesma linha, mesmo número, mesmos anexos, mesma conversa.**
+
+Duas decisões dentro do reenvio que custam caro se forem invertidas:
+
+- **a cadeia é refeita.** O gestor aprovou um texto; a pessoa mudou o texto. Reaproveitar a aprovação seria fazer alguém assinar o que não viu;
+- **o relógio não volta.** `criado_em` fica onde estava. Se o reenvio zerasse a contagem, devolver viraria o jeito de limpar o próprio atraso.
+
+Quem participa do fluxo não é uma lista escrita em lugar nenhum: é `<raiz>.atender` existir em algum papel. Módulo sem isso aprova o pedido e o deixa numa fila que ninguém abre — e a fase passa a dizer *"Aprovada · sem área responsável"*, que é o diagnóstico. Há teste para os sete.
+
 ### O vocabulário de domínios
 
 `dominio` decide **duas coisas ao mesmo tempo**, e é a decisão de arquitetura mais carregada do produto:

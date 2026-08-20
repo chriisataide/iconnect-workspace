@@ -216,14 +216,17 @@ def verificar(
     cache: dict | None = None,
     arquivos: dict | None = None,
     linhas=None,
-    rascunho: SolicitacaoServico | None = None,
+    retomado: SolicitacaoServico | None = None,
 ) -> list[Impedimento]:
     """O que impede este pedido de ser enviado. Vazio = pode enviar.
 
     Chamado pela tela a cada mudança (HTMX) para bloquear com o motivo à vista,
     e de novo dentro de `solicitar()` — a tela não é a fonte de verdade.
 
-    `rascunho` é o pedido guardado que está sendo enviado — §43. Sem ele, o
+    `retomado` é o pedido que já existe e está sendo enviado de novo: o
+    rascunho guardado (§43) ou o pedido DEVOLVIDO que a pessoa acabou de
+    corrigir. Os dois têm a mesma pergunta pendente — o que já está anexado
+    nele conta como anexado. Sem ele, o
     comprovante anexado ONTEM não conta: a validação olha só o que veio neste
     POST, e quem retomasse o rascunho seria mandado anexar de novo um arquivo
     que já está no pedido. Um formulário que esquece o que ele mesmo guardou é
@@ -251,8 +254,8 @@ def verificar(
     # usuário digitava o nome do arquivo e o pedido seguia sem comprovante.
     de_arquivo = {c["chave"] for c in item.campos if c.get("tipo") == TipoCampo.ARQUIVO}
     anexados = anx.campos_com_arquivo(arquivos)
-    if rascunho is not None and rascunho.pk:
-        anexados |= set(rascunho.anexos.values_list("campo", flat=True))
+    if retomado is not None and retomado.pk:
+        anexados |= set(retomado.anexos.values_list("campo", flat=True))
 
     if not item.ativo:
         impedimentos.append(Impedimento("item", "Este serviço não está disponível."))
@@ -474,6 +477,7 @@ def solicitar(
     linhas=None,
     adiantamento: SolicitacaoServico | None = None,
     rascunho: SolicitacaoServico | None = None,
+    devolvido: SolicitacaoServico | None = None,
 ) -> SolicitacaoServico:
     """Cria o pedido e o roteia — auto-aprovado ou para a cadeia de aprovação.
 
@@ -481,6 +485,22 @@ def solicitar(
     §43. Criar outra deixaria o rascunho para trás com os anexos dentro dele, e
     a pessoa teria dois registros do mesmo pedido: um enviado e sem
     comprovante, outro com o comprovante e nunca enviado.
+
+    Com `devolvido`, o MESMO pedido volta à esteira depois de corrigido. É o
+    mesmo mecanismo do rascunho e de propósito: um caminho paralelo de "criar o
+    pedido de novo" teria de repetir validação, anexo, orçamento, roteamento e
+    cadeia — e a segunda cópia é sempre a que esquece um deles.
+
+    ## O que o reenvio devolve ao começo, e o que ele NÃO devolve
+
+    A CADEIA é refeita. O gestor aprovou um texto; a pessoa mudou o texto. A
+    aprovação antiga vale para o que ela leu, não para o que veio depois — e
+    reaproveitá-la seria fazer alguém assinar o que não viu.
+
+    O RELÓGIO não volta. `criado_em` fica onde estava, e é a mesma decisão de
+    `reabrir()`: se o reenvio zerasse a contagem, devolver viraria o jeito de
+    limpar o próprio atraso. O pedido está vivo desde o dia em que foi aberto, e
+    é isso que o prazo mede.
     """
     from workspace.services import anexos as anx
     from workspace.services import formulario as frm
@@ -495,10 +515,17 @@ def solicitar(
 
     if rascunho is not None:
         _garantir_rascunho_de(rascunho, pessoa)
+    if devolvido is not None:
+        _garantir_devolvido_de(devolvido, pessoa)
+
+    # A linha que já existe e vai ser reaproveitada — rascunho ou devolvida.
+    # Uma variável só a partir daqui: o resto da função não precisa saber qual
+    # das duas é, e saber faria cada bloco escolher de novo.
+    retomado = rascunho if rascunho is not None else devolvido
 
     impedimentos = verificar(
         item, pessoa, dados, valor, cache=cache, arquivos=arquivos, linhas=linhas,
-        rascunho=rascunho,
+        retomado=retomado,
     )
     if impedimentos:
         raise SolicitacaoError("; ".join(i.motivo for i in impedimentos))
@@ -515,8 +542,8 @@ def solicitar(
     situacao = (
         SituacaoServico.APROVADA if auto else SituacaoServico.AGUARDANDO_APROVACAO
     )
-    if rascunho is not None:
-        solicitacao = rascunho
+    if retomado is not None:
+        solicitacao = retomado
         solicitacao.item = item
         solicitacao.dados = dados or {}
         solicitacao.valor = valor
@@ -524,11 +551,24 @@ def solicitar(
         solicitacao.auto_aprovada = auto
         solicitacao.adiantamento = adiantamento
         solicitacao.situacao = situacao
-        # `criado_em` é `auto_now_add` e NÃO é mexido: o pedido nasce agora para
-        # efeito de prazo — o relógio do SLA começa no envio, não no dia em que
-        # a pessoa abriu o formulário. Como `auto_now_add` só grava na inserção,
-        # a data continuaria a do rascunho e o pedido nasceria já atrasado.
-        solicitacao.criado_em = timezone.now()
+        if devolvido is not None:
+            # O motivo some porque ele deixou de ser verdade: a pessoa corrigiu.
+            # Deixá-lo na tela faria o pedido continuar parecendo devolvido
+            # depois de reenviado, e é a etiqueta que quem atende lê primeiro.
+            solicitacao.motivo_devolucao = ""
+            # E o pedido perde o dono. Quem devolveu não é mais responsável por
+            # ele; se voltar para a mesma pessoa, é porque ela o assumiu de
+            # novo. Manter o nome faria a fila mostrar "em andamento com
+            # Fulano" um pedido que ninguém está atendendo.
+            solicitacao.atendente = None
+        else:
+            # RASCUNHO: `criado_em` é `auto_now_add` e não seria mexido, então
+            # o pedido nasceria com a data em que a pessoa abriu o formulário —
+            # já atrasado. O relógio do prazo começa no ENVIO.
+            #
+            # No reenvio é o contrário: ver a docstring. Ali o relógio NÃO
+            # volta, porque devolver não pode virar o jeito de limpar atraso.
+            solicitacao.criado_em = timezone.now()
         solicitacao.save()
     else:
         solicitacao = SolicitacaoServico.objects.create(
@@ -551,7 +591,11 @@ def solicitar(
 
     from workspace.services import historico as hst
 
-    hst.registrar(solicitacao, hst.Acao.CRIADA, quem=pessoa)
+    hst.registrar(
+        solicitacao,
+        hst.Acao.REENVIADA if devolvido is not None else hst.Acao.CRIADA,
+        quem=pessoa,
+    )
     if auto:
         # Sem `quem`: ninguém decidiu — o pedido coube na política. Inventar um
         # autor aqui faria o histórico mentir sobre quem assinou.
@@ -668,6 +712,43 @@ def _garantir_rascunho_de(rascunho: SolicitacaoServico, pessoa) -> None:
         raise SolicitacaoError("Este rascunho não é seu.")
     if rascunho.situacao != SituacaoServico.RASCUNHO:
         raise SolicitacaoError("Esta solicitação já foi enviada.")
+
+
+def _garantir_devolvido_de(pedido: SolicitacaoServico, pessoa) -> None:
+    """Só quem pediu reenvia, e só o que está DEVOLVIDO.
+
+    Sem a primeira, trocar um dígito na URL reenviaria o pedido de um colega em
+    nome dele. Sem a segunda, o reenvio viraria um jeito de reabrir a cadeia de
+    aprovação de um pedido já aprovado — devolvendo ao gestor a decisão que ele
+    já tomou, sobre um texto que a pessoa acabou de trocar.
+    """
+    if pedido.solicitante_id != getattr(pessoa, "pk", None):
+        raise SolicitacaoError("Este pedido não é seu.")
+    if pedido.situacao != SituacaoServico.DEVOLVIDA:
+        raise SolicitacaoError(
+            "Só pedido devolvido pode ser corrigido e reenviado."
+        )
+
+
+def devolvido_de(pessoa, pk) -> SolicitacaoServico | None:
+    """O pedido devolvido DA PESSOA, ou `None`. Nunca o de outra.
+
+    Espelha `rascunho_de` de propósito: as duas respondem "esta linha é sua e
+    está no estado que a tela espera?", e é a resposta que autoriza o
+    formulário a vir preenchido com o que alguém escreveu.
+    """
+    if pessoa is None or getattr(pessoa, "is_authenticated", False) is False:
+        return None
+    try:
+        pk = int(pk)
+    except (TypeError, ValueError):
+        return None
+    return (
+        SolicitacaoServico.objects.de(pessoa)
+        .filter(pk=pk, situacao=SituacaoServico.DEVOLVIDA)
+        .select_related("item")
+        .first()
+    )
 
 
 def rascunho_de(pessoa, pk) -> SolicitacaoServico | None:

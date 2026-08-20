@@ -516,6 +516,18 @@ class SolicitacaoServico(models.Model):
         return self.situacao == SituacaoServico.RASCUNHO
 
     @property
+    def pode_reenviar(self) -> bool:
+        """Voltou para quem pediu e está esperando correção.
+
+        Propriedade e não comparação de string no template: a regra do design
+        system é que o model (ou a view) resolve e o template desenha. E é uma
+        pergunta que três telas fazem — a lista, o formulário e o resumo.
+        """
+        from workspace.models.catalogo import SituacaoServico as S
+
+        return self.situacao == S.DEVOLVIDA
+
+    @property
     def em_aberto(self) -> bool:
         """Vivo na esteira: já foi enviado e ainda não terminou.
 

@@ -62,6 +62,38 @@
       {% endif %}
     {% endif %}
 
+    {% comment %}
+      O PEDIDO DEVOLVIDO que está sendo corrigido.
+
+      O campo escondido amarra o envio à MESMA linha, pelo mesmo motivo do
+      rascunho: sem ele nasceria um pedido novo, o primeiro continuaria aberto
+      na conta de quem atende, e o histórico do mesmo assunto ficaria partido
+      em dois números.
+
+      O motivo fica À VISTA enquanto a pessoa digita. Antes disto ele só existia
+      na lista de onde ela veio — e corrigir de memória é como se produz o
+      segundo envio igualmente errado.
+    {% endcomment %}
+    {% if devolvido %}
+      <input type="hidden" name="devolvido" value="{{ devolvido.pk }}">
+      <div class="au-aviso au-aviso--warning" role="note">
+        <b>{% trans "Este pedido voltou para você." %}</b>
+        {% if motivo_da_devolucao %}<br>{{ motivo_da_devolucao }}{% endif %}
+        <br>
+        {% blocktrans %}Corrija o que falta e envie de novo — ele segue o mesmo
+        caminho de antes, a partir do seu gestor.{% endblocktrans %}
+      </div>
+
+      {% if anexos_do_rascunho %}
+        <p class="au-ajuda">
+          {% trans "Já anexados neste pedido:" %}
+          {% for a in anexos_do_rascunho %}
+            <a href="{% url 'workspace:baixar_anexo' a.pk %}">{{ a.nome_original }}</a>{% if not forloop.last %},{% endif %}
+          {% endfor %}
+        </p>
+      {% endif %}
+    {% endif %}
+
     {% if impedimentos %}
       <div class="au-aviso au-aviso--error" role="alert">
         <b>{% trans "Corrija antes de enviar:" %}</b>
@@ -203,6 +235,12 @@
       {% if rascunho %}
         <a class="au-btn au-btn--sutil"
            href="{% url 'workspace:minhas_solicitacoes' %}?situacao=rascunho">
+          {% trans "Cancelar" %}
+        </a>
+      {% elif devolvido %}
+        {# Quem está corrigindo veio da aba de devolvidas, e é para lá que volta. #}
+        <a class="au-btn au-btn--sutil"
+           href="{% url 'workspace:minhas_solicitacoes' %}?situacao=devolvida">
           {% trans "Cancelar" %}
         </a>
       {% else %}
