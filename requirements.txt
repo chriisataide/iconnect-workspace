@@ -22,7 +22,14 @@
 # mesma imagem que roda o Django roda o PDF. O preço é desenhar o layout em
 # código em vez de em CSS — pago uma vez, em `services/pdf.py`.
 
-Django==6.0.7
+Django==6.0.8
+
+# `sqlparse` é dependência transitiva do Django e está PINADA aqui de
+# propósito. A auditoria de segurança de agosto de 2026 achou quatro CVEs
+# abertas na 0.5.5, que era a versão que o resolvedor trazia — e dependência
+# transitiva não aparece em `requirements.txt`, então ninguém olha para ela.
+# Pinar é o que faz a próxima auditoria enxergá-la.
+sqlparse==0.6.0
 
 # Banco de produção. Em desenvolvimento e teste é SQLite, que vem com o Python.
 psycopg2-binary==2.9.12

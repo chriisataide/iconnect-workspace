@@ -143,6 +143,7 @@ justificativa no PR.
 | [Guia do time](docs/EXEC_12_GUIA_DO_TIME.md) | O que o produto faz, quem vê o quê, e as decisões que qualquer mudança precisa respeitar | **todo mundo** |
 | [Operação](docs/EXEC_13_OPERACAO.md) | Subir, configurar, agendar, diagnosticar | quem opera |
 | [Entrega](docs/EXEC_11_ENTREGA.md) | A auditoria, o que foi implementado e o que ficou pendente | produto e gestão |
+| [Segurança](docs/EXEC_14_SEGURANCA.md) | A auditoria de segurança: o que foi procurado, o que foi achado, o que foi corrigido e o que a infraestrutura precisa garantir | quem opera e quem responde por risco |
 
 **Referência:**
 

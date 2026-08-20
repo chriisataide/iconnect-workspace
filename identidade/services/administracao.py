@@ -34,7 +34,23 @@ from datetime import timedelta
 from django.db import transaction
 from django.utils import timezone
 
-from identidade.models import AtribuicaoPapel, Lotacao, Papel
+from contas import auditoria
+from identidade.models import (
+    ESCOPO_CHOICES,
+    AtribuicaoPapel,
+    Lotacao,
+    Papel,
+)
+
+#: Os escopos que existem. `conceder()` recusa qualquer outro.
+#:
+#: `choices` num `CharField` NÃO é validado no `save()` — só em formulário e em
+#: `full_clean()`. Como esta camada grava direto, um escopo digitado errado
+#: entrava no banco e ficava lá: `abrangencia()` devolve -1 para desconhecido,
+#: então a atribuição não dava acesso NENHUM. Falha fechada, e é o lado certo
+#: para falhar — mas o R.H. via "papel concedido" e a pessoa continuava sem
+#: alcance, sem ninguém entender por quê.
+ESCOPOS_VALIDOS = {valor for valor, _ in ESCOPO_CHOICES}
 
 # Escopos que alcançam gente além de quem recebe o papel. Conceder um destes é
 # decisão, não configuração — por isso exigem justificativa.
@@ -139,8 +155,19 @@ def definir_centro_de_custo(pessoa, codigo: str, quem) -> Lotacao:
             f"{pessoa} não tem lotação. Cadastre a lotação antes do centro de custo."
         )
 
+    anterior = lotacao.centro_custo_codigo
     lotacao.centro_custo_codigo = (codigo or "").strip()[:20]
     lotacao.save(update_fields=["centro_custo_codigo", "atualizado_em"])
+    # Redirecionar onde o gasto de alguém é debitado é alteração financeira, e
+    # a tabela guarda só o estado final. Sem esta linha, "desde quando o gasto
+    # do fulano cai no 1042?" não tem resposta.
+    auditoria.evento(
+        "centro de custo alterado",
+        quem,
+        conta=getattr(pessoa, "email", pessoa),
+        de=anterior or "-",
+        para=lotacao.centro_custo_codigo or "-",
+    )
     return lotacao
 
 
@@ -174,6 +201,15 @@ def conceder(
             "aprovador sem unidade e sem gestor não tem escopo que signifique algo."
         )
 
+    if escopo not in ESCOPOS_VALIDOS:
+        # ANTES da checagem de justificativa, e a ordem importa: `ESCOPOS_AMPLOS`
+        # compara por igualdade, então um "Global" com maiúscula passaria reto
+        # pela exigência de justificativa — e gravaria um escopo que não alcança
+        # ninguém. Recusar de saída fecha as duas coisas de uma vez.
+        raise AdministracaoError(
+            f"Escopo inválido: {escopo!r}. Use um de {sorted(ESCOPOS_VALIDOS)}."
+        )
+
     justificativa = (justificativa or "").strip()
     if escopo in ESCOPOS_AMPLOS and not justificativa:
         raise AdministracaoError(
@@ -190,7 +226,7 @@ def conceder(
     if ja_tem:
         raise AdministracaoError(f"{pessoa} já tem {papel} com escopo {escopo}.")
 
-    return AtribuicaoPapel.objects.create(
+    atribuicao = AtribuicaoPapel.objects.create(
         user=pessoa,
         papel=papel,
         escopo=escopo,
@@ -200,6 +236,18 @@ def conceder(
         concedido_por=quem,
         justificativa=justificativa,
     )
+    # A linha na trilha de segurança, além da coluna `concedido_por` na tabela.
+    # As duas, e não uma: a tabela responde "quem tem o quê HOJE" e é editável
+    # por quem tem o banco; a linha sai do processo e responde "o que aconteceu
+    # em março", que é a pergunta de depois do incidente.
+    auditoria.evento(
+        "papel concedido",
+        quem,
+        conta=getattr(pessoa, "email", pessoa),
+        papel=papel.chave,
+        escopo=escopo,
+    )
+    return atribuicao
 
 
 @transaction.atomic
@@ -236,4 +284,11 @@ def revogar(atribuicao: AtribuicaoPapel, quem, motivo: str = "") -> AtribuicaoPa
             f"{atribuicao.justificativa}{separador}Revogado em {hoje}: {motivo.strip()}"
         )
     atribuicao.save(update_fields=["vigencia_fim", "justificativa"])
+    auditoria.evento(
+        "papel encerrado",
+        quem,
+        conta=getattr(atribuicao.user, "email", atribuicao.user),
+        papel=atribuicao.papel.chave,
+        escopo=atribuicao.escopo,
+    )
     return atribuicao

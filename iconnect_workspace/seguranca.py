@@ -57,5 +57,14 @@ class CabecalhosDeSeguranca:
         # Isola o contexto de navegação: impede que outra origem consulte a
         # nossa via `window.open`.
         resposta.setdefault("Cross-Origin-Opener-Policy", "same-origin")
+        # E impede que outra origem EMBUTA o que servimos — `<img>`, `<script>`,
+        # `<iframe>` de fora deixam de conseguir ler a resposta. `frame-ancestors`
+        # e `X-Frame-Options` já cobrem o enquadramento da PÁGINA; este cobre os
+        # recursos, e é o que barra o download de um anexo puxado por uma página
+        # de outra origem no navegador de quem está com a sessão aberta.
+        #
+        # `same-origin` e não `same-site`: os dois produtos são domínios
+        # diferentes de propósito, e não há recurso nosso que o iConnect embuta.
+        resposta.setdefault("Cross-Origin-Resource-Policy", "same-origin")
 
         return resposta

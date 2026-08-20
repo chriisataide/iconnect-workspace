@@ -1,6 +1,6 @@
 # Desenvolvimento e CI.
 -r requirements.txt
 
-pytest==9.0.1
+pytest==9.0.3
 pytest-django==4.13.0
 pytest-cov==7.0.0

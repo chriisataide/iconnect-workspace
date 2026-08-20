@@ -11,7 +11,7 @@ from django.contrib.auth import views as auth
 from django.urls import include, path
 from django.views.generic import RedirectView
 
-from contas.entrada import LoginComFreio
+from contas.entrada import LoginComFreio, LoginDoAdminComFreio
 from iconnect_workspace.saude import saude
 
 urlpatterns = [
@@ -35,5 +35,16 @@ urlpatterns = [
     # `contas/entrada.py` para as duas contagens e por que não há uma terceira.
     path("entrar/", LoginComFreio.as_view(), name="entrar"),
     path("sair/", auth.LogoutView.as_view(), name="sair"),
+    # O `/admin/login/` com o MESMO freio de `/entrar/` — auditoria de agosto.
+    #
+    # Ele aceitava vinte senhas erradas seguidas, todas com HTTP 200, enquanto a
+    # porta do produto barrava na sexta. O produto tinha uma tranca e uma
+    # fechadura solta, e a solta é a que abre o banco inteiro sem passar por
+    # regra, histórico nem permissão de negócio.
+    #
+    # ANTES de `admin.site.urls`, e é o que faz funcionar: a resolução é por
+    # ordem, o nome `admin:login` continua sendo o do Django, e continua
+    # apontando para esta mesma URL — que agora é a nossa view.
+    path("admin/login/", LoginDoAdminComFreio.as_view(), name="admin_login"),
     path("admin/", admin.site.urls),
 ]

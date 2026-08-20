@@ -202,6 +202,55 @@ SESSION_COOKIE_SAMESITE = "Lax"
 CSRF_COOKIE_SAMESITE = "Lax"
 X_FRAME_OPTIONS = "DENY"
 
+# ── Duração da sessão ───────────────────────────────────────────────
+#
+# O padrão do Django é DUAS SEMANAS, absolutas. Numa estação compartilhada de
+# obra ou numa recepção, isso é uma sessão viva por catorze dias depois de a
+# pessoa ir embora — e o que esta sessão abre é atestado médico, comprovante e
+# bandeja de aprovação.
+#
+# Doze horas cobre a jornada mais longa com folga, e `SAVE_EVERY_REQUEST` faz a
+# contagem deslizar com o uso: quem está trabalhando não é derrubado no meio da
+# tarde, e quem parou expira. Sem o segundo, o prazo contaria desde o login e
+# expulsaria alguém em plena digitação.
+#
+# O custo é uma gravação de sessão por requisição COM sessão. O hub aberto não
+# paga: sessão vazia não é gravada, e o visitante anônimo não tem nenhuma.
+SESSION_COOKIE_AGE = int(_env("SESSION_COOKIE_AGE", str(12 * 60 * 60)))
+SESSION_SAVE_EVERY_REQUEST = True
+
+# ── Limites de requisição ───────────────────────────────────────────
+#
+# Explícitos, e não confiando no padrão: os padrões do Django são razoáveis e
+# mudam entre versões, e um upload sem teto é disco cheio — que derruba o
+# produto inteiro sem precisar de nenhuma falha de código.
+#
+# `MAX_MEMORY_SIZE` é o que o Django aceita em memória antes de ir para arquivo
+# temporário. `MAX_NUMBER_FIELDS` é a defesa contra o POST com cem mil campos,
+# que gasta CPU no parsing antes de qualquer view rodar. `MAX_NUMBER_FILES` é o
+# teto por requisição — o validador já limita 10 MB POR arquivo, e sem um teto
+# de quantidade dez mil arquivos de 10 MB passariam um a um.
+DATA_UPLOAD_MAX_MEMORY_SIZE = 5 * 1024 * 1024
+DATA_UPLOAD_MAX_NUMBER_FIELDS = 1_000
+DATA_UPLOAD_MAX_NUMBER_FILES = 20
+FILE_UPLOAD_MAX_MEMORY_SIZE = 2 * 1024 * 1024
+
+# ── Atrás de proxy ──────────────────────────────────────────────────
+#
+# Quantos proxies confiáveis existem entre o cliente e este processo. ZERO por
+# padrão, que é o comportamento seguro: sem proxy, `REMOTE_ADDR` é o cliente.
+#
+# Por que isto precisa existir: o freio de tentativas conta falhas POR ORIGEM.
+# Atrás de um balanceador, toda a empresa chega com o MESMO `REMOTE_ADDR` — e
+# vinte senhas erradas de vinte pessoas diferentes numa segunda-feira trancariam
+# o produto para todo mundo. O controle de segurança viraria a indisponibilidade.
+#
+# Ler `X-Forwarded-For` cru resolveria isso e abriria outro buraco: o cabeçalho
+# é escrito pelo cliente, e um atacante o troca a cada tentativa. Com a
+# CONTAGEM certa, o endereço é lido da posição que o proxy escreveu, e o que o
+# cliente inventou fica à esquerda, ignorado. Ver `contas/entrada.py::ip_de`.
+PROXIES_CONFIAVEIS = int(_env("PROXIES_CONFIAVEIS", "0"))
+
 # Cookie com nome próprio. Se um dia os dois produtos servirem do mesmo domínio,
 # é isto que impede a sessão de um valer no outro.
 SESSION_COOKIE_NAME = "wks_sessao"

@@ -26,6 +26,20 @@ junit.xml
 .env.*
 !.env.example
 
+# Chaves e certificados. Nunca houve nenhum neste repositório — a auditoria de
+# agosto de 2026 varreu os 65 commits e não achou segredo em lugar nenhum. As
+# linhas abaixo existem para que continue assim: o modo normal de vazar chave
+# privada é um `git add .` num diretório onde alguém deixou uma.
+*.pem
+*.key
+*.p12
+*.pfx
+id_rsa
+id_rsa.*
+*.jks
+credentials.json
+service-account*.json
+
 # Editores e SO
 .DS_Store
 .idea/

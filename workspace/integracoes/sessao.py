@@ -89,6 +89,23 @@ def trocar_codigo(request, codigo: str) -> bool:
         logger.warning("sso-exchange respondeu sem `access`")
         return False
 
+    # ROTAÇÃO DA CHAVE DE SESSÃO antes de guardar o token — auditoria de agosto.
+    #
+    # Esta é a única coisa no produto que põe uma credencial de terceiro numa
+    # sessão sem passar por `login()`. E é `login()` que normalmente faz a
+    # rotação (`cycle_key`), justamente contra fixação de sessão: o atacante
+    # planta um cookie conhecido no navegador da vítima, a vítima se autentica,
+    # e o cookie que o atacante já tem passa a valer.
+    #
+    # Aqui a vítima não se autentica no Workspace — ela só traz um JWT do
+    # iConnect. Sem rotação, o cookie plantado passaria a carregar esse JWT, e
+    # quem o tivesse leria os chamados e as rotas da pessoa pela API do outro
+    # produto. Uma linha fecha isso, e ela custa uma gravação de sessão.
+    #
+    # `cycle_key` preserva o conteúdo da sessão e troca só a chave — então quem
+    # já estava identificado no Workspace continua identificado.
+    request.session.cycle_key()
+
     request.session[CHAVE_ACCESS] = acesso
     if resposta.get("refresh"):
         request.session[CHAVE_REFRESH] = resposta["refresh"]

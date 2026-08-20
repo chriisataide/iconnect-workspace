@@ -304,9 +304,21 @@ def test_a_bandeja_custa_o_mesmo_com_um_e_com_cinco_pedidos(client, cenario):
     consultas por linha passam e só doem em produção. Medido antes do conserto:
     30 consultas com um pedido e 58 com cinco — e o grosso era `etapa_atual`,
     que refaz a consulta a cada chamada e é chamada seis vezes por linha.
+
+    ## Por que o teto subiu de 30 para 35
+
+    A auditoria de segurança de agosto ligou `SESSION_SAVE_EVERY_REQUEST`, que é
+    o que faz a sessão expirar por INATIVIDADE em vez de num prazo absoluto
+    contado desde o login. Sem ele, quem entra às 7h é desconectado no meio da
+    tarde estando em plena digitação.
+
+    Ele custa exatamente três consultas por requisição no SQLite — `BEGIN`,
+    `UPDATE django_session`, `COMMIT` —, medidas e não estimadas. É custo de um
+    controle de segurança, não regressão: o número que importa aqui continua
+    sendo `cinco == um`, e ele não mudou.
     """
     um = _consultas_da_bandeja(client, cenario, 1)
     cinco = _consultas_da_bandeja(client, cenario, 5)
 
     assert cinco == um, f"a bandeja cresce com o número de linhas: {um} → {cinco}"
-    assert um < 30, f"a bandeja ficou cara mesmo com uma linha: {um}"
+    assert um < 35, f"a bandeja ficou cara mesmo com uma linha: {um}"

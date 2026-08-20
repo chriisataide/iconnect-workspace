@@ -75,6 +75,10 @@ O orçamento de cada centro se define depois, **dentro do produto**: *Pessoas e 
 
 ## 13.2 Variáveis de ambiente
 
+> **A lista completa, com o que cada variável protege, está em [`.env.example`](../.env.example).** Ele é versionado e nunca contém valor real; há teste que reprova o contrário, e outro que reprova uma variável nova lida pelo `settings` e ausente dele.
+>
+> **Antes de subir em produção, leia [EXEC 14 · Segurança](EXEC_14_SEGURANCA.md) § 14.7.** Três garantias são da infraestrutura e o código não consegue dar sozinho: o proxy tem de **sobrescrever** `X-Forwarded-Proto`, o cache tem de ser **compartilhado** entre os processos (a contagem do freio de senha vive nele), e `PROXIES_CONFIAVEIS` tem de ter o número **certo** de saltos.
+
 ### Obrigatórias em produção
 
 | variável | o que acontece sem ela |

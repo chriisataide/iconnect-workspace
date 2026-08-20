@@ -20,6 +20,17 @@ if not SECRET_KEY or SECRET_KEY.startswith("dev-only"):
 if not ALLOWED_HOSTS:  # noqa: F405
     raise ImproperlyConfigured("ALLOWED_HOSTS é obrigatória em produção.")
 
+if "*" in ALLOWED_HOSTS:  # noqa: F405
+    # `*` desliga a checagem de Host. Com ela desligada, um atacante manda
+    # `Host: servidor-dele.com` e o produto passa a gerar links absolutos
+    # apontando para lá — é assim que um e-mail de recuperação legítimo entrega
+    # o token para outra pessoa. E é o atalho que alguém aplica às três da
+    # manhã, para o deploy parar de recusar a sonda do orquestrador.
+    raise ImproperlyConfigured(
+        "ALLOWED_HOSTS com `*` desliga a checagem de Host. Liste os domínios "
+        "— e inclua o IP do contêiner se a sonda chegar por ele."
+    )
+
 DATABASES = {
     "default": {
         "ENGINE": "django.db.backends.postgresql",
@@ -77,5 +88,12 @@ LOGGING = {
         # O agregador degrada em silêncio quando um provider falha; o warning é
         # o único rastro de que um bloco do Meu dia não foi desenhado.
         "workspace": {"handlers": ["console"], "level": "INFO", "propagate": False},
+        # A TRILHA DE SEGURANÇA em fluxo próprio: entrada, saída, falha de
+        # senha, bloqueio por tentativas, concessão e encerramento de papel.
+        # Logger separado para que a infraestrutura possa mandá-lo para outro
+        # destino — retenção e quem pode ler são outros neste fluxo.
+        #
+        # Ele nunca carrega senha, token nem segredo: ver `contas/auditoria.py`.
+        "seguranca": {"handlers": ["console"], "level": "INFO", "propagate": False},
     },
 }
