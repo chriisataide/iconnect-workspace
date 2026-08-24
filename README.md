@@ -205,6 +205,7 @@ justificativa no PR.
 
 | Documento | O que responde | Para quem |
 |---|---|---|
+| [Documentação de Software e da Empresa](docs/DOCUMENTACAO_SOFTWARE_EMPRESA.md) | O mapa consolidado dos 8 pilares: uso, desenvolvimento, operação, negócio, governança, risco, gestão e conhecimento | **todo mundo** |
 | [Guia do time](docs/EXEC_12_GUIA_DO_TIME.md) | O que o produto faz, quem vê o quê, e as decisões que qualquer mudança precisa respeitar | **todo mundo** |
 | [Operação](docs/EXEC_13_OPERACAO.md) | Subir, configurar, agendar, diagnosticar | quem opera |
 | [Entrega](docs/EXEC_11_ENTREGA.md) | A auditoria, o que foi implementado e o que ficou pendente | produto e gestão |
@@ -215,6 +216,15 @@ justificativa no PR.
 | Documento | O que responde |
 |---|---|
 | [`.env.example`](.env.example) | Todas as variáveis de ambiente, o que cada uma protege e quais são obrigatórias em produção |
+| [Guia de uso](docs/GUIA_USO_WORKSPACE.md) | Como usar as principais telas e fluxos do Workspace |
+| [Instalação e configuração](docs/GUIA_INSTALACAO_CONFIGURACAO.md) | Dependências, ambiente local, produção, variáveis e seeders |
+| [Referência de rotas e contratos](docs/REFERENCIA_ROTAS_E_CONTRATOS.md) | Rotas, contratos internos, comandos e integração |
+| [Arquitetura do sistema](docs/ARQUITETURA_SISTEMA.md) | Apps, direção de dependência, modelos centrais e padrões |
+| [Negócio e produto](docs/NEGOCIO_E_PRODUTO.md) | Proposta, público, requisitos e regras de domínio |
+| [Governança e conformidade](docs/GOVERNANCA_CONFORMIDADE.md) | Segurança, privacidade, RACI e inventário |
+| [Continuidade e risco](docs/CONTINUIDADE_RISCO.md) | BCP/DRP, backups, SLAs sugeridos e terceiros |
+| [Gestão e stakeholders](docs/GESTAO_STAKEHOLDERS.md) | Status, custos, indicadores e apresentações executivas |
+| [Conhecimento organizacional](docs/CONHECIMENTO_ORGANIZACIONAL.md) | Onboarding, wiki interna, decisões e licença |
 | [Guia de QA](docs/GUIA_QA_WORKSPACE.md) | O contrato de cada tela: para que serve, quando é útil, o que é defeito e o que é decisão |
 | [Blueprint](docs/BLUEPRINT_ICONNECT_WORKSPACE.md) | A visão do produto |
 | [EXEC 01–10](docs/) | As dez etapas de planejamento, da arquitetura ao reposicionamento |
