@@ -50,16 +50,27 @@ python manage.py showmigrations workspace   # tudo com [X]
 ### 1.2 Semear o que tem semeadora
 
 ```bash
-python manage.py semear_papeis --aplicar              # os 16 papéis e suas permissões
-python manage.py semear_catalogo --aplicar            # os 26 serviços do catálogo
-python manage.py semear_regras_aprovacao --aplicar    # gestor → área → 50k → 300k
+python manage.py semear_papeis --aplicar              # os 17 papéis e suas permissões
 python manage.py importar_organograma docs/exemplos/organograma-inicial.csv --criar-usuarios --aplicar
 python manage.py semear_acessos --aplicar             # senha sorteada + papel por cargo
 python manage.py semear_perfis --aplicar              # um usuário POR PAPEL, para testar
+python manage.py semear_centros_custo --aplicar       # um CentroCusto por código usado na lotação
+python manage.py semear_catalogo --aplicar            # os serviços do catálogo
+python manage.py semear_regras_aprovacao --aplicar    # gestor → 50k → 300k
+python manage.py semear_recursos --aplicar            # salas, veículos, equipamentos
+python manage.py semear_estoque --aplicar             # materiais e saldo inicial
+python manage.py semear_frota --aplicar               # veículos, ligados aos recursos
+python manage.py semear_cursos --aplicar              # NRs e treinamentos
+python manage.py semear_faq --aplicar                 # a base do assistente
 python manage.py reindexar_busca                      # popula o índice da ⌘K
 ```
 
-### 1.2.1 Os 16 perfis de teste — um por papel
+> **`semear_centros_custo` não é enfeite.** Sem ele toda pessoa tem um código de
+> centro de custo e nenhum código existe — e a bandeja de aprovação diz "CC sem
+> orçamento definido" em vez de desenhar a barra tripla. Já foi confundido com
+> defeito da barra.
+
+### 1.2.1 Os 17 perfis de teste — um por papel
 
 O organograma tem gente com nome de gente (`gerente.suporte`, `tecnico.campo`).
 É realista, e é péssimo para testar: para saber quem vê a fila de Compras é
@@ -78,7 +89,8 @@ O `semear_perfis` resolve isso — **o e-mail é a resposta**. Todos com a senha
 | `vendas@icodev.com.br` | Vendas | `ven.*` |
 | `sesmt@icodev.com.br` | SESMT | `hab.*` |
 | `ti@icodev.com.br` | TI | — |
-| `logistica@icodev.com.br` | Logística | — |
+| `logistica@icodev.com.br` | Suprimentos | — |
+| `recepcao@icodev.com.br` | — | — (registra correspondência, e **nada** de estoque) |
 | `operacao@icodev.com.br` | Operação | — |
 | `juridico@icodev.com.br` | Jurídico | — |
 | `marketing@icodev.com.br` | Marketing | — |
@@ -132,19 +144,22 @@ arquivo nem no banco em claro — se perder, o caminho é o `/admin/`.
 
 ### 1.3 O que **não** tem semeadora — e como criar
 
-Três módulos não têm comando de semente. Os dados vêm pelo admin:
+Três coisas não têm comando de semente. **Nenhuma delas precisa do `/admin/`** —
+as três se criam dentro do produto, o que é o ponto: se a única porta fosse o
+admin, quem publica norma ou comunicado precisaria de `is_staff`.
 
-| Falta | Onde criar | Sem isso, a tela mostra |
+| Falta | Onde criar, DENTRO do produto | Sem isso, a tela mostra |
 |---|---|---|
-| Documentos (POP, políticas) | `/admin/workspace/documento/` | acervo vazio |
-| Recursos (salas, veículos) | `/admin/workspace/recurso/` | "nenhum recurso" |
-| Correspondências | a própria tela, com perfil de recepção | fila vazia |
-| Comunicados e notícias | `/admin/workspace/publicacao/` | cards vazios na home |
+| Documentos (POP, políticas) | Documentação › Acervo normativo › Novo documento, como `rh@` | acervo vazio |
+| Comunicados e notícias | Comunicados › Escrever, como `rh@` ou `diretoria@` | cards vazios na home |
+| Correspondências | a própria tela, como `recepcao@` | fila vazia |
 
-> ⚠️ **Isto é uma lacuna real, não uma pegadinha do guia.** Não existe
-> `semear_workspace`, então cada QA monta a massa à mão e testa contra dados
-> diferentes. Se isso atrapalhar, peça o comando — é meia hora de trabalho e
-> torna o ambiente reproduzível.
+Recursos (salas, veículos) **têm** semeadora desde a onda de reservas:
+`semear_recursos --aplicar`.
+
+> ⚠️ **A lacuna é real, e é menor do que já foi.** Sem semeadora, cada QA monta
+> a massa à mão e testa contra dados diferentes. Se atrapalhar, peça o comando —
+> é meia hora de trabalho e torna o ambiente reproduzível.
 
 ### 1.4 Como testar as três camadas de permissão
 
@@ -334,8 +349,9 @@ que exige você hoje*, *o que a empresa está dizendo*, *para onde você vai*.
 - Logado: diz "Olá, `<primeiro nome>`." — **só o primeiro nome**.
 - A data: `"Sexta-feira, 7 de agosto"`. Uma maiúscula só, no começo. Se vier
   "Sexta-Feira, 7 De Agosto" ou "Agosto", é defeito de locale.
-- O cartão "Pedir um serviço" promete um número concreto ("26 serviços"). Confira
-  que bate com `ItemCatalogo` ativos.
+- O cartão "Pedir um serviço" promete um número concreto. Confira que bate com
+  `ItemCatalogo` ativos — o número sai do banco, e um guia que o repete aqui
+  passa a mentir na primeira vez que alguém desativa um item.
 - O cartão **"Esperando você"** só aparece para quem tem aprovação pendente.
   Colaborador comum não deve vê-lo. Card de aprovação sempre visível e sempre
   zerado ensina o aprovador a ignorá-lo.
@@ -481,7 +497,7 @@ aprovação parada em papel sem dono, correspondência recebida.
 
 ### 3.5 Catálogo de serviços — `/workspace/servicos/`
 
-**Para que serve.** Os 26 serviços que a empresa presta ao próprio colaborador,
+**Para que serve.** Os serviços que a empresa presta ao próprio colaborador,
 agrupados por **intenção** — não por departamento.
 
 **Quando é útil.** "Preciso de alguma coisa da empresa e não sei com quem falar."
@@ -1375,7 +1391,7 @@ Para o outro lado, refaça com uma compra de **R$ 1.160**: a tela pede a conta
 | Habilitações / certificações | O modelo vive no iConnect **Platform** (`fsm.Skill`), com **zero registros**. Não é módulo do Workspace. |
 | Analytics pessoal | Decisão tomada (visível **só para a própria pessoa**, escopo `proprio`), não implementada. |
 | Integração com M365 / HRIS | Suíte definida, integração não construída. |
-| `semear_workspace` | Não existe. Documentos, recursos e correspondências entram pelo admin (ver 1.3). |
+| `semear_workspace` | Não existe. Documentos, comunicados e correspondências se criam dentro do produto (ver 1.3); recursos têm `semear_recursos`. |
 | Monitor de rede (viabilidade do módulo TI) | Pergunta aberta ao dono do produto. |
 | 14 dos 24 módulos previstos | Marcados "Em breve" de propósito — ver 3.10. |
 

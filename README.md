@@ -48,16 +48,36 @@ pip install -r requirements-dev.txt
 python manage.py migrate
 python manage.py createsuperuser          # pede e-mail e senha, não username
 
-# Massa mínima para as telas terem o que mostrar
+# Massa mínima para as telas terem o que mostrar.
+# A ORDEM importa: o resto pendura no organograma.
 python manage.py semear_papeis --aplicar
-python manage.py semear_catalogo --aplicar
-python manage.py semear_regras_aprovacao --aplicar
 python manage.py importar_organograma docs/exemplos/organograma-inicial.csv \
     --criar-usuarios --aplicar
+python manage.py semear_acessos --aplicar          # dá papel a quem entrou no organograma
+python manage.py semear_centros_custo --aplicar    # um CentroCusto por código usado na lotação
+python manage.py semear_catalogo --aplicar
+python manage.py semear_regras_aprovacao --aplicar
+python manage.py semear_recursos --aplicar         # salas, veículos, equipamentos
 python manage.py reindexar_busca
 
 python manage.py runserver
 ```
+
+**Para testar sem decorar quem é quem**, `python manage.py semear_perfis --aplicar`
+cria **um usuário por papel, com o nome do papel** — `financeiro@icodev.com.br`
+atende a fila do Financeiro, `colaborador@icodev.com.br` não atende nada e é
+contra ele que se mede se o produto esconde o que deve. Senha de todos:
+`workspace123`. A lista completa está no [guia de QA](docs/GUIA_QA_WORKSPACE.md).
+
+> `semear_acessos` não é opcional. Sem ele o organograma entra e **ninguém tem
+> papel** — todo mundo vira colaborador comum, nenhuma fila abre e nenhuma
+> bandeja recebe. `semear_centros_custo` também muda comportamento: sem ele
+> toda pessoa tem um código de centro de custo e nenhum código existe, e a
+> bandeja de aprovação diz "CC sem orçamento definido" em vez de desenhar a
+> barra.
+
+A sequência completa — incluindo estoque, frota, cursos e FAQ — está em
+[Operação § 13.1](docs/EXEC_13_OPERACAO.md).
 
 Abra <http://127.0.0.1:8000/workspace/>. **O Workspace é aberto** para tudo que
 é institucional — o hub, a busca, o catálogo, a documentação, a agenda das
@@ -69,8 +89,11 @@ cancelar, confirmar leitura, baixar anexo.
 Todos os comandos `semear_*` rodam em **simulação por padrão**: sem `--aplicar`
 eles só relatam o que fariam.
 
-> **Falta massa para três módulos.** Documentação, Reservas e Correspondências
-> não têm semeadora — os dados entram pelo `/admin/`. Ver a seção 1.3 do
+> **Falta massa para três coisas.** Documentação, Correspondências e
+> Comunicados/Notícias não têm semeadora. Documentos e comunicados se criam
+> **dentro do produto** (Documentação › Acervo normativo, e Comunicados);
+> correspondência se cria na própria tela, com o perfil `recepcao@`. Reservas
+> **tem** semeadora (`semear_recursos`). Ver a seção 1.3 do
 > [guia de QA](docs/GUIA_QA_WORKSPACE.md).
 
 ---
@@ -103,8 +126,9 @@ casa, que era o ponto de existir um contrato.
 
 | O que se estranha | Por quê |
 |---|---|
-| A cadeia de aprovação tem um degrau de ÁREA | Depois do gestor direto, antes da diretoria: o R.H. revisa o que é de R.H., o Financeiro o que é dinheiro. São perguntas diferentes — o gestor sabe se a equipe aguenta a ausência; o R.H. sabe se a pessoa tem saldo e se o período é legal. A regra casa por PREFIXO (`rh.` pega `rh.ferias` e o item que nascer amanhã). |
-| O pedido tem TRÊS etapas, não duas | Pedir → aprovar → **atender**. A fila de atendimento (`/workspace/fila/`) é onde o pedido aprovado vira entregue, e é ela que alimenta o prazo REAL do catálogo: sem conclusões, o card mostraria "estimado" para sempre. |
+| O pedido tem TRÊS etapas, não duas | Pedir → aprovar → **atender**. A fila (`/workspace/fila/`) é onde o pedido aprovado vira entregue, e é ela que alimenta o prazo REAL do catálogo: sem conclusões, o card mostraria "estimado" para sempre. |
+| A área NÃO aprova o que ela mesma vai executar | Existiu um degrau de aprovação por área entre o gestor e a fila, e ele saiu em 20/08/2026. Com ele, a área tocava o mesmo pedido duas vezes — aprovava na bandeja e depois executava na fila —, e quem pediu via "aguardando aprovação" **depois** de o gestor já ter aprovado. A revisão da área não sumiu: ela é a fila, onde quem atende conclui ou devolve com o motivo. |
+| Devolver não é reprovar, e tem volta | Reprovar encerra. Devolver diz "não dá para atender assim": o pedido volta para quem pediu **editável**, com o motivo à vista no formulário, e o botão *Enviar solicitação* promove a MESMA linha — mesmo número, mesmos anexos, mesma conversa. A cadeia é refeita (o gestor aprovou um texto que mudou), mas o relógio do prazo **não** volta — senão devolver viraria o jeito de limpar o próprio atraso. |
 | O Workspace abre sem login | Decisão de produto: quem está na rede usa o hub, o catálogo, a documentação, a agenda das salas e **o formulário de qualquer serviço** sem barreira de autenticação. |
 | …mas "Meu dia", "Minhas solicitações" e a bandeja pedem | O que é **de uma pessoa** não é institucional: o dia dela, os pedidos dela, a fila que espera a decisão dela, a correspondência dela. Sem sessão o produto assume a primeira pessoa do organograma, e essas telas mostrariam a vida dela a quem passasse pela URL. |
 | …e enviar qualquer coisa também | **Assinar em nome de alguém** exige identidade: enviar pedido, aprovar, acertar, cancelar, marcar reserva, confirmar leitura, baixar anexo. Sempre no envio, nunca na consulta — quando o mesmo endereço faz as duas coisas, a fronteira passa entre o GET e o POST. A tela `/entrar/` existe só para isso: nenhum link leva até ela. |
@@ -120,7 +144,7 @@ casa, que era o ponto de existir um contrato.
 ## Testes
 
 ```bash
-python -m pytest                          # 1.172 testes, cobertura por app
+python -m pytest                          # 2.442 testes hoje, cobertura por app
 python scripts/check_coverage_ratchet.py  # os pisos, que só sobem
 ```
 
@@ -149,6 +173,7 @@ justificativa no PR.
 
 | Documento | O que responde |
 |---|---|
+| [`.env.example`](.env.example) | Todas as variáveis de ambiente, o que cada uma protege e quais são obrigatórias em produção |
 | [Guia de QA](docs/GUIA_QA_WORKSPACE.md) | O contrato de cada tela: para que serve, quando é útil, o que é defeito e o que é decisão |
 | [Blueprint](docs/BLUEPRINT_ICONNECT_WORKSPACE.md) | A visão do produto |
 | [EXEC 01–10](docs/) | As dez etapas de planejamento, da arquitetura ao reposicionamento |
