@@ -1346,6 +1346,70 @@ destaque, e a idade passando do limite declarado pela fonte.
 
 ---
 
+### 3.17 Cargas de fontes externas — sem tela, por enquanto
+
+**Para que serve.** Trazer para dentro o que o Workspace não é dono: resultado
+financeiro e folha do Sankhya, projetos do monday, contratos e satisfação do
+Platform, e o que vier por planilha.
+
+**Onde fica a tela.** Não fica. Esta onda é a espinha; a tela de resultados e a
+tela irmã de fontes vêm na próxima. Até lá, o que dá para conferir é a linha de
+comando, o `/admin/` e — o mais importante — **o carimbo das quatro faixas de
+números**, que muda sozinho quando uma fonte passa a carregar.
+
+**Como testar sem nenhuma credencial:**
+
+```bash
+python manage.py semear_fontes --aplicar
+python manage.py carregar_fonte sankhya            # simulação
+```
+
+Sem `SANKHYA_*` no ambiente, a saída diz **"não está configurada"** e o status
+fica `falha`. Isso é o **comportamento correto**, não um defeito: rodar sem o ERP
+configurado é estado normal em desenvolvimento. Se aparecer traceback, abra bug.
+
+**O teste que mais vale, e ele não precisa de API nenhuma:**
+
+```bash
+mkdir -p /tmp/cargas
+printf 'chave_externa,codigo,nome_cliente,servico,centro_custo,valor_mensal\next-1,C-100,Cliente Fictício,cftv,1042,12000\n' > /tmp/cargas/contrato.csv
+CARGAS_CSV_DIR=/tmp/cargas python manage.py carregar_fonte csv --aplicar
+CARGAS_CSV_DIR=/tmp/cargas python manage.py carregar_fonte csv --aplicar   # de novo
+```
+
+A segunda passada tem de dizer **`ignorados 1`** e `criados 0`. Se vier
+`atualizados 1`, a idempotência quebrou — e o sintoma na tela seria o espelho
+inteiro dizendo "há 2 min" sem nada realmente novo. **Abra bug.**
+
+**O que mais testar:**
+
+- **Simulação é o padrão.** `carregar_fonte csv` sem `--aplicar` relata o que
+  faria e **não grava**. A `ExecucaoCarga` da simulação aparece no `/admin/`
+  marcada — e não pode virar carimbo de frescor em tela nenhuma.
+- **Linha ruim não derruba o arquivo.** Tire o `chave_externa` de uma linha do
+  CSV e deixe as outras: ela conta em `rejeitados` e as demais entram.
+- **O `/admin/` do espelho é somente leitura.** Em *Contratos*, *Competências*,
+  *Projetos*: **não pode** haver botão de adicionar, salvar nem excluir. Se
+  houver, abra bug — editar ali cria uma segunda verdade que a próxima carga
+  desfaz em silêncio.
+- **Fonte desativada não carrega.** Desative o monday no `/admin/` e rode
+  `carregar_fonte monday`: tem de recusar. É o único freio de quem opera às três
+  da manhã, e `semear_fontes --aplicar` **não pode reativá-la**.
+- **O carimbo muda sozinho.** Com uma carga bem-sucedida registrada para uma
+  fonte, o carimbo daquela faixa deixa de dizer "sem registro de carga" — sem
+  ninguém tocar em template. É o contrato da onda anterior sendo cumprido.
+
+**Sobre dado pessoal:** o espelho **não tem** campo de CPF, e-mail ou nome de
+quem respondeu a pesquisa. O conector do Platform tem uma lista explícita de
+campos recusados. Se algum aparecer numa tela ou numa exportação, é achado de
+segurança, não de produto.
+
+**O que ainda não dá para testar:** as três APIs de verdade. Faltam
+`MONDAY_TOKEN`, as credenciais do Sankhya e as rotas de integração do Platform —
+ver [EXEC 16 § 16.7](EXEC_16_INGESTAO.md).
+
+---
+
 ## 4. Matriz perfil × tela
 
 Use como plano de cobertura. **A coluna "Anônimo" é a mais esquecida e a que mais

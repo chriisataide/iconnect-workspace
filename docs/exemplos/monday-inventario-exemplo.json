@@ -1,0 +1,73 @@
+[
+  {
+    "id": "1000000001",
+    "name": "Projetos — Operações",
+    "description": "AMOSTRA ANONIMIZADA. Nenhum id, nome de cliente ou de colaborador aqui é real.",
+    "board_kind": "public",
+    "state": "active",
+    "items_count": 2,
+    "updated_at": "2026-08-30T18:12:04Z",
+    "workspace": { "id": "900001", "name": "Operações" },
+    "groups": [
+      { "id": "grupo_ativos", "title": "Em execução" },
+      { "id": "grupo_espera", "title": "Aguardando cliente" }
+    ],
+    "columns": [
+      { "id": "name", "title": "Projeto", "type": "name", "description": null, "settings_str": "{}" },
+      { "id": "status", "title": "Situação", "type": "status", "description": null,
+        "settings_str": "{\"labels\":{\"0\":\"A fazer\",\"1\":\"Em andamento\",\"2\":\"Concluído\",\"5\":\"Bloqueado\"}}" },
+      { "id": "person", "title": "Responsável", "type": "people", "description": null, "settings_str": "{}" },
+      { "id": "date4", "title": "Prazo", "type": "date", "description": null, "settings_str": "{}" },
+      { "id": "numeros", "title": "% concluído", "type": "numbers", "description": null, "settings_str": "{}" },
+      { "id": "conexao_contrato", "title": "Contrato", "type": "board_relation", "description": null,
+        "settings_str": "{\"boardIds\":[1000000009]}" },
+      { "id": "espelho_cliente", "title": "Cliente", "type": "mirror", "description": null,
+        "settings_str": "{\"relation_column\":{\"conexao_contrato\":true}}" },
+      { "id": "texto_bloqueio", "title": "Motivo do bloqueio", "type": "text", "description": null, "settings_str": "{}" }
+    ],
+    "_amostra": {
+      "id": "2000000001",
+      "name": "Troca de CFTV — Unidade Fictícia I",
+      "group": { "title": "Em execução" },
+      "column_values": [
+        { "id": "status", "type": "status", "text": "Em andamento", "value": "{\"index\":1}", "index": 1, "label": "Em andamento" },
+        { "id": "person", "type": "people", "text": "Pessoa Exemplo A", "value": "{\"personsAndTeams\":[{\"id\":111,\"kind\":\"person\"}]}" },
+        { "id": "date4", "type": "date", "text": "2026-10-15", "value": "{\"date\":\"2026-10-15\"}", "date": "2026-10-15" },
+        { "id": "numeros", "type": "numbers", "text": "45", "value": "\"45\"" },
+        { "id": "conexao_contrato", "type": "board_relation", "text": null, "value": "{\"linkedPulseIds\":[{\"linkedPulseId\":3000000007}]}", "linked_item_ids": ["3000000007"] },
+        { "id": "espelho_cliente", "type": "mirror", "text": "", "value": null },
+        { "id": "texto_bloqueio", "type": "text", "text": "", "value": null }
+      ]
+    }
+  },
+  {
+    "id": "1000000002",
+    "name": "Marcos — Implantação",
+    "description": null,
+    "board_kind": "public",
+    "state": "active",
+    "items_count": 1,
+    "updated_at": "2026-08-29T09:41:00Z",
+    "workspace": { "id": "900001", "name": "Operações" },
+    "groups": [{ "id": "grupo_marcos", "title": "Marcos" }],
+    "columns": [
+      { "id": "name", "title": "Marco", "type": "name", "description": null, "settings_str": "{}" },
+      { "id": "conexao_projeto", "title": "Projeto", "type": "board_relation", "description": null,
+        "settings_str": "{\"boardIds\":[1000000001]}" },
+      { "id": "date_prazo", "title": "Prazo", "type": "date", "description": null, "settings_str": "{}" },
+      { "id": "date_conclusao", "title": "Concluído em", "type": "date", "description": null, "settings_str": "{}" },
+      { "id": "person", "title": "Responsável", "type": "people", "description": null, "settings_str": "{}" }
+    ],
+    "_amostra": {
+      "id": "2000000009",
+      "name": "Homologação com o cliente",
+      "group": { "title": "Marcos" },
+      "column_values": [
+        { "id": "conexao_projeto", "type": "board_relation", "text": null, "value": "{\"linkedPulseIds\":[{\"linkedPulseId\":2000000001}]}", "linked_item_ids": ["2000000001"] },
+        { "id": "date_prazo", "type": "date", "text": "2026-09-30", "value": "{\"date\":\"2026-09-30\"}", "date": "2026-09-30" },
+        { "id": "date_conclusao", "type": "date", "text": "", "value": null, "date": null },
+        { "id": "person", "type": "people", "text": "Pessoa Exemplo B", "value": "{\"personsAndTeams\":[{\"id\":222,\"kind\":\"person\"}]}" }
+      ]
+    }
+  }
+]

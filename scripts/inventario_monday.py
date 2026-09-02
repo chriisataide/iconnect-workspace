@@ -18,9 +18,18 @@ O token sai de: monday → avatar → Developers → My Access Tokens.
 Use um token de usuário de SERVIÇO com acesso somente leitura, nunca o seu.
 
 NOTA SOBRE A API
-O endpoint e o cabeçalho de versão abaixo refletem a API v2 do monday. Se a
-chamada falhar com erro de versão, confira o valor corrente em
-https://developer.monday.com/api-reference/ e ajuste API_VERSION.
+Endpoint e cabeçalho de versão conferidos na documentação vigente em 01/09/2026:
+<https://developer.monday.com/api-reference/docs/api-versioning>. Hoje `2026-07`
+é a estável; `2026-04` está em manutenção e `2026-10` é release candidate.
+
+A versão é FIXADA de propósito. Sem o cabeçalho, a conta cai na versão padrão do
+dia — e o dia em que o monday promover a release candidate, este script muda de
+comportamento sozinho, num domingo.
+
+SEM DEPENDÊNCIA NOVA
+Usa `urllib` da biblioteca padrão, e não `requests`. Este repositório não tem
+`requests` em nenhum `requirements`, e um script que só roda depois de um
+`pip install` avulso é um script que ninguém roda.
 """
 
 from __future__ import annotations
@@ -32,10 +41,11 @@ import sys
 import time
 from collections import Counter
 
-import requests
+import urllib.error
+import urllib.request
 
 ENDPOINT = "https://api.monday.com/v2"
-API_VERSION = "2024-10"
+API_VERSION = "2026-07"
 PAGINA = 25          # boards por página; monday cobra complexidade por chamada
 PAUSA = 0.6          # segundo entre chamadas, para não bater no rate limit
 
@@ -77,18 +87,24 @@ query ($board: ID!) {
 
 
 def consultar(token: str, query: str, variables: dict) -> dict:
-    resposta = requests.post(
+    requisicao = urllib.request.Request(
         ENDPOINT,
-        json={"query": query, "variables": variables},
+        data=json.dumps({"query": query, "variables": variables}).encode(),
         headers={
             "Authorization": token,
             "API-Version": API_VERSION,
             "Content-Type": "application/json",
+            "Accept": "application/json",
         },
-        timeout=60,
+        method="POST",
     )
-    resposta.raise_for_status()
-    corpo = resposta.json()
+    try:
+        with urllib.request.urlopen(requisicao, timeout=60) as resposta:
+            corpo = json.loads(resposta.read().decode("utf-8"))
+    except urllib.error.HTTPError as erro:
+        # Sem imprimir cabeçalho: o token está lá.
+        detalhe = erro.read().decode("utf-8", "replace")[:500]
+        raise RuntimeError(f"HTTP {erro.code}: {detalhe}") from erro
     if "errors" in corpo:
         raise RuntimeError(json.dumps(corpo["errors"], ensure_ascii=False, indent=2))
     return corpo["data"]

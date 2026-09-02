@@ -7,7 +7,7 @@ requires-python = ">=3.13"
 [tool.pytest.ini_options]
 DJANGO_SETTINGS_MODULE = "iconnect_workspace.settings.dev"
 python_files = ["test_*.py"]
-testpaths = ["workspace", "identidade", "contas", "financas"]
+testpaths = ["workspace", "identidade", "contas", "financas", "resultados", "cargas"]
 
 # `--cov-fail-under` global existe só como rede: o gate que vale é o piso POR APP
 # em [tool.coverage_ratchet], verificado por scripts/check_coverage_ratchet.py.
@@ -16,6 +16,7 @@ testpaths = ["workspace", "identidade", "contas", "financas"]
 addopts = """
     -v --tb=short --strict-markers
     --cov=workspace --cov=identidade --cov=contas --cov=financas
+    --cov=resultados --cov=cargas
     --cov-report=term-missing --cov-report=json:coverage.json
     --cov-fail-under=90.0
     --junitxml=junit.xml
@@ -55,6 +56,14 @@ workspace = 98.0   # medido 98.69 · WKS — superfície + contrato de provider
 # que segurar cobertura custa pouco.
 contas = 97.0      # medido 97.37 · modelo de usuário, manager e admin
 financas = 99.0    # medido 100.00 · centro de custo, lançamento, provider
+
+# Apps da onda de ingestão. Nascem com piso alto de propósito: a lição fixada
+# lá em cima é que cobertura perdida não se recupera, e é AGORA que segurá-la
+# custa pouco. Aqui custou meia hora — os buracos eram o parsing de coluna e a
+# saída do comando, e os testes que os fecharam são os que provam que uma data
+# lida ao contrário não põe o resultado de abril em março.
+resultados = 98.0  # medido 99.23 · espelho, layer, providers
+cargas = 97.0      # medido 97.83 · conectores, carregador, transporte
 
 # 2026-08-17 — pisos elevados de 95 para perto do medido, que é o que o ratchet
 # existe para fazer: enquanto o piso ficou 3,7 pontos abaixo do real, ele deixava

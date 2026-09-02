@@ -33,7 +33,16 @@ import pytest
 RAIZ = Path(__file__).resolve().parent.parent.parent
 
 # Apps de domínio deste projeto: podem falar com o contrato, não com a superfície.
-DOMINIOS = ("financas",)
+#
+# `resultados` é o espelho do que vem de fora; `cargas` é quem traz. Os dois
+# entraram na onda de ingestão, e a direção que eles adicionam é:
+#
+#     cargas ──► resultados ──implementa──► workspace.providers ◄── workspace
+#
+# `cargas` PODE importar `resultados` — é para lá que ele escreve. O que nenhum
+# dos dois pode é importar a superfície, e o que o `workspace` não pode é
+# conhecer qualquer um dos dois.
+DOMINIOS = ("financas", "resultados", "cargas")
 
 # O único subpacote de `workspace` que um domínio pode importar.
 CONTRATO_PERMITIDO = "workspace.providers"
@@ -52,7 +61,10 @@ APPS_DO_ICONNECT = (
 )
 
 # Tudo o que é nosso, para varrer de uma vez.
-NOSSOS_APPS = ("workspace", "identidade", "contas", "financas", "iconnect_workspace")
+NOSSOS_APPS = (
+    "workspace", "identidade", "contas", "financas", "resultados", "cargas",
+    "iconnect_workspace",
+)
 
 
 def _arquivos_python(app: str) -> list[Path]:
@@ -94,8 +106,30 @@ def _de_workspace(modulos: list[str]) -> list[str]:
 
 @pytest.mark.parametrize("app", DOMINIOS)
 def test_dominio_nao_importa_superficie_do_workspace(app):
+    """A regra vale para o código que RODA, e não para o que o verifica.
+
+    `tests/` fica de fora, e é uma exceção deliberada — anotada aqui porque
+    afrouxar um teste de arquitetura sem dizer por quê é como a regra morre.
+
+    O que esta trava protege é a direção em PRODUÇÃO: um domínio que importasse
+    `workspace.services` passaria a quebrar quando a superfície mudasse. Um
+    teste não embarca dependência nenhuma no domínio — e há testes que só
+    existem porque atravessam a fronteira de propósito:
+
+    - `cargas/tests/test_transporte.py` exercita os DOIS transportes do
+      repositório para afirmar que nenhum registra credencial. A garantia mora
+      num teste justamente porque os dois transportes não podem dividir código.
+    - `cargas/tests/test_frescor.py` prova que registrar o provider muda o
+      carimbo que a tela mostra — o que exige ver os dois lados.
+
+    A trava do iConnect (`test_nenhum_arquivo_importa_app_do_iconnect`) CONTINUA
+    varrendo os testes, e de propósito: lá o problema é um módulo que não existe
+    neste repositório, e foi num teste que sobrou a última referência.
+    """
     violacoes = []
     for caminho in _arquivos_python(app):
+        if "tests" in caminho.parts:
+            continue
         for modulo in _de_workspace(_importados(caminho)):
             permitido = modulo == CONTRATO_PERMITIDO or modulo.startswith(
                 CONTRATO_PERMITIDO + "."
@@ -148,6 +182,60 @@ def test_workspace_nao_importa_app_de_dominio():
     assert not violacoes, (
         "Workspace importando app de domínio diretamente — use o provider.\n  "
         + "\n  ".join(violacoes)
+    )
+
+
+def test_o_espelho_nao_conhece_quem_carrega():
+    """A direção da ingestão, no sentido que costuma inverter.
+
+    `cargas` escreve em `resultados`. O caminho de volta é o que tenta nascer
+    sozinho: basta alguém querer uma FK de `Contrato` para `FonteDados` — e é
+    o pedido mais natural do mundo, porque procedência com integridade
+    referencial é melhor que procedência sem.
+
+    O preço seria um ciclo entre dois apps, e ciclo entre apps é como o grafo de
+    migração vira um problema de fim de semana. `resultados` guarda `fonte` e
+    `carga_id` soltos, pelo mesmo motivo que `EntradaIndice` guarda `dominio` e
+    `origem_id`: o espelho sobrevive à origem.
+    """
+    violacoes = []
+    for caminho in _arquivos_python("resultados"):
+        if "tests" in caminho.parts:
+            continue
+        for modulo in _importados(caminho):
+            if modulo.split(".")[0] == "cargas":
+                violacoes.append(f"{caminho.relative_to(RAIZ)}: importa {modulo}")
+
+    assert not violacoes, (
+        "O espelho importando quem carrega — a direção é cargas → resultados.\n  "
+        + "\n  ".join(violacoes)
+    )
+
+
+def test_os_conectores_nao_conhecem_a_superficie():
+    """Nenhum conector importa `workspace.integracoes`.
+
+    O transporte do iConnect é tentador — ele já existe, já tem retry e já
+    trata erro. E é superfície: roda dentro de uma requisição, com timeout de
+    4 s e recusando repetir `POST`. A API do monday é GraphQL, onde toda
+    LEITURA é um `POST`; passar por lá quebraria a regra dele ou o conector.
+
+    Ver `cargas/transporte.py` para a tabela dos requisitos opostos.
+    """
+    violacoes = []
+    for caminho in _arquivos_python("cargas"):
+        if "tests" in caminho.parts:
+            continue
+        for modulo in _de_workspace(_importados(caminho)):
+            permitido = modulo == CONTRATO_PERMITIDO or modulo.startswith(
+                CONTRATO_PERMITIDO + "."
+            )
+            if not permitido:
+                violacoes.append(f"{caminho.relative_to(RAIZ)}: importa {modulo}")
+
+    assert not violacoes, (
+        "Conector importando a superfície do Workspace.\n"
+        f"Permitido apenas `{CONTRATO_PERMITIDO}`.\n  " + "\n  ".join(violacoes)
     )
 
 

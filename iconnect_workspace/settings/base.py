@@ -71,6 +71,17 @@ INSTALLED_APPS = [
     # e se registra no `ready()` — é o que mantém a barra tripla da bandeja de
     # aprovação viva depois que `CentroCusto` deixou de morar no iConnect.
     "financas",
+    # Espelho do que vem de fora. NÃO tem view, nem formulário, nem tela: o
+    # dado nasce onde é operado. Implementa `workspace.providers.resultados`.
+    "resultados",
+    # Quem traz o dado. Conhece Sankhya, monday e Platform; o Workspace não
+    # conhece nenhum dos três. A direção é cargas → resultados → contrato.
+    #
+    # NÃO se chama `integracoes` porque `workspace/integracoes/` já existe e
+    # faz outra coisa — é o link com a Platform, dentro da requisição do
+    # usuário. Dois pacotes com o mesmo nome é como um import errado passa
+    # despercebido numa revisão.
+    "cargas",
 ]
 
 # A conta nasce do SSO (ADR-013). O identificador é o e-mail corporativo, e não
@@ -288,6 +299,46 @@ ICONNECT_TIMEOUT = float(_env("ICONNECT_TIMEOUT", "4"))
 # lados, o `sso-exchange` exige o header `X-Workspace-Secret`. Vazio, a checagem
 # é pulada do outro lado — é o que permite o rollout independente.
 WORKSPACE_SHARED_SECRET = _env("WORKSPACE_SHARED_SECRET", "")
+
+# ── Cargas de fontes externas ───────────────────────────────────────
+#
+# TODAS vazias por padrão, e é isso que mantém o produto instalável sem nenhuma
+# integração: `conector.disponivel()` é falso, a carga registra "não
+# configurada" — que é estado normal, não falha — e o carimbo do bloco diz
+# "sem registro de carga" em vez de inventar um instante.
+#
+# Nenhum segredo tem valor padrão. Um default de conveniência num campo de
+# credencial é como uma chave de desenvolvimento chega em produção.
+
+# Sankhya Om — OAuth2 `client_credentials` no Gateway (conferido em 01/09/2026).
+# `SANKHYA_TOKEN` é o X-Token gerado em Configurações Gateway do próprio ERP; o
+# par client_id/secret sai do Portal do Desenvolvedor.
+SANKHYA_BASE_URL = _env("SANKHYA_BASE_URL", "").rstrip("/")
+SANKHYA_CLIENT_ID = _env("SANKHYA_CLIENT_ID", "")
+SANKHYA_CLIENT_SECRET = _env("SANKHYA_CLIENT_SECRET", "")
+SANKHYA_TOKEN = _env("SANKHYA_TOKEN", "")
+
+# Quais entidades e campos ler do Sankhya. Depende da IMPLANTAÇÃO — `rootEntity`
+# é o nome da view naquele ambiente — e por isso é configuração, e não código.
+# Ver `cargas/conectores/sankhya.py::CONSULTAS` para o formato e o padrão.
+SANKHYA_CONSULTAS: dict | None = None
+
+# monday.com — token de usuário de SERVIÇO, somente leitura. Nunca o pessoal de
+# alguém: token pessoal enxerga tudo o que a pessoa enxerga, e sai da empresa
+# junto com ela.
+MONDAY_TOKEN = _env("MONDAY_TOKEN", "")
+
+# Ids de board e de coluna da conta da ADB. São números daquela conta e não têm
+# valor padrão possível — o levantamento sai de `scripts/inventario_monday.py`.
+MONDAY_BOARDS: dict | None = None
+
+# Rotas da API do Platform. `None` usa o padrão do conector; existe para o dia
+# em que o caminho versionar sem o conteúdo versionar junto.
+PLATFORM_ROTAS: dict | None = None
+
+# Diretório dos CSVs canônicos. É por aqui que entra a carga manual — e a massa
+# de teste, que usa o mesmo caminho de qualquer outra fonte.
+CARGAS_CSV_DIR = _env("CARGAS_CSV_DIR", "")
 
 # ── Financeiro ──────────────────────────────────────────────────────
 

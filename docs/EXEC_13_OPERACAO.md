@@ -44,6 +44,11 @@ python manage.py semear_estoque           --aplicar   # materiais e saldo inicia
 python manage.py semear_frota             --aplicar   # veículos, ligados aos recursos
 python manage.py semear_cursos            --aplicar   # NRs e treinamentos
 python manage.py semear_faq               --aplicar   # a base do assistente
+
+# 3 · INGESTÃO. Sem `semear_fontes`, o carregador RECUSA começar — de propósito:
+#     carga sem registro de fonte é dado sem procedência.
+python manage.py semear_fontes            --aplicar   # as 4 fontes e a precedência
+
 python manage.py reindexar_busca                      # o índice
 
 python manage.py runserver
@@ -66,6 +71,51 @@ Convive com o organograma de propósito: o organograma prova que o produto funci
 `semear_regras_aprovacao --aplicar` **desativa** o degrau de revisão de área (ordem 15), retirado da cadeia em 20/08/2026. Ele não é apagado: `EtapaAprovacao` de todo pedido que passou por ele aponta para aquela linha, e apagá-la levaria junto a explicação de por que aquele pedido teve um degrau a mais.
 
 Efeito prático depois de rodar: um pedido aprovado pelo gestor passa a cair **direto na fila da área**, em vez de esperar uma segunda aprovação da mesma área. Pedidos que já estavam parados naquele degrau continuam lá — a etapa deles já existe — e seguem normalmente quando alguém a decidir.
+
+### As cargas de fontes externas
+
+`semear_fontes --aplicar` cadastra Sankhya, monday, Platform e a carga por
+arquivo, mais as quatro regras de precedência entre elas. Ele **não** conecta
+nada: sem credencial no ambiente, cada conector responde `disponivel() == False`
+e a carga registra *"não está configurada"* — que é estado normal, e não falha.
+
+Ele **nunca reativa** uma fonte desligada à mão. Desativar é o freio de quem
+opera, quase sempre no meio de um incidente; a semeadora roda no deploy
+seguinte, que é exatamente quando desfazer isso seria pior.
+
+Rodar uma carga:
+
+```bash
+python manage.py carregar_fonte sankhya --janela 2026-08            # simula
+python manage.py carregar_fonte sankhya --janela 2026-08 --aplicar  # grava
+```
+
+Simulação é o padrão, como em todo comando daqui — e a `ExecucaoCarga` da
+simulação nasce marcada, para nunca virar carimbo de frescor na tela.
+
+O número a olhar depois de rodar **duas vezes** é `ignorados`: ele conta o que
+chegou com conteúdo idêntico e não foi regravado. Se ele vier zero na segunda
+passada, a idempotência quebrou — e o sintoma na tela seria o espelho inteiro
+dizendo "há 2 min" sem nada realmente novo.
+
+#### Cadência sugerida por fonte
+
+| Fonte | Cadência | Idade que vira alerta | Comando |
+|---|---|---|---|
+| Sankhya | diária, madrugada | 30 h | `carregar_fonte sankhya --janela AAAA-MM --aplicar` |
+| monday | a cada 15 min | 2 h | `carregar_fonte monday --aplicar` |
+| Platform | de hora em hora | 6 h | `carregar_fonte iconnect_platform --aplicar` |
+| Arquivo | sob demanda | — | `carregar_fonte csv --aplicar` |
+
+A idade máxima é **declarada pela fonte**, e não uma constante do produto: seis
+horas é velho para o monday e é novo para a folha do Sankhya. Ela vive em
+`FonteDados.idade_maxima_aceitavel` e é editável no `/admin/` — mudar a cadência
+não pode exigir deploy.
+
+> **O agendamento em si continua sem dono.** Estes comandos precisam de cron, e
+> ele ainda não existe — junto com os quatro `avisar_*` que estão pendentes
+> desde a onda de notificações. Enquanto não houver, as cargas rodam à mão e o
+> carimbo da tela diz a verdade sobre isso.
 
 ### Os centros de custo, e por que eles vêm logo depois do organograma
 
