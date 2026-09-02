@@ -227,3 +227,38 @@ def test_todo_estado_de_solicitacao_cabe_em_exatamente_uma_lista():
         for outro in conjuntos[i + 1 :]:
             assert um & outro == set()
     assert set().union(*conjuntos) == set(SituacaoServico)
+
+
+def test_o_produto_passa_no_system_check_do_django():
+    """O `manage.py check` — o gate que 2.874 testes não substituem.
+
+    ## Por que este teste existe
+
+    Ele foi escrito depois de o produto ficar **sem conseguir subir** com a
+    suíte inteira verde. Um `list_editable` apontando para o primeiro campo de
+    `list_display` levantou `admin.E124` no `runserver`, e nenhum dos 2.874
+    testes tocou nisso: eles exercitam views, serviços e models, e o
+    `ModelAdmin` só é validado quando o Django faz o *check* de sistema.
+
+    O sintoma era o pior possível — verde no CI, `SystemCheckError` na máquina
+    de quem ia usar. Descobri porque alguém tentou abrir a tela; sem isso, o
+    defeito iria para produção.
+
+    ## Por que não `--deploy`
+
+    Os checks de deploy (`SECURE_SSL_REDIRECT`, `SESSION_COOKIE_SECURE`) falham
+    de propósito no settings de desenvolvimento, e ligá-los aqui obrigaria a
+    testar contra o settings de produção — que não é o que a suíte roda.
+    Aqueles são cobertos por `test_auditoria_hardening.py`.
+    """
+    from io import StringIO
+
+    from django.core.management import call_command
+
+    saida = StringIO()
+    # `call_command` levanta `SystemCheckError` quando há ERROR; a mensagem
+    # dele já nomeia a classe e o código (`admin.E124`), então não há o que
+    # acrescentar no `assert`.
+    call_command("check", stdout=saida, stderr=saida)
+
+    assert "issues" not in saida.getvalue() or "0 silenced" in saida.getvalue()

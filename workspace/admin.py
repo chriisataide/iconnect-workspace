@@ -486,7 +486,14 @@ class RegraExcecaoAdmin(admin.ModelAdmin):
     aconteceu.
     """
 
-    list_display = ("ordem", "chave", "titulo", "severidade", "escopo_papel",
+    # `chave` PRIMEIRO, e é uma restrição do Django com uma razão boa: o
+    # primeiro campo de `list_display` vira o link para a página de edição, e
+    # por isso não pode ser editável na lista.
+    #
+    # Deixar `ordem` ali obrigaria a escolher entre editar a ordem em massa —
+    # que é o caso de uso real desta tela — e ter um link para abrir a regra.
+    # `chave` é a identidade da regra e o melhor link possível.
+    list_display = ("chave", "ordem", "titulo", "severidade", "escopo_papel",
                     "fonte_requerida", "ativa")
     list_filter = ("ativa", "severidade", "fonte_requerida", "escopo_papel")
     list_editable = ("ativa", "ordem")
