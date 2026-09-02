@@ -33,6 +33,7 @@
   "nada esperando você" — que é falso, e assusta.
 {% endcomment %}
 {% if resumo.total %}
+  {% include "workspace/_carimbo.html" with carimbo=carimbos.fila chave="fila" %}
   <div class="au-kpi-linha">
     <div class="au-kpi">
       <span class="au-kpi-rotulo">{% trans "na fila" %}</span>

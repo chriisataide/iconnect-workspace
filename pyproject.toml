@@ -86,4 +86,11 @@ financas = 99.0    # medido 100.00 · centro de custo, lançamento, provider
 #   fila de atendimento, papéis, histórico, reabertura. Ratchet que não sobe é
 #   ratchet desligado: apagar `test_reabertura.py` inteiro (28 testes) não
 #   reprovaria nada enquanto a folga fosse essa.
-minimo = 1200
+# 1200 → 2400: a mesma lição, de novo e pior. Entre a auditoria de segurança, o
+#   reenvio do pedido devolvido e o endereçamento, a suíte passou de 1.172 para
+#   2.506 testes — e o piso ficou 1.296 abaixo do real. Com essa folga, dava para
+#   apagar `test_auditoria_idor.py`, `test_reenvio.py` e `test_frescor.py`
+#   inteiros e o gate continuaria verde. A folga volta a ser de ~100 testes, que
+#   é o que absorve um arquivo removido de propósito sem esconder um perdido por
+#   acidente.
+minimo = 2400

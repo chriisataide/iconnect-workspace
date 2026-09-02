@@ -1,0 +1,26 @@
+{% load i18n %}
+{% comment %}
+  O CARIMBO DE FRESCOR de um bloco — ver `workspace/services/frescor.py`.
+
+  Uso:
+    {% templatetag openblock %} include "workspace/_carimbo.html"
+       with carimbo=carimbos.panorama chave="panorama" {% templatetag closeblock %}
+
+  `data-carimbo` é o que o teste procura. Atributo e não classe: classe é
+  aparência e alguém a renomeia numa faxina de CSS; o atributo existe para ser
+  encontrado, e renomeá-lo quebra o teste que o exige — que é o ponto.
+{% endcomment %}
+<p class="au-carimbo{% if carimbo.alerta %} au-carimbo--alerta{% endif %}"
+   data-carimbo="{{ chave }}">
+  <svg class="au-icon au-carimbo-icone" aria-hidden="true"><use href="#i-relogio"></use></svg>
+  <span class="au-sr">{% trans "De quando é este número:" %}</span>
+  <span>{{ carimbo.texto }}</span>
+  {% if carimbo.motivo %}
+    {% comment %}
+      O motivo da falha fica ao lado do dado, e não no lugar dele: a última
+      carga boa continua na tela. Zerar o bloco porque a fonte caiu seria dizer
+      que a empresa parou.
+    {% endcomment %}
+    <span class="au-carimbo-motivo">{{ carimbo.motivo }}</span>
+  {% endif %}
+</p>

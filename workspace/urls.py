@@ -10,6 +10,9 @@ urlpatterns = [
     path("", views.home, name="home"),
     path("buscar/", views.buscar_view, name="buscar"),
     path("ajuda/", views.ajuda, name="ajuda"),
+    # O código da tela vira endereço — ver `workspace/enderecamento.py`.
+    # `str` e não `slug`: o código tem ponto, e `slug` não aceita ponto.
+    path("ir/<str:codigo>/", views.ir_para, name="ir"),
     path("assistente/", views.perguntar, name="assistente"),
     path("faq/", views.faq, name="faq"),
     path("faq/nova/", views.faq_editar, name="faq_nova"),

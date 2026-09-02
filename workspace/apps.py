@@ -14,6 +14,14 @@ class WorkspaceConfig(AppConfig):
 
         semear()
 
+        # O endereçamento das telas. Antes de tudo o que fala com o banco, e de
+        # propósito: código duplicado tem de derrubar a subida do processo, e
+        # descobrir isso depois de conectar cinco sinais só torna o rastro mais
+        # difícil de ler.
+        from .enderecamento import semear as semear_enderecamento
+
+        semear_enderecamento()
+
         # Liga orçamento ao motor de aprovação. APR não conhece Compromisso e
         # orçamento não conhece cadeia de aprovação — o sinal é a costura.
         from .services.orcamento import conectar as conectar_orcamento

@@ -126,6 +126,9 @@ casa, que era o ponto de existir um contrato.
 
 | O que se estranha | Por quê |
 |---|---|
+| Cada tela tem um **número** no topo | É endereço, não enfeite. "Abre a 02.2" atravessa e-mail, ata e WhatsApp sem depender de a outra pessoa ter o mesmo menu aberto — e sem colar URL, que quebra quando a rota muda. O número resolve na busca e em `/workspace/ir/02.2/`. Fica no fonte e não no banco: módulo aqui nunca foi dado, e uma tabela criaria a segunda verdade sobre quais telas existem ([ADR-015](docs/EXEC_15_ENDERECAMENTO.md)). |
+| `/workspace/ir/08/` devolve **403**, e não 404 | O redirecionador resolve o código e manda; quem decide acesso é a tela. Se ele autorizasse, existiriam dois lugares onde "quem vê o quê" está escrito, ao lado de `pode()` — e no dia em que discordassem, o produto teria duas respostas para a mesma pergunta ([ADR-016](docs/EXEC_15_ENDERECAMENTO.md)). |
+| Toda faixa de números diz *"Workspace · em tempo real"* | É o carimbo de frescor, e hoje ele diz pouco porque todo número é do próprio Workspace. Ele existe antes dos conectores porque é disciplina: só vale se toda faixa nascer carimbada, e a suíte reprova a que nascer sem. Nenhum template lê o relógio — carimbo fabricado com `now` diz "agora" para dado de ontem ([ADR-017](docs/EXEC_15_ENDERECAMENTO.md)). |
 | O pedido tem TRÊS etapas, não duas | Pedir → aprovar → **atender**. A fila (`/workspace/fila/`) é onde o pedido aprovado vira entregue, e é ela que alimenta o prazo REAL do catálogo: sem conclusões, o card mostraria "estimado" para sempre. |
 | A área NÃO aprova o que ela mesma vai executar | Existiu um degrau de aprovação por área entre o gestor e a fila, e ele saiu em 20/08/2026. Com ele, a área tocava o mesmo pedido duas vezes — aprovava na bandeja e depois executava na fila —, e quem pediu via "aguardando aprovação" **depois** de o gestor já ter aprovado. A revisão da área não sumiu: ela é a fila, onde quem atende conclui ou devolve com o motivo. |
 | Devolver não é reprovar, e tem volta | Reprovar encerra. Devolver diz "não dá para atender assim": o pedido volta para quem pediu **editável**, com o motivo à vista no formulário, e o botão *Enviar solicitação* promove a MESMA linha — mesmo número, mesmos anexos, mesma conversa. A cadeia é refeita (o gestor aprovou um texto que mudou), mas o relógio do prazo **não** volta — senão devolver viraria o jeito de limpar o próprio atraso. |
@@ -144,7 +147,7 @@ casa, que era o ponto de existir um contrato.
 ## Testes
 
 ```bash
-python -m pytest                          # 2.442 testes hoje, cobertura por app
+python -m pytest                          # 2.506 testes hoje, cobertura por app
 python scripts/check_coverage_ratchet.py  # os pisos, que só sobem
 ```
 
@@ -178,6 +181,8 @@ justificativa no PR.
 | [Blueprint](docs/BLUEPRINT_ICONNECT_WORKSPACE.md) | A visão do produto |
 | [EXEC 01–10](docs/) | As dez etapas de planejamento, da arquitetura ao reposicionamento |
 | [EXEC 10](docs/EXEC_10_REPOSICIONAMENTO.md) | Onde "Portal" virou "iConnect Workspace", com os ADRs 010–014 |
+| [Benchmark GPS](docs/BENCHMARK_GPS_LEITURA.md) | A leitura do Portal GPS / GPS 360: o que copiar, o que não copiar e quem é dono de cada dado |
+| [EXEC 15](docs/EXEC_15_ENDERECAMENTO.md) | O código da tela, o carimbo de frescor e os prefixos de busca, com os ADRs 015–017 |
 
 ---
 

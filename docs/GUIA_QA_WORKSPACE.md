@@ -416,6 +416,46 @@ enviado e o palpite não. **Não é bug.**
 sombra ou um espaço vazio à esquerda onde deveria ter lupa, é o CSS da home
 vazando — já aconteceu.
 
+#### 3.2.1 Prefixos e código da tela
+
+Cinco atalhos, anunciados na linha abaixo do campo. A legenda fica **fora** do
+`placeholder` de propósito: placeholder some no primeiro caractere digitado,
+justamente quando a pessoa ainda está decidindo como buscar.
+
+| Digite | Resultado esperado |
+|---|---|
+| `02.2` | **um** resultado, "Aprovações", no grupo *Ir para*. Nada mais junto |
+| `02` | "Serviços". Um resultado só |
+| `77` | busca comum por "77" — código que não existe não é atalho |
+| `s: reembolso` | só o **serviço**. Sem o documento, sem aplicativo, sem ação |
+| `d: reembolso` | só a **política**. Sem o serviço |
+| `#<nº de um pedido seu>` | o seu pedido |
+| `#<nº de um pedido alheio>` | **nada**. O recorte por sujeito continua valendo |
+| `x: reembolso` | busca comum — prefixo desconhecido é texto, não erro |
+| `s:` sozinho | nada. Ainda não é uma busca |
+
+**`p:` é o teste que mais importa aqui.**
+
+- Com `rh@icodev.com.br` (administra papéis): `p: souza` traz **nome, cargo e
+  área**. Se aparecer e-mail, CPF ou centro de custo na linha, **abra bug** — é
+  exatamente a grade que a leitura do benchmark marcou como não copiar.
+- Com `colaborador@icodev.com.br`: `p: souza` faz uma busca **comum**, sem grupo
+  "Pessoas" e **sem aviso nenhum**. Um grupo vazio dizendo "sem resultados"
+  seria defeito, não cortesia: ele contaria que existe um diretório do outro
+  lado da porta.
+- A legenda embaixo do campo **não deve mostrar `p:`** para quem não administra
+  papéis. Atalho anunciado que devolve vazio é pior do que atalho nenhum.
+
+**O código da tela** aparece discreto ao lado da marca, no topo, e é o mesmo que
+funciona na busca e em `/workspace/ir/<código>/`. Confira que a tela aberta e o
+código no topo batem — e que uma rota que **não é lugar** (o formulário de um
+serviço, a página de decidir uma aprovação) **não mostra código nenhum**. A
+lista viva sai do próprio produto:
+
+```bash
+python manage.py shell -c "from workspace import enderecamento as e; [print(t.codigo, t.nome, t.url) for t in e.todas()]"
+```
+
 ---
 
 ### 3.3 Meu dia — `/workspace/meu-dia/`
@@ -1262,6 +1302,47 @@ O item aparece no trilho, em "Acompanhar", só para quem tem painel.
   vez de fazer uma consulta enorme por uma URL digitada.
 - **Fora da janela não conta.** Indicador acumulado desde a fundação nunca
   melhora, por melhor que a equipe fique.
+
+---
+
+### 3.16 Carimbo de frescor — em toda faixa de números
+
+**Para que serve.** Responde, sem ninguém abrir código, *de quando é este
+número*. Fica logo acima da faixa de números, em letra miúda.
+
+**Onde aparece hoje.** Quatro telas, uma faixa cada: Indicadores, Bandeja de
+aprovação, Fila de atendimento e Painel da Universidade.
+
+**O que ele diz hoje, e por que é pouco.** *"Workspace · em tempo real"*, nas
+quatro. Todo número destas telas é do próprio Workspace, e dado próprio é lido
+no instante em que a tela abre — não há carga, não há atraso, não há o que
+carimbar além de "agora". O carimbo passa a dizer coisas diferentes quando os
+conectores existirem.
+
+**Por que ele existe antes de haver dado de fora.** Porque é uma disciplina, e
+disciplina só vale se toda faixa nascer com ela. A suíte reprova faixa de
+números sem carimbo — e reprova carimbo em tela sem números, porque carimbo sem
+número é ruído.
+
+**O que testar:**
+
+- O carimbo aparece **acima** da faixa, e não no cabeçalho da tela. Um carimbo
+  no topo estaria certo sobre metade do conteúdo no dia em que a tela tiver
+  duas fontes.
+- Em tela **sem** faixa de números agregados (catálogo, documentação, formulário
+  de serviço), **não** deve haver carimbo nenhum.
+- Na fila de atendimento com a fila **vazia**, não há faixa de números e não há
+  carimbo — o vazio ali é uma frase, não um zero, e frase não se carimba.
+- **Nenhuma tela mostra um horário de relógio.** Se aparecer "atualizado às
+  14:32" em qualquer lugar, **abra bug**: o instante tem de vir do registro de
+  carga, e um template que lê o relógio diz "agora" para dado de ontem.
+- O carimbo só ganha **cor** quando é alerta. Como nenhuma fonte externa existe
+  ainda, hoje **nenhum** carimbo deve aparecer colorido. Um colorido agora
+  significa fonte declarada sem provedor.
+
+**O que ainda não dá para testar** (volta com os conectores, na onda de
+ingestão): fonte com carga falha mostrando o último dado bom com a idade em
+destaque, e a idade passando do limite declarado pela fonte.
 
 ---
 

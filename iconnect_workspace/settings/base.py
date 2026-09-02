@@ -118,6 +118,11 @@ TEMPLATES = [
                 # assim que a topbar já perdeu o sino uma vez.
                 "workspace.context.rail",
                 "workspace.context.assistente",
+                # O carimbo de frescor de cada bloco agregado. Mesma razão dos
+                # dois acima, e um motivo a mais: um bloco de números sem
+                # procedência não é uma tela incompleta, é uma tela que afirma
+                # sem dizer de quando.
+                "workspace.context.carimbos",
             ],
         },
     },

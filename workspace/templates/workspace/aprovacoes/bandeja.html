@@ -18,6 +18,7 @@
 {% endblock %}
 
 {% block corpo %}
+{% include "workspace/_carimbo.html" with carimbo=carimbos.bandeja chave="bandeja" %}
 <div class="au-kpi-linha">
   <div class="au-kpi">
     <span class="au-kpi-rotulo">{% trans "Esperando você" %}</span>

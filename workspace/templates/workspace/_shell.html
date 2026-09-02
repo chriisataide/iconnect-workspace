@@ -42,6 +42,21 @@
       <span class="au-brand-produto">Workspace</span>
     </a>
 
+    {% comment %}
+      O CÓDIGO DA TELA — ver `workspace/enderecamento.py`.
+
+      Na casca e não em cada template: são quarenta arquivos, e o primeiro que
+      esquecesse ficaria mudo justamente na tela que alguém tentasse endereçar.
+      Sai vazio nas rotas que não são lugar (aprovar, cancelar, baixar), e aí
+      não renderiza nada em vez de mostrar um espaço reservado.
+    {% endcomment %}
+    {% codigo_da_tela as codigo_desta_tela %}
+    {% if codigo_desta_tela %}
+      <span class="au-codigo"
+            title="{% blocktrans %}Código desta tela. Digite {{ codigo_desta_tela }} na busca para voltar aqui.{% endblocktrans %}"
+      >{{ codigo_desta_tela }}</span>
+    {% endif %}
+
     <div class="au-topbar-fim">
       {% comment %}
         UM `au-topbar-fim` só. Ele tem `margin-left: auto`, e dois elementos com
@@ -182,9 +197,35 @@
     </div>
     <div class="au-busca-painel" id="busca-resultados" role="listbox" hidden
          data-url="{% url 'workspace:buscar' %}"></div>
+    {% comment %}
+      OS PREFIXOS, anunciados.
+
+      O benchmark do Portal GPS põe "Digite P: para pessoas ou D: para
+      documentos" no próprio campo, e é por isso que as pessoas de lá usam.
+      Prefixo que existe e ninguém sabe é atalho de quem escreveu o código.
+
+      Fica na linha de baixo e não dentro do `placeholder`: são cinco atalhos,
+      e um placeholder com cinco atalhos some no primeiro caractere digitado —
+      justamente quando a pessoa ainda está decidindo como buscar. Aqui a
+      legenda continua à vista enquanto ela digita.
+
+      O "digite ao menos 2 letras" saiu daqui e não sumiu: `_resultados_busca`
+      já o diz quando a consulta é curta, que é quando ele importa. Aviso
+      permanente para uma condição temporária gasta a linha que agora ensina.
+
+      `p:` só aparece para quem administra papéis, porque só para essa pessoa
+      ele faz alguma coisa. Anunciar um atalho que devolve vazio é pior do que
+      não ter o atalho.
+    {% endcomment %}
     <p class="au-paleta-dica">
-      {% trans "Digite ao menos 2 letras." %}
-      <kbd class="au-tecla">Esc</kbd> {% trans "fecha" %}
+      <span class="au-paleta-atalhos">
+        <kbd class="au-tecla">s:</kbd> {% trans "serviços" %}
+        <kbd class="au-tecla">d:</kbd> {% trans "documentos" %}
+        {% if administra_papeis %}<kbd class="au-tecla">p:</kbd> {% trans "pessoas" %}{% endif %}
+        <kbd class="au-tecla">#</kbd> {% trans "nº do pedido" %}
+        <kbd class="au-tecla">00</kbd> {% trans "código da tela" %}
+      </span>
+      <span class="au-paleta-esc"><kbd class="au-tecla">Esc</kbd> {% trans "fecha" %}</span>
     </p>
   </dialog>
 

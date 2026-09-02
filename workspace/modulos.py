@@ -39,6 +39,11 @@ class Modulo:
     nome: str
     descricao: str
     icone: str
+    # O endereço estável do módulo — ver `workspace/enderecamento.py`. Fica
+    # AQUI e não numa tabela porque o tile, a página e o código têm de ser a
+    # mesma verdade: o launcher já deriva o tile daqui, e um código escrito em
+    # outro lugar seria a segunda verdade que este arquivo existe para evitar.
+    codigo: str = ""
     # Prefixos de `ItemCatalogo.dominio`. Prefixo e não valor exato porque o
     # domínio é hierárquico: `rh.ferias`, `rh.ausencia` e `rh.documento` são
     # todos do RH, e listar um a um garante que o próximo item nasça órfão.
@@ -78,6 +83,7 @@ class Modulo:
 MODULOS: tuple[Modulo, ...] = (
     Modulo(
         chave="rh",
+        codigo="20",
         nome="RH",
         descricao="Holerite, férias, benefícios",
         icone="users",
@@ -86,6 +92,7 @@ MODULOS: tuple[Modulo, ...] = (
     ),
     Modulo(
         chave="financeiro",
+        codigo="21",
         nome="Financeiro",
         descricao="Reembolsos, notas, aprovações",
         icone="wallet",
@@ -94,6 +101,7 @@ MODULOS: tuple[Modulo, ...] = (
     ),
     Modulo(
         chave="operacoes",
+        codigo="22",
         nome="Operações",
         descricao="Ordens de serviço, escala, SLA",
         icone="activity",
@@ -102,6 +110,7 @@ MODULOS: tuple[Modulo, ...] = (
     ),
     Modulo(
         chave="suprimentos",
+        codigo="23",
         nome="Suprimentos",
         descricao="Materiais, estoque e viagens",
         icone="truck",
@@ -117,6 +126,7 @@ MODULOS: tuple[Modulo, ...] = (
     ),
     Modulo(
         chave="redes",
+        codigo="24",
         nome="Redes",
         descricao="Links, VPN e conectividade",
         icone="globe",
@@ -128,6 +138,7 @@ MODULOS: tuple[Modulo, ...] = (
     ),
     Modulo(
         chave="vendas",
+        codigo="25",
         nome="Vendas",
         descricao="Proposta, desconto e cadastro de cliente",
         icone="cart",
@@ -136,6 +147,7 @@ MODULOS: tuple[Modulo, ...] = (
     ),
     Modulo(
         chave="marketing",
+        codigo="26",
         nome="Marketing",
         descricao="Material, evento e presença de marca",
         icone="megafone",
@@ -144,6 +156,7 @@ MODULOS: tuple[Modulo, ...] = (
     ),
     Modulo(
         chave="juridico",
+        codigo="27",
         nome="Jurídico",
         descricao="Contrato, parecer e notificação",
         icone="file",
@@ -156,6 +169,7 @@ MODULOS: tuple[Modulo, ...] = (
     ),
     Modulo(
         chave="universidade",
+        codigo="07",
         nome="Universidade",
         descricao="Trilhas, cursos e certificações",
         icone="book",
@@ -164,6 +178,7 @@ MODULOS: tuple[Modulo, ...] = (
     ),
     Modulo(
         chave="reservas",
+        codigo="05",
         nome="Reservas",
         descricao="Salas, veículos e equipamentos",
         icone="pin",
@@ -175,6 +190,7 @@ MODULOS: tuple[Modulo, ...] = (
     ),
     Modulo(
         chave="correspondencias",
+        codigo="06",
         nome="Correspondências",
         descricao="Cartas, encomendas e intimações",
         icone="jornal",
@@ -183,6 +199,7 @@ MODULOS: tuple[Modulo, ...] = (
     ),
     Modulo(
         chave="documentacao",
+        codigo="03",
         nome="Documentação",
         descricao="POP, políticas, normas e manuais",
         icone="file",

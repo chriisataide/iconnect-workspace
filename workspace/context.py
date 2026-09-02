@@ -68,3 +68,27 @@ def rail(request: HttpRequest) -> dict:
     # Memoizado na requisição: quando a view já pediu os contadores — é o caso
     # da home —, aqui não custa consulta nenhuma.
     return painel.contadores(request)
+
+
+def carimbos(request: HttpRequest) -> dict:
+    """O carimbo de frescor de cada bloco agregado desta tela.
+
+    Processador de contexto pela mesma razão do `rail()`: depender de cada view
+    lembrar de preencher garante que uma esqueça — e a que esquecesse mostraria
+    número sem procedência, que é o defeito exato que o carimbo existe para
+    impedir. Aqui a tela declara os blocos em `frescor.BLOCOS` e o contexto
+    aparece sozinho.
+
+    Sai vazio em toda tela sem bloco agregado, que é a maioria: o custo é uma
+    consulta a um dicionário em memória.
+    """
+    if not request.path.startswith("/workspace/"):
+        return {}
+
+    match = getattr(request, "resolver_match", None)
+    if match is None:
+        return {}
+
+    from workspace.services import frescor as frs
+
+    return {"carimbos": frs.carimbos_de(match.view_name)}

@@ -29,6 +29,7 @@ from django.db.models import Q
 from django.urls import reverse
 
 from identidade.services.autorizacao import subjects_de
+from workspace import enderecamento as end
 from workspace.launcher import apps_disponiveis
 from workspace.models.busca import EntradaIndice, OrigemIndice
 from workspace.services import intencao
@@ -36,6 +37,19 @@ from workspace.services.indice import normalizar  # noqa: F401 — reexportado
 
 LIMITE_POR_GRUPO = 6
 MIN_CARACTERES = 2
+
+# ── Os prefixos ─────────────────────────────────────────────────────
+#
+# Declarados aqui e ANUNCIADOS no campo (`_shell.html`). Prefixo que existe e
+# ninguém sabe é atalho de quem escreveu o código: o benchmark do Portal GPS põe
+# "Digite P: para pessoas ou D: para documentos" dentro do próprio placeholder,
+# e é a razão de as pessoas de lá usarem.
+#
+# `p:` NÃO está aqui: pessoa não vive no índice, e o porquê está em `_pessoas()`.
+PREFIXOS: dict[str, tuple[str, ...]] = {
+    "s": (OrigemIndice.SERVICO.value,),
+    "d": (OrigemIndice.DOCUMENTO.value,),
+}
 
 # Ordem dos grupos na tela: primeiro o que se RESOLVE, depois o que se LÊ,
 # depois para onde se VAI. Quem busca "reembolso" quer pedir um, não ler a
@@ -65,15 +79,105 @@ class Resultado:
     disponivel: bool = True
 
 
+@dataclass(frozen=True)
+class Recorte:
+    """O que a pessoa digitou, depois de tirado o prefixo.
+
+    `origens=None` quer dizer "sem recorte" — a busca larga de sempre. Uma
+    tupla vazia nunca acontece: prefixo que não recorta nada não é prefixo.
+    """
+
+    texto: str
+    origens: tuple[str, ...] | None = None
+    pessoas: bool = False
+
+    @property
+    def restrita(self) -> bool:
+        return self.pessoas or self.origens is not None
+
+
 def _casa(termo: str, *campos: str) -> bool:
     return any(termo in normalizar(campo) for campo in campos if campo)
 
 
+def _recorte(consulta: str, pessoa) -> Recorte:
+    """Lê o prefixo, se houver, e devolve o resto.
+
+    Prefixo desconhecido NÃO vira erro nem grupo vazio: `x: nota fiscal` é
+    tratado como texto comum, que é o que ele parece para quem digitou. Falhar
+    aqui ensinaria a evitar os dois-pontos.
+    """
+    bruta = (consulta or "").strip()
+
+    # `#123` — o número do pedido. Sem espaço depois do `#`, porque é assim que
+    # as pessoas escrevem número de chamado em qualquer sistema.
+    if bruta.startswith("#") and bruta[1:].strip().isdigit():
+        return Recorte(texto=bruta, origens=(OrigemIndice.SOLICITACAO.value,))
+
+    inicial, sep, resto = bruta.partition(":")
+    if not sep:
+        return Recorte(texto=bruta)
+
+    chave = inicial.strip().casefold()
+    resto = resto.strip()
+    if not resto:
+        # `s:` sozinho ainda não é uma busca. Devolver o bruto deixa o
+        # `MIN_CARACTERES` recusar, como qualquer consulta curta.
+        return Recorte(texto=bruta)
+
+    if chave in PREFIXOS:
+        return Recorte(texto=resto, origens=PREFIXOS[chave])
+    if chave == "p" and _pode_ver_pessoas(pessoa):
+        return Recorte(texto=resto, pessoas=True)
+    return Recorte(texto=bruta)
+
+
+def _pode_ver_pessoas(pessoa) -> bool:
+    """Quem já enxerga o organograma na tela de Pessoas e papéis.
+
+    O prefixo `p:` não amplia alcance nenhum: ele é um atalho para a lista que
+    a pessoa já pode abrir. Para quem não administra papéis, `p:` não existe —
+    `p: joão` cai na busca comum, sem grupo vazio e sem aviso, porque avisar
+    contaria que existe um diretório do outro lado da porta.
+    """
+    if pessoa is None or not getattr(pessoa, "is_authenticated", False):
+        return False
+    from identidade.services import administracao as adm
+
+    return adm.pode_administrar(pessoa)
+
+
 def buscar(consulta: str, pessoa=None) -> dict[str, list[Resultado]]:
     """Resultados agrupados por origem. Consulta curta devolve vazio."""
-    termo = normalizar(consulta)
+    # 0 · O CÓDIGO DA TELA, antes de tudo.
+    #
+    # Um resultado só, e a busca para aqui: quem digitou "02.2" não está
+    # procurando, está indo. Oferecer mais seis linhas junto seria devolver a
+    # decisão que a pessoa acabou de tomar.
+    #
+    # E é um RESULTADO, não um redirecionamento: navegar sozinho a cada tecla
+    # levaria embora quem está no meio de digitar "02.1" e passou por "02".
+    tela = end.por_codigo(consulta)
+    if tela is not None and tela.url:
+        return {
+            "Ir para": [
+                Resultado(
+                    origem="tela",
+                    titulo=tela.nome,
+                    subtitulo=tela.codigo,
+                    url=tela.url,
+                    icone="seta",
+                )
+            ]
+        }
+
+    recorte = _recorte(consulta, pessoa)
+    termo = normalizar(recorte.texto)
     if len(termo) < MIN_CARACTERES:
         return {}
+
+    if recorte.pessoas:
+        return _pessoas(termo)
 
     grupos: dict[str, list[Resultado]] = {}
 
@@ -82,7 +186,7 @@ def buscar(consulta: str, pessoa=None) -> dict[str, list[Resultado]]:
     # Primeiro grupo do dicionário, e é o único que aparece com UM item: quando
     # a pessoa escreveu "quero solicitar férias", oferecer seis opções é devolver
     # a ela o trabalho que ela acabou de delegar.
-    acao = intencao.interpretar(consulta)
+    acao = None if recorte.restrita else intencao.interpretar(consulta)
     if acao is not None:
         grupos["Ação"] = [
             Resultado(
@@ -95,7 +199,7 @@ def buscar(consulta: str, pessoa=None) -> dict[str, list[Resultado]]:
         ]
 
     # 1 · Aplicativos, do launcher em memória.
-    apps = [
+    apps = [] if recorte.restrita else [
         Resultado(
             origem="app",
             titulo=spec.nome,
@@ -121,8 +225,8 @@ def buscar(consulta: str, pessoa=None) -> dict[str, list[Resultado]]:
     #
     # Palavras combinadas com E: quem digita "politica de viagem" quer o
     # documento que fala das duas coisas, não a união de tudo que fala de uma.
-    palavras = intencao.termos_significativos(consulta) or [termo]
-    encontradas = _no_indice(palavras, pessoa, juntar_com_e=True)
+    palavras = intencao.termos_significativos(recorte.texto) or [termo]
+    encontradas = _no_indice(palavras, pessoa, juntar_com_e=True, origens=recorte.origens)
 
     # E com queda para OU.
     #
@@ -135,7 +239,9 @@ def buscar(consulta: str, pessoa=None) -> dict[str, list[Resultado]]:
     # A segunda consulta só acontece quando a primeira falha, e nunca durante
     # digitação normal de uma ou duas palavras.
     if not encontradas and len(palavras) > 1:
-        encontradas = _no_indice(palavras, pessoa, juntar_com_e=False)
+        encontradas = _no_indice(
+            palavras, pessoa, juntar_com_e=False, origens=recorte.origens
+        )
 
     por_origem: dict[str, list[Resultado]] = {}
     for entrada in encontradas:
@@ -162,18 +268,72 @@ def buscar(consulta: str, pessoa=None) -> dict[str, list[Resultado]]:
     return grupos
 
 
-def _no_indice(palavras, pessoa, *, juntar_com_e: bool):
-    """Consulta o índice, com o recorte por sujeito no `WHERE`."""
+def _no_indice(palavras, pessoa, *, juntar_com_e: bool, origens=None):
+    """Consulta o índice, com o recorte por sujeito no `WHERE`.
+
+    O prefixo também vira `WHERE`, e não filtro depois: com `s:`, buscar
+    "reembolso" tem de custar as linhas de serviço, não o acervo inteiro para
+    jogar fora — e o limite da consulta se aplicaria às linhas erradas, deixando
+    de fora serviços que deveriam aparecer.
+    """
     condicao = Q()
     for palavra in palavras:
         parte = Q(texto__contains=palavra)
         condicao = (condicao & parte) if juntar_com_e else (condicao | parte)
 
+    consulta = EntradaIndice.objects.para_sujeitos(subjects_de(pessoa)).filter(condicao)
+    if origens is not None:
+        consulta = consulta.filter(origem__in=origens)
+
     return list(
-        EntradaIndice.objects.para_sujeitos(subjects_de(pessoa))
-        .filter(condicao)
-        .order_by("origem", "titulo")[: LIMITE_POR_GRUPO * len(ORDEM_DOS_GRUPOS) * 2]
+        consulta.order_by("origem", "titulo")[
+            : LIMITE_POR_GRUPO * len(ORDEM_DOS_GRUPOS) * 2
+        ]
     )
+
+
+def _pessoas(termo: str) -> dict[str, list[Resultado]]:
+    """O prefixo `p:` — quem, e não o quê.
+
+    Fora do índice de propósito. O índice existe para conteúdo com público-alvo
+    gravado, e pessoa não tem público-alvo: quem pode ver a lista de gente é
+    quem administra papéis, e isso já foi decidido em `_pode_ver_pessoas()`,
+    antes de chegar aqui.
+
+    O que aparece é NOME, CARGO e ÁREA — o que a tela de Pessoas e papéis já
+    mostra. E-mail e centro de custo ficam de fora: o benchmark tem grade de CPF
+    e e-mail com botão de exportar, e é a primeira coisa que a leitura marcou
+    como não copiar.
+
+    O casamento é em Python sobre uma consulta só. Com o organograma da ADB — na
+    casa das centenas de lotações — isso é mais barato do que um `LIKE` por
+    campo, e para em `LIMITE_POR_GRUPO`. No dia em que o diretório crescer uma
+    ordem de grandeza, isto vira `Q(user__nome__icontains=...)`; até lá, índice
+    para uma tabela deste tamanho é otimização sem medida.
+    """
+    from identidade.services import administracao as adm
+
+    achados = []
+    for lotacao in adm.pessoas_administraveis():
+        nome = lotacao.user.get_full_name() or lotacao.user.get_short_name()
+        area = lotacao.departamento.nome if lotacao.departamento else ""
+        if not _casa(termo, nome, lotacao.cargo, area):
+            continue
+        achados.append(
+            Resultado(
+                origem="pessoa",
+                titulo=nome,
+                subtitulo=" · ".join(p for p in (lotacao.cargo, area) if p),
+                # Âncora na linha da pessoa: cair no topo de uma lista de
+                # duzentos nomes é o mesmo que não ter encontrado.
+                url=f"{reverse('workspace:pessoas')}#cc-{lotacao.user_id}",
+                icone="users",
+            )
+        )
+        if len(achados) >= LIMITE_POR_GRUPO:
+            break
+
+    return {"Pessoas": achados} if achados else {}
 
 
 def _url_do_app(spec) -> str:

@@ -97,6 +97,28 @@ body {
   color: var(--au-text-muted);
 }
 
+/* O CÓDIGO DA TELA — o endereço estável, discreto ao lado da marca.
+
+   Tabular-nums porque o código é número: sem isso "02.1" e "26.1" têm larguras
+   diferentes e o cabeçalho balança a cada navegação.
+
+   `user-select: all` para um clique selecionar o código inteiro: ele existe
+   para ser copiado para um e-mail, e obrigar a arrastar sobre quatro caracteres
+   é atrito bobo em algo que se faz o dia todo. */
+.au-codigo {
+  font-size: var(--au-t-xs);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.02em;
+  color: var(--au-text-subtle, var(--au-text-muted));
+  background: var(--au-neutral-bg);
+  border: 1px solid var(--au-border);
+  border-radius: var(--au-r-sm, 4px);
+  padding: 1px var(--au-2);
+  margin-left: var(--au-3);
+  user-select: all;
+  white-space: nowrap;
+}
+
 .au-topbar-fim { margin-left: auto; display: flex; align-items: center; gap: var(--au-2); }
 
 .au-usuario {
@@ -646,7 +668,7 @@ body {
   .au-hero-titulo { font-size: var(--au-t-xl); }
   .au-grade { grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); }
   .au-colunas { grid-template-columns: 1fr; }
-  .au-usuario, .au-brand-divisor, .au-brand-produto { display: none; }
+  .au-usuario, .au-brand-divisor, .au-brand-produto, .au-codigo { display: none; }
   .au-atalho { display: none; }
   .au-busca-campo { padding-right: var(--au-4); }
 }
@@ -1775,7 +1797,28 @@ a.au-notif-titulo:hover { color: var(--au-accent-text); text-decoration: underli
   background: var(--au-surface-sunken);
   font-size: var(--au-t-xs);
   color: var(--au-text-subtle);
+  /* A legenda dos prefixos e o "Esc fecha" nas pontas. `wrap` porque em tela
+     estreita os cinco atalhos não cabem numa linha — e quebrar é melhor do que
+     empurrar o "Esc" para fora da caixa. */
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--au-2);
 }
+
+.au-paleta-atalhos {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--au-1, 4px);
+  min-width: 0;
+}
+
+/* Espaço depois do rótulo, para "serviços" não colar no `d:` seguinte. */
+.au-paleta-atalhos kbd + * { margin-right: var(--au-2); }
+
+.au-paleta-esc { white-space: nowrap; }
 
 .au-topbar-botao {
   display: inline-flex; align-items: center; justify-content: center;
@@ -3125,4 +3168,39 @@ tr[data-abre-resumo]:focus-visible {
   border-left: 1px solid var(--au-border);
   padding-left: var(--au-3);
   border-radius: 0 var(--au-r-sm) var(--au-r-sm) 0;
+}
+
+
+/* ═══════════════════════════════════════════════════════════════
+   Carimbo de frescor — de quando é este número
+   ═══════════════════════════════════════════════════════════════
+
+   Discreto de propósito. O carimbo é para ser CONSULTADO, não lido: quem abre
+   a tela quer o número, e só olha a procedência quando o número surpreende.
+   Um carimbo com o peso de um título competiria com o dado que ele qualifica.
+
+   Vira alerta — e só então ganha cor — quando o dado passou da idade que a
+   própria fonte declarou aceitável, ou quando a última carga falhou. */
+.au-carimbo {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--au-2);
+  margin: 0 0 var(--au-3);
+  font-size: var(--au-t-xs);
+  color: var(--au-text-subtle);
+}
+
+.au-carimbo-icone { width: 13px; height: 13px; flex: none; opacity: .7; }
+
+.au-carimbo--alerta { color: var(--au-warning-text); }
+.au-carimbo--alerta .au-carimbo-icone { opacity: 1; }
+
+/* O motivo da falha destacado do resto do carimbo: ele é a exceção, e ler
+   "Sankhya · carregado há 30 h · timeout" como uma frase só esconde o timeout
+   no fim da linha. */
+.au-carimbo-motivo {
+  padding: 0 var(--au-2);
+  border-left: 1px solid currentColor;
+  opacity: .85;
 }

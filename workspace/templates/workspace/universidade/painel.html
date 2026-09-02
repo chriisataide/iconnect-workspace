@@ -15,6 +15,7 @@
   A CONFORMIDADE em primeiro, e `None` quando não há matrícula nenhuma: 0% numa
   empresa sem cursos cadastrados é um número que faz alguém agir sobre nada.
 {% endcomment %}
+{% include "workspace/_carimbo.html" with carimbo=carimbos.habilitacoes chave="habilitacoes" %}
 <div class="au-kpi-linha">
   <div class="au-kpi">
     <span class="au-kpi-rotulo">{% trans "Em dia" %}</span>

@@ -44,3 +44,10 @@ service-account*.json
 .DS_Store
 .idea/
 .vscode/
+
+# Arquivos de troca do editor. `.CLAUDE.md.swp` já apareceu numa listagem de
+# `git status` — vim deixa isto para trás quando a sessão morre, e o nome
+# começando com ponto engana quem varre o diretório à vista.
+*.swp
+*.swo
+*~

@@ -45,4 +45,7 @@ def indicadores(request: HttpRequest) -> HttpResponse:
         # pessoa achar que a empresa parou.
         raise PermissionDenied(str(sem))
 
+    # O carimbo do bloco NÃO é montado aqui: ele vem do processador de contexto
+    # `workspace.context.carimbos`, que o lê de `frescor.BLOCOS`. Ver o porquê
+    # lá — em resumo, a view que esquecesse mostraria número sem procedência.
     return render(request, "workspace/indicadores.html", panorama)

@@ -45,6 +45,13 @@
   </div>
 </div>
 
+{% comment %}
+  O carimbo do bloco — §Onda 1. Fora do `{% templatetag openblock %} if areas {% templatetag closeblock %}`
+  de propósito: "nenhum pedido nesse período" também é uma afirmação sobre o
+  dado, e ela precisa dizer de quando é tanto quanto um número precisa.
+{% endcomment %}
+{% include "workspace/_carimbo.html" with carimbo=carimbos.panorama chave="panorama" %}
+
 {% if not areas %}
   <div class="au-vazio">
     <p class="au-vazio-titulo">{% trans "Nenhum pedido nesse período." %}</p>

@@ -110,3 +110,23 @@ def moeda(valor) -> str:
     # locale do sistema, que varia entre a máquina do dev e o contêiner.
     inteiro, _, decimais = f"{numero:,.2f}".partition(".")
     return f"{inteiro.replace(',', '.')},{decimais}"
+
+
+@register.simple_tag(takes_context=True)
+def codigo_da_tela(context) -> str:
+    """O código desta tela, ou vazio quando ela não tem um.
+
+    Derivado de `request.resolver_match` e não escrito em cada template, de
+    propósito: são quarenta arquivos, e o primeiro que esquecesse o código
+    ficaria mudo justamente na tela que alguém tentasse endereçar. Aqui o
+    cabeçalho e o registro não têm como divergir — ou a tela está em
+    `enderecamento.TELAS` e o código aparece, ou não está e não aparece nada.
+
+    Vazio é resposta legítima: rota de ação (aprovar, cancelar, baixar) não é
+    lugar e não tem endereço. Ver `enderecamento.Tela`.
+    """
+    from workspace import enderecamento as end
+
+    caminho = getattr(context.get("request"), "path", "")
+    tela = end.por_caminho(caminho)
+    return tela.codigo if tela else ""
