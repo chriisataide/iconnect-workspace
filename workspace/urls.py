@@ -144,6 +144,15 @@ urlpatterns = [
     path("ciclos/<slug:chave>/<int:ano>/<int:mes>/fechar/", views.fechar_ciclo,
          name="fechar_ciclo"),
     path("excecoes/", views.excecoes, name="excecoes"),
+    # Planos de ação (13) — o limiar que gera obrigação.
+    #
+    # `novo/` ANTES de `<int:pk>/` por hábito, e não por necessidade: `int`
+    # nunca casaria com "novo". O hábito é o que protege o dia em que alguém
+    # trocar o conversor por `str`.
+    path("planos/", views.planos, name="planos"),
+    path("planos/novo/", views.plano_novo, name="plano_novo"),
+    path("planos/<int:pk>/", views.plano, name="plano"),
+    path("planos/<int:pk>/fechar/", views.fechar_plano, name="fechar_plano"),
     path("excecoes/<slug:chave>/notificar/", views.notificar_excecao,
          name="notificar_excecao"),
     path("resultados/", views.resultados, name="resultados"),

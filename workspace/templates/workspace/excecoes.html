@@ -128,6 +128,17 @@
                href="{% url 'workspace:servicos' %}?origem=excecao:{{ a.regra.chave }}">
               {% trans "Abrir solicitação" %}
             </a>
+            {% comment %}
+              §Onda 6 — regra com LIMIAR cobra resposta, e a tela de planos é
+              onde ela fica. O link leva à lista e não direto ao formulário: o
+              formulário é por OCORRÊNCIA, e aqui a ação é sobre a regra
+              inteira. A dívida linha a linha está lá.
+            {% endcomment %}
+            {% if a.regra.exige_plano %}
+              <a class="au-btn au-btn--fantasma" href="{% url 'workspace:planos' %}#dividas">
+                {% trans "Planos de ação" %}
+              </a>
+            {% endif %}
           </div>
 
         {% else %}

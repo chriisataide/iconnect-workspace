@@ -1,0 +1,80 @@
+{% extends "workspace/_shell_modulo.html" %}
+{% load i18n %}
+
+{% block titulo %}{% trans "Registrar plano de ação" %}{% endblock %}
+{% block rail %}{% include "workspace/_rail_servicos.html" with aba="planos" %}{% endblock %}
+{% block trilha %}
+  <a href="{% url 'workspace:planos' %}">{% trans "Planos de ação" %}</a>
+  <span>{% trans "Novo" %}</span>
+{% endblock %}
+{% block pagina_titulo %}{% trans "Registrar plano de ação" %}{% endblock %}
+{% block voltar_url %}{% url 'workspace:planos' %}{% endblock %}
+
+{% block pagina_descricao %}
+  <p class="au-pagina-desc">{{ regra.titulo }}</p>
+{% endblock %}
+
+{% block corpo %}
+{% if ocorrencia %}
+  <div class="au-ocorrencia-alvo">
+    <p class="au-ocorrencia-titulo">{{ ocorrencia.titulo }}</p>
+    <p class="au-ocorrencia-detalhe">{{ ocorrencia.detalhe|default:"—" }}</p>
+  </div>
+{% else %}
+  {% comment %}
+    A regra já não encontra esta ocorrência. Dizer isso e NÃO mostrar o
+    formulário: registrar um plano sobre um problema que sumiu produziria um
+    plano que fecha como resolvido sem ninguém ter feito nada — e a efetividade
+    da tela subiria de graça.
+  {% endcomment %}
+  <p class="au-vazio-dica">
+    {% trans "A regra não encontra mais esta ocorrência. Ou ela foi resolvida, ou a fonte não está disponível agora. Não há o que planejar." %}
+  </p>
+{% endif %}
+
+{% if ocorrencia %}
+<form class="au-form" method="post" action="{% url 'workspace:plano_novo' %}">
+  {% csrf_token %}
+  <input type="hidden" name="regra" value="{{ regra.chave }}">
+  <input type="hidden" name="ocorrencia" value="{{ ocorrencia_chave }}">
+
+  {% comment %}
+    As DUAS metades da exigência do benchmark, e nesta ordem. Ação sem
+    justificativa é tarefa sem diagnóstico: quando a regra disparar de novo,
+    ninguém saberá se é a mesma causa.
+  {% endcomment %}
+  <label class="au-rotulo" for="justificativa">{% trans "Por que aconteceu" %}</label>
+  <textarea class="au-input" id="justificativa" name="justificativa" rows="3" required></textarea>
+
+  <label class="au-rotulo" for="acao">{% trans "O que será feito" %}</label>
+  <textarea class="au-input" id="acao" name="acao" rows="3" required></textarea>
+
+  <label class="au-rotulo" for="responsavel">{% trans "Responsável" %}</label>
+  {% if candidatos %}
+    <select class="au-input" id="responsavel" name="responsavel">
+      {% for pessoa in candidatos %}
+        <option value="{{ pessoa.pk }}">{{ pessoa.nome }}</option>
+      {% endfor %}
+    </select>
+  {% else %}
+    {% comment %}
+      Papel sem ocupante é um ACHADO, e a tela diz isso — a mesma decisão do
+      "ninguém" na grade de exceções. O plano fica com quem está registrando,
+      que é melhor do que não ter dono.
+    {% endcomment %}
+    <p class="au-vazio-dica" id="responsavel">
+      {% trans "Ninguém ocupa o papel que atende esta regra. O plano ficará no seu nome." %}
+    </p>
+  {% endif %}
+
+  <label class="au-rotulo" for="prazo">{% trans "Prazo" %}</label>
+  <input class="au-input" type="date" id="prazo" name="prazo"
+         value="{{ prazo_sugerido|date:'Y-m-d' }}">
+  <p class="au-ajuda">
+    {% trans "No vencimento, a regra roda de novo sobre esta ocorrência e grava o desfecho. O prazo não é lembrete: é quando a conferência acontece." %}
+  </p>
+
+  <button class="au-btn au-btn--primario" type="submit">{% trans "Registrar plano" %}</button>
+</form>
+{% endif %}
+{% endblock %}

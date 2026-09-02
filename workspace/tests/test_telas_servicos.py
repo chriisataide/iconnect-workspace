@@ -720,6 +720,10 @@ def test_contexto_do_rail_usa_pessoa_aberta_para_anonimo():
         # O anônimo não vê ciclo de planejamento: a pauta é a agenda de
         # decisão da empresa, com o que ainda NÃO foi decidido dentro.
         "ve_ciclos": False,
+        # Nem planos de ação: eles nascem de uma regra de exceção, e o
+        # anônimo não vê regra nenhuma.
+        "ve_planos": False,
+        "planos_vencidos": 0,
         "ve_fontes": False,
         # E o mesmo para estoque e equipamentos: a porta do estoque não é
         # oferecida a quem não pode abri-la, e "0 para confirmar" seria o número

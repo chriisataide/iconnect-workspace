@@ -226,7 +226,7 @@ O orçamento de cada centro se define depois, **dentro do produto**: *Pessoas e 
 
 ## 13.3 Os comandos agendados
 
-**Sem cron, os alertas não saem.** Os quatro comandos abaixo são a razão de existir de quatro módulos — e todos são inertes sem agendamento.
+**Sem cron, os alertas não saem.** Os comandos abaixo são a razão de existir de vários módulos — e todos são inertes sem agendamento.
 
 ```cron
 # Alertas diários. Rodam cedo, antes do expediente.
@@ -235,9 +235,25 @@ O orçamento de cada centro se define depois, **dentro do produto**: *Pessoas e 
 10 6 * * *  cd /app && python manage.py avisar_documentos   --aplicar
 15 6 * * *  cd /app && python manage.py avisar_marketing    --aplicar
 
+# Cargas das fontes externas. Antes do painel de exceções, que as consulta.
+30 5 * * *  cd /app && python manage.py carregar_fonte sankhya --aplicar
+40 5 * * *  cd /app && python manage.py carregar_fonte monday  --aplicar
+
+# O retrato das exceções — é dele que sai a TENDÊNCIA da tela. Sem ele, a seta
+# ao lado da contagem nunca aparece.
+0 8 * * *   cd /app && python manage.py avaliar_excecoes --aplicar
+
+# A conferência dos planos vencidos. DEPOIS das cargas, e não antes: um plano
+# conferido com o espelho de ontem fecha pelo número errado.
+30 8 * * *  cd /app && python manage.py verificar_planos --aplicar
+
 # Conferência semanal do estoque, segunda de manhã.
 0 7 * * 1   cd /app && python manage.py conferir_estoque
 ```
+
+> **A ordem dentro do dia importa.** `carregar_fonte` → `avaliar_excecoes` →
+> `verificar_planos`. Invertida, a conferência do plano roda sobre o espelho da
+> véspera e fecha um plano pelo número que ele tinha antes da última carga.
 
 | comando | avisa quem | sobre o quê |
 |---|---|---|
@@ -245,6 +261,9 @@ O orçamento de cada centro se define depois, **dentro do produto**: *Pessoas e 
 | `avisar_frota` | quem tem `log.frota.operar` | licenciamento, seguro, IPVA ou revisão vencendo |
 | `avisar_documentos` | cada pessoa alcançada **e** o dono do documento | leitura obrigatória pendente; vigência acabando |
 | `avisar_marketing` | quem tem `mkt.atender` **e** o responsável | prazo de decisão de feira ou edital |
+| `carregar_fonte` | ninguém — registra | a carga de uma fonte externa para o espelho |
+| `avaliar_excecoes` | ninguém — grava o retrato | é dele que sai a tendência do painel |
+| `verificar_planos` | ninguém — fecha ou adia | plano vencido: a regra roda de novo e grava o desfecho |
 | `conferir_estoque` | ninguém — imprime | divergência entre saldo e razão |
 
 **Rodar todo dia não vira spam.** O dedupe olha o aviso **não lido**: quem já viu e não leu continua com um. E a chave inclui o degrau ou a versão — publicar a v2 de um POP volta a cobrar quem leu a v1, e "vence em 30 dias" e "vence em 7" são dois eventos.

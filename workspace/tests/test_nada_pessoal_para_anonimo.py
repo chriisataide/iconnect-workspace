@@ -105,6 +105,10 @@ def test_o_trilho_do_anonimo_e_todo_zero(client, gente_com_coisas):
         # O anônimo não vê ciclo de planejamento: a pauta é a agenda de
         # decisão da empresa, com o que ainda NÃO foi decidido dentro.
         "ve_ciclos": False,
+        # Nem planos de ação: eles nascem de uma regra de exceção, e o
+        # anônimo não vê regra nenhuma.
+        "ve_planos": False,
+        "planos_vencidos": 0,
         "ve_fontes": False,
         # Estoque e custódia entram na mesma regra: a porta do estoque não é
         # oferecida a quem não pode abri-la, e "0 equipamentos para confirmar"

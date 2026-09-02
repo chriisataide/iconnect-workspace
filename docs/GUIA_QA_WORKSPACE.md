@@ -1632,6 +1632,81 @@ apagar ATA, e calendário de reuniões futuras. Reunião futura é do M365.
 
 ---
 
+### 3.22 Planos de ação — `/workspace/planos/` (código 13)
+
+**Para que serve.** Responde *"o que a empresa deve fazer sobre o que a regra
+encontrou, e funcionou?"*. É a regra dos 10% do benchmark generalizada: quatro
+regras de exceção passam a cobrar justificativa, ação, dono e prazo.
+
+**Antes de testar:**
+
+```bash
+python manage.py semear_regras_excecao --aplicar   # liga os quatro limiares
+python manage.py semear_papeis --aplicar           # pla.responder
+```
+
+**O que testar, em ordem de importância:**
+
+- **Fechar dizendo que resolveu, com a regra ainda disparando, grava "NÃO
+  resolvido".** Abra um plano, não faça nada, e feche escrevendo "resolvido". A
+  tela tem de avisar que a regra ainda encontra a ocorrência, e o plano fecha
+  como não resolvido. Se ele fechar como resolvido, **abra bug de gravidade
+  alta**: a tela passou a medir preenchimento de formulário.
+- **Fonte fora do ar não fecha plano.** Com os conectores desligados (o padrão
+  em desenvolvimento), tente fechar um plano de `margem-abaixo-de-10`: a tela diz
+  que o desfecho não pôde ser conferido e o plano **continua aberto**. Se ele
+  fechar como resolvido, é o achado mais caro desta tela — um conector caído
+  viraria um mês de metas batidas.
+- **A dívida volta quando o plano fecha sem resolver.** Feche um plano com a
+  ocorrência ainda ativa e recarregue a lista: ela tem de reaparecer em "Devem
+  plano". Se não voltar, o problema ficou sem dono.
+- **Não existem dois planos abertos para a mesma ocorrência.** O segundo é
+  recusado com o motivo. Mas depois de o primeiro fechar, um **novo** é
+  permitido — e tem de ser: a margem cair de novo em março depois de um plano
+  cumprido em janeiro é o que o histórico precisa mostrar.
+- **Plano sem justificativa OU sem ação é recusado.** São as duas metades da
+  exigência do benchmark.
+- **Ocorrência que sumiu não aceita plano.** Abra o formulário de uma ocorrência
+  que a regra já não encontra: ele diz isso e **não mostra os campos**. Se
+  mostrar, é possível registrar um plano que fecha como resolvido sem ninguém ter
+  feito nada — e a efetividade sobe de graça.
+
+**A efetividade** (a linha no topo) **só aparece depois do primeiro plano
+fechado**. Sem nenhum, ela não aparece — 0% seria uma afirmação sobre um trabalho
+que não houve.
+
+**Os quatro estados sempre aparecem, mesmo vazios**, cada um com o texto
+explicando o vazio. Se uma seção sumir por estar zerada, **abra bug**: some a
+informação de que aquele estado existe.
+
+**Permissão:**
+
+- `financeiro@icodev.com.br` responde por margem e centro de custo; `operacao@`
+  por detrator e projeto bloqueado; `diretoria@` por todos.
+- **Quem vê a regra lê o plano e não o fecha.** Entre com um perfil que tenha
+  `exc.ler.global` e não `pla.responder`: a lista e o detalhe abrem, e **não há**
+  botão de fechar. Um POST forjado tem de dar 403.
+- **`almoxarife@` recebe 403** na lista, e não uma tela de zeros.
+- **Anônimo** é redirecionado para `/entrar/`.
+
+**O comando do vencimento:**
+
+```bash
+python manage.py verificar_planos            # simulação: diz o que conferiria
+python manage.py verificar_planos --aplicar  # confere e grava o desfecho
+```
+
+A simulação **não grava** — nem a conferência. Se `VerificacaoPlano` aparecer no
+`/admin/` depois de rodar sem `--aplicar`, **abra bug**.
+
+Planos que venceram **hoje ou ontem** não são conferidos: há dois dias de
+carência, porque o cron pode ter ficado fora do ar e o desfecho sairia aleatório.
+
+**O que NÃO existe, e não é bug:** reabrir plano fechado, apagar conferência,
+dois limiares na mesma regra, e "marcar como resolvido" sem conferência.
+
+---
+
 ## 4. Matriz perfil × tela
 
 Use como plano de cobertura. **A coluna "Anônimo" é a mais esquecida e a que mais
@@ -1652,6 +1727,7 @@ esconde defeito** — nos dois sentidos.
 | Reservar / Minhas reservas | ➜ login | ✅ | ✅ | ✅ + cancelar de terceiros |
 | Correspondências | ➜ login | ✅ **só as minhas** | ✅ **só as minhas** | ✅ **fila completa** |
 | **Ciclos de planejamento** | ➜ login | **403** | ✅ lê; só Diretoria **conduz** | **403** |
+| **Planos de ação** | ➜ login | **403** | ✅ lê; só o papel da regra **fecha** | **403** |
 
 As células em negrito são os testes de autorização que valem mais: bandeja vazia
 para colaborador, fila invisível para gestor, cancelamento de terceiros só para

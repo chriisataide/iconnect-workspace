@@ -101,6 +101,12 @@ from .ciclo import (
     OcorrenciaCiclo,
     SituacaoOcorrencia,
 )
+from .plano import (
+    PRAZO_PADRAO_DO_PLANO,
+    PlanoAcao,
+    SituacaoPlano,
+    VerificacaoPlano,
+)
 from .evento import AcaoSolicitacao, EventoSolicitacao
 from .conteudo import (
     ConfirmacaoLeitura,
@@ -113,6 +119,10 @@ from .orcamento import Compromisso, SituacaoCompromisso, competencia_de
 
 __all__ = [
     "AnotacaoEtapa",
+    "PRAZO_PADRAO_DO_PLANO",
+    "PlanoAcao",
+    "SituacaoPlano",
+    "VerificacaoPlano",
     "AreaFAQ",
     "Cadencia",
     "CicloPlanejamento",

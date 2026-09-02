@@ -25,6 +25,7 @@ from .busca import buscar_view
 from .enderecamento import ir_para
 from .ciclos import abrir_ciclo, anotar_etapa, ciclo, ciclos, fechar_ciclo
 from .excecoes import excecoes, notificar_excecao
+from .planos import fechar_plano, plano, plano_novo, planos
 from .resultados import fontes, recarregar_fonte, resultados, resultados_pdf
 from .conteudo import (
     anexar_documento,
@@ -137,6 +138,10 @@ __all__ = [
     "ciclos",
     "excecoes",
     "fechar_ciclo",
+    "fechar_plano",
+    "plano",
+    "plano_novo",
+    "planos",
     "notificar_excecao",
     "resultados",
     "resultados_pdf",

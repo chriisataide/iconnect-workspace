@@ -214,6 +214,10 @@ TELAS: tuple[Tela, ...] = (
     # ADR-015 proíbe renumerar depois — no Portal GPS este é o `01.01`, e aqui
     # `01` já é Meu dia.
     Tela("12", "Ciclos de planejamento", "workspace:ciclos"),
+    # O limiar que gera obrigação — a regra dos 10% do benchmark,
+    # generalizada. Vizinha da 11 de propósito: a exceção encontra, e a 13
+    # é onde a resposta fica.
+    Tela("13", "Planos de ação", "workspace:planos"),
     Tela("09", "Relatórios", "workspace:relatorios"),
     Tela("26.1", "Oportunidades de marketing", "workspace:marketing"),
     Tela("30", "Pessoas e papéis", "workspace:pessoas"),

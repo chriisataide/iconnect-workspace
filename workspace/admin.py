@@ -15,6 +15,8 @@ from django.utils import timezone
 
 from .models import (
     AnotacaoEtapa,
+    PlanoAcao,
+    VerificacaoPlano,
     CicloPlanejamento,
     EtapaCiclo,
     OcorrenciaCiclo,
@@ -597,4 +599,52 @@ class AnotacaoEtapaAdmin(admin.ModelAdmin):
         return False
 
     def has_change_permission(self, request, obj=None) -> bool:
+        return False
+
+
+# ── Planos de ação ──────────────────────────────────────────────────
+
+
+class VerificacaoPlanoInline(admin.TabularInline):
+    """As conferências. Somente leitura: elas são o que a REGRA respondeu.
+
+    Editável, a conferência viraria o jeito de declarar sucesso pela porta dos
+    fundos — e é exatamente contra isso que ela existe (ADR-033).
+    """
+
+    model = VerificacaoPlano
+    extra = 0
+    can_delete = False
+    fields = ("verificado_em", "ainda_ocorre", "avaliada", "observacao")
+    readonly_fields = fields
+
+    def has_add_permission(self, request, obj=None) -> bool:
+        return False
+
+
+@admin.register(PlanoAcao)
+class PlanoAcaoAdmin(admin.ModelAdmin):
+    """A resposta a uma ocorrência. Consulta e correção de rumo, não de desfecho.
+
+    `situacao` e `desfecho` são somente leitura: quem decide se o plano resolveu
+    é a regra rodando de novo, e não quem tem acesso ao `/admin/`. Prazo e
+    responsável se corrigem — trocar o dono de um plano é decisão legítima de
+    quem opera, e negá-la faria a correção acontecer por fora, num plano novo
+    que perderia o histórico.
+    """
+
+    list_display = ("titulo", "regra_chave", "responsavel", "prazo", "situacao")
+    list_filter = ("situacao", "regra_chave")
+    search_fields = ("titulo", "ocorrencia_chave", "justificativa", "acao")
+    date_hierarchy = "criado_em"
+    readonly_fields = (
+        "regra_chave", "ocorrencia_chave", "titulo", "detalhe", "situacao",
+        "desfecho", "aberto_por", "criado_em", "fechado_em",
+    )
+    inlines = (VerificacaoPlanoInline,)
+
+    def has_add_permission(self, request) -> bool:
+        # Plano nasce de uma OCORRÊNCIA, e o serviço confere que a regra ainda a
+        # encontra. Criado aqui, ele nasceria sobre um problema que talvez já não
+        # exista — e fecharia como resolvido sem ninguém ter feito nada.
         return False

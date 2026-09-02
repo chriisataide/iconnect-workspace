@@ -3682,3 +3682,125 @@ tr[data-abre-resumo]:focus-visible {
 
 .au-ciclo-historico { margin: 0; padding: 0; list-style: none; }
 .au-ciclo-historico li { padding: var(--au-1) 0; font-size: var(--au-t-sm); }
+
+/* ── Planos de ação (13) ─────────────────────────────────────────────
+   Limiar gera obrigação. A DÍVIDA vem primeiro e o que venceu vem antes do
+   que está no prazo: a ordem da tela é a ordem de agir. */
+
+.au-efetividade {
+  margin: 0 0 var(--au-5);
+  font-size: var(--au-t-md);
+}
+.au-efetividade-nota {
+  display: block;
+  font-size: var(--au-t-xs);
+  color: var(--au-text-muted);
+}
+
+.au-secao-conta {
+  margin-left: var(--au-2);
+  font-size: var(--au-t-sm);
+  font-variant-numeric: tabular-nums;
+  color: var(--au-text-muted);
+}
+
+.au-dividas { margin: 0; padding: 0; list-style: none; }
+.au-divida {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--au-2);
+  padding: var(--au-2) var(--au-3);
+  border-left: 3px solid var(--au-warning);
+  border-bottom: 1px solid var(--au-border);
+}
+.au-divida-regra {
+  font-size: var(--au-t-xs);
+  color: var(--au-text-muted);
+  flex: 0 0 12rem;
+}
+.au-divida-titulo { flex: 1 1 12rem; font-weight: 600; min-width: 0; }
+.au-divida-detalhe { font-size: var(--au-t-xs); color: var(--au-text-muted); }
+
+.au-planos { margin: 0; padding: 0; list-style: none; }
+.au-plano {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--au-2);
+  padding: var(--au-2) var(--au-3);
+  border-left: 3px solid transparent;
+  border-bottom: 1px solid var(--au-border);
+}
+.au-planos--atraso .au-plano { border-left-color: var(--au-danger); }
+.au-planos--falhou .au-plano { border-left-color: var(--au-danger); opacity: .8; }
+.au-planos--ok .au-plano { border-left-color: var(--au-success); opacity: .8; }
+.au-plano-titulo { flex: 1 1 14rem; font-weight: 600; min-width: 0; }
+.au-plano-detalhe,
+.au-plano-responsavel,
+.au-plano-prazo {
+  font-size: var(--au-t-xs);
+  color: var(--au-text-muted);
+}
+.au-plano-prazo--atraso { color: var(--au-danger-text); font-weight: 600; }
+.au-planos-rodape { margin-top: var(--au-6); }
+
+.au-ocorrencia-alvo {
+  border: 1px solid var(--au-border);
+  border-left: 3px solid var(--au-warning);
+  border-radius: var(--au-r-md);
+  background: var(--au-surface);
+  padding: var(--au-3) var(--au-4);
+  margin-bottom: var(--au-4);
+}
+.au-ocorrencia-titulo { margin: 0; font-weight: 600; }
+.au-ocorrencia-detalhe {
+  margin: var(--au-1) 0 0;
+  font-size: var(--au-t-sm);
+  color: var(--au-text-muted);
+}
+
+.au-plano-estado {
+  margin: 0 0 var(--au-4);
+  padding: var(--au-2) var(--au-3);
+  border-radius: var(--au-r-md);
+  font-size: var(--au-t-sm);
+  background: var(--au-surface-sunken);
+}
+.au-plano-estado--fora_do_prazo,
+.au-plano-estado--nao_resolvido {
+  background: var(--au-danger-bg);
+  color: var(--au-danger-text);
+}
+.au-plano-estado--resolvido {
+  background: var(--au-success-bg);
+  color: var(--au-success-text);
+}
+
+.au-plano-corpo { margin: 0 0 var(--au-5); }
+.au-plano-corpo dt {
+  font-size: var(--au-t-xs);
+  color: var(--au-text-subtle);
+  margin-top: var(--au-3);
+}
+.au-plano-corpo dd { margin: var(--au-1) 0 0; }
+
+.au-verificacoes { margin: 0; padding: 0; list-style: none; }
+.au-verificacao {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--au-2);
+  padding: var(--au-2) 0;
+  border-bottom: 1px solid var(--au-border);
+  font-size: var(--au-t-sm);
+}
+.au-verificacao-data {
+  font-variant-numeric: tabular-nums;
+  color: var(--au-text-subtle);
+  flex: 0 0 9rem;
+}
+/* Não avaliada NÃO é "não ocorre mais" — a mesma distinção do painel de
+   exceções. Fonte fora do ar não fecha plano nenhum. */
+.au-verificacao--indefinida .au-verificacao-texto { color: var(--au-warning-text); }
+
+.au-plano-fechar { margin-top: var(--au-5); }

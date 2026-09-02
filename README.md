@@ -143,6 +143,8 @@ casa, que era o ponto de existir um contrato.
 | Nada em [resultados/](resultados/) tem formulário, nem no `/admin/` | O dado nasce onde é operado. Editar o espelho criaria duas verdades sobre a mesma linha — e a segunda venceria até a próxima carga, ou não venceria, conforme a precedência ([ADR-018](docs/EXEC_16_INGESTAO.md)). |
 | Regra de exceção com **zero** continua na lista | Sumir esconderia que a regra existe — e a discussão sobre "deveríamos vigiar X" voltaria em seis meses. E "sem ocorrências" **não** é o mesmo que "não avaliada": a segunda quer dizer que a fonte não está no ar, e as duas pedem ações opostas ([ADR-027](docs/EXEC_18_EXCECOES.md)). |
 | Cinco regras estão no banco **desligadas** | ASO, reciclagem, advertências, experiência e a conciliação de centro de custo. Elas dependem do HRIS e do orçamento, e ficam registradas com a fonte anotada — é o que responde "por que não vigiamos isso?" sem ninguém perguntar. |
+| O plano de ação **não fecha porque alguém disse que resolveu** | Fechar roda a regra de novo sobre a mesma ocorrência. Se ela ainda dispara, o plano fecha como "não resolvido" — o texto de quem fechou fica junto, mas não decide. Um painel em que o próprio interessado declara o sucesso mede quem preenche formulário ([ADR-033](docs/EXEC_20_PLANOS.md)). |
+| Fonte fora do ar **não fecha plano nenhum** | A conferência fica registrada como "não avaliada" e o plano continua aberto. Sem isso, um conector caído fecharia como resolvido tudo o que dependesse dele, e o mês apareceria como o melhor do ano — a mesma distinção entre *zero* e *não avaliada* do painel de exceções. |
 | A **ATA congela o carimbo de frescor** | Uma anotação feita diante de um número de três dias atrás guarda "há 3 dias" ao lado, para sempre. Recalcular na leitura reescreveria a história **para melhor**, que é a direção em que ninguém percebe — e "com que dado a sala decidiu" é justamente o que uma auditoria procura numa ATA ([ADR-030](docs/EXEC_19_CICLOS.md)). |
 | Fonte atrasada **não** impede a reunião | A conferência de frescor roda ao abrir o ciclo, recusa a primeira vez e mostra a lista; o segundo clique abre, e os impedimentos ficam congelados na ocorrência e na ATA. Travar transformaria um problema de carga num problema de governança; esconder faria a sala decidir sem saber com que dado. |
 | A etapa da pauta guarda um **código de tela**, nunca uma URL | `CP01 → 10`. No dia em que uma rota mudar, uma pauta com URL viraria uma lista de links quebrados **durante a reunião** — o único momento em que ninguém tem tempo de consertar ([ADR-029](docs/EXEC_19_CICLOS.md)). |
@@ -208,6 +210,7 @@ justificativa no PR.
 | [EXEC 17](docs/EXEC_17_RESULTADOS.md) | A Apresentação de Resultados, a tela de fontes e a massa fictícia, com os ADRs 022–025 |
 | [EXEC 18](docs/EXEC_18_EXCECOES.md) | O painel de exceções: as 18 regras, as 5 desligadas e as duas ações, com os ADRs 026–028 |
 | [EXEC 19](docs/EXEC_19_CICLOS.md) | O ciclo de planejamento e a ATA: a pauta como objeto do produto, com os ADRs 029–031 |
+| [EXEC 20](docs/EXEC_20_PLANOS.md) | O plano de ação com limiar: a regra dos 10% generalizada, com os ADRs 032–033 |
 
 ---
 

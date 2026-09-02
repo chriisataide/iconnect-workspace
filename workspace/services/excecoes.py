@@ -112,9 +112,20 @@ def regras_de(pessoa, cache: dict | None = None):
     vigiam o mecanismo — fonte atrasada, divergência entre fontes —, e elas não
     pertencem a departamento nenhum.
     """
+    # Memoizado por requisição. O trilho pergunta duas vezes — uma por
+    # `ve_excecoes` e outra por `ve_planos` —, e sem isto a varredura das regras
+    # e a consulta de papéis aconteciam em dobro em TODA página do produto.
+    guardado = (cache if cache is not None else {}).setdefault("regras_de_excecao", {})
+    chave = getattr(pessoa, "pk", None)
+    if chave in guardado:
+        if guardado[chave] is None:
+            raise SemExcecoes("Você não responde por nenhuma regra de exceção.")
+        return guardado[chave]
+
     todas = RegraExcecao.objects.ativas()
     if escopo_de(pessoa, PERMISSAO, cache=cache) == ESCOPO_GLOBAL:
-        return list(todas)
+        guardado[chave] = list(todas)
+        return guardado[chave]
 
     meus = papeis_de(pessoa, cache=cache)
     visiveis = [r for r in todas if not r.escopo_papel or r.escopo_papel in meus]
@@ -122,7 +133,9 @@ def regras_de(pessoa, cache: dict | None = None):
         # Só sobraram as regras "de todo mundo". Elas existem para quem já está
         # no painel por outro motivo — mostrá-las sozinhas transformaria o painel
         # numa tela de infraestrutura para quem não opera infraestrutura.
+        guardado[chave] = None
         raise SemExcecoes("Você não responde por nenhuma regra de exceção.")
+    guardado[chave] = visiveis
     return visiveis
 
 

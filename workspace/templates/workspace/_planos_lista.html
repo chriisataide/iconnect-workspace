@@ -1,0 +1,33 @@
+{% load i18n %}
+{% comment %}
+  Um dos quatro estados do benchmark. Sempre renderizado, mesmo vazio.
+
+  Estado que some quando está zerado esconde que ele existe — a mesma razão pela
+  qual uma regra de exceção com zero continua na lista. E o texto do vazio
+  EXPLICA, em vez de deixar a seção em branco.
+{% endcomment %}
+<section class="au-secao" aria-labelledby="planos-{{ ancora }}">
+  <h2 class="au-secao-titulo" id="planos-{{ ancora }}">{{ titulo }}
+    {% if planos %}<span class="au-secao-conta">{{ planos|length }}</span>{% endif %}
+  </h2>
+  {% if planos %}
+    <ul class="au-planos {{ classe }}">
+      {% for p in planos %}
+        <li class="au-plano">
+          <a class="au-plano-titulo" href="{% url 'workspace:plano' pk=p.pk %}">{{ p.titulo }}</a>
+          <span class="au-plano-detalhe">{{ p.detalhe|default:"—" }}</span>
+          <span class="au-plano-responsavel">{{ p.responsavel.nome }}</span>
+          <span class="au-plano-prazo{% if p.atrasado %} au-plano-prazo--atraso{% endif %}">
+            {% if p.aberto %}
+              {% blocktrans with d=p.prazo|date:"d/m/Y" %}até {{ d }}{% endblocktrans %}
+            {% else %}
+              {% blocktrans with d=p.fechado_em|date:"d/m/Y" %}fechado em {{ d }}{% endblocktrans %}
+            {% endif %}
+          </span>
+        </li>
+      {% endfor %}
+    </ul>
+  {% else %}
+    <p class="au-vazio-dica">{{ vazio }}</p>
+  {% endif %}
+</section>

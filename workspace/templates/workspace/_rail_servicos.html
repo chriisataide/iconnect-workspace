@@ -84,7 +84,7 @@
   "Atender" e "Aprovar" só aparecem para quem tem algo esperando. Rail com item
   vazio ensina o usuário a ignorar o rail.
 {% endcomment %}
-{% if ve_indicadores or administra_papeis or ve_publicacoes or ve_faq or ve_documentos or ve_marketing or ve_candidaturas or ve_ciclos %}
+{% if ve_indicadores or administra_papeis or ve_publicacoes or ve_faq or ve_documentos or ve_marketing or ve_candidaturas or ve_ciclos or ve_planos %}
   <p class="au-rail-grupo">{% trans "Acompanhar" %}</p>
   {% comment %}
     Indicadores aparece para quem tem `ind.ler` — Diretoria, Sócios e R.H. — e
@@ -128,6 +128,21 @@
        href="{% url 'workspace:excecoes' %}">
       <svg class="au-icon" aria-hidden="true"><use href="#i-relogio"></use></svg>
       {% trans "Exceções" %}
+    </a>
+  {% endif %}
+  {% comment %}
+    Planos é FILHO de Exceções no trilho: a exceção encontra, o plano responde.
+    Item solto sugeriria duas listas independentes, e a segunda seria a que
+    ninguém abre.
+  {% endcomment %}
+  {% if ve_planos %}
+    <a class="au-rail-item au-rail-item--filho {% if aba == 'planos' %}au-rail-item--ativo{% endif %}"
+       href="{% url 'workspace:planos' %}">
+      <svg class="au-icon" aria-hidden="true"><use href="#i-check"></use></svg>
+      {% trans "Planos de ação" %}
+      {% if planos_vencidos %}
+        <span class="au-rail-contagem au-rail-contagem--alerta">{{ planos_vencidos }}</span>
+      {% endif %}
     </a>
   {% endif %}
   {% if ve_resultados %}

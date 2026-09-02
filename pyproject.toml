@@ -106,4 +106,5 @@ cargas = 97.0      # medido 97.39 · conectores, carregador, transporte
 #   testes desde então, e a folga voltou a ser grande o bastante para esconder um
 #   arquivo inteiro. `test_ciclos.py` sozinho tem 63 — com o piso em 2.400, apagá-lo
 #   não reprovaria nada.
-minimo = 2900
+# 2900 → 2950: os 52 de `test_planos.py`. A folga volta aos ~40 de sempre.
+minimo = 2950

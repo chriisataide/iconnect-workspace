@@ -1,0 +1,87 @@
+{% extends "workspace/_shell_modulo.html" %}
+{% load i18n %}
+
+{% block titulo %}{{ plano.titulo }}{% endblock %}
+{% block rail %}{% include "workspace/_rail_servicos.html" with aba="planos" %}{% endblock %}
+{% block trilha %}
+  <a href="{% url 'workspace:planos' %}">{% trans "Planos de ação" %}</a>
+  <span>{{ plano.titulo }}</span>
+{% endblock %}
+{% block pagina_titulo %}{{ plano.titulo }}{% endblock %}
+{% block voltar_url %}{% url 'workspace:planos' %}{% endblock %}
+
+{% block pagina_descricao %}
+  <p class="au-pagina-desc">
+    {{ regra.titulo }} · {{ plano.detalhe|default:"—" }}
+  </p>
+{% endblock %}
+
+{% block corpo %}
+<p class="au-plano-estado au-plano-estado--{{ plano.estado }}">
+  {% if plano.estado == "no_prazo" %}
+    {% blocktrans with d=plano.prazo|date:"d/m/Y" %}Em andamento, no prazo — até {{ d }}.{% endblocktrans %}
+  {% elif plano.estado == "fora_do_prazo" %}
+    {% blocktrans with d=plano.prazo|date:"d/m/Y" %}Em andamento, FORA do prazo — vencia em {{ d }}.{% endblocktrans %}
+  {% elif plano.estado == "resolvido" %}
+    {% trans "Resolvido — a regra não encontrou mais a ocorrência." %}
+  {% else %}
+    {% trans "Fechado como NÃO resolvido — a regra ainda encontrava a ocorrência." %}
+  {% endif %}
+</p>
+
+<dl class="au-plano-corpo">
+  <dt>{% trans "Por que aconteceu" %}</dt>
+  <dd>{{ plano.justificativa|linebreaksbr }}</dd>
+  <dt>{% trans "O que será feito" %}</dt>
+  <dd>{{ plano.acao|linebreaksbr }}</dd>
+  <dt>{% trans "Responsável" %}</dt>
+  <dd>{{ plano.responsavel.nome }}</dd>
+  <dt>{% trans "Aberto em" %}</dt>
+  <dd>{{ plano.criado_em|date:"d/m/Y H:i" }}{% if plano.aberto_por %} · {{ plano.aberto_por.nome }}{% endif %}</dd>
+  {% if plano.desfecho %}
+    <dt>{% trans "Desfecho" %}</dt>
+    <dd>{{ plano.desfecho }}</dd>
+  {% endif %}
+</dl>
+
+{% comment %}
+  O HISTÓRICO de verificação, e não só a última.
+
+  O comando roda todo dia, e é a SÉRIE que mostra o padrão mais caro de todos: a
+  ocorrência que some e volta. Guardar só a última esconderia exatamente isso.
+{% endcomment %}
+<section class="au-secao" aria-labelledby="verificacoes">
+  <h2 class="au-secao-titulo" id="verificacoes">{% trans "Conferências" %}</h2>
+  {% if verificacoes %}
+    <ul class="au-verificacoes">
+      {% for v in verificacoes %}
+        <li class="au-verificacao{% if not v.avaliada %} au-verificacao--indefinida{% endif %}">
+          <span class="au-verificacao-data">{{ v.verificado_em|date:"d/m/Y H:i" }}</span>
+          <span class="au-verificacao-texto">{{ v.observacao }}</span>
+        </li>
+      {% endfor %}
+    </ul>
+  {% else %}
+    <p class="au-vazio-dica">
+      {% trans "Ainda não houve conferência. Ela acontece no vencimento do prazo, quando a regra roda de novo sobre esta ocorrência." %}
+    </p>
+  {% endif %}
+</section>
+
+{% if plano.aberto and pode_responder %}
+  <form class="au-form au-plano-fechar" method="post"
+        action="{% url 'workspace:fechar_plano' pk=plano.pk %}">
+    {% csrf_token %}
+    <label class="au-rotulo" for="desfecho">{% trans "O que aconteceu" %}</label>
+    <input class="au-input" type="text" id="desfecho" name="desfecho" maxlength="300">
+    <button class="au-btn au-btn--primario" type="submit">{% trans "Fechar o plano" %}</button>
+    {% comment %}
+      O aviso ANTES do clique, e não depois. Quem fecha precisa saber que o
+      desfecho não é o texto que ele acabou de escrever.
+    {% endcomment %}
+    <p class="au-ajuda">
+      {% trans "Fechar roda a regra de novo. Se ela ainda encontrar esta ocorrência, o plano fecha como “não resolvido” — o texto acima fica junto, mas não decide." %}
+    </p>
+  </form>
+{% endif %}
+{% endblock %}

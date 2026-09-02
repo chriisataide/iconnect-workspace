@@ -1,0 +1,83 @@
+{% extends "workspace/_shell_modulo.html" %}
+{% load i18n %}
+
+{% block titulo %}{% trans "Planos de ação" %}{% endblock %}
+{% block rail %}{% include "workspace/_rail_servicos.html" with aba="planos" %}{% endblock %}
+{% block trilha %}<span>{% trans "Planos de ação" %}</span>{% endblock %}
+{% block pagina_titulo %}{% trans "Planos de ação" %}{% endblock %}
+{% block voltar_url %}{% url 'workspace:excecoes' %}{% endblock %}
+{% block voltar_rotulo %}{% trans "Exceções" %}{% endblock %}
+
+{% block pagina_descricao %}
+  <p class="au-pagina-desc">
+    {% trans "Limiar não é alerta: é obrigação. Cada linha abaixo é uma resposta que a empresa deve, ou já deu." %}
+  </p>
+{% endblock %}
+
+{% block corpo %}
+{% comment %}
+  A EFETIVIDADE, que é o que o painel de Tratativas do benchmark mede. Ela vem
+  antes das listas porque é a única linha que responde "isto está funcionando?".
+
+  Sem plano fechado nenhum ela NÃO aparece: uma porcentagem sobre zero seria 0%,
+  e 0% de efetividade é uma afirmação sobre um trabalho que não houve.
+{% endcomment %}
+{% if efetividade is not None %}
+  <p class="au-efetividade">
+    {% blocktrans with pct=efetividade %}{{ pct }}% dos planos fechados resolveram a ocorrência.{% endblocktrans %}
+    <span class="au-efetividade-nota">
+      {% trans "Conferido pela regra no vencimento, e não declarado por quem fechou." %}
+    </span>
+  </p>
+{% endif %}
+
+{% comment %}
+  A DÍVIDA vem primeiro. É a ocorrência que exige plano e não tem — e é a única
+  coisa desta tela que ninguém ainda respondeu.
+
+  A palavra é "dívida" de propósito. "Pendência" é o que se diz de coisa que
+  talvez alguém faça; aqui a obrigação já existe.
+{% endcomment %}
+<section class="au-secao" aria-labelledby="dividas">
+  <h2 class="au-secao-titulo" id="dividas">{% trans "Devem plano" %}</h2>
+  {% if dividas %}
+    <ul class="au-dividas">
+      {% for d in dividas %}
+        <li class="au-divida">
+          <span class="au-divida-regra">{{ d.regra.titulo }}</span>
+          <span class="au-divida-titulo">{{ d.ocorrencia.titulo }}</span>
+          <span class="au-divida-detalhe">{{ d.ocorrencia.detalhe|default:"—" }}</span>
+          {% comment %}
+            O botão só para quem responde por ESTA regra. Quem apenas vê a
+            regra lê a dívida e não a responde — botão que leva a 403 ensina a
+            ignorar botão.
+          {% endcomment %}
+          {% if d.pode_responder %}
+            <a class="au-btn au-btn--sutil au-btn--pequeno"
+               href="{% url 'workspace:plano_novo' %}?regra={{ d.regra.chave }}&amp;ocorrencia={{ d.chave|urlencode }}">
+              {% trans "Responder" %}
+            </a>
+          {% endif %}
+        </li>
+      {% endfor %}
+    </ul>
+  {% else %}
+    <p class="au-vazio-dica">
+      {% trans "Nenhuma ocorrência sem resposta. As regras com limiar rodaram e tudo o que elas encontraram já tem plano aberto — ou elas não encontraram nada." %}
+    </p>
+  {% endif %}
+</section>
+
+{% comment %}
+  FORA DO PRAZO antes de NO PRAZO. A ordem da tela é a ordem de agir — o mesmo
+  princípio do trilho, onde Exceções vem antes de Resultados.
+{% endcomment %}
+{% include "workspace/_planos_lista.html" with planos=fora_do_prazo titulo=_("Em andamento, fora do prazo") vazio=_("Nenhum plano venceu sem desfecho.") classe="au-planos--atraso" ancora="fora" %}
+{% include "workspace/_planos_lista.html" with planos=no_prazo titulo=_("Em andamento, no prazo") vazio=_("Nenhum plano em andamento.") classe="" ancora="dentro" %}
+{% include "workspace/_planos_lista.html" with planos=nao_resolvidos titulo=_("Fechados como NÃO resolvidos") vazio=_("Nenhum plano fechou sem resolver.") classe="au-planos--falhou" ancora="nao" %}
+{% include "workspace/_planos_lista.html" with planos=resolvidos titulo=_("Resolvidos") vazio=_("Nenhum plano resolvido ainda.") classe="au-planos--ok" ancora="ok" %}
+
+<p class="au-vazio-dica au-planos-rodape">
+  {% trans "O desfecho de um plano vem da regra rodando de novo sobre a mesma ocorrência, no vencimento. Fechar dizendo que resolveu, com a regra ainda disparando, grava “não resolvido”." %}
+</p>
+{% endblock %}

@@ -81,6 +81,20 @@ class RegraExcecao(models.Model):
     #: — que não é zero. Somá-las faria uma fonte caída parecer um mês tranquilo.
     fonte_requerida = models.CharField(max_length=30, blank=True)
 
+    #: Esta regra gera OBRIGAÇÃO, e não só aviso.
+    #:
+    #: É a regra dos 10% do benchmark generalizada: margem abaixo do limiar
+    #: **exige justificativa e plano de ação**, com dono e prazo. Campo aqui e
+    #: não numa tabela `Limiar` apontando para esta: gerar obrigação é
+    #: propriedade da regra, e uma segunda tabela seria uma segunda verdade
+    #: sobre quais regras são cobradas. Ver ADR-032.
+    exige_plano = models.BooleanField(default=False, db_index=True)
+
+    #: Quantos dias o plano ganha até ser RECONFERIDO. Zero com `exige_plano`
+    #: ligado cai no padrão de `PRAZO_PADRAO_DO_PLANO` — prazo ausente viraria
+    #: plano que vence no dia em que nasce.
+    prazo_do_plano = models.PositiveSmallIntegerField(default=0)
+
     ativa = models.BooleanField(default=True, db_index=True)
     ordem = models.PositiveSmallIntegerField(default=100)
 

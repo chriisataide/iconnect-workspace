@@ -83,6 +83,10 @@ REGRAS = (
                            "conclui que a barra está quebrada.",
         "severidade": Severidade.MEDIA, "escopo_papel": "financeiro",
         "fonte_requerida": "financas",
+        # Orçamento ausente não se resolve sozinho, e é o que impede a
+        # bandeja de calcular impacto. Sem limiar, esta regra dispararia
+        # todo mês sem ninguém dever resposta.
+        "exige_plano": True, "prazo_do_plano": 30,
     },
     {
         "chave": "cc-comprometido", "ordem": 90, "janela": 90,
@@ -108,6 +112,11 @@ REGRAS = (
                            "obrigação. Contrato sem amostra fica de fora.",
         "severidade": Severidade.ALTA, "escopo_papel": "financeiro",
         "fonte_requerida": "iconnect_platform",
+        # A regra dos 10% do benchmark é a origem de toda a Onda 6:
+        # "não é alerta, é obrigação". 30 dias porque é um fechamento
+        # de mês — abaixo disso o plano vence antes de haver número novo
+        # para conferir.
+        "exige_plano": True, "prazo_do_plano": 30,
     },
     {
         "chave": "contrato-vencendo-sem-visita", "ordem": 120, "janela": 60,
@@ -132,6 +141,10 @@ REGRAS = (
                            "pessoa esperando.",
         "severidade": Severidade.ALTA, "escopo_papel": "operacao",
         "fonte_requerida": "iconnect_platform",
+        # O outro limiar que o benchmark nomeia: todo detrator gera plano
+        # com prazo, e a pesquisa é REFEITA ao fim do prazo. 30 dias é o
+        # prazo que o painel de Tratativas usa.
+        "exige_plano": True, "prazo_do_plano": 30,
     },
     {
         "chave": "projeto-bloqueado", "ordem": 150, "janela": 15,
@@ -140,6 +153,9 @@ REGRAS = (
                            "vermelha que ninguém sabe o que fazer com.",
         "severidade": Severidade.MEDIA, "escopo_papel": "operacao",
         "fonte_requerida": "monday",
+        # Bloqueio é o único desta lista cujo prazo é curto: um projeto
+        # parado há 15 dias com plano de 30 ficaria parado 45.
+        "exige_plano": True, "prazo_do_plano": 15,
     },
     {
         "chave": "marco-vencido", "ordem": 160,

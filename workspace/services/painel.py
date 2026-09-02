@@ -78,6 +78,8 @@ SEM_SESSAO = {
     "ve_resultados": False,
     "ve_excecoes": False,
     "ve_ciclos": False,
+    "ve_planos": False,
+    "planos_vencidos": 0,
     "ve_fontes": False,
     "ve_estoque": False,
     "custodias_a_aceitar": 0,
@@ -132,6 +134,7 @@ def _calcular(request: HttpRequest) -> dict:
     from workspace.services import notificacoes as nt
     from workspace.services import recrutamento as rec
     from workspace.services import ciclos as cic
+    from workspace.services import planos as pln
     from workspace.services import excecoes as exc
     from workspace.services import resultados as res
     from workspace.services import publicacao as pub
@@ -144,6 +147,11 @@ def _calcular(request: HttpRequest) -> dict:
     ve_frota = frt.pode_ler(pessoa, cache=cache)
     ve_documentos = cnt.pode_publicar(pessoa, cache=cache)
     ve_marketing = mkt.pode_ler(pessoa, cache=cache)
+    # Calculado UMA vez: `ve_planos` decide se o item do trilho aparece e
+    # também se vale pagar a contagem dos vencidos. Chamá-lo duas vezes
+    # dentro do dicionário custaria a varredura das regras em dobro, em
+    # toda requisição.
+    ve_planos = pln.pode_ler(pessoa, cache=cache)
 
     return {
         "eu": _quem_sou(pessoa),
@@ -178,6 +186,15 @@ def _calcular(request: HttpRequest) -> dict:
         # §Onda 5 — o ciclo de planejamento. Só para quem participa de
         # algum: um item de trilho que leva a 403 ensina a ignorar o trilho.
         "ve_ciclos": cic.tem_acesso(pessoa, cache=cache),
+        # §Onda 6 — os planos de ação. `ve_planos` responde "esta pessoa
+        # acompanha alguma regra com limiar"; o contador ao lado é o que está
+        # VENCIDO, que é a única parte da lista que pede ação hoje.
+        "ve_planos": ve_planos,
+        "planos_vencidos": (
+            pln.planos_visiveis(pessoa, cache=cache).vencidos().count()
+            if ve_planos
+            else 0
+        ),
         "ve_fontes": res.pode_ver_fontes(pessoa, cache=cache),
         "ve_publicacoes": pub.pode_publicar(pessoa, cache=cache),
         "ve_faq": asst.pode_manter(pessoa, cache=cache),

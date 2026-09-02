@@ -127,6 +127,11 @@ PAPEIS_V1 = [
             # de quem convoca.
             "cic.ler.global",
             "cic.conduzir.global",
+            # Responder por QUALQUER regra com limiar. A diretoria assina o
+            # plano do contrato deficitário porque é ela que responde por ele
+            # numa reunião de conselho — e porque, nas regras sem papel
+            # atribuído, o escopo global é o único caminho.
+            "pla.responder.global",
             # A tela de fontes. A pergunta "de onde vem esse número?" é da
             # diretoria antes de ser de quem opera — e a resposta precisa ser um
             # link, não um chamado.
@@ -219,6 +224,11 @@ PAPEIS_V1 = [
             # a visão da empresa faria a conferência acontecer na planilha, que
             # é de onde este produto está tentando tirar a conversa.
             "eco.ler.global",
+            # Responder pelos planos das regras que o Financeiro atende — a de
+            # margem abaixo do limiar, à frente de todas. `.departamento` e não
+            # `.global`: o escopo decide o alcance, e o papel da regra decide
+            # QUAL plano; sem o papel, esta permissão não abre nada.
+            "pla.responder.departamento",
         ],
         "descricao": "Reembolso, prestação de contas, orçamento por centro de custo.",
     },
@@ -355,6 +365,11 @@ PAPEIS_V1 = [
             "ops.escala.editar.unidade",
             "ops.incidente.comandar.unidade",
             "hab.ler.equipe",
+            # A tratativa do cliente detrator e o projeto bloqueado são planos
+            # da Operação — é ela que fala com o cliente e desbloqueia o
+            # projeto. Sem isto, a regra apontaria para um papel que não pode
+            # responder por ela, e a dívida ficaria sem dono para sempre.
+            "pla.responder.unidade",
         ],
         "descricao": "Painel ao vivo, despacho, escala e incidente.",
     },
