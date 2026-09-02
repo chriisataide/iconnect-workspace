@@ -14,6 +14,8 @@ from django.contrib import admin, messages
 from django.utils import timezone
 
 from .models import (
+    RegraExcecao,
+    ResultadoExcecao,
     Anexo,
     Compromisso,
     Curso,
@@ -465,3 +467,49 @@ class CursoAdmin(admin.ModelAdmin):
     list_filter = ("ativo", "tipo", "obrigatorio")
     search_fields = ("codigo", "nome")
     ordering = ("nome",)
+
+
+# ── Painel de exceções ──────────────────────────────────────────────
+
+
+@admin.register(RegraExcecao)
+class RegraExcecaoAdmin(admin.ModelAdmin):
+    """A CONFIGURAÇÃO da regra — e só ela.
+
+    Ligar, desligar, reordenar e mudar severidade são decisões de quem opera,
+    tomadas no dia: exigir deploy para elas faria a primeira regra ruidosa ficar
+    ruidosa por uma semana.
+
+    A LÓGICA não está aqui e não pode estar. Ligar uma regra sem avaliador
+    escrito é possível — e a tela responde "não avaliada" com o motivo, em vez
+    de "sem ocorrências", que seria uma afirmação sobre uma verificação que não
+    aconteceu.
+    """
+
+    list_display = ("ordem", "chave", "titulo", "severidade", "escopo_papel",
+                    "fonte_requerida", "ativa")
+    list_filter = ("ativa", "severidade", "fonte_requerida", "escopo_papel")
+    list_editable = ("ativa", "ordem")
+    search_fields = ("chave", "titulo", "descricao_curta")
+    ordering = ("ordem", "chave")
+    readonly_fields = ("chave",)
+
+
+@admin.register(ResultadoExcecao)
+class ResultadoExcecaoAdmin(admin.ModelAdmin):
+    """O retrato de uma avaliação. Registro, e por isso somente leitura.
+
+    Registro editável não é registro — e é dele que sai a tendência que a tela
+    mostra. Corrigir um número aqui faria a seta mentir sobre um movimento que
+    não houve.
+    """
+
+    list_display = ("regra", "executada_em", "total", "avaliada")
+    list_filter = ("avaliada", "regra")
+    date_hierarchy = "executada_em"
+
+    def has_add_permission(self, request) -> bool:
+        return False
+
+    def has_change_permission(self, request, obj=None) -> bool:
+        return False

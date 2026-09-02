@@ -3413,3 +3413,89 @@ tr[data-abre-resumo]:focus-visible {
   color: var(--au-text);
 }
 .au-btn--fantasma:hover { background: var(--au-neutral-bg); }
+
+/* ═══════════════════════════════════════════════════════════════
+   Painel de exceções (11)
+   ═══════════════════════════════════════════════════════════════
+
+   Uma LISTA DE REGRAS, e não um dashboard. Cada linha é uma regra com uma
+   contagem, e ela expande para a grade dos registros que a violaram.
+
+   `<details>` e não JS: o navegador entrega o abre-e-fecha, o estado e o
+   teclado de graça, e a CSP não precisa de exceção nenhuma. */
+
+.au-regras { margin: 0; padding: 0; list-style: none; }
+
+.au-regra {
+  border: 1px solid var(--au-border);
+  border-left: 3px solid var(--au-border-strong);
+  border-radius: var(--au-r-md, 6px);
+  margin-bottom: var(--au-3);
+  background: var(--au-surface);
+}
+
+/* A severidade colore a BORDA, e não o fundo: fundo colorido em dezoito linhas
+   vira um semáforo que ninguém lê. */
+.au-regra--sev-alta { border-left-color: var(--au-danger); }
+.au-regra--sev-media { border-left-color: var(--au-warning); }
+.au-regra--sev-baixa { border-left-color: var(--au-border-strong); }
+
+/* Regra sem ocorrência fica DISCRETA e continua na lista. Sumir esconderia que
+   a regra existe — e a discussão sobre "deveríamos vigiar X" voltaria em seis
+   meses. */
+.au-regra--sem_ocorrencias { opacity: .72; }
+
+.au-regra-caixa { padding: var(--au-3); }
+
+.au-regra-cabeca {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--au-3);
+  cursor: pointer;
+  list-style: none;
+}
+.au-regra-cabeca::-webkit-details-marker { display: none; }
+
+.au-regra-titulo { flex: 1 1 14rem; font-weight: 600; min-width: 0; }
+
+.au-regra-conta {
+  font-size: var(--au-t-lg);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+.au-regra-conta--zero {
+  font-size: var(--au-t-xs);
+  font-weight: 400;
+  color: var(--au-text-subtle);
+}
+/* "Não avaliada" NÃO é zero, e por isso não se parece com zero: ela é a única
+   das três que ganha cor de aviso. Zero é tranquilidade; não avaliada é uma
+   fonte para ligar. */
+.au-regra-conta--indefinida {
+  font-size: var(--au-t-xs);
+  font-weight: 600;
+  color: var(--au-warning-text);
+}
+
+.au-regra-tendencia {
+  font-size: var(--au-t-xs);
+  font-variant-numeric: tabular-nums;
+  color: var(--au-text-subtle);
+}
+.au-regra-tendencia--sobe { color: var(--au-danger-text); }
+
+.au-regra-descricao {
+  margin: var(--au-2) 0 var(--au-3);
+  font-size: var(--au-t-sm);
+  color: var(--au-text-muted);
+}
+
+.au-regra-acoes {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--au-2);
+  margin-top: var(--au-3);
+}
+
+.au-excecoes-carimbo { margin-top: var(--au-6); }

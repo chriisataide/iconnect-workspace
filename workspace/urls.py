@@ -121,6 +121,11 @@ urlpatterns = [
     # `fontes/` ANTES de qualquer rota com parâmetro sob `resultados/`: sem
     # isso, o dia em que existir `resultados/<slug>/` a palavra "fontes"
     # sequestraria a tela — o mesmo cuidado de `documentacao/acervo/`.
+    # O painel de exceções (11). Lista de REGRAS com contagem, e não um
+    # dashboard — ver `workspace/excecoes/base.py`.
+    path("excecoes/", views.excecoes, name="excecoes"),
+    path("excecoes/<slug:chave>/notificar/", views.notificar_excecao,
+         name="notificar_excecao"),
     path("resultados/", views.resultados, name="resultados"),
     path("resultados/pdf/", views.resultados_pdf, name="resultados_pdf"),
     path("resultados/fontes/", views.fontes, name="fontes"),

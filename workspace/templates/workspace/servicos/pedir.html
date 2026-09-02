@@ -25,6 +25,14 @@
   <form method="post" class="au-form" enctype="multipart/form-data" novalidate
         {% if passos %}data-stepper data-ultimo="{{ ultimo_passo }}"{% endif %}>
     {% csrf_token %}
+    {% if origem %}
+      {% comment %}
+        A origem atravessa o envio. Sem isto, o histórico do pedido não saberia
+        dizer que ele nasceu de uma exceção — e a pergunta "por que abrimos
+        isso?" voltaria a não ter resposta.
+      {% endcomment %}
+      <input type="hidden" name="origem" value="{{ origem }}">
+    {% endif %}
 
     {% if passos %}
       {% include "workspace/servicos/_trilha_passos.html" with atual=1 %}

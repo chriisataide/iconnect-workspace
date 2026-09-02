@@ -141,6 +141,8 @@ casa, que era o ponto de existir um contrato.
 | Existem **dois** clientes HTTP no repositório | Um roda dentro da requisição do usuário (4 s, retry linear, **nunca** repete `POST`); o outro roda em carga agendada (60 s, recuo exponencial, e `POST` é o método de **leitura** do monday). Um módulo com seis parâmetros para servir aos dois não serviria bem a nenhum. O que eles dividem é um **teste** — nenhum dos dois registra credencial ([ADR-021](docs/EXEC_16_INGESTAO.md)). |
 | O app de ingestão se chama `cargas`, e não `integracoes` | Porque [workspace/integracoes/](workspace/integracoes/) já existe e é outra coisa: o link com a Platform. Dois pacotes com o mesmo nome é como um `import` errado passa despercebido numa revisão. |
 | Nada em [resultados/](resultados/) tem formulário, nem no `/admin/` | O dado nasce onde é operado. Editar o espelho criaria duas verdades sobre a mesma linha — e a segunda venceria até a próxima carga, ou não venceria, conforme a precedência ([ADR-018](docs/EXEC_16_INGESTAO.md)). |
+| Regra de exceção com **zero** continua na lista | Sumir esconderia que a regra existe — e a discussão sobre "deveríamos vigiar X" voltaria em seis meses. E "sem ocorrências" **não** é o mesmo que "não avaliada": a segunda quer dizer que a fonte não está no ar, e as duas pedem ações opostas ([ADR-027](docs/EXEC_18_EXCECOES.md)). |
+| Cinco regras estão no banco **desligadas** | ASO, reciclagem, advertências, experiência e a conciliação de centro de custo. Elas dependem do HRIS e do orçamento, e ficam registradas com a fonte anotada — é o que responde "por que não vigiamos isso?" sem ninguém perguntar. |
 | A tela de Resultados é a **10**, e não a `01.2` do benchmark | `01` já é *Meu dia*. Renumerar um endereço é o que o [ADR-015](docs/EXEC_15_ENDERECAMENTO.md) existe para impedir — copiamos o padrão do Portal GPS, não os números dele. A `99` das fontes ficou: ali o que se copia **é** o padrão, de as telas que consertam o dado serem um módulo declarado. |
 | Quem opera as cargas **não** vê os números | `eco.carga` e `eco.ler` são permissões separadas. Ligar alguém no suporte às cargas não pode dar a ele a margem de todo contrato da empresa ([ADR-023](docs/EXEC_17_RESULTADOS.md)). |
 | A massa de teste tem **quinze anomalias de propósito** | Contrato deficitário, centro de custo sem orçamento, carga do monday falhada há 30 h. Cada uma exercita uma regra da tela, e `test_massa.py` afirma todas — se alguém "consertar" a massa, o teste cai e explica por quê. |
@@ -163,7 +165,7 @@ casa, que era o ponto de existir um contrato.
 ## Testes
 
 ```bash
-python -m pytest                          # 2.813 testes hoje, cobertura por app
+python -m pytest                          # 2.874 testes hoje, cobertura por app
 python scripts/check_coverage_ratchet.py  # os pisos, que só sobem
 ```
 
@@ -201,6 +203,7 @@ justificativa no PR.
 | [EXEC 15](docs/EXEC_15_ENDERECAMENTO.md) | O código da tela, o carimbo de frescor e os prefixos de busca, com os ADRs 015–017 |
 | [EXEC 16](docs/EXEC_16_INGESTAO.md) | A ingestão multi-fonte: `cargas`, `resultados`, os quatro conectores e o carregador, com os ADRs 018–021 |
 | [EXEC 17](docs/EXEC_17_RESULTADOS.md) | A Apresentação de Resultados, a tela de fontes e a massa fictícia, com os ADRs 022–025 |
+| [EXEC 18](docs/EXEC_18_EXCECOES.md) | O painel de exceções: as 18 regras, as 5 desligadas e as duas ações, com os ADRs 026–028 |
 
 ---
 

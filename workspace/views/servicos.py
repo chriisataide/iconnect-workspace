@@ -125,6 +125,19 @@ def pedir(request: HttpRequest, chave: str) -> HttpResponse:
     devolvido = svc.devolvido_de(
         pessoa, request.POST.get("devolvido") or request.GET.get("devolvido")
     )
+    # A ORIGEM do pedido — de onde veio o clique que abriu este formulário.
+    #
+    # Vem do painel de exceções (`?origem=excecao:margem-abaixo-de-10`) e vai
+    # para o histórico. Só a origem: o conteúdo NUNCA é pré-preenchido a partir
+    # dela, pela mesma razão de a busca não pré-preencher — pedido com dado
+    # adivinhado é pior que pedido vazio, porque o formulário mostra o que vai
+    # ser enviado e o palpite não.
+    #
+    # Truncada e sem validação de vocabulário: é um rótulo de proveniência, não
+    # uma chave estrangeira. Recusar um valor desconhecido só faria um link
+    # antigo quebrar sem ganho nenhum.
+    origem = (request.POST.get("origem") or request.GET.get("origem") or "")[:120]
+
     retomado = rascunho or devolvido
     if retomado is not None and request.method == "GET":
         # Volta o que já estava escrito. Só no GET: no POST o que vale é o que
@@ -169,6 +182,7 @@ def pedir(request: HttpRequest, chave: str) -> HttpResponse:
                 adiantamento=adiantamento,
                 rascunho=rascunho,
                 devolvido=devolvido,
+                origem=origem,
             )
         except (SolicitacaoError, AnexoError, ReembolsoError) as erro:
             # Revalida para devolver a lista completa por campo, e não só a
@@ -283,6 +297,7 @@ def pedir(request: HttpRequest, chave: str) -> HttpResponse:
             # a lista: quem está corrigindo precisa dele à vista enquanto
             # digita, não numa aba anterior que já fechou.
             "devolvido": devolvido,
+            "origem": origem,
             "motivo_da_devolucao": devolvido.motivo_devolucao if devolvido else "",
             # Os anexos que JÁ estão na linha retomada. A tela precisa
             # mostrá-los, senão a pessoa volta ao formulário, não vê o

@@ -107,6 +107,14 @@ PAPEIS_V1 = [
             # ele existe: volume por área, tempo até resolver, onde trava.
             "ind.ler.global",
             "eco.ler.global",
+            # O painel de exceções INTEIRO. Sem isto, a diretoria veria só as
+            # regras dos papéis que ela ocupa — e o painel existe justamente
+            # para ver o que está solto nos departamentos dos outros.
+            #
+            # Quem NÃO tem esta permissão continua entrando: cada regra declara
+            # o papel que responde por ela, e a pessoa vê as suas. Ver o painel
+            # não é privilégio; ver o painel INTEIRO é.
+            "exc.ler.global",
             # A tela de fontes. A pergunta "de onde vem esse número?" é da
             # diretoria antes de ser de quem opera — e a resposta precisa ser um
             # link, não um chamado.
@@ -138,6 +146,7 @@ PAPEIS_V1 = [
             "ops.ler.global",
             "ind.ler.global",
             "eco.ler.global",
+            "exc.ler.global",
         ],
         "descricao": (
             "Último degrau. Aprova acima de R$ 300.000. Deliberadamente SEM as "

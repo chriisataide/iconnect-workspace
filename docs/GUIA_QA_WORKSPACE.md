@@ -1503,6 +1503,65 @@ aparece mesmo num ambiente onde nada foi configurado.
 
 ---
 
+### 3.20 Painel de exceções — `/workspace/excecoes/` (código 11)
+
+**Para que serve.** Responde *"o que exige ação agora?"* — uma lista de regras
+com contagem, que expande para a grade dos registros que a violaram. Cada linha
+traz **quem responde**.
+
+**Antes de testar:**
+
+```bash
+python manage.py semear_regras_excecao --aplicar
+```
+
+**O que testar, em ordem de importância:**
+
+- **Regra com zero CONTINUA na lista**, escrita "sem ocorrências" e em cinza. Se
+  ela sumir, **abra bug**: sumir esconde que a regra existe, e a discussão sobre
+  "deveríamos vigiar X" volta em seis meses.
+- **"Não avaliada" NÃO é zero.** Num ambiente sem os conectores, as regras de
+  contrato e de projeto aparecem assim, em amarelo, com o motivo — e **não**
+  entram na contagem do topo. Se elas aparecerem como "sem ocorrências", **abra
+  bug de gravidade alta**: uma fonte fora do ar estaria parecendo um mês
+  tranquilo.
+- **A grade traz nome e papel, e NUNCA e-mail nem documento.** Se aparecer
+  `@icodev.com.br` numa linha, é achado de segurança.
+- **Papel sem ocupante aparece como "ninguém"**, escrito assim. Coluna vazia
+  pareceria defeito de renderização, e o achado real — o papel sem dono — passaria
+  despercebido.
+- **Cada papel vê as SUAS regras.** Entre com `rh@icodev.com.br`: as regras de
+  organograma aparecem, as do Financeiro não. Com `diretoria@`, todas.
+- **`colaborador@icodev.com.br` recebe 403**, e não uma lista vazia. Lista vazia
+  é a mesma mentira de um painel de zeros.
+- **`marketing@` também recebe 403**, mesmo havendo regras "de todo mundo"
+  (fonte atrasada, divergência). Elas existem para quem já está no painel por
+  outro motivo — sozinhas, transformariam a tela numa tela de infraestrutura.
+- **Uma regra que estoura não derruba as outras.** Se a tela der 500, **abra
+  bug**: o painel existe justamente para ser aberto quando algo está errado.
+
+**As duas ações:**
+
+- **Avisar quem responde** manda **um** aviso por pessoa, e não um por
+  ocorrência. Confira no sino: cinco lotações sem centro de custo têm de produzir
+  **uma** notificação para o R.H., não cinco.
+- **Abrir solicitação** leva ao catálogo com `?origem=excecao:<chave>` na URL. O
+  formulário abre **em branco** — se vier pré-preenchido, **abra bug**: pedido
+  com dado adivinhado é pior que pedido vazio.
+- **Não existe "marcar como resolvido"**, e é decisão de produto. Resolver é
+  trabalho de gente.
+
+**A seção "Registradas e ainda desligadas"** no fim da tela lista ASO,
+reciclagem, advertências, experiência e a conciliação de centro de custo, com a
+fonte de que cada uma depende. Elas **não** são bug e **não** devem ser ligadas
+pelo `/admin/`: sem avaliador escrito, elas aparecem como "não avaliada".
+
+**A tendência** (a seta ao lado da contagem) só aparece depois de
+`avaliar_excecoes --aplicar` ter rodado ao menos uma vez. Sem histórico, a tela
+não inventa uma seta — e isso é o correto.
+
+---
+
 ## 4. Matriz perfil × tela
 
 Use como plano de cobertura. **A coluna "Anônimo" é a mais esquecida e a que mais

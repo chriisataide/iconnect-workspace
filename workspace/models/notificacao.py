@@ -88,6 +88,12 @@ class TipoNotificacao(models.TextChoices):
     # SOME do acervo sem ninguém ser avisado. As pessoas continuam precisando do
     # procedimento; ele deixou de existir na tela.
     DOCUMENTO_A_VENCER = "documento_a_vencer", "Documento vencendo ou vencido"
+    # §Onda 4 — uma regra do painel de exceções encontrou coisa que exige ação.
+    #
+    # Um aviso por PESSOA e por REGRA, nunca por ocorrência: quarenta avisos
+    # sobre a mesma regra transformam o sino num lugar que se aprende a ignorar,
+    # e o aviso que importa some junto.
+    EXCECAO_ABERTA = "excecao_aberta", "Uma regra de exceção exige atenção"
     # Documento de veículo vencendo — §18. Vai para quem OPERA a frota e não
     # para o último motorista: quem paga o IPVA e agenda a vistoria é
     # Suprimentos, e avisar quem dirigiu ontem transfere para a pessoa errada

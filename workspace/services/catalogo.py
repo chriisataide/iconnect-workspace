@@ -478,6 +478,7 @@ def solicitar(
     adiantamento: SolicitacaoServico | None = None,
     rascunho: SolicitacaoServico | None = None,
     devolvido: SolicitacaoServico | None = None,
+    origem: str = "",
 ) -> SolicitacaoServico:
     """Cria o pedido e o roteia — auto-aprovado ou para a cadeia de aprovação.
 
@@ -595,6 +596,18 @@ def solicitar(
         solicitacao,
         hst.Acao.REENVIADA if devolvido is not None else hst.Acao.CRIADA,
         quem=pessoa,
+        # A ORIGEM entra no histórico, e não num campo novo do pedido.
+        #
+        # Ela responde "por que este pedido existe?" — pergunta sobre o passado,
+        # e passado é o que o histórico guarda. Um campo no pedido viraria mais
+        # uma coluna para filtrar, e a primeira consulta por ela produziria um
+        # relatório que ninguém pediu.
+        #
+        # É só a ORIGEM. O conteúdo do formulário NUNCA é pré-preenchido a
+        # partir de uma exceção: pedido com dado adivinhado é pior que pedido
+        # vazio, porque o formulário mostra o que vai ser enviado e o palpite
+        # não. Mesma decisão do §57 sobre a busca.
+        observacao=(origem or "")[:200],
     )
     if auto:
         # Sem `quem`: ninguém decidiu — o pedido coube na política. Inventar um

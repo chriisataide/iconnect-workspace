@@ -713,6 +713,10 @@ def test_contexto_do_rail_usa_pessoa_aberta_para_anonimo():
         # financeiro não é informação institucional, e a tela de
         # fontes conta quais sistemas a empresa usa.
         "ve_resultados": False,
+        # §Onda 4 — o painel de exceções. `False` para anônimo pela
+        # mesma razão dos outros dois: a lista de regras conta o que a
+        # empresa vigia, e a grade nomeia gente.
+        "ve_excecoes": False,
         "ve_fontes": False,
         # E o mesmo para estoque e equipamentos: a porta do estoque não é
         # oferecida a quem não pode abri-la, e "0 para confirmar" seria o número

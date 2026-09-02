@@ -1,0 +1,177 @@
+{% extends "workspace/_shell_modulo.html" %}
+{% load i18n wks %}
+
+{% block titulo %}{% trans "Exceções" %}{% endblock %}
+{% block rail %}{% include "workspace/_rail_servicos.html" with aba="excecoes" %}{% endblock %}
+{% block trilha %}<span>{% trans "Exceções" %}</span>{% endblock %}
+{% block pagina_titulo %}{% trans "Gestão por exceção" %}{% endblock %}
+{% block voltar_url %}{% url 'workspace:home' %}{% endblock %}
+
+{% block pagina_descricao %}
+  <p class="au-pagina-desc">
+    {% blocktrans count n=total_de_ocorrencias %}{{ n }} coisa exigindo atenção agora.{% plural %}{{ n }} coisas exigindo atenção agora.{% endblocktrans %}
+  </p>
+{% endblock %}
+
+{% block corpo %}
+{% comment %}
+  NÃO é um dashboard. É uma lista de REGRAS, cada uma com uma contagem, que
+  expande para a grade dos registros que a violaram — e cada linha traz o
+  responsável. A exceção nasce endereçada.
+
+  Regra com zero NÃO some. Sumir esconderia que a regra existe, e o efeito
+  prático é alguém reabrir a discussão sobre "deveríamos vigiar X" seis meses
+  depois de já estarmos vigiando.
+{% endcomment %}
+
+<ul class="au-regras">
+  {% for a in avaliacoes %}
+    <li class="au-regra au-regra--{{ a.situacao }} au-regra--sev-{{ a.regra.severidade }}">
+      <details class="au-regra-caixa" {% if a.total %}open{% endif %}>
+        <summary class="au-regra-cabeca">
+          <span class="au-regra-titulo">{{ a.regra.titulo }}</span>
+
+          {% if a.situacao == "nao_avaliada" %}
+            {% comment %}
+              "Não avaliada" NÃO é zero. Zero é tranquilidade; não avaliada é uma
+              fonte para ligar, e as duas pedem ações opostas. Somá-las faria uma
+              fonte caída parecer um mês sem problema.
+            {% endcomment %}
+            <span class="au-regra-conta au-regra-conta--indefinida">{% trans "não avaliada" %}</span>
+          {% elif a.total %}
+            <span class="au-regra-conta">{{ a.total }}</span>
+          {% else %}
+            <span class="au-regra-conta au-regra-conta--zero">{% trans "sem ocorrências" %}</span>
+          {% endif %}
+
+          {% if a.variacao %}
+            {% comment %}
+              A tendência. Uma regra que foi de 3 para 40 importa mais que uma
+              que está em 40 há um ano — e a contagem sozinha não conta isso.
+            {% endcomment %}
+            <span class="au-regra-tendencia{% if a.variacao > 0 %} au-regra-tendencia--sobe{% endif %}">
+              {% if a.variacao > 0 %}+{% endif %}{{ a.variacao }}
+              <small>{% trans "desde a última avaliação" %}</small>
+            </span>
+          {% endif %}
+        </summary>
+
+        <p class="au-regra-descricao">{{ a.regra.descricao_curta }}</p>
+
+        {% if a.situacao == "nao_avaliada" %}
+          <p class="au-vazio-dica">{{ a.motivo }}</p>
+
+        {% elif a.total %}
+          <div class="au-tabela">
+            <table>
+              <caption class="au-sr">{{ a.regra.titulo }}</caption>
+              <thead>
+                <tr>
+                  <th>{% trans "O quê" %}</th>
+                  <th>{% trans "Detalhe" %}</th>
+                  {% comment %}
+                    O RESPONSÁVEL em cada linha — é o que o benchmark faz ao pôr
+                    o e-mail do gestor na grade. Sem isso a lista vira um
+                    relatório que alguém precisa distribuir à mão.
+
+                    Nome e papel. NUNCA e-mail, nunca documento: quem abre esta
+                    tela tem o papel da regra, e não o direito de ver dado
+                    pessoal de terceiro.
+                  {% endcomment %}
+                  <th>{% trans "Responsável" %}</th>
+                  <th>{% trans "Desde" %}</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for o in a.ocorrencias|slice:":50" %}
+                  <tr>
+                    <td>
+                      {% if o.url %}<a href="{{ o.url }}">{{ o.titulo }}</a>
+                      {% else %}{{ o.titulo }}{% endif %}
+                    </td>
+                    <td>{{ o.detalhe|default:"—" }}</td>
+                    <td>
+                      {{ o.responsavel }}
+                      {% if o.papel %}<small>{{ o.papel }}</small>{% endif %}
+                    </td>
+                    <td>{% if o.desde %}{{ o.desde|date:"d/m/Y" }}{% else %}—{% endif %}</td>
+                  </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+          {% if a.total > 50 %}
+            <p class="au-vazio-dica">
+              {% blocktrans with resto=a.total|add:"-50" %}e mais {{ resto }} — a grade mostra as 50 primeiras.{% endblocktrans %}
+            </p>
+          {% endif %}
+
+          <div class="au-regra-acoes">
+            {% comment %}
+              Duas ações, e nenhuma resolve a exceção por conta própria: uma
+              avisa quem responde, a outra abre o caminho para pedir. Resolver é
+              trabalho de gente, e um botão "marcar como resolvido" só ensinaria
+              a limpar a lista sem tocar no problema.
+            {% endcomment %}
+            <form method="post" action="{% url 'workspace:notificar_excecao' a.regra.chave %}">
+              {% csrf_token %}
+              <button class="au-btn au-btn--sutil" type="submit">
+                {% trans "Avisar quem responde" %}
+              </button>
+            </form>
+            {% comment %}
+              Pré-preenche a ORIGEM, nunca o conteúdo. Pedido com dado
+              adivinhado é pior que pedido vazio: o formulário mostra o que vai
+              ser enviado, e o palpite não.
+            {% endcomment %}
+            <a class="au-btn au-btn--fantasma"
+               href="{% url 'workspace:servicos' %}?origem=excecao:{{ a.regra.chave }}">
+              {% trans "Abrir solicitação" %}
+            </a>
+          </div>
+
+        {% else %}
+          <p class="au-vazio-dica">
+            {% trans "A regra rodou e não encontrou nada. Ela continua na lista de propósito — regra que some é regra que se discute de novo daqui a seis meses." %}
+          </p>
+        {% endif %}
+      </details>
+    </li>
+  {% endfor %}
+</ul>
+
+{% if desligadas %}
+  {% comment %}
+    As registradas e DESLIGADAS.
+
+    Elas respondem "por que não vigiamos ASO?" sem ninguém precisar perguntar — e
+    impedem a mesma discussão de voltar em seis meses. Cada uma traz a fonte de
+    que depende, então a pergunta seguinte também já tem resposta.
+  {% endcomment %}
+  <h2 class="au-secao-titulo" id="desligadas">{% trans "Registradas e ainda desligadas" %}</h2>
+  <div class="au-tabela">
+    <table>
+      <thead>
+        <tr>
+          <th>{% trans "Regra" %}</th>
+          <th>{% trans "Por que ainda não vale" %}</th>
+          <th>{% trans "Depende de" %}</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for r in desligadas %}
+          <tr>
+            <td>{{ r.titulo }}</td>
+            <td>{{ r.descricao_curta }}</td>
+            <td>{{ r.fonte_requerida|default:"—" }}</td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+{% endif %}
+
+<p class="au-vazio-dica au-excecoes-carimbo">
+  {% blocktrans with quando=avaliado_em|date:"d/m/Y H:i" %}Avaliado agora, às {{ quando }}. Esta tela não guarda retrato: ela roda as regras quando você abre.{% endblocktrans %}
+</p>
+{% endblock %}

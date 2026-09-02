@@ -87,6 +87,12 @@ from .correspondencia import (
 )
 from .reserva import Recurso, Reserva, SituacaoReserva, TipoRecurso
 from .reembolso import AcertoAdiantamento, DespesaReembolso, SentidoAcerto
+from .excecao import (
+    LIMITE_DE_CHAVES,
+    RegraExcecao,
+    ResultadoExcecao,
+    Severidade,
+)
 from .evento import AcaoSolicitacao, EventoSolicitacao
 from .conteudo import (
     ConfirmacaoLeitura,
@@ -163,4 +169,8 @@ __all__ = [
     "TipoNotificacao",
     "TipoPublicacao",
     "competencia_de",
+    "LIMITE_DE_CHAVES",
+    "RegraExcecao",
+    "ResultadoExcecao",
+    "Severidade",
 ]

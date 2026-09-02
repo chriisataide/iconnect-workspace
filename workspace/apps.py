@@ -22,6 +22,14 @@ class WorkspaceConfig(AppConfig):
 
         semear_enderecamento()
 
+        # Os avaliadores das regras de exceção. Registro em memória, como o
+        # endereçamento e os conectores: regra é CÓDIGO — se ela estivesse no
+        # banco, daria para "ativar" pelo /admin/ uma regra que ninguém
+        # escreveu, e o erro apareceria no cron, de madrugada.
+        from .excecoes import semear as semear_excecoes
+
+        semear_excecoes()
+
         # Liga orçamento ao motor de aprovação. APR não conhece Compromisso e
         # orçamento não conhece cadeia de aprovação — o sinal é a costura.
         from .services.orcamento import conectar as conectar_orcamento

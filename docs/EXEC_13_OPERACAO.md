@@ -49,6 +49,7 @@ python manage.py semear_faq               --aplicar   # a base do assistente
 #     carga sem registro de fonte é dado sem procedência.
 python manage.py semear_fontes            --aplicar   # as 4 fontes e a precedência
 python manage.py semear_resultados        --aplicar   # a massa do espelho, por 3 fontes
+python manage.py semear_regras_excecao    --aplicar   # as 18 regras + as 5 desligadas
 
 python manage.py reindexar_busca                      # o índice
 
@@ -143,6 +144,32 @@ python manage.py semear_resultados --aplicar --limpar   # ao trocar a semente
 
 `--limpar` apaga o espelho antes. Sem ele, duas massas convivem e os números
 somam.
+
+### O painel de exceções
+
+`semear_regras_excecao --aplicar` cadastra 18 regras ligadas e 5 **registradas e
+desligadas**, cada uma com a fonte de que depende anotada. As desligadas
+respondem "por que não vigiamos ASO?" sem ninguém precisar perguntar.
+
+Ela **não reativa** regra desligada à mão — desligar é decisão de quem opera,
+quase sempre porque a regra está gerando ruído.
+
+A tela avalia ao vivo. Quem grava o retrato — e portanto a **tendência** que
+aparece ao lado da contagem — é o comando:
+
+```bash
+python manage.py avaliar_excecoes                     # simula
+python manage.py avaliar_excecoes --aplicar           # grava o retrato
+python manage.py avaliar_excecoes --aplicar --avisar  # e notifica quem responde
+```
+
+`--avisar` é separado de `--aplicar` de propósito: gravar é barato e silencioso;
+avisar acorda o sino de todo mundo. Sem cron, a tendência simplesmente não
+aparece — a tela mostra a contagem de agora e omite a seta, em vez de inventar
+uma.
+
+> **Cadência sugerida:** `--aplicar` de hora em hora, `--avisar` uma vez por dia
+> pela manhã. Aviso de hora em hora é como o sino vira ruído.
 
 ### Os centros de custo, e por que eles vêm logo depois do organograma
 

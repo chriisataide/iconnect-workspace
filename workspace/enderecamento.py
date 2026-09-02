@@ -209,6 +209,7 @@ TELAS: tuple[Tela, ...] = (
     # Portal GPS: aqui `01` já é Meu dia, e renumerar um endereço é exatamente
     # o que o ADR-015 existe para impedir. Copiamos o padrão, não o número.
     Tela("10", "Resultados", "workspace:resultados"),
+    Tela("11", "Exceções", "workspace:excecoes"),
     Tela("09", "Relatórios", "workspace:relatorios"),
     Tela("26.1", "Oportunidades de marketing", "workspace:marketing"),
     Tela("30", "Pessoas e papéis", "workspace:pessoas"),

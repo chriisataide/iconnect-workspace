@@ -105,6 +105,18 @@
     fila. Resultados mostra o dinheiro da empresa com nome de cliente ao lado.
     Quem atende Compras tem direito ao primeiro e não ao segundo.
   {% endcomment %}
+  {% comment %}
+    Exceções vem ANTES de Resultados no trilho, e é deliberado: uma lista do
+    que exige ação hoje vale mais que um painel do que aconteceu no mês. A
+    ordem do trilho é a ordem em que se deve olhar.
+  {% endcomment %}
+  {% if ve_excecoes %}
+    <a class="au-rail-item {% if aba == 'excecoes' %}au-rail-item--ativo{% endif %}"
+       href="{% url 'workspace:excecoes' %}">
+      <svg class="au-icon" aria-hidden="true"><use href="#i-relogio"></use></svg>
+      {% trans "Exceções" %}
+    </a>
+  {% endif %}
   {% if ve_resultados %}
     <a class="au-rail-item {% if aba == 'resultados' %}au-rail-item--ativo{% endif %}"
        href="{% url 'workspace:resultados' %}">
