@@ -1,0 +1,32 @@
+{% load i18n %}
+{% comment %}
+  O DESTINO de uma etapa: o link para a tela viva e o carimbo dela.
+
+  Três estados, e os três são escritos:
+
+  - etapa com tela conhecida — link e carimbo;
+  - etapa que aponta para um código que não existe mais — "endereço
+    desconhecido", e não um link para lugar nenhum. A pauta não some porque uma
+    tela foi removida (ADR-029);
+  - etapa sem tela — abertura, encerramento, um ponto de fala. Não é defeito, e
+    por isso não ganha aviso nenhum.
+
+  A pauta NÃO prevê se a pessoa pode entrar no destino. Prever exigiria uma
+  segunda verdade sobre permissão, dentro da etapa, e verdade duplicada sobre
+  acesso é como se perde acesso. Quem não pode entrar recebe o 403 da tela de
+  destino, que é a resposta correta e a única que não envelhece.
+{% endcomment %}
+{% if passo.endereco_conhecido %}
+  <p class="au-passo-destino">
+    <a class="au-btn au-btn--sutil" href="{{ passo.url }}">
+      {% blocktrans with nome=passo.tela.nome codigo=passo.etapa.tela %}Abrir {{ nome }} ({{ codigo }}){% endblocktrans %}
+    </a>
+  </p>
+  {% for c in passo.carimbos %}
+    {% include "workspace/_carimbo.html" with carimbo=c chave=passo.codigo %}
+  {% endfor %}
+{% elif passo.etapa.tela %}
+  <p class="au-passo-orfa">
+    {% blocktrans with codigo=passo.etapa.tela %}Esta etapa aponta para a tela {{ codigo }}, que não existe mais no endereçamento. A etapa continua na pauta; o destino precisa ser corrigido.{% endblocktrans %}
+  </p>
+{% endif %}

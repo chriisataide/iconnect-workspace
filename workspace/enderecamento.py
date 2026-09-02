@@ -210,6 +210,10 @@ TELAS: tuple[Tela, ...] = (
     # o que o ADR-015 existe para impedir. Copiamos o padrão, não o número.
     Tela("10", "Resultados", "workspace:resultados"),
     Tela("11", "Exceções", "workspace:excecoes"),
+    # A pauta da reunião como objeto do produto. `12` porque está livre e porque
+    # ADR-015 proíbe renumerar depois — no Portal GPS este é o `01.01`, e aqui
+    # `01` já é Meu dia.
+    Tela("12", "Ciclos de planejamento", "workspace:ciclos"),
     Tela("09", "Relatórios", "workspace:relatorios"),
     Tela("26.1", "Oportunidades de marketing", "workspace:marketing"),
     Tela("30", "Pessoas e papéis", "workspace:pessoas"),

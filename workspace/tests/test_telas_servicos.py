@@ -717,6 +717,9 @@ def test_contexto_do_rail_usa_pessoa_aberta_para_anonimo():
         # mesma razão dos outros dois: a lista de regras conta o que a
         # empresa vigia, e a grade nomeia gente.
         "ve_excecoes": False,
+        # O anônimo não vê ciclo de planejamento: a pauta é a agenda de
+        # decisão da empresa, com o que ainda NÃO foi decidido dentro.
+        "ve_ciclos": False,
         "ve_fontes": False,
         # E o mesmo para estoque e equipamentos: a porta do estoque não é
         # oferecida a quem não pode abri-la, e "0 para confirmar" seria o número

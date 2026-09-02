@@ -156,6 +156,13 @@ def test_todo_modelo_tem_porta_ou_e_derivado():
     }
 
     registrados = {model.__name__ for model in admin.site._registry}
+    # Modelo editado por INLINE também tem porta, e às vezes tem a porta certa:
+    # `EtapaCiclo` numa tela própria produziria a pauta de três ciclos misturada
+    # e ordenada por id — e a ordem é justamente o que uma pauta é. O teste
+    # pergunta se existe caminho de edição, não se existe `ModelAdmin`.
+    for opcoes in admin.site._registry.values():
+        for inline in getattr(opcoes, "inlines", ()):
+            registrados.add(inline.model.__name__)
     todos = {m.__name__ for m in apps.get_app_config("workspace").get_models()}
 
     sem_porta = todos - registrados - SEM_PORTA_DE_PROPOSITO

@@ -23,6 +23,7 @@ from .pessoas import (
 from .aprovacoes import bandeja, decidir as decidir_aprovacao, decidir_em_lote as aprovar_em_lote
 from .busca import buscar_view
 from .enderecamento import ir_para
+from .ciclos import abrir_ciclo, anotar_etapa, ciclo, ciclos, fechar_ciclo
 from .excecoes import excecoes, notificar_excecao
 from .resultados import fontes, recarregar_fonte, resultados, resultados_pdf
 from .conteudo import (
@@ -130,7 +131,12 @@ __all__ = [
     "ir_para",
     "fontes",
     "recarregar_fonte",
+    "abrir_ciclo",
+    "anotar_etapa",
+    "ciclo",
+    "ciclos",
     "excecoes",
+    "fechar_ciclo",
     "notificar_excecao",
     "resultados",
     "resultados_pdf",

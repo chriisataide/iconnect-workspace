@@ -14,6 +14,10 @@ from django.contrib import admin, messages
 from django.utils import timezone
 
 from .models import (
+    AnotacaoEtapa,
+    CicloPlanejamento,
+    EtapaCiclo,
+    OcorrenciaCiclo,
     RegraExcecao,
     ResultadoExcecao,
     Anexo,
@@ -514,6 +518,80 @@ class ResultadoExcecaoAdmin(admin.ModelAdmin):
     list_display = ("regra", "executada_em", "total", "avaliada")
     list_filter = ("avaliada", "regra")
     date_hierarchy = "executada_em"
+
+    def has_add_permission(self, request) -> bool:
+        return False
+
+    def has_change_permission(self, request, obj=None) -> bool:
+        return False
+
+
+# ── Ciclo de planejamento ───────────────────────────────────────────
+
+
+class EtapaCicloInline(admin.TabularInline):
+    """A pauta se edita DENTRO do ciclo.
+
+    Etapa numa tela própria produziria a lista de 16 itens de três ciclos
+    misturada, ordenada por id — e a ordem é justamente o que esta pauta é.
+    """
+
+    model = EtapaCiclo
+    extra = 1
+    fields = ("ordem", "codigo", "titulo", "tela", "pergunta", "obrigatoria")
+
+
+@admin.register(CicloPlanejamento)
+class CicloPlanejamentoAdmin(admin.ModelAdmin):
+    """A pauta e a plateia. Quem conduz e quem lê são DADO, não código.
+
+    O campo `tela` de cada etapa guarda o CÓDIGO do endereçamento — `10`, `02.3`
+    —, e nunca uma URL: endereço é estável por decisão (ADR-015) e URL não é.
+    Ver ADR-029.
+    """
+
+    list_display = ("chave", "nome", "cadencia", "papel_condutor", "ordem", "ativo")
+    list_filter = ("cadencia", "ativo")
+    list_editable = ("ordem", "ativo")
+    search_fields = ("chave", "nome", "publico")
+    inlines = (EtapaCicloInline,)
+
+
+@admin.register(OcorrenciaCiclo)
+class OcorrenciaCicloAdmin(admin.ModelAdmin):
+    """A reunião. Registro histórico, e por isso somente leitura.
+
+    Nem criação: abrir a reunião roda a conferência de frescor e congela os
+    impedimentos. Uma ocorrência criada aqui nasceria sem essa lista — e a ATA
+    dela diria que não havia fonte atrasada quando ninguém chegou a olhar.
+    """
+
+    list_display = ("ciclo", "ano", "mes", "situacao", "conduzida_por", "fechada_em")
+    list_filter = ("situacao", "ciclo")
+    readonly_fields = (
+        "ciclo", "ano", "mes", "situacao", "conduzida_por", "aberta_em",
+        "fechada_em", "impedimentos", "ata",
+    )
+
+    def has_add_permission(self, request) -> bool:
+        return False
+
+    def has_change_permission(self, request, obj=None) -> bool:
+        return False
+
+
+@admin.register(AnotacaoEtapa)
+class AnotacaoEtapaAdmin(admin.ModelAdmin):
+    """O que se disse, e o carimbo que a tela tinha na hora.
+
+    Somente leitura pelo mesmo motivo do `ResultadoExcecao`: editar o carimbo
+    congelado reescreveria o que a sala viu, que é exatamente a informação que
+    uma auditoria procura numa ATA. ADR-030.
+    """
+
+    list_display = ("ocorrencia", "etapa", "autor", "criado_em", "carimbo_texto")
+    list_filter = ("ocorrencia__ciclo", "carimbo_alerta")
+    search_fields = ("texto", "encaminhamento")
 
     def has_add_permission(self, request) -> bool:
         return False

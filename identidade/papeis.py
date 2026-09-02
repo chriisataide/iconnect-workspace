@@ -80,6 +80,12 @@ PAPEIS_V1 = [
             # da empresa inteira é conversa de diretoria — mostrar tudo aqui
             # transformaria a tela num vazamento com aparência de transparência.
             "eco.ler.departamento",
+            # O ciclo de planejamento, e SÓ os ciclos cuja plateia inclui o
+            # papel `gestor`. `.departamento` e não `.global`: o escopo global
+            # é o que abre TODOS os ciclos, inclusive o trimestral de
+            # presidência, e a pauta de quem decide acima não é leitura de
+            # rotina de quem executa abaixo.
+            "cic.ler.departamento",
         ],
         "descricao": (
             "Responde por uma equipe. Aprova o que vem dos liderados e vê a "
@@ -115,6 +121,12 @@ PAPEIS_V1 = [
             # o papel que responde por ela, e a pessoa vê as suas. Ver o painel
             # não é privilégio; ver o painel INTEIRO é.
             "exc.ler.global",
+            # O ciclo de planejamento. `conduzir` aqui e em lugar nenhum mais:
+            # abrir a reunião, anotar em nome dela e assinar a ATA é ato de
+            # quem responde pela pauta. Ler é de quem senta na sala; conduzir é
+            # de quem convoca.
+            "cic.ler.global",
+            "cic.conduzir.global",
             # A tela de fontes. A pergunta "de onde vem esse número?" é da
             # diretoria antes de ser de quem opera — e a resposta precisa ser um
             # link, não um chamado.
@@ -147,6 +159,10 @@ PAPEIS_V1 = [
             "ind.ler.global",
             "eco.ler.global",
             "exc.ler.global",
+            # Lê o ciclo inteiro e NÃO conduz — pela mesma razão que este papel
+            # não tem as permissões administrativas: sócio decide sobre
+            # dinheiro, não opera o sistema.
+            "cic.ler.global",
         ],
         "descricao": (
             "Último degrau. Aprova acima de R$ 300.000. Deliberadamente SEM as "

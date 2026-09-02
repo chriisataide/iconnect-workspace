@@ -273,7 +273,13 @@ def documento_editar(request: HttpRequest, slug: str | None = None) -> HttpRespo
         "workspace/documento_editar.html",
         {
             "documento": doc,
-            "tipos": TipoDocumento.choices,
+            # ATA fica FORA da redação. Ela é gerada ao fechar um ciclo, com
+            # os carimbos que as telas tinham na hora; oferecê-la aqui
+            # produziria uma segunda ATA, escrita à mão, indistinguível da
+            # verdadeira no acervo.
+            "tipos": [
+                (v, r) for v, r in TipoDocumento.choices if v != TipoDocumento.ATA
+            ],
             # As categorias que já existem viram sugestão no formulário: texto
             # livre sem lista vira "Segurança", "segurança" e "SEGURANCA" como
             # três assuntos diferentes na mesma tabela.

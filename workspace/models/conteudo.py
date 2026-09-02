@@ -36,6 +36,11 @@ class TipoDocumento(models.TextChoices):
     NORMA = "norma", "Norma"
     INSTRUCAO = "instrucao", "Instrução de trabalho"
     MANUAL = "manual", "Manual"
+    # A ATA de ciclo de planejamento. Entra no acervo porque é onde a empresa
+    # procura o que ficou decidido — e sai da REDAÇÃO porque ATA não se escreve
+    # à mão aqui: ela é gerada ao fechar a reunião, com os carimbos congelados.
+    # Ver `workspace/services/ciclos.py` e ADR-030.
+    ATA = "ata", "ATA de ciclo"
 
 
 class SituacaoDocumento(models.TextChoices):

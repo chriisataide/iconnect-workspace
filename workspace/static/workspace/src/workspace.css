@@ -3499,3 +3499,186 @@ tr[data-abre-resumo]:focus-visible {
 }
 
 .au-excecoes-carimbo { margin-top: var(--au-6); }
+
+/* ── Ciclo de planejamento (12) ──────────────────────────────────────
+   A pauta é uma PASTA ORDENADA, e o CSS diz isso: numeração à esquerda,
+   uma linha por etapa, e o carimbo de frescor colado no item — não no topo
+   da tela. Frescor por bloco, como em toda tela com número de fora. */
+
+.au-ciclos {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(17rem, 1fr));
+  gap: var(--au-3);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.au-ciclo-cartao {
+  border: 1px solid var(--au-border);
+  border-radius: var(--au-r-md);
+  background: var(--au-surface);
+  padding: var(--au-4);
+}
+.au-ciclo-nome { margin: 0 0 var(--au-1); font-size: var(--au-t-md); }
+.au-ciclo-cadencia,
+.au-ciclo-publico,
+.au-ciclo-ultima {
+  margin: var(--au-1) 0 0;
+  font-size: var(--au-t-xs);
+  color: var(--au-text-muted);
+}
+
+.au-ciclos-abertas { margin: 0 0 var(--au-4); padding: 0; list-style: none; }
+.au-ciclo-aberta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--au-2);
+  padding: var(--au-2) 0;
+  border-bottom: 1px solid var(--au-border);
+}
+.au-ciclo-meta { font-size: var(--au-t-xs); color: var(--au-text-muted); }
+.au-ciclo-impedimento { color: var(--au-warning-text); }
+
+/* Os impedimentos ANTES da pauta e com peso de aviso: quem vai decidir precisa
+   saber com que dado está decidindo antes de olhar o dado. Fonte atrasada não
+   trava a reunião — ela fica escrita. */
+.au-impedimentos {
+  border: 1px solid var(--au-warning);
+  border-left-width: 4px;
+  border-radius: var(--au-r-md);
+  background: var(--au-warning-bg);
+  padding: var(--au-3) var(--au-4);
+  margin-bottom: var(--au-4);
+}
+.au-impedimentos-titulo {
+  margin: 0 0 var(--au-2);
+  font-size: var(--au-t-sm);
+  color: var(--au-warning-text);
+}
+.au-impedimentos-lista { margin: 0; padding: 0; list-style: none; }
+.au-impedimento {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--au-2);
+  font-size: var(--au-t-xs);
+  padding: var(--au-1) 0;
+}
+.au-impedimento-etapa { font-weight: 600; font-variant-numeric: tabular-nums; }
+.au-impedimento-titulo { flex: 1 1 12rem; }
+.au-impedimento-carimbo,
+.au-impedimento-motivo { color: var(--au-text-muted); }
+
+.au-ciclo-abrir,
+.au-ciclo-fechar { margin: var(--au-4) 0; }
+.au-ciclo-aviso {
+  margin: var(--au-2) 0 0;
+  font-size: var(--au-t-xs);
+  color: var(--au-text-muted);
+}
+
+/* UMA ETAPA POR VEZ. Em apresentação a tipografia cresce e o resto encolhe —
+   e é a MESMA tela, com `?apresentacao=1`. Duas telas divergiriam. */
+.au-passo {
+  border: 1px solid var(--au-border);
+  border-radius: var(--au-r-md);
+  background: var(--au-surface);
+  padding: var(--au-4);
+  margin-bottom: var(--au-5);
+}
+.au-passo-posicao {
+  margin: 0;
+  font-size: var(--au-t-xs);
+  color: var(--au-text-subtle);
+  font-variant-numeric: tabular-nums;
+}
+.au-passo-titulo { margin: var(--au-1) 0 var(--au-2); font-size: var(--au-t-lg); }
+.au-passo-codigo {
+  font-variant-numeric: tabular-nums;
+  color: var(--au-text-muted);
+}
+.au-passo-pergunta {
+  margin: 0 0 var(--au-3);
+  color: var(--au-text-muted);
+  font-size: var(--au-t-sm);
+}
+.au-passo-destino { margin: 0 0 var(--au-2); }
+.au-passo-orfa {
+  margin: 0 0 var(--au-2);
+  font-size: var(--au-t-sm);
+  color: var(--au-warning-text);
+}
+.au-passo-navegacao {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--au-2);
+  margin-top: var(--au-3);
+}
+.au-passo-sair { font-size: var(--au-t-xs); }
+
+.au-ciclo--apresentacao .au-passo-titulo { font-size: var(--au-t-xl); }
+.au-ciclo--apresentacao .au-passo-pergunta { font-size: var(--au-t-md); }
+.au-ciclo--apresentacao .au-pauta { opacity: .8; }
+
+.au-anotacoes { margin: var(--au-3) 0 0; padding: 0; list-style: none; }
+.au-anotacao {
+  border-top: 1px solid var(--au-border);
+  padding: var(--au-3) 0 0;
+  margin-top: var(--au-3);
+}
+.au-anotacao-texto { margin: 0; }
+.au-anotacao-encaminhamento { margin: var(--au-2) 0 0; font-size: var(--au-t-sm); }
+.au-anotacao-prazo { color: var(--au-text-muted); }
+.au-anotacao-meta {
+  margin: var(--au-1) 0 0;
+  font-size: var(--au-t-xs);
+  color: var(--au-text-subtle);
+}
+/* O carimbo congelado. Nunca recalculado — ADR-030. */
+.au-anotacao-carimbo { font-variant-numeric: tabular-nums; }
+.au-anotacao-carimbo--alerta { color: var(--au-warning-text); }
+
+.au-anotar { margin-top: var(--au-4); display: grid; gap: var(--au-1); }
+
+.au-pauta-lista {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  counter-reset: pauta;
+}
+.au-pauta-item {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--au-2);
+  padding: var(--au-2) var(--au-2) var(--au-2) var(--au-3);
+  border-left: 3px solid transparent;
+  border-bottom: 1px solid var(--au-border);
+}
+.au-pauta-item--atual {
+  border-left-color: var(--au-accent);
+  background: var(--au-surface-sunken);
+}
+.au-pauta-item--alerta { border-left-color: var(--au-warning); }
+.au-pauta-link {
+  display: flex;
+  gap: var(--au-2);
+  flex: 1 1 16rem;
+  min-width: 0;
+}
+.au-pauta-codigo {
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+  color: var(--au-text-muted);
+}
+.au-pauta-titulo { min-width: 0; }
+.au-pauta-carimbo,
+.au-pauta-anotada {
+  font-size: var(--au-t-xs);
+  color: var(--au-text-subtle);
+}
+.au-pauta-carimbo--alerta { color: var(--au-warning-text); }
+
+.au-ciclo-historico { margin: 0; padding: 0; list-style: none; }
+.au-ciclo-historico li { padding: var(--au-1) 0; font-size: var(--au-t-sm); }

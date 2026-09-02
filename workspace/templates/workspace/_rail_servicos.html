@@ -84,7 +84,7 @@
   "Atender" e "Aprovar" só aparecem para quem tem algo esperando. Rail com item
   vazio ensina o usuário a ignorar o rail.
 {% endcomment %}
-{% if ve_indicadores or administra_papeis or ve_publicacoes or ve_faq or ve_documentos or ve_marketing or ve_candidaturas %}
+{% if ve_indicadores or administra_papeis or ve_publicacoes or ve_faq or ve_documentos or ve_marketing or ve_candidaturas or ve_ciclos %}
   <p class="au-rail-grupo">{% trans "Acompanhar" %}</p>
   {% comment %}
     Indicadores aparece para quem tem `ind.ler` — Diretoria, Sócios e R.H. — e
@@ -110,6 +110,19 @@
     que exige ação hoje vale mais que um painel do que aconteceu no mês. A
     ordem do trilho é a ordem em que se deve olhar.
   {% endcomment %}
+  {% comment %}
+    Ciclos vem ANTES de Exceções, e é o mesmo raciocínio que pôs Exceções antes
+    de Resultados: a ordem do trilho é a ordem em que se deve olhar. A pauta diz
+    o que a empresa combinou olhar; a lista de exceções diz o que saiu da linha
+    desde então; o painel de resultados diz o que aconteceu no mês.
+  {% endcomment %}
+  {% if ve_ciclos %}
+    <a class="au-rail-item {% if aba == 'ciclos' %}au-rail-item--ativo{% endif %}"
+       href="{% url 'workspace:ciclos' %}">
+      <svg class="au-icon" aria-hidden="true"><use href="#i-calendario"></use></svg>
+      {% trans "Ciclos de planejamento" %}
+    </a>
+  {% endif %}
   {% if ve_excecoes %}
     <a class="au-rail-item {% if aba == 'excecoes' %}au-rail-item--ativo{% endif %}"
        href="{% url 'workspace:excecoes' %}">

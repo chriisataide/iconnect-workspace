@@ -123,6 +123,26 @@ urlpatterns = [
     # sequestraria a tela — o mesmo cuidado de `documentacao/acervo/`.
     # O painel de exceções (11). Lista de REGRAS com contagem, e não um
     # dashboard — ver `workspace/excecoes/base.py`.
+    # O ciclo de planejamento (12) — a pauta como objeto do produto.
+    #
+    # A competência entra na URL e não em query string: a reunião de 09/2026 é
+    # um endereço que se manda por mensagem, e um link com `?ano=` é um link
+    # que alguém trunca ao copiar.
+    #
+    # `?etapa=CP05` e `?apresentacao=1` seguem em query string, e isso é o
+    # ADR-025: uma etapa por vez e o trilho fora do HTML são RECORTES da mesma
+    # tela, não telas novas. Duas telas divergiriam na terceira semana — e a que
+    # a diretoria vê na reunião é justamente a que não pode divergir.
+    path("ciclos/", views.ciclos, name="ciclos"),
+    path("ciclos/<slug:chave>/", views.ciclo, name="ciclo"),
+    path("ciclos/<slug:chave>/<int:ano>/<int:mes>/", views.ciclo,
+         name="ciclo_competencia"),
+    path("ciclos/<slug:chave>/<int:ano>/<int:mes>/abrir/", views.abrir_ciclo,
+         name="abrir_ciclo"),
+    path("ciclos/<slug:chave>/<int:ano>/<int:mes>/anotar/", views.anotar_etapa,
+         name="anotar_etapa"),
+    path("ciclos/<slug:chave>/<int:ano>/<int:mes>/fechar/", views.fechar_ciclo,
+         name="fechar_ciclo"),
     path("excecoes/", views.excecoes, name="excecoes"),
     path("excecoes/<slug:chave>/notificar/", views.notificar_excecao,
          name="notificar_excecao"),

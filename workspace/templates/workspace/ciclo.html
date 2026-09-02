@@ -1,0 +1,244 @@
+{% extends "workspace/_shell_modulo.html" %}
+{% load i18n %}
+
+{% block titulo %}{{ ciclo.nome }}{% endblock %}
+
+{% comment %}
+  MODO APRESENTAÇÃO — `?apresentacao=1`, e `?etapa=CP05` para uma de cada vez.
+
+  Dois parâmetros ortogonais na MESMA view (ADR-025): um escolhe o item, o outro
+  tira a moldura. A reunião usa os dois; a consulta de terça-feira, nenhum.
+
+  O trilho some pelo bloco VAZIO e não por CSS — `display:none` deixaria a
+  navegação no HTML, e o leitor de tela leria uma navegação que ninguém vê.
+{% endcomment %}
+{% block rail %}
+  {% if not apresentacao %}{% include "workspace/_rail_servicos.html" with aba="ciclos" %}{% endif %}
+{% endblock %}
+
+{% block trilha %}
+  <a href="{% url 'workspace:ciclos' %}">{% trans "Ciclos" %}</a>
+  <span>{{ ciclo.nome }}</span>
+{% endblock %}
+{% block pagina_titulo %}{{ ciclo.nome }} · {{ competencia }}{% endblock %}
+{% block voltar_url %}{% url 'workspace:ciclos' %}{% endblock %}
+
+{% block pagina_descricao %}
+  <p class="au-pagina-desc">
+    {% if ocorrencia.fechada %}
+      {% trans "Reunião fechada." %}
+      {% if ocorrencia.ata %}
+        <a href="{% url 'workspace:documento' slug=ocorrencia.ata.slug %}">{% trans "Ver a ATA" %}</a>
+      {% endif %}
+    {% elif ocorrencia %}
+      {% trans "Reunião aberta." %}
+    {% else %}
+      {% trans "Reunião não aberta — a pauta abaixo é a de consulta." %}
+    {% endif %}
+  </p>
+{% endblock %}
+
+{% block corpo %}
+<div class="au-ciclo{% if apresentacao %} au-ciclo--apresentacao{% endif %}">
+
+{% if impedimentos %}
+  {% comment %}
+    Os impedimentos vêm ANTES da pauta, e não em rodapé: quem vai decidir
+    precisa saber com que dado está decidindo antes de olhar o dado.
+
+    Fonte atrasada NÃO impede a reunião — travar transformaria um problema de
+    carga num problema de governança. O que ela faz é ficar escrita, aqui e na
+    ATA.
+  {% endcomment %}
+  <section class="au-impedimentos" aria-labelledby="impedimentos-titulo">
+    <h2 class="au-impedimentos-titulo" id="impedimentos-titulo">
+      {% if impedimentos_congelados %}
+        {% trans "Fontes com atraso quando esta reunião abriu" %}
+      {% else %}
+        {% trans "Fontes com atraso nesta pauta" %}
+      {% endif %}
+    </h2>
+    <ul class="au-impedimentos-lista">
+      {% for i in impedimentos %}
+        <li class="au-impedimento">
+          <span class="au-impedimento-etapa">{{ i.etapa }}</span>
+          <span class="au-impedimento-titulo">{{ i.titulo }}</span>
+          <span class="au-impedimento-carimbo">{{ i.carimbo }}</span>
+          {% if i.motivo %}<span class="au-impedimento-motivo">{{ i.motivo }}</span>{% endif %}
+        </li>
+      {% endfor %}
+    </ul>
+  </section>
+{% endif %}
+
+{% if not ocorrencia and conduzo %}
+  <form class="au-ciclo-abrir" method="post"
+        action="{% url 'workspace:abrir_ciclo' chave=ciclo.chave ano=ano mes=mes %}">
+    {% csrf_token %}
+    {% comment %}
+      A confirmação é um campo escondido e não um `confirm()` de JavaScript: a
+      CSP deste produto não tem `unsafe-inline`, e um diálogo do navegador não
+      deixa registro de que alguém viu a lista. O botão muda de texto quando há
+      impedimento — é ele o registro.
+    {% endcomment %}
+    {% if impedimentos %}<input type="hidden" name="confirmar" value="1">{% endif %}
+    <button class="au-btn au-btn--primario" type="submit">
+      {% if impedimentos %}
+        {% blocktrans count n=impedimentos|length %}Abrir mesmo assim ({{ n }} fonte com atraso){% plural %}Abrir mesmo assim ({{ n }} fontes com atraso){% endblocktrans %}
+      {% else %}
+        {% blocktrans %}Abrir a reunião de {{ competencia }}{% endblocktrans %}
+      {% endif %}
+    </button>
+  </form>
+{% endif %}
+
+{% if passo %}
+  {% comment %}
+    UMA ETAPA POR VEZ — o modo de conduzir. A pauta inteira continua acessível
+    logo abaixo, na mesma tela: sair do modo não pode custar uma navegação.
+  {% endcomment %}
+  <section class="au-passo" aria-labelledby="passo-titulo">
+    <p class="au-passo-posicao">
+      {% blocktrans with i=posicao n=total_de_passos %}Etapa {{ i }} de {{ n }}{% endblocktrans %}
+    </p>
+    <h2 class="au-passo-titulo" id="passo-titulo">
+      <span class="au-passo-codigo">{{ passo.codigo }}</span> {{ passo.etapa.titulo }}
+    </h2>
+    {% if passo.etapa.pergunta %}
+      <p class="au-passo-pergunta">{{ passo.etapa.pergunta }}</p>
+    {% endif %}
+
+    {% include "workspace/_etapa_destino.html" with passo=passo %}
+
+    <nav class="au-passo-navegacao" aria-label="{% trans 'Navegação da pauta' %}">
+      {% if anterior %}
+        <a class="au-btn au-btn--sutil"
+           href="?etapa={{ anterior.codigo }}{% if apresentacao %}&amp;apresentacao=1{% endif %}">
+          {{ anterior.codigo }} ←
+        </a>
+      {% endif %}
+      {% if proximo %}
+        <a class="au-btn au-btn--sutil"
+           href="?etapa={{ proximo.codigo }}{% if apresentacao %}&amp;apresentacao=1{% endif %}">
+          → {{ proximo.codigo }}
+        </a>
+      {% endif %}
+      {% if apresentacao %}
+        <a class="au-passo-sair" href="?etapa={{ passo.codigo }}">{% trans "Sair da apresentação" %}</a>
+      {% else %}
+        <a class="au-passo-sair" href="?etapa={{ passo.codigo }}&amp;apresentacao=1">{% trans "Apresentar" %}</a>
+      {% endif %}
+    </nav>
+
+    {% if passo.anotacoes %}
+      <ul class="au-anotacoes">
+        {% for a in passo.anotacoes %}
+          <li class="au-anotacao">
+            <p class="au-anotacao-texto">{{ a.texto|linebreaksbr }}</p>
+            {% if a.encaminhamento %}
+              <p class="au-anotacao-encaminhamento">
+                <strong>{% trans "Encaminhamento:" %}</strong> {{ a.encaminhamento }}
+                {% if a.prazo %}<span class="au-anotacao-prazo">{% blocktrans with d=a.prazo|date:"d/m/Y" %}até {{ d }}{% endblocktrans %}</span>{% endif %}
+              </p>
+            {% endif %}
+            <p class="au-anotacao-meta">
+              {% if a.autor %}{{ a.autor.nome }} · {% endif %}{{ a.criado_em|date:"d/m/Y H:i" }}
+              {% if a.carimbo_texto %}
+                {% comment %}
+                  O carimbo CONGELADO — o que a tela dizia quando isto foi
+                  escrito. Nunca recalculado: a decisão foi tomada diante de um
+                  número de três dias atrás, e é isso que o registro tem de
+                  dizer para sempre. ADR-030.
+                {% endcomment %}
+                · <span class="au-anotacao-carimbo{% if a.carimbo_alerta %} au-anotacao-carimbo--alerta{% endif %}">{{ a.carimbo_texto }}</span>
+              {% endif %}
+            </p>
+          </li>
+        {% endfor %}
+      </ul>
+    {% endif %}
+
+    {% if ocorrencia and not ocorrencia.fechada and conduzo %}
+      <form class="au-anotar" method="post"
+            action="{% url 'workspace:anotar_etapa' chave=ciclo.chave ano=ano mes=mes %}">
+        {% csrf_token %}
+        <input type="hidden" name="etapa" value="{{ passo.etapa.pk }}">
+        {% if apresentacao %}<input type="hidden" name="apresentacao" value="1">{% endif %}
+
+        <label class="au-rotulo" for="texto">{% trans "O que ficou dito" %}</label>
+        <textarea class="au-input" id="texto" name="texto" rows="3" required></textarea>
+
+        <label class="au-rotulo" for="encaminhamento">{% trans "Encaminhamento (opcional)" %}</label>
+        <input class="au-input" type="text" id="encaminhamento" name="encaminhamento"
+               maxlength="300">
+
+        <label class="au-rotulo" for="prazo">{% trans "Prazo do encaminhamento (opcional)" %}</label>
+        <input class="au-input" type="date" id="prazo" name="prazo">
+
+        <button class="au-btn au-btn--primario" type="submit">{% trans "Anotar" %}</button>
+      </form>
+    {% endif %}
+  </section>
+{% endif %}
+
+{% comment %}
+  A PAUTA INTEIRA. Sempre presente, mesmo em apresentação: quem conduz precisa
+  saber quanto falta, e a plateia precisa saber o que vem.
+{% endcomment %}
+<section class="au-pauta" aria-labelledby="pauta-titulo">
+  <h2 class="au-secao-titulo" id="pauta-titulo">{% trans "Pauta" %}</h2>
+  {% if passos %}
+    <ol class="au-pauta-lista">
+      {% for p in passos %}
+        <li class="au-pauta-item{% if p.em_alerta %} au-pauta-item--alerta{% endif %}{% if passo and p.codigo == passo.codigo %} au-pauta-item--atual{% endif %}">
+          <a class="au-pauta-link"
+             href="?etapa={{ p.codigo }}{% if apresentacao %}&amp;apresentacao=1{% endif %}">
+            <span class="au-pauta-codigo">{{ p.codigo }}</span>
+            <span class="au-pauta-titulo">{{ p.etapa.titulo }}</span>
+          </a>
+          {% if p.carimbo %}
+            <span class="au-pauta-carimbo{% if p.em_alerta %} au-pauta-carimbo--alerta{% endif %}">{{ p.carimbo.texto }}</span>
+          {% endif %}
+          {% if p.anotacoes %}
+            <span class="au-pauta-anotada">{% blocktrans count n=p.anotacoes|length %}{{ n }} anotação{% plural %}{{ n }} anotações{% endblocktrans %}</span>
+          {% endif %}
+        </li>
+      {% endfor %}
+    </ol>
+  {% else %}
+    <p class="au-vazio-dica">
+      {% trans "Este ciclo ainda não tem etapas. A pauta é cadastrada no administrativo, e sem ela a reunião não tem ordem de olhar." %}
+    </p>
+  {% endif %}
+</section>
+
+{% if ocorrencia and not ocorrencia.fechada and conduzo %}
+  <form class="au-ciclo-fechar" method="post"
+        action="{% url 'workspace:fechar_ciclo' chave=ciclo.chave ano=ano mes=mes %}">
+    {% csrf_token %}
+    <button class="au-btn au-btn--primario" type="submit">
+      {% trans "Fechar a reunião e gerar a ATA" %}
+    </button>
+    <p class="au-ciclo-aviso">
+      {% trans "A ATA entra no acervo com os carimbos que as telas tinham. Depois de fechada, a reunião não recebe anotação." %}
+    </p>
+  </form>
+{% endif %}
+
+{% if historico and not apresentacao %}
+  <section class="au-secao">
+    <h2 class="au-secao-titulo">{% trans "Reuniões anteriores" %}</h2>
+    <ul class="au-ciclo-historico">
+      {% for o in historico %}
+        <li>
+          <a href="{% url 'workspace:ciclo_competencia' chave=ciclo.chave ano=o.ano mes=o.mes %}">{{ o.competencia }}</a>
+          {% if o.ata %}
+            — <a href="{% url 'workspace:documento' slug=o.ata.slug %}">{% trans "ATA" %}</a>
+          {% endif %}
+        </li>
+      {% endfor %}
+    </ul>
+  </section>
+{% endif %}
+</div>
+{% endblock %}

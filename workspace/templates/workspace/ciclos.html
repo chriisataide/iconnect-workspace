@@ -1,0 +1,75 @@
+{% extends "workspace/_shell_modulo.html" %}
+{% load i18n %}
+
+{% block titulo %}{% trans "Ciclos de planejamento" %}{% endblock %}
+{% block rail %}{% include "workspace/_rail_servicos.html" with aba="ciclos" %}{% endblock %}
+{% block trilha %}<span>{% trans "Ciclos de planejamento" %}</span>{% endblock %}
+{% block pagina_titulo %}{% trans "Ciclos de planejamento" %}{% endblock %}
+{% block voltar_url %}{% url 'workspace:home' %}{% endblock %}
+
+{% block pagina_descricao %}
+  <p class="au-pagina-desc">
+    {% trans "A pauta é o produto: a ordem de olhar, registrada, com a tela viva em cada item." %}
+  </p>
+{% endblock %}
+
+{% block corpo %}
+{% if abertas %}
+  {% comment %}
+    As reuniões ABERTAS primeiro, e separadas. Uma reunião aberta há três
+    semanas é a única coisa nesta tela que pede ação hoje — enterrá-la na lista
+    de ciclos faria a ATA nunca ser gerada, e o encaminhamento morre com ela.
+  {% endcomment %}
+  <section class="au-secao">
+    <h2 class="au-secao-titulo">{% trans "Reuniões abertas" %}</h2>
+    <ul class="au-ciclos-abertas">
+      {% for o in abertas %}
+        <li class="au-ciclo-aberta">
+          <a href="{% url 'workspace:ciclo_competencia' chave=o.ciclo.chave ano=o.ano mes=o.mes %}">
+            {{ o.ciclo.nome }} · {{ o.competencia }}
+          </a>
+          <span class="au-ciclo-meta">
+            {% if o.conduzida_por %}
+              {% blocktrans with quem=o.conduzida_por.nome %}Conduzida por {{ quem }}{% endblocktrans %}
+            {% endif %}
+            {% if o.impedimentos %}
+              · <span class="au-ciclo-impedimento">{% blocktrans count n=o.impedimentos|length %}{{ n }} fonte com atraso na abertura{% plural %}{{ n }} fontes com atraso na abertura{% endblocktrans %}</span>
+            {% endif %}
+          </span>
+        </li>
+      {% endfor %}
+    </ul>
+  </section>
+{% endif %}
+
+<ul class="au-ciclos">
+  {% for linha in ciclos %}
+    <li class="au-ciclo-cartao">
+      <h2 class="au-ciclo-nome">
+        <a href="{% url 'workspace:ciclo' chave=linha.ciclo.chave %}">{{ linha.ciclo.nome }}</a>
+      </h2>
+      <p class="au-ciclo-cadencia">{{ linha.ciclo.get_cadencia_display }}
+        · {% blocktrans count n=linha.etapas %}{{ n }} etapa{% plural %}{{ n }} etapas{% endblocktrans %}</p>
+      {% if linha.ciclo.publico %}
+        <p class="au-ciclo-publico">{{ linha.ciclo.publico }}</p>
+      {% endif %}
+      {% if linha.ultima %}
+        <p class="au-ciclo-ultima">
+          {% blocktrans with c=linha.ultima.competencia %}Última reunião: {{ c }}{% endblocktrans %}
+          {% if linha.ultima.ata %}
+            — <a href="{% url 'workspace:documento' slug=linha.ultima.ata.slug %}">{% trans "ver ATA" %}</a>
+          {% endif %}
+        </p>
+      {% else %}
+        {% comment %}
+          Estado vazio que EXPLICA o que falta, e não uma linha em branco:
+          restrição 6. "Nenhuma reunião registrada" é diferente de um cartão que
+          simplesmente não mostra nada, porque a segunda leitura possível é
+          "quebrou".
+        {% endcomment %}
+        <p class="au-vazio-dica">{% trans "Nenhuma reunião registrada ainda." %}</p>
+      {% endif %}
+    </li>
+  {% endfor %}
+</ul>
+{% endblock %}

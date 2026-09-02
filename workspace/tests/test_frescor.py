@@ -140,7 +140,14 @@ def test_nenhuma_tela_carimba_sem_ter_numero():
     }
     # `_faixa_cabeca.html` carimba por definição — ela É o cabeçalho de uma
     # faixa, e quem a inclui é quem tem os números.
-    diretas -= {"_faixa_cabeca.html"}
+    #
+    # `_etapa_destino.html` é a segunda categoria, e ela nasceu na Onda 5: um
+    # carimbo sobre a tela de DESTINO, e não sobre um número desta página. Numa
+    # pauta de reunião, "de quando é o dado da CP01" é a informação mais útil da
+    # linha — quem vai apresentar precisa saber antes de projetar. A regra deste
+    # teste continua valendo para todo o resto: carimbo sobre o próprio conteúdo
+    # exige que o conteúdo exista.
+    diretas -= {"_faixa_cabeca.html", "_etapa_destino.html"}
 
     assert diretas - com_numeros == set(), (
         f"Carimbo em tela sem faixa agregada: {sorted(diretas - com_numeros)}."

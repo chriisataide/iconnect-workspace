@@ -49,7 +49,7 @@ omit = [
 #
 # Medido em SQLite local. O CI roda PostgreSQL e tende a medir um pouco MAIS.
 identidade = 99.0  # medido 100.00 · IDN — pode(), organograma, delegação
-workspace = 98.0   # medido 98.69 · WKS — superfície + contrato de provider
+workspace = 98.0   # medido 98.17 · WKS — superfície + contrato de provider
 
 # Apps novos da separação, medidos em 100,00% — models, admin e provider.
 # Piso em 95 pela mesma razão do `workspace`: são apps pequenos hoje, e é agora
@@ -62,8 +62,8 @@ financas = 99.0    # medido 100.00 · centro de custo, lançamento, provider
 # custa pouco. Aqui custou meia hora — os buracos eram o parsing de coluna e a
 # saída do comando, e os testes que os fecharam são os que provam que uma data
 # lida ao contrário não põe o resultado de abril em março.
-resultados = 98.0  # medido 99.23 · espelho, layer, providers
-cargas = 97.0      # medido 97.83 · conectores, carregador, transporte
+resultados = 99.0  # medido 99.27 · espelho, layer, providers
+cargas = 97.0      # medido 97.39 · conectores, carregador, transporte
 
 # 2026-08-17 — pisos elevados de 95 para perto do medido, que é o que o ratchet
 # existe para fazer: enquanto o piso ficou 3,7 pontos abaixo do real, ele deixava
@@ -102,4 +102,8 @@ cargas = 97.0      # medido 97.83 · conectores, carregador, transporte
 #   inteiros e o gate continuaria verde. A folga volta a ser de ~100 testes, que
 #   é o que absorve um arquivo removido de propósito sem esconder um perdido por
 #   acidente.
-minimo = 2400
+# 2400 → 2900: a ingestão, os resultados, as exceções e os ciclos somaram 540
+#   testes desde então, e a folga voltou a ser grande o bastante para esconder um
+#   arquivo inteiro. `test_ciclos.py` sozinho tem 63 — com o piso em 2.400, apagá-lo
+#   não reprovaria nada.
+minimo = 2900

@@ -102,6 +102,9 @@ def test_o_trilho_do_anonimo_e_todo_zero(client, gente_com_coisas):
         # mesma razão dos outros dois: a lista de regras conta o que a
         # empresa vigia, e a grade nomeia gente.
         "ve_excecoes": False,
+        # O anônimo não vê ciclo de planejamento: a pauta é a agenda de
+        # decisão da empresa, com o que ainda NÃO foi decidido dentro.
+        "ve_ciclos": False,
         "ve_fontes": False,
         # Estoque e custódia entram na mesma regra: a porta do estoque não é
         # oferecida a quem não pode abri-la, e "0 equipamentos para confirmar"

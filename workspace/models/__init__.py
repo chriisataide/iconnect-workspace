@@ -93,6 +93,14 @@ from .excecao import (
     ResultadoExcecao,
     Severidade,
 )
+from .ciclo import (
+    AnotacaoEtapa,
+    Cadencia,
+    CicloPlanejamento,
+    EtapaCiclo,
+    OcorrenciaCiclo,
+    SituacaoOcorrencia,
+)
 from .evento import AcaoSolicitacao, EventoSolicitacao
 from .conteudo import (
     ConfirmacaoLeitura,
@@ -104,7 +112,13 @@ from .comunicacao import Prioridade, Publicacao, TipoPublicacao
 from .orcamento import Compromisso, SituacaoCompromisso, competencia_de
 
 __all__ = [
+    "AnotacaoEtapa",
     "AreaFAQ",
+    "Cadencia",
+    "CicloPlanejamento",
+    "EtapaCiclo",
+    "OcorrenciaCiclo",
+    "SituacaoOcorrencia",
     "ComentarioSolicitacao",
     "Curso",
     "EvidenciaRelatorio",

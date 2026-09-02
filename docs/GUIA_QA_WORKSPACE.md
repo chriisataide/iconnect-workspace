@@ -1562,6 +1562,76 @@ não inventa uma seta — e isso é o correto.
 
 ---
 
+### 3.21 Ciclo de planejamento e ATA — `/workspace/ciclos/` (código 12)
+
+**Para que serve.** A pauta da reunião como objeto do produto: a ordem de olhar,
+registrada, com a tela viva em cada item, o carimbo de frescor de cada destino e
+a ATA saindo do fechamento.
+
+**Antes de testar:**
+
+```bash
+python manage.py semear_ciclos --aplicar
+python manage.py semear_papeis --aplicar
+```
+
+**O que testar, em ordem de importância:**
+
+- **A ATA repete o carimbo do DIA, e não o de hoje.** Anote alguma coisa na CP01
+  com uma fonte atrasada, feche a reunião, rode `carregar_fonte --aplicar` e
+  reabra a ATA no acervo. O texto tem de continuar dizendo a idade antiga. Se ele
+  mudar, **abra bug de gravidade alta**: a ATA estaria reescrevendo o que a sala
+  viu, e "com que dado se decidiu" é o que uma auditoria procura ali.
+- **Fonte atrasada NÃO impede a reunião.** O primeiro "Abrir" recusa e lista as
+  fontes; o botão passa a dizer *"Abrir mesmo assim (N fontes com atraso)"*; o
+  segundo abre. Se o botão travar de vez, **abra bug**: um problema de carga não
+  pode virar um problema de governança.
+- **O impedimento não some quando a carga volta.** Depois de aberta, a lista no
+  topo é a **congelada**. Rode a carga e recarregue a tela: a lista tem de
+  continuar igual. Se ela esvaziar, o mês ruim está parecendo limpo.
+- **A fronteira passa entre o GET e o POST.** Entre com `gerente@icodev.com.br`
+  (lê e não conduz): a pauta abre, a apresentação abre, e **não existe** botão de
+  abrir, de anotar nem de fechar. Um POST forjado tem de dar **403**.
+- **Anônimo é redirecionado para `/entrar/`**, e não vê a pauta. Ciclo de
+  planejamento não é informação institucional: é a agenda de decisão da empresa.
+- **`almoxarife@` recebe 403**, e não uma lista vazia. Lista vazia diria "a
+  empresa não tem ciclo de planejamento" para quem apenas não está na sala.
+
+**O modo apresentação:**
+
+- `?etapa=CP05` mostra uma etapa por vez; `?apresentacao=1` tira o trilho. São
+  **dois parâmetros na mesma tela** — se aparecer uma segunda URL de
+  apresentação, **abra bug** (ADR-025).
+- Com `?apresentacao=1`, o trilho tem de estar **ausente do HTML** (confira no
+  "ver código-fonte"), e não escondido por CSS.
+- `?etapa=CP99` cai no primeiro passo, e **não** em 404. Erro de digitação no
+  meio de uma reunião não pode virar tela de erro projetada na parede.
+- Depois de anotar, a tela volta **para a mesma etapa**, e continua em
+  apresentação se estava.
+
+**A ATA, no acervo:**
+
+- Abre em `/workspace/documentacao/ata-mensal-2026-09/`, tipo "ATA de ciclo".
+- Traz os **impedimentos antes da pauta**, e cada etapa na ordem — inclusive as
+  que ficaram **"Sem anotação."**, escrito. Se uma etapa sumir, **abra bug**:
+  some a diferença entre "não foi apresentada" e "não teve registro".
+- **Fechar duas vezes não gera duas ATAs.** Se aparecerem duas no acervo, é
+  achado alto: as duas parecem oficiais.
+- **A ATA não aparece no `select` da redação de documentos**, e um POST forjado
+  com `tipo=ata` tem de ser recusado.
+- Quem está **fora da plateia** do ciclo não abre a ATA nem a encontra na busca.
+  Teste com `almoxarife@` no link direto: 403 ou 404, nunca 200.
+
+**A etapa órfã.** Se alguém apontar uma etapa para um código de tela que não
+existe (`/admin/`, campo "tela"), a pauta **continua funcionando** e o item diz
+que o endereço precisa ser corrigido. Um link para lugar nenhum é bug; a frase
+não é.
+
+**O que NÃO existe, e não é bug:** reabrir reunião fechada, editar anotação,
+apagar ATA, e calendário de reuniões futuras. Reunião futura é do M365.
+
+---
+
 ## 4. Matriz perfil × tela
 
 Use como plano de cobertura. **A coluna "Anônimo" é a mais esquecida e a que mais
@@ -1581,10 +1651,12 @@ esconde defeito** — nos dois sentidos.
 | **Bandeja de aprovação** | ➜ login | ✅ **vazia** | ✅ **com itens** | ✅ vazia |
 | Reservar / Minhas reservas | ➜ login | ✅ | ✅ | ✅ + cancelar de terceiros |
 | Correspondências | ➜ login | ✅ **só as minhas** | ✅ **só as minhas** | ✅ **fila completa** |
+| **Ciclos de planejamento** | ➜ login | **403** | ✅ lê; só Diretoria **conduz** | **403** |
 
-As três células em negrito são os testes de autorização que valem mais: bandeja
-vazia para colaborador, fila invisível para gestor, e cancelamento de terceiros
-só para quem administra recurso.
+As células em negrito são os testes de autorização que valem mais: bandeja vazia
+para colaborador, fila invisível para gestor, cancelamento de terceiros só para
+quem administra recurso — e, nos ciclos, a diferença entre **ler a pauta** e
+**conduzir a reunião**, que é onde passa a fronteira entre o GET e o POST.
 
 ---
 

@@ -77,6 +77,7 @@ SEM_SESSAO = {
     "ve_indicadores": False,
     "ve_resultados": False,
     "ve_excecoes": False,
+    "ve_ciclos": False,
     "ve_fontes": False,
     "ve_estoque": False,
     "custodias_a_aceitar": 0,
@@ -130,6 +131,7 @@ def _calcular(request: HttpRequest) -> dict:
     from workspace.services import marketing as mkt
     from workspace.services import notificacoes as nt
     from workspace.services import recrutamento as rec
+    from workspace.services import ciclos as cic
     from workspace.services import excecoes as exc
     from workspace.services import resultados as res
     from workspace.services import publicacao as pub
@@ -173,6 +175,9 @@ def _calcular(request: HttpRequest) -> dict:
         # carga não vê o resultado financeiro.
         "ve_resultados": res.tem_acesso(pessoa, cache=cache),
         "ve_excecoes": exc.tem_painel(pessoa, cache=cache),
+        # §Onda 5 — o ciclo de planejamento. Só para quem participa de
+        # algum: um item de trilho que leva a 403 ensina a ignorar o trilho.
+        "ve_ciclos": cic.tem_acesso(pessoa, cache=cache),
         "ve_fontes": res.pode_ver_fontes(pessoa, cache=cache),
         "ve_publicacoes": pub.pode_publicar(pessoa, cache=cache),
         "ve_faq": asst.pode_manter(pessoa, cache=cache),

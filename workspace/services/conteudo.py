@@ -145,7 +145,22 @@ def pode_ver(documento: Documento, pessoa, cache: dict | None = None) -> bool:
         return getattr(pessoa, "pk", None) == documento.dono_id
 
     alvo = set(documento.publico_alvo or ["*"])
-    return bool(alvo & set(subjects_de(pessoa, cache=cache)))
+    if not (alvo & set(subjects_de(pessoa, cache=cache))):
+        return False
+
+    if documento.tipo == TipoDocumento.ATA:
+        # A ATA é do ciclo de onde ela saiu, e a plateia já está no
+        # `publico_alvo` como `papel:<chave>` — o que faz vitrine, busca e
+        # leitura concordarem sem exceção nenhuma neste módulo. Esta é a segunda
+        # tranca, para o caso de uma ATA publicada por outro caminho.
+        #
+        # Importação preguiçosa: `services.ciclos` lê os models de conteúdo, e
+        # importar no topo fecharia o ciclo entre os dois módulos.
+        from workspace.services import ciclos
+
+        return ciclos.pode_ler_ata(documento, pessoa, cache=cache)
+
+    return True
 
 
 # ── Leitura obrigatória ─────────────────────────────────────────────
@@ -387,6 +402,12 @@ def salvar(
         raise DocumentoError("O documento precisa de um título.")
     if tipo not in TipoDocumento.values:
         raise DocumentoError("Tipo de documento inválido.")
+    if tipo == TipoDocumento.ATA:
+        # A ATA é gerada ao fechar um ciclo, com os carimbos congelados. Uma ATA
+        # escrita à mão ficaria no acervo indistinguível da verdadeira — e é a
+        # verdadeira que alguém vai citar numa auditoria. O `select` da redação
+        # já não a oferece; isto é o que fecha o POST direto.
+        raise DocumentoError("ATA não se escreve aqui: ela sai do ciclo fechado.")
 
     if vigencia_fim and vigencia_inicio and vigencia_fim < vigencia_inicio:
         # Vigência invertida produz documento que nasce vencido: some da vitrine
