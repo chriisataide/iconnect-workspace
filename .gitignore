@@ -45,6 +45,19 @@ service-account*.json
 .idea/
 .vscode/
 
+# Saída do inventário do monday — `scripts/inventario_monday.py`.
+#
+# O JSON traz nome de cliente e de colaborador reais: é o levantamento dos
+# boards de verdade da ADB, e o próprio script avisa isso ao terminar. Ele é
+# insumo para escrever o conector, não artefato do produto.
+#
+# A fixture de teste consome uma amostra ANONIMIZADA, versionada em
+# docs/exemplos/monday-inventario-exemplo.json — e é ela que entra no git.
+monday_inventario.json
+monday_inventario.md
+monday_inventario*.json
+monday_inventario*.md
+
 # Arquivos de troca do editor. `.CLAUDE.md.swp` já apareceu numa listagem de
 # `git status` — vim deixa isto para trás quando a sessão morre, e o nome
 # começando com ponto engana quem varre o diretório à vista.
