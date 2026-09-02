@@ -1,0 +1,85 @@
+{% load i18n wks %}
+{% comment %}
+  A DINÂMICA DE SEIS COLUNAS, e a do meio é a que importa.
+
+  Não é `realizado | orçado | variação`. A terceira coluna é onde a operação
+  declara o que já aconteceu e ainda não bateu na contabilidade — sem ela a
+  reunião vira briga sobre o número em vez de decisão sobre o que fazer.
+{% endcomment %}
+<div class="au-kpi-linha">
+  <div class="au-kpi">
+    <span class="au-kpi-rotulo">{% trans "receita bruta" %}</span>
+    <span class="au-kpi-valor">R$ {{ faixa.conteudo.totais.receita_bruta|moeda }}</span>
+  </div>
+  <div class="au-kpi">
+    <span class="au-kpi-rotulo">{% trans "margem de contribuição" %}</span>
+    <span class="au-kpi-valor">
+      R$ {{ faixa.conteudo.totais.margem_contribuicao|moeda }}
+      {% if faixa.conteudo.totais.margem_pct is not None %}
+        <small class="au-kpi-sufixo">{{ faixa.conteudo.totais.margem_pct }}%</small>
+      {% endif %}
+    </span>
+  </div>
+  <div class="au-kpi">
+    <span class="au-kpi-rotulo">{% trans "EBITDA" %}</span>
+    <span class="au-kpi-valor">
+      R$ {{ faixa.conteudo.totais.ebitda|moeda }}
+      {% if faixa.conteudo.totais.ebitda_pct is not None %}
+        <small class="au-kpi-sufixo">{{ faixa.conteudo.totais.ebitda_pct }}%</small>
+      {% endif %}
+    </span>
+  </div>
+  <div class="au-kpi">
+    <span class="au-kpi-rotulo">{% trans "impostos" %}</span>
+    <span class="au-kpi-valor">R$ {{ faixa.conteudo.totais.impostos|moeda }}</span>
+  </div>
+</div>
+
+<div class="au-graficos">
+  <figure class="au-grafico">
+    <figcaption class="au-grafico-titulo">{% trans "Receita bruta, 13 meses" %}</figcaption>
+    {% include "workspace/_serie_svg.html" with serie=faixa.conteudo.grafico_receita rotulo=_("Receita bruta por mês") %}
+  </figure>
+  <figure class="au-grafico">
+    <figcaption class="au-grafico-titulo">{% trans "EBITDA, 13 meses" %}</figcaption>
+    {% include "workspace/_serie_svg.html" with serie=faixa.conteudo.grafico_ebitda rotulo=_("EBITDA por mês") %}
+  </figure>
+</div>
+
+<div class="au-tabela">
+  <table>
+    <caption class="au-sr">{% trans "Realizado contra orçado, por contrato e centro de custo" %}</caption>
+    <thead>
+      <tr>
+        <th>{% trans "Contrato / centro de custo" %}</th>
+        <th class="num">{% trans "Realizado" %}</th>
+        <th class="num">{% trans "Ajuste" %}</th>
+        <th class="num">{% trans "Realizado ajustado" %}</th>
+        <th class="num">{% trans "Orçado" %}</th>
+        <th class="num">{% trans "%RExOR" %}</th>
+        <th class="num">{% trans "Diferença" %}</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for linha in faixa.conteudo.linhas %}
+        <tr{% if linha.orcado is None %} class="au-linha--sem-orcado"{% endif %}>
+          <td>
+            {{ linha.rotulo }}
+            <small class="au-procedencia" title="{% trans 'De onde veio esta linha' %}">{{ linha.procedencia }}</small>
+          </td>
+          <td class="num">{{ linha.realizado|moeda }}</td>
+          <td class="num">{% if linha.ajuste %}{{ linha.ajuste|moeda }}{% else %}—{% endif %}</td>
+          <td class="num">{{ linha.ajustado|moeda }}</td>
+          {% comment %}
+            Sem orçado é "—", NUNCA zero e nunca 100%. É código de centro de
+            custo que existe de um lado e não do outro — parece estouro de
+            orçamento e não é.
+          {% endcomment %}
+          <td class="num">{% if linha.orcado is None %}—{% else %}{{ linha.orcado|moeda }}{% endif %}</td>
+          <td class="num">{% if linha.percentual is None %}—{% else %}{{ linha.percentual }}%{% endif %}</td>
+          <td class="num">{% if linha.diferenca is None %}—{% else %}{{ linha.diferenca|moeda }}{% endif %}</td>
+        </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>

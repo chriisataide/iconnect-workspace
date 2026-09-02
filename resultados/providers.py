@@ -288,34 +288,68 @@ class EspelhoLocal(
             percentual_concluido=projeto.percentual_concluido,
             bloqueado=projeto.bloqueado,
             motivo_bloqueio=projeto.motivo_bloqueio,
+            movimentado_em=projeto.movimentado_em,
         )
 
     # ── Pessoas e jornada ───────────────────────────────────────────
 
     def quadro(self, escopo, competencia: date) -> QuadroDTO | None:
+        """O agregado do escopo, e não a primeira linha que aparecer.
+
+        Turnover e absenteísmo são somados PONDERADOS pelo efetivo: a média
+        simples daria a um centro de cinco pessoas o mesmo peso de um de
+        duzentas, e o indicador da empresa passaria a ser decidido pelo menor
+        centro de custo.
+        """
+        linhas = self._quadros(escopo, competencia)
+        if not linhas:
+            return None
+        efetivo = sum(l.efetivo_ativo for l in linhas)
+        return QuadroDTO(
+            procedencia=self._procedencia_do_conjunto(
+                QuadroPessoas.objects.filter(pk__in=[l.pk for l in linhas])
+            ),
+            centro_custo="" if len(linhas) > 1 else linhas[0].centro_custo,
+            ano=competencia.year,
+            mes=competencia.month,
+            efetivo_ativo=efetivo,
+            admissoes=sum(l.admissoes for l in linhas),
+            rescisoes=sum(l.rescisoes for l in linhas),
+            turnover_pct=_ponderado(linhas, "turnover_pct", efetivo),
+            absenteismo_pct=_ponderado(linhas, "absenteismo_pct", efetivo),
+            vagas_abertas=sum(l.vagas_abertas for l in linhas),
+            vagas_fechadas_no_prazo=sum(l.vagas_fechadas_no_prazo for l in linhas),
+            em_ferias=sum(l.em_ferias for l in linhas),
+            afastados=sum(l.afastados for l in linhas),
+        )
+
+    def quadros(self, escopo, competencia: date) -> list[QuadroDTO]:
+        return [
+            QuadroDTO(
+                procedencia=_proc(l),
+                centro_custo=l.centro_custo,
+                ano=l.ano,
+                mes=l.mes,
+                efetivo_ativo=l.efetivo_ativo,
+                admissoes=l.admissoes,
+                rescisoes=l.rescisoes,
+                turnover_pct=l.turnover_pct,
+                absenteismo_pct=l.absenteismo_pct,
+                vagas_abertas=l.vagas_abertas,
+                vagas_fechadas_no_prazo=l.vagas_fechadas_no_prazo,
+                em_ferias=l.em_ferias,
+                afastados=l.afastados,
+            )
+            for l in self._quadros(escopo, competencia)
+        ]
+
+    def _quadros(self, escopo, competencia: date):
         consulta = QuadroPessoas.objects.filter(
             ano=competencia.year, mes=competencia.month
         )
         if escopo is not None and escopo.centros_custo:
             consulta = consulta.filter(centro_custo__in=escopo.centros_custo)
-        linha = consulta.first()
-        if linha is None:
-            return None
-        return QuadroDTO(
-            procedencia=_proc(linha),
-            centro_custo=linha.centro_custo,
-            ano=linha.ano,
-            mes=linha.mes,
-            efetivo_ativo=linha.efetivo_ativo,
-            admissoes=linha.admissoes,
-            rescisoes=linha.rescisoes,
-            turnover_pct=linha.turnover_pct,
-            absenteismo_pct=linha.absenteismo_pct,
-            vagas_abertas=linha.vagas_abertas,
-            vagas_fechadas_no_prazo=linha.vagas_fechadas_no_prazo,
-            em_ferias=linha.em_ferias,
-            afastados=linha.afastados,
-        )
+        return list(consulta.order_by("centro_custo"))
 
     def movimentacao(self, escopo, de: date, ate: date) -> MovimentacaoPessoasDTO:
         consulta = QuadroPessoas.objects.filter(
@@ -336,9 +370,10 @@ class EspelhoLocal(
         )
         if escopo is not None and escopo.centros_custo:
             consulta = consulta.filter(centro_custo__in=escopo.centros_custo)
-        linha = consulta.first()
-        if linha is None:
+        linhas = list(consulta)
+        if not linhas:
             return None
+        linha = _somar_apontamentos(linhas)
         campos = (
             "centro_custo", "ano", "mes", "horas_normais", "he_total",
             "he_ineficiencia", "he_servico_extra", "he_sem_classificacao",
@@ -372,3 +407,48 @@ class EspelhoLocal(
             )
             for a in consulta.order_by("-data")
         ]
+
+
+def _ponderado(linhas, campo: str, efetivo: int) -> Decimal:
+    """Média ponderada pelo efetivo, com uma casa.
+
+    Sem efetivo não há ponderação possível e o resultado é zero — que é honesto:
+    um percentual de pessoas sobre zero pessoas não é um número.
+    """
+    if not efetivo:
+        return Decimal("0")
+    total = sum(getattr(l, campo) * l.efetivo_ativo for l in linhas)
+    return (Decimal(total) / Decimal(efetivo)).quantize(Decimal("0.01"))
+
+
+class _Somado:
+    """Um apontamento agregado, com a mesma cara de um do banco.
+
+    Objeto solto e não um `QuerySet.aggregate()` porque o chamador lê quinze
+    campos por nome — e um dicionário obrigaria a trocar quinze `getattr` por
+    quinze `[...]` no provider, sem ganhar nada.
+    """
+
+    def __init__(self, valores: dict):
+        for nome, valor in valores.items():
+            setattr(self, nome, valor)
+
+
+#: Somáveis. `centro_custo` NÃO está aqui: somar códigos de centro de custo é
+#: literalmente concatenar identificadores, e o resultado seria um código que
+#: não existe.
+SOMAVEIS = (
+    "horas_normais", "he_total", "he_ineficiencia", "he_servico_extra",
+    "he_sem_classificacao", "hora_escala", "hora_abono", "hora_desconto",
+    "hora_noturna", "banco_horas_saldo", "folhas_ponto_pendentes",
+    "contratos_pendentes_assinatura",
+)
+
+
+def _somar_apontamentos(linhas):
+    valores = {campo: sum(getattr(l, campo) for l in linhas) for campo in SOMAVEIS}
+    valores["centro_custo"] = "" if len(linhas) > 1 else linhas[0].centro_custo
+    valores["ano"] = linhas[0].ano
+    valores["mes"] = linhas[0].mes
+    valores["procedencia"] = linhas[0].procedencia
+    return _Somado(valores)

@@ -68,14 +68,110 @@ class CarimboDTO:
     motivo: str = ""
 
 
+@dataclass(frozen=True)
+class FonteDTO:
+    """Uma fonte, como a tela 99 a mostra."""
+
+    chave: str
+    nome: str
+    ativa: bool = True
+    cadencia: str = ""
+    idade_maxima: timedelta | None = None
+    responsavel: str = ""
+    observacao: str = ""
+    #: `False` quando falta credencial NESTE ambiente. Diferente de `ativa`:
+    #: desativada é decisão de quem opera; não configurada é estado do deploy, e
+    #: a tela precisa dizer coisas diferentes.
+    configurada: bool = True
+
+
+@dataclass(frozen=True)
+class ExecucaoDTO:
+    """Uma rodada de carga, para o histórico da tela 99."""
+
+    fonte: str
+    iniciada_em: datetime | None = None
+    terminada_em: datetime | None = None
+    status: str = SUCESSO
+    lidos: int = 0
+    criados: int = 0
+    atualizados: int = 0
+    #: Chegou e não mudou nada. É o número que prova a idempotência ao operador
+    #: que rodou a carga duas vezes por precaução.
+    ignorados: int = 0
+    rejeitados: int = 0
+    erro_resumo: str = ""
+    simulacao: bool = False
+
+
+@dataclass(frozen=True)
+class DivergenciaDTO:
+    """Duas fontes discordaram, com os dois valores lado a lado.
+
+    Os DOIS, e não só o vencedor: a tela existe para alguém ir descobrir por que
+    os sistemas discordam, e para isso é preciso ver o que cada um disse.
+    """
+
+    entidade: str
+    chave: str
+    campo: str
+    fonte_a: str
+    valor_a: str
+    fonte_b: str
+    valor_b: str
+    vencedora: str = ""
+    detectada_em: datetime | None = None
+    resolvida: bool = False
+
+
 class ProvedorFrescor(ABC):
-    """Quem sabe quando cada fonte foi carregada pela última vez."""
+    """Quem sabe quando cada fonte foi carregada pela última vez.
+
+    ## O contrato cresceu na Onda 3, e de forma compatível
+
+    Ele nasceu com um método só — `carimbo()` —, que é o que a tela precisava
+    quando o carimbo era a única coisa que existia. A tela de fontes pede mais:
+    o histórico, as contagens e as divergências abertas.
+
+    Os métodos novos têm implementação padrão vazia, então quem implementava
+    só `carimbo()` continua válido — e a tela 99 diz "esta fonte não reporta
+    histórico" em vez de quebrar.
+    """
 
     key: str = ""
 
     def carimbo(self, fonte: str, competencia=None) -> CarimboDTO | None:
         """O carimbo desta fonte, ou `None` quando ela é desconhecida."""
         return None
+
+    def fontes(self) -> list["FonteDTO"]:
+        """Todas as fontes cadastradas, para a tela 99."""
+        return []
+
+    def historico(self, fonte: str = "", limite: int = 10) -> list["ExecucaoDTO"]:
+        """As últimas execuções, mais recente primeiro. Sem `fonte`, de todas."""
+        return []
+
+    def divergencias(self, *, abertas: bool = True) -> list["DivergenciaDTO"]:
+        """Os conflitos entre fontes. Abertas por padrão — resolvidas viram
+        histórico, não some do banco."""
+        return []
+
+    def recarregar(self, fonte: str, quem=None) -> bool:
+        """Dispara uma carga sob demanda. `False` quando não é possível.
+
+        ## Um contrato de LEITURA com um método que escreve
+
+        É a mesma exceção — e a mesma justificativa — de
+        `orcamento.salvar_centro`. A alternativa seria a view importar `cargas`
+        para disparar a carga, e aí o Workspace passaria a conhecer o app de
+        ingestão só por causa de um botão.
+
+        O que atravessa aqui é uma ORDEM, não um dado: a view diz "recarregue
+        esta fonte" e o domínio decide se pode, como e quando. A fronteira é a
+        mesma da leitura, na outra direção.
+        """
+        return False
 
     def __repr__(self) -> str:  # pragma: no cover - conveniência de depuração
         return f"<{type(self).__name__} key={self.key!r}>"

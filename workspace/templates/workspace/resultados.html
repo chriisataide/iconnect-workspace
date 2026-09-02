@@ -1,0 +1,154 @@
+{% extends "workspace/_shell_modulo.html" %}
+{% load i18n wks %}
+
+{% block titulo %}{% trans "Resultados" %}{% endblock %}
+
+{% comment %}
+  MODO APRESENTAÇÃO — `?apresentacao=1`.
+
+  Esconde o trilho e os filtros e aumenta a tipografia. É uma query string e não
+  uma tela separada: duas telas divergiriam na terceira semana, e a que a
+  diretoria vê na reunião é justamente a que não pode divergir.
+
+  O trilho some pelo bloco vazio, e não por CSS: um `display:none` deixaria o
+  conteúdo no HTML, e o leitor de tela leria uma navegação que ninguém pode ver.
+{% endcomment %}
+{% block rail %}
+  {% if not apresentacao %}{% include "workspace/_rail_servicos.html" with aba="resultados" %}{% endif %}
+{% endblock %}
+
+{% block trilha %}<span>{% trans "Resultados" %}</span>{% endblock %}
+{% block pagina_titulo %}{% trans "Apresentação de Resultados" %}{% endblock %}
+{% block voltar_url %}{% url 'workspace:home' %}{% endblock %}
+
+{% block pagina_descricao %}
+  <p class="au-pagina-desc">
+    {% if escopo_total %}
+      {% trans "A empresa inteira." %}
+    {% else %}
+      {% trans "O seu recorte." %}
+    {% endif %}
+    {% blocktrans with mes=filtros.competencia|date:"F \d\e Y" %}Competência de {{ mes }}.{% endblocktrans %}
+  </p>
+{% endblock %}
+
+{% block corpo %}
+<div class="au-resultados{% if apresentacao %} au-resultados--apresentacao{% endif %}">
+
+{% if not apresentacao %}
+  {% comment %}
+    A BARRA DE FILTROS, padronizada. Aprende-se uma vez, usa-se em toda tela
+    futura — é o padrão que o benchmark repete em cem telas.
+
+    Tudo vai para a query string com nome, então a tela é LINKÁVEL: "manda a 10
+    de agosto do Sudeste" vira uma URL. E nenhum dado pessoal entra aqui — a
+    query string vai para o histórico do navegador, para o log do servidor e
+    para o corpo do e-mail em que alguém cola o link.
+  {% endcomment %}
+  <form class="au-filtros au-filtros--resultados" method="get" action="">
+    <div class="au-filtro">
+      <label class="au-filtro-rotulo" for="f-competencia">{% trans "Competência" %}</label>
+      <select class="au-input au-input--compacto" id="f-competencia" name="competencia">
+        {% for mes in competencias %}
+          <option value="{{ mes|date:'Y-m' }}"
+                  {% if mes == filtros.competencia %}selected{% endif %}>{{ mes|date:"m/Y" }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="au-filtro">
+      <label class="au-filtro-rotulo" for="f-regional">{% trans "Regional" %}</label>
+      <input class="au-input au-input--compacto" id="f-regional" type="text" name="regional"
+             value="{{ filtros.regional }}" maxlength="60"
+             placeholder="{% trans 'todas' %}">
+    </div>
+    <div class="au-filtro">
+      <label class="au-filtro-rotulo" for="f-cc">{% trans "Centro de custo" %}</label>
+      <input class="au-input au-input--compacto" id="f-cc" type="text" name="cc"
+             value="{{ filtros.centro_custo }}" maxlength="20"
+             placeholder="{% trans 'todos' %}">
+    </div>
+    <div class="au-filtro">
+      <label class="au-filtro-rotulo" for="f-contrato">{% trans "Contrato" %}</label>
+      <input class="au-input au-input--compacto" id="f-contrato" type="text" name="contrato"
+             value="{{ filtros.contrato }}" maxlength="40"
+             placeholder="{% trans 'todos' %}">
+    </div>
+    <label class="au-filtro au-filtro--check">
+      <input class="au-check" type="checkbox" name="deficitario" value="1"
+             {% if filtros.deficitario %}checked{% endif %}>
+      <span>{% trans "Só deficitários" %}</span>
+    </label>
+    <button class="au-btn au-btn--sutil" type="submit">{% trans "Aplicar" %}</button>
+    <a class="au-btn au-btn--fantasma" href="{% url 'workspace:resultados' %}?competencia={{ filtros.competencia|date:'Y-m' }}&amp;apresentacao=1">
+      {% trans "Apresentar" %}
+    </a>
+    <a class="au-btn au-btn--fantasma"
+       href="{% url 'workspace:resultados_pdf' %}?competencia={{ filtros.competencia|date:'Y-m' }}">
+      {% trans "PDF" %}
+    </a>
+    {% if pode_ver_fontes %}
+      <a class="au-btn au-btn--fantasma" href="{% url 'workspace:fontes' %}">
+        {% trans "De onde vem" %}
+      </a>
+    {% endif %}
+  </form>
+{% endif %}
+
+{% comment %} ── FAIXA 1 · Destaques ───────────────────────────────── {% endcomment %}
+<section class="au-secao-faixa" aria-labelledby="destaques">
+  <header class="au-secao-faixa-cabeca">
+    <h2 class="au-secao-titulo" id="destaques">{{ destaques.titulo }}</h2>
+  </header>
+  {% if destaques.disponivel %}
+    <ul class="au-destaques">
+      {% for cartao in destaques.conteudo.cartoes %}
+        <li class="au-destaque au-destaque--{{ cartao.severidade }}">
+          <a class="au-destaque-link" href="#{{ cartao.ancora }}">
+            <span class="au-destaque-titulo">{{ cartao.titulo }}</span>
+            <span class="au-destaque-valor">{{ cartao.valor }}</span>
+            {% if cartao.detalhe %}<span class="au-destaque-detalhe">{{ cartao.detalhe }}</span>{% endif %}
+          </a>
+        </li>
+      {% endfor %}
+    </ul>
+  {% else %}
+    <div class="au-vazio">
+      <p class="au-vazio-titulo">{% trans "Nada exigindo atenção." %}</p>
+      <p class="au-vazio-dica">{{ destaques.motivo }}</p>
+    </div>
+  {% endif %}
+</section>
+
+{% for faixa in faixas %}
+  <section class="au-secao-faixa" aria-labelledby="{{ faixa.chave }}">
+    {% include "workspace/_faixa_cabeca.html" with faixa=faixa %}
+
+    {% if not faixa.disponivel %}
+      {% comment %}
+        Faixa sem dado NÃO some: ela explica o que falta. Sumir esconderia que
+        a faixa existe; um zero mentiria. As duas coisas que a leitura do
+        benchmark marcou como não copiar.
+      {% endcomment %}
+      <div class="au-vazio">
+        <p class="au-vazio-titulo">—</p>
+        <p class="au-vazio-dica">{{ faixa.motivo }}</p>
+      </div>
+
+    {% elif faixa.chave == "dinheiro" %}
+      {% include "workspace/resultados/_dinheiro.html" with faixa=faixa %}
+    {% elif faixa.chave == "contratos" %}
+      {% include "workspace/resultados/_contratos.html" with faixa=faixa %}
+    {% elif faixa.chave == "vencimentos" %}
+      {% include "workspace/resultados/_vencimentos.html" with faixa=faixa %}
+    {% elif faixa.chave == "projetos" %}
+      {% include "workspace/resultados/_projetos.html" with faixa=faixa %}
+    {% elif faixa.chave == "pessoas" %}
+      {% include "workspace/resultados/_pessoas.html" with faixa=faixa %}
+    {% elif faixa.chave == "satisfacao" %}
+      {% include "workspace/resultados/_satisfacao.html" with faixa=faixa %}
+    {% endif %}
+  </section>
+{% endfor %}
+
+</div>
+{% endblock %}

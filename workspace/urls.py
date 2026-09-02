@@ -116,6 +116,16 @@ urlpatterns = [
     # Meu dia e notificações.
     path("meu-dia/", views.meu_dia, name="meu_dia"),
     path("indicadores/", views.indicadores, name="indicadores"),
+    # A Apresentação de Resultados (10) e a tela irmã de fontes (99).
+    #
+    # `fontes/` ANTES de qualquer rota com parâmetro sob `resultados/`: sem
+    # isso, o dia em que existir `resultados/<slug>/` a palavra "fontes"
+    # sequestraria a tela — o mesmo cuidado de `documentacao/acervo/`.
+    path("resultados/", views.resultados, name="resultados"),
+    path("resultados/pdf/", views.resultados_pdf, name="resultados_pdf"),
+    path("resultados/fontes/", views.fontes, name="fontes"),
+    path("resultados/fontes/<slug:chave>/recarregar/", views.recarregar_fonte,
+         name="recarregar_fonte"),
     path("relatorios/", views.relatorios, name="relatorios"),
     path("relatorios/novo/", views.relatorio_editar, name="relatorio_novo"),
     path("relatorios/<int:pk>/editar/", views.relatorio_editar, name="relatorio_editar"),

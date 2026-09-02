@@ -1,0 +1,98 @@
+{% load i18n wks %}
+{% if faixa.conteudo.quadro %}
+  <div class="au-kpi-linha">
+    <div class="au-kpi">
+      <span class="au-kpi-rotulo">{% trans "efetivo ativo" %}</span>
+      <span class="au-kpi-valor">{{ faixa.conteudo.quadro.efetivo_ativo }}</span>
+    </div>
+    <div class="au-kpi">
+      <span class="au-kpi-rotulo">{% trans "admissões" %}</span>
+      <span class="au-kpi-valor">{{ faixa.conteudo.quadro.admissoes }}</span>
+    </div>
+    <div class="au-kpi">
+      <span class="au-kpi-rotulo">{% trans "rescisões" %}</span>
+      <span class="au-kpi-valor">{{ faixa.conteudo.quadro.rescisoes }}</span>
+    </div>
+    <div class="au-kpi">
+      <span class="au-kpi-rotulo">{% trans "turnover" %}</span>
+      <span class="au-kpi-valor">{{ faixa.conteudo.quadro.turnover_pct }}%</span>
+    </div>
+    <div class="au-kpi">
+      <span class="au-kpi-rotulo">{% trans "absenteísmo" %}</span>
+      <span class="au-kpi-valor">{{ faixa.conteudo.quadro.absenteismo_pct }}%</span>
+    </div>
+  </div>
+
+  {% comment %}
+    O recorte por centro de custo, e não só a média.
+
+    Um turnover de 8,4% num centro contra 2,1% nos outros vira 2,6% no agregado
+    — e o número que pedia ação desaparece dentro de um número tranquilo. Foi a
+    média que escondeu isso na primeira montagem desta faixa.
+  {% endcomment %}
+  <h3 class="au-subsecao">{% trans "Por centro de custo" %}</h3>
+  <div class="au-tabela">
+    <table>
+      <thead>
+        <tr>
+          <th>{% trans "Centro de custo" %}</th>
+          <th class="num">{% trans "Efetivo" %}</th>
+          <th class="num">{% trans "Turnover" %}</th>
+          <th class="num">{% trans "Absenteísmo" %}</th>
+          <th class="num">{% trans "Vagas abertas" %}</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for q in faixa.conteudo.por_centro %}
+          <tr{% if q.turnover_pct > 5 %} class="au-linha--alerta"{% endif %}>
+            <td>{{ q.centro_custo }}</td>
+            <td class="num">{{ q.efetivo_ativo }}</td>
+            <td class="num">{{ q.turnover_pct }}%</td>
+            <td class="num">{{ q.absenteismo_pct }}%</td>
+            <td class="num">{{ q.vagas_abertas }}</td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+{% endif %}
+
+{% if faixa.conteudo.horas %}
+  <h3 class="au-subsecao">{% trans "Horas, sobre as horas normais" %}</h3>
+  <div class="au-tabela">
+    <table>
+      <thead>
+        <tr>
+          <th>{% trans "Tipo" %}</th>
+          <th class="num">{% trans "Horas" %}</th>
+          <th class="num">{% trans "% sobre normais" %}</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for hora in faixa.conteudo.horas %}
+          <tr>
+            <td>{{ hora.rotulo }}</td>
+            <td class="num">{{ hora.horas|floatformat:"0" }}</td>
+            <td class="num">{% if hora.percentual is None %}—{% else %}{{ hora.percentual }}%{% endif %}</td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+{% endif %}
+
+{% comment %}
+  Conformidade legal do ponto em bloco PRÓPRIO: folha pendente e contrato sem
+  assinatura são as duas que viram autuação, e no meio da tabela de horas elas
+  passam como mais uma linha.
+{% endcomment %}
+<div class="au-kpi-linha">
+  <div class="au-kpi {% if faixa.conteudo.conformidade.folhas_pendentes %}au-kpi--alerta{% endif %}">
+    <span class="au-kpi-rotulo">{% trans "folhas de ponto pendentes" %}</span>
+    <span class="au-kpi-valor">{{ faixa.conteudo.conformidade.folhas_pendentes }}</span>
+  </div>
+  <div class="au-kpi {% if faixa.conteudo.conformidade.contratos_pendentes %}au-kpi--alerta{% endif %}">
+    <span class="au-kpi-rotulo">{% trans "contratos pendentes de assinatura" %}</span>
+    <span class="au-kpi-valor">{{ faixa.conteudo.conformidade.contratos_pendentes }}</span>
+  </div>
+</div>

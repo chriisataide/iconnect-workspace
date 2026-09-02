@@ -81,10 +81,24 @@ VERDADEIROS = frozenset({"1", "true", "sim", "s", "y", "yes", "verdadeiro"})
 
 
 class ConectorCSV(ConectorBase):
+    """O leitor de CSV. A `chave` é parâmetro, e isso tem uma razão.
+
+    Normalmente ele é a fonte `csv`. Mas a massa de teste precisa entrar como
+    Sankhya, monday e Platform — senão a tela de fontes e o carimbo por bloco
+    nunca são exercitados, e a primeira vez que alguém veria três carimbos
+    diferentes na mesma tela seria em produção.
+
+    Registrar o MESMO leitor sob três chaves é honesto: o caminho percorrido é
+    o do carregador de verdade, com upsert, contagem e precedência. O que muda é
+    de onde o arquivo veio — que é exatamente o que uma fonte é.
+    """
+
     chave = "csv"
 
-    def __init__(self, diretorio: str | Path | None = None):
+    def __init__(self, diretorio: str | Path | None = None, chave: str = ""):
         self._diretorio = Path(diretorio) if diretorio else None
+        if chave:
+            self.chave = chave
 
     @property
     def diretorio(self) -> Path | None:

@@ -74,6 +74,12 @@ PAPEIS_V1 = [
             "hab.ler.equipe",
             "hab.inscrever.equipe",
             "doc.leitura.cobrar.equipe",
+            # A tela de resultados, recortada ao CENTRO DE CUSTO da própria
+            # lotação. `.departamento` e não `.global` de propósito: quem
+            # responde por uma operação precisa dos números dela, e o resultado
+            # da empresa inteira é conversa de diretoria — mostrar tudo aqui
+            # transformaria a tela num vazamento com aparência de transparência.
+            "eco.ler.departamento",
         ],
         "descricao": (
             "Responde por uma equipe. Aprova o que vem dos liderados e vê a "
@@ -100,6 +106,11 @@ PAPEIS_V1 = [
             # O painel de indicadores. Aqui e nos Sócios porque é para eles que
             # ele existe: volume por área, tempo até resolver, onde trava.
             "ind.ler.global",
+            "eco.ler.global",
+            # A tela de fontes. A pergunta "de onde vem esse número?" é da
+            # diretoria antes de ser de quem opera — e a resposta precisa ser um
+            # link, não um chamado.
+            "eco.carga.global",
             # Exceção de habilitação vencida é de diretoria, auditada e
             # notificada ao jurídico. Bloqueio sem escape faz a operação burlar
             # o sistema; escape fácil torna o bloqueio decorativo.
@@ -126,6 +137,7 @@ PAPEIS_V1 = [
             "rh.ler.global",
             "ops.ler.global",
             "ind.ler.global",
+            "eco.ler.global",
         ],
         "descricao": (
             "Último degrau. Aprova acima de R$ 300.000. Deliberadamente SEM as "
@@ -144,6 +156,7 @@ PAPEIS_V1 = [
             "rh.ler.global",
             "rh.admin.global",
             "ind.ler.global",
+            "eco.ler.global",
             "hab.ler.unidade",
             "hab.registrar.presenca",
             # §48 — o painel de conformidade passou a exigir `hab.auditoria.ler`
@@ -177,6 +190,10 @@ PAPEIS_V1 = [
             "fin.aprovar.centro_custo",
             "fin.contrato.ler.unidade",
             "apr.aprovar.equipe",
+            # O resultado econômico inteiro. O Financeiro fecha o mês: negar-lhe
+            # a visão da empresa faria a conferência acontecer na planilha, que
+            # é de onde este produto está tentando tirar a conversa.
+            "eco.ler.global",
         ],
         "descricao": "Reembolso, prestação de contas, orçamento por centro de custo.",
     },
@@ -267,6 +284,15 @@ PAPEIS_V1 = [
             "ti.status.publicar",
             "ti.admin.global",
             "log.custodia.ler.unidade",
+            # A tela de fontes (99) e o botão de recarregar. Quem opera o
+            # produto precisa ver por que uma carga falhou e poder tentar de
+            # novo — sem isso, "o número está velho" vira um chamado que só o
+            # deploy resolve.
+            #
+            # `eco.carga` e não `eco.ler`: ver a tela de fontes NÃO dá acesso
+            # aos números. São permissões diferentes de propósito — o T.I. tem
+            # de consertar a carga sem enxergar o resultado financeiro.
+            "eco.carga.global",
         ],
         "descricao": (
             "Status dos serviços e provisionamento de acesso. Provisiona, mas "

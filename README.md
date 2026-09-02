@@ -141,7 +141,10 @@ casa, que era o ponto de existir um contrato.
 | Existem **dois** clientes HTTP no repositório | Um roda dentro da requisição do usuário (4 s, retry linear, **nunca** repete `POST`); o outro roda em carga agendada (60 s, recuo exponencial, e `POST` é o método de **leitura** do monday). Um módulo com seis parâmetros para servir aos dois não serviria bem a nenhum. O que eles dividem é um **teste** — nenhum dos dois registra credencial ([ADR-021](docs/EXEC_16_INGESTAO.md)). |
 | O app de ingestão se chama `cargas`, e não `integracoes` | Porque [workspace/integracoes/](workspace/integracoes/) já existe e é outra coisa: o link com a Platform. Dois pacotes com o mesmo nome é como um `import` errado passa despercebido numa revisão. |
 | Nada em [resultados/](resultados/) tem formulário, nem no `/admin/` | O dado nasce onde é operado. Editar o espelho criaria duas verdades sobre a mesma linha — e a segunda venceria até a próxima carga, ou não venceria, conforme a precedência ([ADR-018](docs/EXEC_16_INGESTAO.md)). |
-| Toda faixa de números diz *"Workspace · em tempo real"* | É o carimbo de frescor, e hoje ele diz pouco porque todo número é do próprio Workspace. Ele existe antes dos conectores porque é disciplina: só vale se toda faixa nascer carimbada, e a suíte reprova a que nascer sem. Nenhum template lê o relógio — carimbo fabricado com `now` diz "agora" para dado de ontem ([ADR-017](docs/EXEC_15_ENDERECAMENTO.md)). |
+| A tela de Resultados é a **10**, e não a `01.2` do benchmark | `01` já é *Meu dia*. Renumerar um endereço é o que o [ADR-015](docs/EXEC_15_ENDERECAMENTO.md) existe para impedir — copiamos o padrão do Portal GPS, não os números dele. A `99` das fontes ficou: ali o que se copia **é** o padrão, de as telas que consertam o dado serem um módulo declarado. |
+| Quem opera as cargas **não** vê os números | `eco.carga` e `eco.ler` são permissões separadas. Ligar alguém no suporte às cargas não pode dar a ele a margem de todo contrato da empresa ([ADR-023](docs/EXEC_17_RESULTADOS.md)). |
+| A massa de teste tem **quinze anomalias de propósito** | Contrato deficitário, centro de custo sem orçamento, carga do monday falhada há 30 h. Cada uma exercita uma regra da tela, e `test_massa.py` afirma todas — se alguém "consertar" a massa, o teste cai e explica por quê. |
+| Faixas diferentes da mesma tela carimbam fontes diferentes | Em `/workspace/resultados/` o dinheiro vem do Sankhya em D-1 e os projetos vêm do monday em minutos. Um carimbo único no topo estaria certo sobre metade do conteúdo. Nas telas de trabalho ele ainda diz *"Workspace · em tempo real"*, porque ali o número é do próprio produto. Ele existe antes dos conectores porque é disciplina: só vale se toda faixa nascer carimbada, e a suíte reprova a que nascer sem. Nenhum template lê o relógio — carimbo fabricado com `now` diz "agora" para dado de ontem ([ADR-017](docs/EXEC_15_ENDERECAMENTO.md)). |
 | O pedido tem TRÊS etapas, não duas | Pedir → aprovar → **atender**. A fila (`/workspace/fila/`) é onde o pedido aprovado vira entregue, e é ela que alimenta o prazo REAL do catálogo: sem conclusões, o card mostraria "estimado" para sempre. |
 | A área NÃO aprova o que ela mesma vai executar | Existiu um degrau de aprovação por área entre o gestor e a fila, e ele saiu em 20/08/2026. Com ele, a área tocava o mesmo pedido duas vezes — aprovava na bandeja e depois executava na fila —, e quem pediu via "aguardando aprovação" **depois** de o gestor já ter aprovado. A revisão da área não sumiu: ela é a fila, onde quem atende conclui ou devolve com o motivo. |
 | Devolver não é reprovar, e tem volta | Reprovar encerra. Devolver diz "não dá para atender assim": o pedido volta para quem pediu **editável**, com o motivo à vista no formulário, e o botão *Enviar solicitação* promove a MESMA linha — mesmo número, mesmos anexos, mesma conversa. A cadeia é refeita (o gestor aprovou um texto que mudou), mas o relógio do prazo **não** volta — senão devolver viraria o jeito de limpar o próprio atraso. |
@@ -160,7 +163,7 @@ casa, que era o ponto de existir um contrato.
 ## Testes
 
 ```bash
-python -m pytest                          # 2.712 testes hoje, cobertura por app
+python -m pytest                          # 2.813 testes hoje, cobertura por app
 python scripts/check_coverage_ratchet.py  # os pisos, que só sobem
 ```
 
@@ -197,6 +200,7 @@ justificativa no PR.
 | [Benchmark GPS](docs/BENCHMARK_GPS_LEITURA.md) | A leitura do Portal GPS / GPS 360: o que copiar, o que não copiar e quem é dono de cada dado |
 | [EXEC 15](docs/EXEC_15_ENDERECAMENTO.md) | O código da tela, o carimbo de frescor e os prefixos de busca, com os ADRs 015–017 |
 | [EXEC 16](docs/EXEC_16_INGESTAO.md) | A ingestão multi-fonte: `cargas`, `resultados`, os quatro conectores e o carregador, com os ADRs 018–021 |
+| [EXEC 17](docs/EXEC_17_RESULTADOS.md) | A Apresentação de Resultados, a tela de fontes e a massa fictícia, com os ADRs 022–025 |
 
 ---
 

@@ -708,6 +708,12 @@ def test_contexto_do_rail_usa_pessoa_aberta_para_anonimo():
         "ve_faq": False,
         "ve_publicacoes": False,
         "ve_indicadores": False,
+        # §Onda 3 — a tela de resultados e a de fontes. `False` para
+        # anônimo pela razão mais simples possível: resultado
+        # financeiro não é informação institucional, e a tela de
+        # fontes conta quais sistemas a empresa usa.
+        "ve_resultados": False,
+        "ve_fontes": False,
         # E o mesmo para estoque e equipamentos: a porta do estoque não é
         # oferecida a quem não pode abri-la, e "0 para confirmar" seria o número
         # de outra pessoa.

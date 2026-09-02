@@ -23,6 +23,7 @@ from .pessoas import (
 from .aprovacoes import bandeja, decidir as decidir_aprovacao, decidir_em_lote as aprovar_em_lote
 from .busca import buscar_view
 from .enderecamento import ir_para
+from .resultados import fontes, recarregar_fonte, resultados, resultados_pdf
 from .conteudo import (
     anexar_documento,
     baixar_documento,
@@ -126,6 +127,10 @@ __all__ = [
     "bandeja",
     "buscar_view",
     "ir_para",
+    "fontes",
+    "recarregar_fonte",
+    "resultados",
+    "resultados_pdf",
     "confirmar_leitura",
     "cancelar_solicitacao",
     "descartar_rascunho",

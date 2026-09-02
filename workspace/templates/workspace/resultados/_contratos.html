@@ -1,0 +1,97 @@
+{% load i18n wks %}
+<div class="au-kpi-linha">
+  <div class="au-kpi">
+    <span class="au-kpi-rotulo">{% trans "contratos na carteira" %}</span>
+    <span class="au-kpi-valor">{{ faixa.conteudo.quantidade }}</span>
+  </div>
+  <div class="au-kpi">
+    <span class="au-kpi-rotulo">{% trans "valor mensal somado" %}</span>
+    <span class="au-kpi-valor">R$ {{ faixa.conteudo.valor_mensal|moeda }}</span>
+  </div>
+  <div class="au-kpi {% if faixa.conteudo.deficitarios %}au-kpi--alerta{% endif %}">
+    <span class="au-kpi-rotulo">{% trans "deficitários" %}</span>
+    <span class="au-kpi-valor">{{ faixa.conteudo.deficitarios|length }}</span>
+  </div>
+  <div class="au-kpi {% if faixa.conteudo.abaixo_da_margem %}au-kpi--alerta{% endif %}">
+    <span class="au-kpi-rotulo">{% trans "abaixo de 10% de margem" %}</span>
+    <span class="au-kpi-valor">{{ faixa.conteudo.abaixo_da_margem|length }}</span>
+  </div>
+</div>
+
+{% if faixa.conteudo.deficitarios %}
+  {% comment %}
+    Deficitário vem SEPARADO e NO TOPO, sempre. É a única coisa desta tela que
+    não espera a pessoa rolar até encontrar.
+  {% endcomment %}
+  <h3 class="au-subsecao au-subsecao--alerta">{% trans "Contratos deficitários" %}</h3>
+  <ul class="au-lista-contratos">
+    {% for c in faixa.conteudo.deficitarios %}
+      <li class="au-contrato au-contrato--deficitario">
+        <span class="au-contrato-codigo">{{ c.codigo }}</span>
+        <span class="au-contrato-cliente">{{ c.nome_cliente }}</span>
+        <span class="au-contrato-margem">{{ c.margem_contribuicao_pct }}%</span>
+        <span class="au-contrato-valor">R$ {{ c.valor_mensal|moeda }}</span>
+      </li>
+    {% endfor %}
+  </ul>
+{% endif %}
+
+{% if faixa.conteudo.abaixo_da_margem %}
+  <h3 class="au-subsecao">{% trans "Margem abaixo de 10% — exige justificativa" %}</h3>
+  <ul class="au-lista-contratos">
+    {% for c in faixa.conteudo.abaixo_da_margem %}
+      <li class="au-contrato">
+        <span class="au-contrato-codigo">{{ c.codigo }}</span>
+        <span class="au-contrato-cliente">{{ c.nome_cliente }}</span>
+        <span class="au-contrato-margem">{{ c.margem_contribuicao_pct }}%</span>
+        <span class="au-etiqueta">{% trans "Layer" %} {{ c.layer }}</span>
+      </li>
+    {% endfor %}
+  </ul>
+{% endif %}
+
+<h3 class="au-subsecao">{% trans "Mix por serviço" %}</h3>
+<div class="au-tabela">
+  <table>
+    <thead>
+      <tr>
+        <th>{% trans "Serviço" %}</th>
+        <th class="num">{% trans "Contratos" %}</th>
+        <th class="num">{% trans "Valor mensal" %}</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for item in faixa.conteudo.mix %}
+        <tr>
+          <td>{{ item.servico }}</td>
+          <td class="num">{{ item.quantidade }}</td>
+          <td class="num">{{ item.valor|moeda }}</td>
+        </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+<h3 class="au-subsecao">{% trans "Movimentação no período" %}</h3>
+<div class="au-colunas">
+  <div>
+    <p class="au-mini-titulo">{% trans "Conquistas" %} ({{ faixa.conteudo.movimentacao.conquistas|length }})</p>
+    <ul class="au-lista-simples">
+      {% for c in faixa.conteudo.movimentacao.conquistas %}
+        <li>{{ c.codigo }} · {{ c.nome_cliente }} — R$ {{ c.valor_mensal|moeda }}</li>
+      {% empty %}
+        <li class="au-vazio-dica">{% trans "Nenhuma no período." %}</li>
+      {% endfor %}
+    </ul>
+  </div>
+  <div>
+    <p class="au-mini-titulo">{% trans "Perdas" %} ({{ faixa.conteudo.movimentacao.perdas|length }})</p>
+    <ul class="au-lista-simples">
+      {% for c in faixa.conteudo.movimentacao.perdas %}
+        <li>{{ c.codigo }} · {{ c.nome_cliente }} — R$ {{ c.valor_mensal|moeda }}</li>
+      {% empty %}
+        <li class="au-vazio-dica">{% trans "Nenhuma no período." %}</li>
+      {% endfor %}
+    </ul>
+  </div>
+</div>

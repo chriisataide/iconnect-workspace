@@ -1,0 +1,30 @@
+{% load i18n wks %}
+{% comment %}
+  A "Defesa de Território" do benchmark, reduzida ao que a ADB responde.
+
+  As faixas são CUMULATIVAS: um contrato que vence em 45 dias aparece em "60" e
+  não em "30". Repeti-lo nas duas faria a soma das faixas não bater com a
+  carteira, e alguém contaria duas vezes na reunião.
+{% endcomment %}
+<div class="au-colunas au-colunas--quatro">
+  {% for bloco in faixa.conteudo.blocos %}
+    <div class="au-bloco-vencimento{% if bloco.dias <= 30 and bloco.contratos %} au-bloco-vencimento--urgente{% endif %}">
+      <p class="au-mini-titulo">{% blocktrans with dias=bloco.dias %}Até {{ dias }} dias{% endblocktrans %}</p>
+      <p class="au-kpi-valor">{{ bloco.contratos|length }}</p>
+      <p class="au-vazio-dica">R$ {{ bloco.valor|moeda }} {% trans "por mês" %}</p>
+      <ul class="au-lista-simples">
+        {% for c in bloco.contratos %}
+          <li>
+            <span class="au-etiqueta{% if c.layer == '3' %} au-etiqueta--forte{% endif %}">
+              {% if c.layer == 'sem_amostra' %}{% trans "sem amostra" %}{% else %}{% trans "Layer" %} {{ c.layer }}{% endif %}
+            </span>
+            {{ c.codigo }} · {{ c.nome_cliente }}
+            <small>{{ c.fim_vigencia|date:"d/m/Y" }}</small>
+          </li>
+        {% empty %}
+          <li class="au-vazio-dica">—</li>
+        {% endfor %}
+      </ul>
+    </div>
+  {% endfor %}
+</div>

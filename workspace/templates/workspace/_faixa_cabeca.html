@@ -1,0 +1,13 @@
+{% load i18n %}
+{% comment %}
+  O cabeçalho de uma faixa: título, código-âncora e CARIMBO.
+
+  O carimbo fica aqui e não no topo da tela, e é a decisão que a multi-fonte
+  torna obrigatória: nesta página o bloco financeiro vem do Sankhya em D-1 e o
+  de projetos vem do monday em minutos. Um carimbo único lá em cima estaria
+  certo sobre metade do conteúdo.
+{% endcomment %}
+<header class="au-secao-faixa-cabeca">
+  <h2 class="au-secao-titulo" id="{{ faixa.chave }}">{{ faixa.titulo }}</h2>
+  {% include "workspace/_carimbo.html" with carimbo=faixa.carimbo chave=faixa.chave %}
+</header>

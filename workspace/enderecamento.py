@@ -205,6 +205,10 @@ TELAS: tuple[Tela, ...] = (
     Tela("07.1", "Trilhas e cursos", "workspace:universidade"),
     Tela("07.2", "Painel da Universidade", "workspace:universidade_painel"),
     Tela("08", "Indicadores", "workspace:indicadores"),
+    # A tela que a diretoria pediu. `10` e NÃO `01.2`, que é o número dela no
+    # Portal GPS: aqui `01` já é Meu dia, e renumerar um endereço é exatamente
+    # o que o ADR-015 existe para impedir. Copiamos o padrão, não o número.
+    Tela("10", "Resultados", "workspace:resultados"),
     Tela("09", "Relatórios", "workspace:relatorios"),
     Tela("26.1", "Oportunidades de marketing", "workspace:marketing"),
     Tela("30", "Pessoas e papéis", "workspace:pessoas"),
@@ -214,6 +218,10 @@ TELAS: tuple[Tela, ...] = (
     Tela("34", "Candidaturas", "workspace:candidaturas"),
     Tela("90", "Chamados", "workspace:chamados"),
     Tela("91", "Campo", "workspace:campo"),
+    # `99` espelhando de propósito o "99 – Manutenção · Monitoramento" do
+    # benchmark: as telas que consertam o dado são um módulo DECLARADO, e não
+    # um back-office escondido.
+    Tela("99", "Fontes de dados", "workspace:fontes"),
 )
 
 

@@ -1,0 +1,55 @@
+{% load i18n wks %}
+<div class="au-kpi-linha">
+  {% for item in faixa.conteudo.por_situacao %}
+    <div class="au-kpi">
+      <span class="au-kpi-rotulo">{{ item.situacao }}</span>
+      <span class="au-kpi-valor">{{ item.quantidade }}</span>
+    </div>
+  {% endfor %}
+</div>
+
+<div class="au-colunas au-colunas--tres">
+  <div>
+    <p class="au-mini-titulo">{% trans "Marcos vencendo em 15 dias" %}</p>
+    <ul class="au-lista-simples">
+      {% for marco in faixa.conteudo.marcos_em_risco %}
+        <li{% if marco.vencido %} class="au-linha--alerta"{% endif %}>
+          {{ marco.projeto }} · {{ marco.titulo }}
+          <small>{{ marco.prazo|date:"d/m" }}{% if marco.vencido %} · {% trans "vencido" %}{% endif %}</small>
+        </li>
+      {% empty %}
+        <li class="au-vazio-dica">{% trans "Nenhum." %}</li>
+      {% endfor %}
+    </ul>
+  </div>
+  <div>
+    <p class="au-mini-titulo">{% trans "Bloqueados" %}</p>
+    {% comment %}
+      O MOTIVO junto, e não só a contagem. Bloqueio sem motivo é uma bandeira
+      vermelha que ninguém sabe o que fazer com — e a próxima pergunta na
+      reunião seria exatamente essa.
+    {% endcomment %}
+    <ul class="au-lista-simples">
+      {% for p in faixa.conteudo.bloqueados %}
+        <li class="au-linha--alerta">
+          {{ p.codigo }} · {{ p.nome }}
+          <small>{{ p.motivo_bloqueio|default:_("sem motivo declarado") }}</small>
+        </li>
+      {% empty %}
+        <li class="au-vazio-dica">{% trans "Nenhum." %}</li>
+      {% endfor %}
+    </ul>
+  </div>
+  <div>
+    <p class="au-mini-titulo">
+      {% blocktrans with dias=faixa.conteudo.dias_sem_movimento %}Sem movimento há mais de {{ dias }} dias{% endblocktrans %}
+    </p>
+    <ul class="au-lista-simples">
+      {% for p in faixa.conteudo.parados %}
+        <li>{{ p.codigo }} · {{ p.nome }} <small>{{ p.responsavel }}</small></li>
+      {% empty %}
+        <li class="au-vazio-dica">{% trans "Nenhum." %}</li>
+      {% endfor %}
+    </ul>
+  </div>
+</div>

@@ -75,6 +75,8 @@ SEM_SESSAO = {
     "ve_faq": False,
     "habilitacoes_pendentes": 0,
     "ve_indicadores": False,
+    "ve_resultados": False,
+    "ve_fontes": False,
     "ve_estoque": False,
     "custodias_a_aceitar": 0,
     "ve_frota": False,
@@ -127,6 +129,7 @@ def _calcular(request: HttpRequest) -> dict:
     from workspace.services import marketing as mkt
     from workspace.services import notificacoes as nt
     from workspace.services import recrutamento as rec
+    from workspace.services import resultados as res
     from workspace.services import publicacao as pub
 
     if not hasattr(request, "perm_cache"):
@@ -163,6 +166,11 @@ def _calcular(request: HttpRequest) -> dict:
         # lado é que varia, e "0" é informação, não motivo para esconder.
         "ve_aprovacoes": apr.tem_bandeja(pessoa, cache=cache),
         "ve_indicadores": ind.tem_painel(pessoa, cache=cache),
+        # §Onda 3 — a tela de resultados e a tela irmã de fontes. Duas chaves e
+        # não uma: ver a procedência NÃO dá acesso aos números, e quem opera a
+        # carga não vê o resultado financeiro.
+        "ve_resultados": res.tem_acesso(pessoa, cache=cache),
+        "ve_fontes": res.pode_ver_fontes(pessoa, cache=cache),
         "ve_publicacoes": pub.pode_publicar(pessoa, cache=cache),
         "ve_faq": asst.pode_manter(pessoa, cache=cache),
         # Habilitação vencida bloqueia despacho — o contador é o que faz a

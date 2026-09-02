@@ -1,0 +1,82 @@
+{% load i18n wks %}
+<div class="au-kpi-linha">
+  <div class="au-kpi">
+    <span class="au-kpi-rotulo">{% trans "promotores" %}</span>
+    <span class="au-kpi-valor">
+      {{ faixa.conteudo.contagem.promotor }}
+      <small class="au-kpi-sufixo">{{ faixa.conteudo.percentuais.promotor }}%</small>
+    </span>
+  </div>
+  <div class="au-kpi">
+    <span class="au-kpi-rotulo">{% trans "neutros" %}</span>
+    <span class="au-kpi-valor">
+      {{ faixa.conteudo.contagem.neutro }}
+      <small class="au-kpi-sufixo">{{ faixa.conteudo.percentuais.neutro }}%</small>
+    </span>
+  </div>
+  <div class="au-kpi {% if faixa.conteudo.contagem.detrator %}au-kpi--alerta{% endif %}">
+    <span class="au-kpi-rotulo">{% trans "detratores" %}</span>
+    <span class="au-kpi-valor">
+      {{ faixa.conteudo.contagem.detrator }}
+      <small class="au-kpi-sufixo">{{ faixa.conteudo.percentuais.detrator }}%</small>
+    </span>
+  </div>
+</div>
+
+{% if faixa.conteudo.sem_tratativa %}
+  {% comment %}
+    Detrator SEM tratativa é destaque, e não linha de tabela.
+
+    Com tratativa é trabalho em andamento; sem, é uma pessoa esperando. Tratar
+    os dois igual faria o segundo esperar mais.
+  {% endcomment %}
+  <h3 class="au-subsecao au-subsecao--alerta">{% trans "Detratores sem tratativa aberta" %}</h3>
+  <ul class="au-lista-contratos">
+    {% for a in faixa.conteudo.sem_tratativa %}
+      <li class="au-contrato au-contrato--deficitario">
+        <span class="au-contrato-codigo">{{ a.contrato }}</span>
+        <span class="au-contrato-cliente">{{ a.comentario|default:_("sem comentário") }}</span>
+        <span class="au-contrato-margem">{% trans "nota" %} {{ a.nota }}</span>
+        <span class="au-contrato-valor">{{ a.data|date:"d/m/Y" }}</span>
+      </li>
+    {% endfor %}
+  </ul>
+{% endif %}
+
+{% if faixa.conteudo.detratores %}
+  <h3 class="au-subsecao">{% trans "Todos os detratores do período" %}</h3>
+  <div class="au-tabela">
+    <table>
+      <thead>
+        <tr>
+          <th>{% trans "Contrato" %}</th>
+          <th>{% trans "Comentário" %}</th>
+          <th class="num">{% trans "Nota" %}</th>
+          <th>{% trans "Tratativa" %}</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for a in faixa.conteudo.detratores %}
+          <tr>
+            <td>{{ a.contrato }}</td>
+            {% comment %}
+              O comentário aparece; QUEM escreveu não existe no espelho. Quem
+              respondeu é pessoa do cliente, e o Workspace não é dono desse
+              cadastro.
+            {% endcomment %}
+            <td>{{ a.comentario|default:"—" }}</td>
+            <td class="num">{{ a.nota }}</td>
+            <td>
+              {% if a.tratativa_aberta %}
+                {{ a.tratativa_status|default:_("aberta") }}
+                {% if a.tratativa_prazo %}<small>{{ a.tratativa_prazo|date:"d/m" }}</small>{% endif %}
+              {% else %}
+                <span class="au-etiqueta au-etiqueta--forte">{% trans "sem tratativa" %}</span>
+              {% endif %}
+            </td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+{% endif %}

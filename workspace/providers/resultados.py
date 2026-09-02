@@ -162,6 +162,27 @@ class ProjetoDTO(ComProcedencia):
     percentual_concluido: int = 0
     bloqueado: bool = False
     motivo_bloqueio: str = ""
+    #: Última mexida no projeto NO SISTEMA DE ORIGEM — e não a idade da nossa
+    #: carga. Um projeto parado há um mês num monday que carregou há dez minutos
+    #: continua parado há um mês, e é essa a pergunta que a faixa 5 faz.
+    movimentado_em: datetime | None = None
+
+    def parado_ha(self, dias: int, hoje=None) -> bool:
+        """Aberto e sem mexer há mais de `dias`.
+
+        Concluído e cancelado nunca estão parados: eles terminaram. Contá-los
+        encheria o bloco de atenção com projetos que ninguém precisa tocar.
+        """
+        if self.situacao in ("concluido", "cancelado"):
+            return False
+        if self.movimentado_em is None:
+            # Sem instante de origem não dá para afirmar que parou. Afirmar
+            # geraria uma lista de "parados" cheia de projeto recém-criado.
+            return False
+        from django.utils import timezone
+
+        hoje = hoje or timezone.now()
+        return (hoje - self.movimentado_em).days > dias
 
 
 @dataclass(frozen=True)
@@ -310,7 +331,22 @@ class ProvedorProjetos(ABC):
 
 class ProvedorPessoas(ABC):
     def quadro(self, escopo, competencia: date) -> QuadroDTO | None:
+        """O quadro AGREGADO do escopo. Um DTO, somando os centros de custo.
+
+        Somado e não "o primeiro que aparecer": com doze centros no escopo, o
+        primeiro é arbitrário — e um painel que mostra o efetivo de um centro
+        chamando-o de efetivo da empresa é pior do que um painel vazio.
+        """
         return None
+
+    def quadros(self, escopo, competencia: date) -> list[QuadroDTO]:
+        """O mesmo, um por centro de custo.
+
+        Existe porque o agregado ESCONDE o que a faixa 6 precisa mostrar: um
+        turnover de 8,4% num centro contra 2,1% nos outros vira 2,6% na média, e
+        o número que pedia ação desaparece dentro de um número tranquilo.
+        """
+        return []
 
     def movimentacao(self, escopo, de: date, ate: date) -> MovimentacaoPessoasDTO:
         return MovimentacaoPessoasDTO()

@@ -3204,3 +3204,212 @@ tr[data-abre-resumo]:focus-visible {
   border-left: 1px solid currentColor;
   opacity: .85;
 }
+
+/* ═══════════════════════════════════════════════════════════════
+   Apresentação de Resultados (10) e Fontes de dados (99)
+   ═══════════════════════════════════════════════════════════════
+
+   Regra que atravessa este bloco inteiro: NENHUM `style=` no template. Barra,
+   medidor e gráfico são SVG, onde `x`, `y`, `width` e `height` são atributos —
+   e atributo não é estilo, então passa pela CSP sem exceção nenhuma. */
+
+.au-resultados { display: flex; flex-direction: column; gap: var(--au-6); }
+
+/* MODO APRESENTAÇÃO — a mesma tela, para a reunião.
+
+   Tipografia maior e faixas com mais ar. É a MESMA tela e não uma segunda:
+   duas telas divergiriam na terceira semana, e a que a diretoria vê na reunião
+   é justamente a que não pode divergir. */
+.au-resultados--apresentacao { font-size: 1.12em; gap: var(--au-8); }
+.au-resultados--apresentacao .au-kpi-valor { font-size: var(--au-t-xl); }
+.au-resultados--apresentacao .au-secao-titulo { font-size: var(--au-t-lg); }
+
+.au-secao-faixa {
+  display: flex;
+  flex-direction: column;
+  gap: var(--au-3);
+  padding-top: var(--au-4);
+  border-top: 1px solid var(--au-border);
+}
+.au-secao-faixa:first-of-type { border-top: 0; padding-top: 0; }
+
+/* O título e o carimbo na mesma linha: o carimbo qualifica a faixa, e embaixo
+   do título ele se confundiria com a primeira linha de conteúdo. */
+.au-secao-faixa-cabeca {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--au-2);
+}
+.au-secao-faixa-cabeca .au-carimbo { margin: 0; }
+
+.au-subsecao {
+  margin: var(--au-4) 0 var(--au-2);
+  font-size: var(--au-t-md);
+  font-weight: 600;
+  color: var(--au-text);
+}
+.au-subsecao--alerta { color: var(--au-danger-text); }
+
+.au-mini-titulo {
+  margin: 0 0 var(--au-2);
+  font-size: var(--au-t-xs);
+  font-weight: 600;
+  letter-spacing: .02em;
+  text-transform: uppercase;
+  color: var(--au-text-subtle);
+}
+
+/* ── Destaques ───────────────────────────────────────────────────
+   Cartão gerado por REGRA, e só quando a regra dispara. Painel que sempre
+   mostra oito cartões ensina a ignorar os oito. */
+.au-destaques {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: var(--au-3);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.au-destaque {
+  border: 1px solid var(--au-border);
+  border-left: 3px solid var(--au-border-strong);
+  border-radius: var(--au-r-md, 6px);
+  background: var(--au-surface);
+}
+.au-destaque--atencao { border-left-color: var(--au-warning); }
+
+.au-destaque-link {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: var(--au-3);
+  color: inherit;
+  text-decoration: none;
+}
+.au-destaque-link:hover { background: var(--au-neutral-bg); }
+
+.au-destaque-titulo { font-size: var(--au-t-xs); color: var(--au-text-muted); }
+.au-destaque-valor {
+  font-size: var(--au-t-lg);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+.au-destaque-detalhe { font-size: var(--au-t-xs); color: var(--au-text-subtle); }
+
+/* ── Gráficos ────────────────────────────────────────────────────
+   `preserveAspectRatio="none"` no SVG: a série estica na largura e mantém a
+   altura, que é o certo para série temporal. Esticar proporcionalmente
+   encolheria as barras num celular até virarem traços. */
+.au-graficos {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: var(--au-4);
+}
+.au-grafico { margin: 0; }
+.au-grafico-titulo {
+  margin-bottom: var(--au-2);
+  font-size: var(--au-t-xs);
+  color: var(--au-text-subtle);
+}
+
+.au-serie { display: block; width: 100%; height: 140px; }
+.au-serie-barra { fill: var(--au-accent); }
+/* Negativa em cor de perigo: o EBITDA negativo aponta para baixo E muda de cor.
+   Só a direção seria fácil de perder num gráfico pequeno. */
+.au-serie-barra--negativa { fill: var(--au-danger); }
+.au-serie-zero { stroke: var(--au-border-strong); stroke-width: 1; }
+
+/* Os rótulos em HTML, fora do SVG: texto dentro de um SVG esticado por
+   `preserveAspectRatio="none"` estica junto e as letras deformam. */
+.au-serie-eixo {
+  display: flex;
+  justify-content: space-between;
+  margin: var(--au-1, 4px) 0 0;
+  padding: 0;
+  list-style: none;
+  font-size: 10px;
+  font-variant-numeric: tabular-nums;
+  color: var(--au-text-subtle);
+}
+
+/* ── Filtros ─────────────────────────────────────────────────────
+   A barra padronizada que se repete em toda tela futura. Aprende-se uma vez. */
+.au-filtros--resultados {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: var(--au-3);
+}
+.au-filtro { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.au-filtro-rotulo { font-size: var(--au-t-xs); color: var(--au-text-subtle); }
+.au-filtro--check { flex-direction: row; align-items: center; gap: var(--au-2); }
+
+/* ── Listas de contrato ──────────────────────────────────────────
+   Deficitário aparece separado e no topo, sempre. É a única coisa desta tela
+   que não espera a pessoa rolar até encontrar. */
+.au-lista-contratos { margin: 0; padding: 0; list-style: none; }
+
+.au-contrato {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--au-3);
+  padding: var(--au-2) 0;
+  border-bottom: 1px solid var(--au-border);
+}
+.au-contrato--deficitario { color: var(--au-danger-text); }
+
+.au-contrato-codigo { font-weight: 600; font-variant-numeric: tabular-nums; }
+.au-contrato-cliente { flex: 1 1 12rem; min-width: 0; }
+.au-contrato-margem,
+.au-contrato-valor { font-variant-numeric: tabular-nums; white-space: nowrap; }
+
+.au-lista-simples small { color: var(--au-text-subtle); }
+
+.au-colunas--quatro { grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); }
+
+.au-bloco-vencimento {
+  padding: var(--au-3);
+  border: 1px solid var(--au-border);
+  border-radius: var(--au-r-md, 6px);
+}
+.au-bloco-vencimento--urgente { border-color: var(--au-warning); }
+
+/* ── Marcações de linha ──────────────────────────────────────────
+   "Sem orçado" NÃO é alerta: é uma conciliação de centro de custo pendente, e
+   pintá-la de vermelho a confundiria com estouro de orçamento — que é
+   exatamente a leitura errada que ela produz. */
+.au-linha--sem-orcado { color: var(--au-text-subtle); }
+.au-linha--alerta { color: var(--au-danger-text); }
+
+.au-etiqueta--forte {
+  border-color: currentColor;
+  font-weight: 600;
+}
+
+.au-kpi-sufixo {
+  margin-left: var(--au-2);
+  font-size: var(--au-t-xs);
+  font-weight: 400;
+  color: var(--au-text-subtle);
+}
+
+/* A procedência da linha, em letra miúda ao lado do rótulo. É o que torna
+   "de onde vem esse número" uma pergunta com resposta acionável: com a chave
+   externa dá para abrir o sistema de origem e conferir. */
+.au-procedencia {
+  display: block;
+  font-size: 10px;
+  font-variant-numeric: tabular-nums;
+  color: var(--au-text-subtle);
+}
+
+.au-btn--fantasma {
+  background: transparent;
+  border: 1px solid var(--au-border);
+  color: var(--au-text);
+}
+.au-btn--fantasma:hover { background: var(--au-neutral-bg); }

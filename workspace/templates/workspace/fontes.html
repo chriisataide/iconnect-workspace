@@ -1,0 +1,202 @@
+{% extends "workspace/_shell_modulo.html" %}
+{% load i18n wks %}
+
+{% block titulo %}{% trans "Fontes de dados" %}{% endblock %}
+{% block rail %}{% include "workspace/_rail_servicos.html" with aba="fontes" %}{% endblock %}
+{% block trilha %}<span>{% trans "Fontes de dados" %}</span>{% endblock %}
+{% block pagina_titulo %}{% trans "De onde vem esse número" %}{% endblock %}
+{% block voltar_url %}{% url 'workspace:resultados' %}{% endblock %}
+
+{% block pagina_descricao %}
+  <p class="au-pagina-desc">
+    {% blocktrans %}Quando cada fonte carregou pela última vez, o que ela trouxe, e onde duas discordam.{% endblocktrans %}
+  </p>
+{% endblock %}
+
+{% block corpo %}
+{% comment %}
+  A tela 99 — o equivalente do "Manutenção · Monitoramento" do benchmark.
+
+  Ela existe para "de onde vem esse número?" ter um LINK como resposta, e não um
+  chamado. Por isso ela é um destino declarado e não um back-office escondido.
+
+  A permissão é `eco.carga`, SEPARADA de `eco.ler`: ver a procedência não dá
+  acesso aos números. O T.I. conserta a carga sem enxergar o resultado.
+{% endcomment %}
+
+{% if motivo %}
+  <div class="au-vazio">
+    <p class="au-vazio-titulo">{% trans "Nenhuma fonte registrada." %}</p>
+    <p class="au-vazio-dica">{{ motivo }}</p>
+  </div>
+{% endif %}
+
+{% if fontes %}
+<h2 class="au-secao-titulo" id="fontes">{% trans "As fontes" %}</h2>
+<div class="au-tabela">
+  <table>
+    <thead>
+      <tr>
+        <th>{% trans "Fonte" %}</th>
+        <th>{% trans "Última carga boa" %}</th>
+        <th>{% trans "Cadência esperada" %}</th>
+        <th>{% trans "Situação" %}</th>
+        {% if pode_recarregar %}<th></th>{% endif %}
+      </tr>
+    </thead>
+    <tbody>
+      {% for item in fontes %}
+        <tr{% if item.carimbo.alerta %} class="au-linha--alerta"{% endif %}>
+          <td>
+            {{ item.fonte.nome }}
+            {% if item.fonte.responsavel %}<small>{{ item.fonte.responsavel }}</small>{% endif %}
+          </td>
+          <td>{{ item.carimbo.idade|default:"—" }}</td>
+          <td>{{ item.fonte.cadencia|default:"—" }}</td>
+          <td>
+            {% comment %}
+              Três estados, e eles NÃO são o mesmo:
+
+              - desativada — decisão de quem opera, quase sempre num incidente;
+              - não configurada — falta credencial NESTE deploy, e é normal em
+                desenvolvimento;
+              - atrasada — a fonte devia ter carregado e não carregou.
+
+              Juntá-los num "com problema" faria alguém procurar defeito onde
+              não há.
+            {% endcomment %}
+            {% if not item.fonte.ativa %}
+              <span class="au-etiqueta">{% trans "desativada" %}</span>
+            {% elif not item.fonte.configurada %}
+              <span class="au-etiqueta">{% trans "não configurada" %}</span>
+            {% elif item.carimbo.alerta %}
+              <span class="au-etiqueta au-etiqueta--forte">{% trans "atrasada" %}</span>
+              {% if item.carimbo.motivo %}<small>{{ item.carimbo.motivo }}</small>{% endif %}
+            {% else %}
+              <span class="au-etiqueta">{% trans "em dia" %}</span>
+            {% endif %}
+          </td>
+          {% if pode_recarregar %}
+            <td>
+              {% comment %}
+                POST, sempre. Um `GET` aqui faria um prefetch do navegador
+                disparar uma carga — e o histórico encheria de linhas que
+                ninguém pediu.
+              {% endcomment %}
+              <form method="post"
+                    action="{% url 'workspace:recarregar_fonte' item.fonte.chave %}">
+                {% csrf_token %}
+                <button class="au-btn au-btn--sutil" type="submit"
+                        {% if not item.fonte.ativa or not item.fonte.configurada %}disabled{% endif %}>
+                  {% trans "Recarregar" %}
+                </button>
+              </form>
+            </td>
+          {% endif %}
+        </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endif %}
+
+<h2 class="au-secao-titulo" id="mapa">{% trans "Qual faixa vem de qual fonte" %}</h2>
+<div class="au-tabela">
+  <table>
+    <thead>
+      <tr><th>{% trans "Faixa da tela de resultados" %}</th><th>{% trans "Fonte" %}</th></tr>
+    </thead>
+    <tbody>
+      {% for item in mapa %}
+        <tr>
+          <td><a href="{% url 'workspace:resultados' %}#{{ item.chave }}">{{ item.faixa }}</a></td>
+          <td>{{ item.fonte }}</td>
+        </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+{% if divergencias %}
+  <h2 class="au-secao-titulo au-subsecao--alerta" id="divergencias">
+    {% trans "Divergências abertas entre fontes" %}
+  </h2>
+  {% comment %}
+    Os DOIS valores lado a lado, e não só o vencedor.
+
+    A regra de precedência decide o que entra na tela de resultados; esta lista
+    existe para alguém ir descobrir POR QUE os sistemas discordam. Mostrar só o
+    vencedor esconderia a pergunta.
+  {% endcomment %}
+  <div class="au-tabela">
+    <table>
+      <thead>
+        <tr>
+          <th>{% trans "O quê" %}</th>
+          <th>{% trans "Campo" %}</th>
+          <th>{% trans "Uma fonte diz" %}</th>
+          <th>{% trans "A outra diz" %}</th>
+          <th>{% trans "Vence" %}</th>
+          <th>{% trans "Desde" %}</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for d in divergencias %}
+          <tr>
+            <td>{{ d.entidade }} · {{ d.chave }}</td>
+            <td>{{ d.campo }}</td>
+            <td>{{ d.fonte_a }}: <strong>{{ d.valor_a }}</strong></td>
+            <td>{{ d.fonte_b }}: <strong>{{ d.valor_b }}</strong></td>
+            <td>{{ d.vencedora|default:_("nenhuma regra") }}</td>
+            <td>{{ d.detectada_em|date:"d/m H:i" }}</td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+{% endif %}
+
+{% if historico %}
+  <h2 class="au-secao-titulo" id="historico">{% trans "Últimas execuções" %}</h2>
+  <div class="au-tabela">
+    <table>
+      <thead>
+        <tr>
+          <th>{% trans "Fonte" %}</th>
+          <th>{% trans "Quando" %}</th>
+          <th>{% trans "Status" %}</th>
+          <th class="num">{% trans "Lidos" %}</th>
+          <th class="num">{% trans "Criados" %}</th>
+          <th class="num">{% trans "Atualizados" %}</th>
+          <th class="num">{% trans "Ignorados" %}</th>
+          <th class="num">{% trans "Rejeitados" %}</th>
+          <th>{% trans "Motivo" %}</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for e in historico %}
+          <tr{% if e.status != "sucesso" %} class="au-linha--alerta"{% endif %}>
+            <td>
+              {{ e.fonte }}
+              {% if e.simulacao %}<span class="au-etiqueta">{% trans "simulação" %}</span>{% endif %}
+            </td>
+            <td>{{ e.iniciada_em|date:"d/m H:i" }}</td>
+            <td>{{ e.status }}</td>
+            <td class="num">{{ e.lidos }}</td>
+            <td class="num">{{ e.criados }}</td>
+            <td class="num">{{ e.atualizados }}</td>
+            {% comment %}
+              `ignorados` é o número que prova a idempotência a quem rodou a
+              carga duas vezes por precaução. Ele não é ruído: é a resposta para
+              "rodei de novo, estraguei alguma coisa?".
+            {% endcomment %}
+            <td class="num">{{ e.ignorados }}</td>
+            <td class="num">{{ e.rejeitados }}</td>
+            <td>{{ e.erro_resumo|default:"—" }}</td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+{% endif %}
+{% endblock %}

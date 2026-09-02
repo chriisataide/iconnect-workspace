@@ -43,30 +43,107 @@ def _templates():
     return sorted(TEMPLATES.rglob("*.html"))
 
 
-def test_toda_faixa_de_numeros_agregados_tem_carimbo():
-    """O teste que mais protege esta onda, e o único que age antes da tela.
+def _quem_inclui() -> dict[str, set[str]]:
+    """`{parcial: {templates que a incluem}}`.
 
-    Casa a marca da faixa (`au-kpi-linha`) com o carimbo. Quem construir a
-    próxima faixa de números descobre a obrigação aqui, e não na reunião em que
-    alguém perguntar de quando é o número.
+    O grafo de `{% include %}` existe porque o carimbo NÃO precisa estar no
+    mesmo arquivo da faixa de números — e na tela de resultados ele
+    deliberadamente não está: são seis faixas, e o carimbo de cada uma fica no
+    cabeçalho dela, uma vez, e não repetido dentro de cada tabela.
+
+    A regra que interessa é "nenhum bloco agregado chega à tela sem
+    procedência", e não "a marcação do carimbo mora no mesmo arquivo". Exigir a
+    segunda produziria quatro carimbos idênticos na mesma faixa, que é o ruído
+    que o carimbo existe para evitar.
     """
-    com_numeros, com_carimbo = set(), set()
+    grafo: dict[str, set[str]] = {}
     for caminho in _templates():
         texto = caminho.read_text(encoding="utf-8")
-        if LINHA_AGREGADA in texto:
-            com_numeros.add(caminho.name)
-        if "_carimbo.html" in texto and caminho.name != "_carimbo.html":
-            com_carimbo.add(caminho.name)
+        for incluido in re.findall(r'{%\s*include\s+"([^"]+)"', texto):
+            grafo.setdefault(Path(incluido).name, set()).add(caminho.name)
+    return grafo
+
+
+def _carimbadas() -> set[str]:
+    """Templates que carimbam — direto, ou por quem os inclui."""
+    diretas = {
+        c.name
+        for c in _templates()
+        if "_carimbo.html" in c.read_text(encoding="utf-8") and c.name != "_carimbo.html"
+    }
+    inclusores = _quem_inclui()
+
+    cobertas = set(diretas)
+    # Duas direções, e as duas são necessárias:
+    #
+    # PARA CIMA — `_faixa_cabeca.html` contém o carimbo, e quem a inclui
+    #   (`resultados.html`) carimba as suas faixas com ela.
+    # PARA BAIXO — `resultados.html` carimba, então as parciais que ele inclui
+    #   (`_dinheiro.html`, `_contratos.html`…) já chegam à tela carimbadas.
+    #
+    # Só a segunda direção deixaria `resultados.html` de fora, porque o arquivo
+    # dele não contém a palavra `_carimbo.html` em lugar nenhum.
+    mudou = True
+    while mudou:
+        mudou = False
+        for parcial, pais in inclusores.items():
+            if parcial in cobertas and pais - cobertas:
+                cobertas |= pais
+                mudou = True
+            if parcial not in cobertas and pais & cobertas:
+                cobertas.add(parcial)
+                mudou = True
+    return cobertas
+
+
+def test_toda_faixa_de_numeros_agregados_tem_carimbo():
+    """O teste que mais protege a onda do carimbo, e o único que age antes da tela.
+
+    Casa a marca da faixa (`au-kpi-linha`) com o carimbo — direto no arquivo ou
+    em quem o inclui. Quem construir a próxima faixa de números descobre a
+    obrigação aqui, e não na reunião em que alguém perguntar de quando é o
+    número.
+    """
+    com_numeros = {
+        c.name for c in _templates() if LINHA_AGREGADA in c.read_text(encoding="utf-8")
+    }
+    cobertas = _carimbadas()
 
     assert com_numeros, "A marca da faixa agregada sumiu — o teste deixou de valer."
-    assert com_numeros - com_carimbo == set(), (
+    assert com_numeros - cobertas == set(), (
         "Faixa de números sem carimbo: "
-        f"{sorted(com_numeros - com_carimbo)}. "
-        "Declare o bloco em `frescor.BLOCOS` e inclua `_carimbo.html`."
+        f"{sorted(com_numeros - cobertas)}. "
+        "Declare o bloco em `frescor.BLOCOS` e inclua `_carimbo.html` — na "
+        "própria tela ou em quem a inclui."
     )
-    assert com_carimbo - com_numeros == set(), (
-        "Carimbo em tela sem faixa agregada: "
-        f"{sorted(com_carimbo - com_numeros)}. Carimbo sem número é ruído."
+
+
+def test_nenhuma_tela_carimba_sem_ter_numero():
+    """Carimbo sem número é ruído.
+
+    Separado do teste acima porque é o sentido inverso e falha por outro motivo:
+    lá alguém esqueceu a procedência, aqui alguém copiou um carimbo para uma
+    tela que não afirma nada.
+    """
+    com_numeros = set()
+    inclusores = _quem_inclui()
+    for caminho in _templates():
+        if LINHA_AGREGADA in caminho.read_text(encoding="utf-8"):
+            com_numeros.add(caminho.name)
+            # Quem inclui uma parcial com números também "tem" números.
+            com_numeros |= inclusores.get(caminho.name, set())
+
+    diretas = {
+        c.name
+        for c in _templates()
+        if "_carimbo.html" in c.read_text(encoding="utf-8") and c.name != "_carimbo.html"
+    }
+    # `_faixa_cabeca.html` carimba por definição — ela É o cabeçalho de uma
+    # faixa, e quem a inclui é quem tem os números.
+    diretas -= {"_faixa_cabeca.html"}
+
+    assert diretas - com_numeros == set(), (
+        f"Carimbo em tela sem faixa agregada: {sorted(diretas - com_numeros)}."
     )
 
 

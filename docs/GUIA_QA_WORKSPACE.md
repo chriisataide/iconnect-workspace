@@ -1410,6 +1410,99 @@ ver [EXEC 16 § 16.7](EXEC_16_INGESTAO.md).
 
 ---
 
+### 3.18 Apresentação de Resultados — `/workspace/resultados/` (código 10)
+
+**Para que serve.** É a tela que a diretoria pediu: o dinheiro, os contratos, o
+que vence, os projetos, as pessoas, a jornada e a avaliação do cliente — sete
+faixas, na competência escolhida.
+
+**Quando é útil.** Na reunião mensal, com `?apresentacao=1`.
+
+**Antes de testar:**
+
+```bash
+python manage.py semear_fontes --aplicar
+python manage.py semear_resultados --aplicar
+```
+
+**O que testar, em ordem de importância:**
+
+- **Anônimo recebe 403 no GET** — e não só no POST. O Workspace é aberto para
+  quase tudo; esta tela não. Se ela abrir sem login, **abra bug de segurança**.
+- **`colaborador@icodev.com.br` recebe 403**, e não um painel de zeros. Zero
+  para quem nunca vai ter dado faz a pessoa achar que a empresa parou.
+- **Gerente vê só o dele.** Entre com um perfil de `eco.ler.departamento` e
+  confira o total da faixa 2 — ele tem de bater com o centro de custo da lotação,
+  e não com a empresa. Vazamento em soma não deixa rastro: some dentro de um
+  total plausível.
+- **Digite `?regional=Sul` na barra de endereço com esse mesmo perfil.** O
+  número **não pode mudar**. O filtro estreita, nunca alarga.
+- **Três carimbos diferentes na mesma tela.** O dinheiro diz Sankhya, os
+  projetos dizem monday, a avaliação diz iConnect Platform. Se os três disserem
+  a mesma coisa, a massa entrou por uma fonte só.
+- **A faixa de projetos aparece em alerta e NÃO some.** A massa planta uma carga
+  do monday falhada há 30 h: a faixa mostra os projetos com a idade em destaque
+  e o motivo ao lado. Se ela sumir ou zerar, **abra bug** — zerar é dizer que a
+  empresa parou.
+- **O primeiro cartão é a fonte quebrada.** Sem isso alguém lê a tela inteira e
+  decide em cima de dado de três dias.
+- **Competência sem dado mostra "—" e o motivo.** Escolha `2019-01` no seletor.
+- **Nenhum cartão que não disparou.** Se aparecerem cartões com valor zero, a
+  regra virou lista — e painel que sempre mostra oito cartões ensina a ignorar
+  os oito.
+- **Linha "sem orçado" aparece em cinza com "—", e não em vermelho.** Ela parece
+  estouro de orçamento e não é: é código de centro de custo que não bate entre o
+  ERP e o orçamento.
+- **Console limpo.** A CSP é estrita: se algum `style=` escapar, o gráfico sai
+  torto **sem erro nenhum** no console — confira que as barras existem e têm
+  altura diferente entre si.
+
+**Modo apresentação** (`?apresentacao=1`): sem trilho, sem filtros, tipografia
+maior. Confira no *view-source* que `au-rail-item` **não está no HTML** — e não
+apenas invisível. Escondido por CSS, o leitor de tela leria uma navegação que
+ninguém pode ver.
+
+**PDF** (`/workspace/resultados/pdf/`): abre no navegador, com o mesmo recorte
+da tela. **Não pode conter comentário de cliente nem nome de colaborador** — se
+contiver, é achado de segurança. O PDF sai do prédio.
+
+---
+
+### 3.19 Fontes de dados — `/workspace/resultados/fontes/` (código 99)
+
+**Para que serve.** Responde *"de onde vem esse número?"* com um link, e não com
+um chamado.
+
+**A permissão é OUTRA, e é o teste que mais importa aqui.** `eco.carga` dá a
+tela 99; `eco.ler` dá os números. Entre com `ti@icodev.com.br`:
+
+- `/workspace/resultados/fontes/` → **200**
+- `/workspace/resultados/` → **403**
+
+Se o T.I. enxergar a margem dos contratos, **abra bug**: ligar alguém no suporte
+às cargas não pode dar a ele o resultado financeiro da empresa.
+
+**O que testar:**
+
+- **Três estados distintos** na coluna de situação: *desativada*, *não
+  configurada* e *atrasada*. Eles não são o mesmo — em desenvolvimento nenhuma
+  fonte tem credencial, e isso é normal. Se as três aparecerem como "com
+  problema", alguém juntou o que precisava ficar separado.
+- **A divergência mostra OS DOIS valores.** Só o vencedor esconderia a pergunta
+  que a tela existe para fazer.
+- **O histórico mostra `ignorados`.** É a resposta para "rodei a carga de novo,
+  estraguei alguma coisa?".
+- **Recarregar é POST.** Cole a URL de recarregar na barra de endereço: tem de
+  dar **405**, e não disparar carga. Um `GET` faria um *prefetch* do navegador
+  carregar sozinho.
+- **Recarregar uma fonte sem credencial avisa** e não estoura. Traceback aqui é
+  bug.
+
+**O mapa faixa → fonte** no meio da tela não depende de carga nenhuma: ele
+aparece mesmo num ambiente onde nada foi configurado.
+
+---
+
 ## 4. Matriz perfil × tela
 
 Use como plano de cobertura. **A coluna "Anônimo" é a mais esquecida e a que mais

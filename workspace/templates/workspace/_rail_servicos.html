@@ -98,6 +98,27 @@
       {% trans "Indicadores" %}
     </a>
   {% endif %}
+  {% comment %}
+    Resultados é OUTRA permissão, e não uma variação de Indicadores.
+
+    Indicadores mede o trabalho do produto — quantos pedidos, quanto tempo na
+    fila. Resultados mostra o dinheiro da empresa com nome de cliente ao lado.
+    Quem atende Compras tem direito ao primeiro e não ao segundo.
+  {% endcomment %}
+  {% if ve_resultados %}
+    <a class="au-rail-item {% if aba == 'resultados' %}au-rail-item--ativo{% endif %}"
+       href="{% url 'workspace:resultados' %}">
+      <svg class="au-icon" aria-hidden="true"><use href="#i-wallet"></use></svg>
+      {% trans "Resultados" %}
+    </a>
+  {% endif %}
+  {% if ve_fontes %}
+    <a class="au-rail-item au-rail-item--filho {% if aba == 'fontes' %}au-rail-item--ativo{% endif %}"
+       href="{% url 'workspace:fontes' %}">
+      <svg class="au-icon" aria-hidden="true"><use href="#i-cube"></use></svg>
+      {% trans "Fontes de dados" %}
+    </a>
+  {% endif %}
   {% if administra_papeis %}
     <a class="au-rail-item {% if aba == 'pessoas' %}au-rail-item--ativo{% endif %}"
        href="{% url 'workspace:pessoas' %}">

@@ -48,6 +48,7 @@ python manage.py semear_faq               --aplicar   # a base do assistente
 # 3 · INGESTÃO. Sem `semear_fontes`, o carregador RECUSA começar — de propósito:
 #     carga sem registro de fonte é dado sem procedência.
 python manage.py semear_fontes            --aplicar   # as 4 fontes e a precedência
+python manage.py semear_resultados        --aplicar   # a massa do espelho, por 3 fontes
 
 python manage.py reindexar_busca                      # o índice
 
@@ -116,6 +117,32 @@ não pode exigir deploy.
 > ele ainda não existe — junto com os quatro `avisar_*` que estão pendentes
 > desde a onda de notificações. Enquanto não houver, as cargas rodam à mão e o
 > carimbo da tela diz a verdade sobre isso.
+
+### A massa do espelho, e por que ela vem depois das fontes
+
+`semear_resultados --aplicar` popula 18 contratos, 14 projetos e 24 competências
+— e ela **passa pelo carregador**, escrevendo CSVs e rodando `carregar()` três
+vezes, uma por fonte. Se ela precisasse de um caminho especial para gravar, o
+carregador estaria errado.
+
+Sem `semear_fontes` antes, ela avisa e não faz nada: sem fonte cadastrada o
+carregador recusa começar.
+
+Ela planta **quinze anomalias de propósito** — contrato deficitário, centro de
+custo sem orçamento, carga do monday falhada há 30 h, divergência entre fontes.
+Não são sujeira: cada uma exercita uma regra da tela de resultados, e
+`cargas/tests/test_massa.py` afirma todas. **Não "conserte" a massa** — o teste
+cai e explica por quê.
+
+É determinística: semente fixa, e duas execuções produzem exatamente o mesmo
+banco. A segunda passada tem de mostrar `atualizados 0`.
+
+```bash
+python manage.py semear_resultados --aplicar --limpar   # ao trocar a semente
+```
+
+`--limpar` apaga o espelho antes. Sem ele, duas massas convivem e os números
+somam.
 
 ### Os centros de custo, e por que eles vêm logo depois do organograma
 
