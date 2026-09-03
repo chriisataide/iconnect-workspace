@@ -15,7 +15,16 @@
 <figure class="au-gr" data-grafico-bloco="{{ bloco.chave }}">
   <figcaption class="au-gr-titulo">{{ bloco.titulo }}</figcaption>
 
-  {% if bloco.vazio %}
+  {% if bloco.fronteira and bloco.vazio %}
+    {% comment %}
+      A FRONTEIRA. Perfurar até o contrato funciona; até a ocorrência, não — o
+      detalhe operacional mora no Platform.
+
+      Beco sem saída silencioso é pior que a ausência do nível: quem clicou e
+      não viu nada acontecer conclui que a tela quebrou.
+    {% endcomment %}
+    <p class="au-gr-fronteira">{{ bloco.fronteira }}</p>
+  {% elif bloco.vazio %}
     {% comment %}
       Estado vazio que EXPLICA — restrição 6. Um gráfico sem ponto nenhum não
       desenha eixo com escala inventada: ele diz que não há série.
@@ -36,6 +45,7 @@
          id="grafico-{{ bloco.chave }}"
          data-grafico-tela="{{ bloco.chave }}"
          data-altura="{{ bloco.altura }}"
+         {% if bloco.perfura %}data-perfura="1"{% endif %}
          role="img"
          aria-label="{{ bloco.resumo }}"></div>
 
@@ -63,11 +73,23 @@
             </tr>
           </thead>
           <tbody>
-            {% for linha in bloco.linhas %}
+            {% comment %}
+              A PERFURAÇÃO SEM JAVASCRIPT.
+
+              Quando o bloco perfura, a primeira célula vira `<a>` com a MESMA
+              URL que o clique no gráfico usa. Não é uma segunda implementação:
+              as duas leem `bloco.urls`, montada em Python.
+
+              É o que faz descer um nível continuar funcionando com o script
+              desligado — e o prompt é explícito nisso.
+            {% endcomment %}
+            {% for linha, url in bloco.linhas_com_url %}
               <tr>
                 {% for celula in linha %}
                   {% if forloop.first %}
-                    <th scope="row">{{ celula }}</th>
+                    <th scope="row">
+                      {% if url %}<a href="{{ url }}">{{ celula }}</a>{% else %}{{ celula }}{% endif %}
+                    </th>
                   {% else %}
                     <td class="au-num">{{ celula }}</td>
                   {% endif %}

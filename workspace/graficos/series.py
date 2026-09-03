@@ -79,6 +79,37 @@ class Coluna:
     numerica: bool = True
 
 
+@dataclass(frozen=True)
+class Ponto:
+    """Um ponto que LEVA a algum lugar — a perfuração.
+
+    `url` é montada em **Python**, e não no JavaScript. O clique só navega para
+    onde o servidor já disse que dá; a tabela irmã usa a mesma `url` num `<a>`,
+    e por isso perfurar continua funcionando sem JavaScript nenhum.
+
+    Montar a URL no JS exigiria replicar ali a regra de qual filtro pertence a
+    qual nível — e essa regra mudaria de lugar sozinha na primeira dimensão nova.
+    """
+
+    rotulo: str
+    valor: Decimal | None
+    url: str = ""
+
+
+@dataclass
+class Migalha:
+    """Um degrau da trilha, sempre clicável.
+
+    Trilha e não botão "voltar": quem desceu três níveis precisa poder subir
+    dois, e um botão só sobe um. E ela fica SEMPRE visível — descobrir onde se
+    está pela ausência de dado é como a pessoa conclui que a tela quebrou.
+    """
+
+    rotulo: str
+    url: str = ""
+    atual: bool = False
+
+
 @dataclass
 class Bloco:
     """Um gráfico e a tabela que diz o mesmo.
@@ -96,10 +127,24 @@ class Bloco:
     #: estrutura; isto descreve o ASSUNTO, que é o que interessa a quem não vê.
     resumo: str = ""
     altura: int = ALTURA
+    #: Uma URL por linha da tabela, paralela a `linhas`. Vazia quando o bloco não
+    #: perfura. É ela que faz a tabela irmã funcionar sem JavaScript.
+    urls: list[str] = field(default_factory=list)
+    #: O texto do último nível: "daqui não desce mais, e é por isto".
+    fronteira: str = ""
 
     @property
     def vazio(self) -> bool:
         return not self.linhas
+
+    @property
+    def perfura(self) -> bool:
+        return any(self.urls)
+
+    @property
+    def linhas_com_url(self):
+        """`[(celulas, url), …]` — o que o template percorre."""
+        return list(zip(self.linhas, self.urls or [""] * len(self.linhas)))
 
 
 def _rotulo(dimensao: str = "rotulo", cor: str = COR_TEXTO, dentro: bool = False) -> dict:
@@ -1272,4 +1317,98 @@ def mapa_calor_tabela(
             (FAROL_ATENCAO, ROTULO_DO_FAROL[FAROL_ATENCAO]),
             (FAROL_CRITICO, ROTULO_DO_FAROL[FAROL_CRITICO]),
         ],
+    )
+
+
+def barras_por_categoria(
+    pontos: list[Ponto],
+    *,
+    chave: str,
+    titulo: str,
+    rotulo_serie: str = "",
+    formatar=fmt.moeda_curta,
+    formatar_tabela=fmt.moeda,
+    fronteira: str = "",
+    altura: int = ALTURA,
+) -> Bloco:
+    """Barras por categoria, e **cada barra leva a algum lugar**.
+
+    É o tipo que faz a perfuração: uma barra por regional, por centro de custo
+    ou por contrato, conforme o nível — e o clique desce um degrau.
+
+    A `url` de cada ponto vem pronta do Python e viaja como dimensão do
+    `dataset`. O JavaScript lê `params.data.url` e navega; ele não sabe qual
+    filtro pertence a qual nível, e não precisa saber.
+
+    A tabela irmã usa a **mesma** URL num `<a>`. É o que faz perfurar continuar
+    funcionando com o JavaScript desligado — e o prompt é explícito nisso.
+    """
+    if not pontos:
+        return Bloco(
+            chave=chave, titulo=titulo, option={}, altura=altura, fronteira=fronteira
+        )
+
+    fonte = [
+        [
+            p.rotulo,
+            float(p.valor) if p.valor is not None else None,
+            formatar(p.valor),
+            p.url,
+        ]
+        for p in pontos
+    ]
+
+    option = _base(altura)
+    option.update(
+        {
+            "dataset": {
+                "dimensions": ["categoria", "valor", "rotulo", "url"],
+                "source": fonte,
+            },
+            "xAxis": {
+                "type": "category",
+                "axisLabel": {
+                    "color": COR_TEXTO,
+                    "fontSize": 11,
+                    # Categoria tem nome de tamanho imprevisível — "Centro-Oeste"
+                    # ao lado de "SP". Sem quebra, o eixo esconde metade.
+                    "interval": 0,
+                    "overflow": "break",
+                    "width": 90,
+                },
+                "axisTick": {"show": False},
+                "axisLine": {"lineStyle": {"color": COR_GRADE}},
+            },
+            "yAxis": _eixo_de_valor(),
+            "series": [
+                {
+                    "type": "bar",
+                    "name": rotulo_serie or titulo,
+                    "encode": {"x": "categoria", "y": "valor"},
+                    "itemStyle": {"color": COR_PRINCIPAL},
+                    "barMaxWidth": 44,
+                    "label": _rotulo(),
+                    "labelLayout": {"hideOverlap": True},
+                    # O cursor de mão é o que anuncia que a barra é clicável.
+                    # Sem ele, a perfuração é um segredo.
+                    "cursor": "pointer" if any(p.url for p in pontos) else "default",
+                }
+            ],
+        }
+    )
+
+    return Bloco(
+        chave=chave,
+        titulo=titulo,
+        option=option,
+        colunas=[Coluna("Categoria", numerica=False), Coluna(rotulo_serie or "Valor")],
+        linhas=[[p.rotulo, formatar_tabela(p.valor)] for p in pontos],
+        urls=[p.url for p in pontos],
+        resumo=(
+            f"{titulo}: {len(pontos)} categorias. "
+            + ("Cada uma abre o detalhe. " if any(p.url for p in pontos) else "")
+            + "Os números estão na tabela abaixo."
+        ),
+        fronteira=fronteira,
+        altura=altura,
     )

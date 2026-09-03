@@ -6,6 +6,28 @@
   declara o que já aconteceu e ainda não bateu na contabilidade — sem ela a
   reunião vira briga sobre o número em vez de decisão sobre o que fazer.
 {% endcomment %}
+{% comment %}
+  A TRILHA DE MIGALHAS — Onda 11, mecanismo 1.
+
+  Sempre visível, e sempre clicável. Trilha e não botão "voltar": quem desceu
+  três níveis precisa poder subir dois, e um botão só sobe um.
+
+  Ela aparece MESMO NA RAIZ, com um degrau só. Sem isso ela nasceria no primeiro
+  clique e sumiria no último — que é quando a pessoa mais precisa saber onde
+  está.
+{% endcomment %}
+{% if faixa.conteudo.migalhas %}
+  <nav class="au-migalhas" aria-label="{% trans 'Onde você está' %}">
+    {% for degrau in faixa.conteudo.migalhas %}
+      {% if degrau.atual %}
+        <span class="au-migalha au-migalha--atual" aria-current="location">{{ degrau.rotulo }}</span>
+      {% else %}
+        <a class="au-migalha" href="{{ degrau.url }}">{{ degrau.rotulo }}</a>
+      {% endif %}
+    {% endfor %}
+  </nav>
+{% endif %}
+
 <div class="au-kpi-linha">
   <div class="au-kpi">
     <span class="au-kpi-rotulo">{% trans "receita bruta" %}</span>
@@ -47,6 +69,14 @@
   {% grafico faixa.conteudo.grafico_receita %}
   {% grafico faixa.conteudo.grafico_ebitda %}
 </div>
+
+{% comment %}
+  O BLOCO QUE DESCE UM DEGRAU. Cada barra leva ao nível seguinte — e a mesma URL
+  está na tabela irmã, num `<a>`, para quem está sem JavaScript.
+{% endcomment %}
+{% if faixa.conteudo.perfuracao %}
+  {% grafico faixa.conteudo.perfuracao %}
+{% endif %}
 
 <div class="au-tabela">
   <table>

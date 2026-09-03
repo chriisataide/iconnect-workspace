@@ -133,4 +133,7 @@ cargas = 97.0      # medido 97.39 · conectores, carregador, transporte
 #   rosca, medidor, bullet, dispersão, farol e mapa de calor. Cada tipo tem um
 #   teste do caso vazio e um da tabela irmã, que são as duas regras que não
 #   mudam com o tipo.
-minimo = 3280
+# 3280 → 3300: os 17 da perfuração. Um deles — o que agrupa por nível — reprovou
+#   e encontrou um `OU` onde devia haver hierarquia em `_recortar`: descer para
+#   um centro de custo devolvia os contratos do vizinho.
+minimo = 3300

@@ -363,6 +363,23 @@ def dinheiro(escopo: contrato.Escopo, filtros: Filtros) -> Faixa:
     return faixa
 
 
+def _com_perfuracao(faixa, escopo, filtros: Filtros):
+    """Acrescenta a trilha e a barra do nível seguinte à faixa do dinheiro.
+
+    Só nesta faixa, e é o passo 7 do plano: um mecanismo isolado, numa faixa só.
+    Ligar a perfuração nas cinco de uma vez tornaria impossível dizer qual delas
+    quebrou.
+    """
+    from django.urls import reverse
+
+    if not faixa.disponivel or not faixa.conteudo:
+        return faixa
+    base = reverse("workspace:resultados")
+    faixa.conteudo["migalhas"] = migalhas(filtros, base)
+    faixa.conteudo["perfuracao"] = _bloco_perfuracao(escopo, filtros, base)
+    return faixa
+
+
 def _por_mes(linhas, campo: str) -> tuple[list[str], dict[str, Decimal | None]]:
     """Soma um campo por mês. `None` quando NENHUMA linha do mês tem o valor.
 
@@ -1049,6 +1066,11 @@ def painel(pessoa, parametros, cache: dict | None = None) -> dict:
     for chave, montador in MONTADORES:
         faixas[chave] = montador(recorte, filtros)
 
+    # A perfuração entra DEPOIS de a faixa existir, e só na do dinheiro — é o
+    # passo 7 do plano: um mecanismo isolado, numa faixa só. Ligar nas cinco de
+    # uma vez tornaria impossível dizer qual delas quebrou.
+    _com_perfuracao(faixas["dinheiro"], recorte, filtros)
+
     return {
         "filtros": filtros,
         "escopo": recorte,
@@ -1067,6 +1089,169 @@ def painel(pessoa, parametros, cache: dict | None = None) -> dict:
 #: As janelas oferecidas. Três é o mínimo em que uma tendência existe; treze é
 #: o teto do que cabe com rótulo por ponto.
 JANELAS: tuple[int, ...] = (3, 6, 12, MESES_DA_SERIE)
+
+
+# ── Perfuração — Onda 11, mecanismo 1 ───────────────────────────────
+#
+# Descer na MESMA dimensão: empresa → regional → centro de custo → contrato.
+#
+# ## O estado mora na URL, e é por isso que a tela é compartilhável
+#
+# Nada de estado no cliente. `?regional=Sudeste&cc=1042` é a tela inteira, e
+# colar essa URL numa mensagem reproduz exatamente o que a pessoa está vendo.
+# É metade do valor de existir uma tela em vez de um relatório.
+#
+# ## A perfuração usa os filtros que já existem
+#
+# Descer para "Sudeste" é o mesmo que filtrar por `regional=Sudeste` — e por
+# isso não há parâmetro `nivel` na URL: o nível é **derivado** do que está
+# preenchido. Um `?nivel=cc` ao lado de `?cc=1042` seria uma segunda verdade
+# sobre o mesmo fato, e as duas discordariam no dia em que alguém editasse a URL
+# à mão.
+#
+# ## O último nível diz que é o último
+#
+# Perfurar até o contrato funciona; até a ocorrência, não — o detalhe
+# operacional mora no Platform, e trazê-lo para cá refaria o acoplamento que
+# custou 881 lotações órfãs. No fim da hierarquia o produto diz isso e oferece o
+# link. Beco sem saída silencioso é pior que a ausência do nível.
+
+#: `(parâmetro na URL, rótulo, atributo do contrato)`, do topo para o fundo.
+HIERARQUIA: tuple[tuple[str, str, str], ...] = (
+    ("regional", "Regional", "regional"),
+    ("cc", "Centro de custo", "centro_custo"),
+    ("contrato", "Contrato", "codigo"),
+)
+
+#: O que a tela diz quando não há mais para onde descer.
+FRONTEIRA = (
+    "Este é o último nível daqui. Ocorrência, medição e ticket moram no "
+    "iConnect Platform — trazer o detalhe operacional para cá refaria o "
+    "acoplamento que este produto existe para desfazer."
+)
+
+
+def nivel_de(filtros: Filtros) -> int:
+    """Quantos degraus a pessoa já desceu. `0` é a empresa inteira.
+
+    Derivado dos filtros e não lido da URL: um `?nivel=` ao lado de `?cc=` seria
+    uma segunda verdade sobre o mesmo fato.
+    """
+    valores = (filtros.regional, filtros.centro_custo, filtros.contrato)
+    profundidade = 0
+    for valor in valores:
+        if not valor:
+            break
+        profundidade += 1
+    return profundidade
+
+
+def _url_com(base: str, filtros: Filtros, **mudancas) -> str:
+    """A URL da tela com alguns filtros trocados. Os demais são preservados.
+
+    Preservar é o ponto: descer um nível não pode perder a janela de seis meses
+    nem o serviço que a pessoa acabou de escolher — e perder isso é como alguém
+    conclui que o filtro "não funciona".
+    """
+    from urllib.parse import urlencode
+
+    atual = {
+        "competencia": filtros.competencia.strftime("%Y-%m"),
+        "regional": filtros.regional,
+        "cc": filtros.centro_custo,
+        "contrato": filtros.contrato,
+        "servico": filtros.servico,
+        "layer": filtros.layer,
+        "janela": str(filtros.meses),
+    }
+    if filtros.deficitario:
+        atual["deficitario"] = "1"
+    atual.update(mudancas)
+    return f"{base}?{urlencode({k: v for k, v in atual.items() if v})}"
+
+
+def migalhas(filtros: Filtros, base: str) -> list:
+    """A trilha, sempre visível e sempre clicável.
+
+    Trilha e não botão "voltar": quem desceu três níveis precisa poder subir
+    dois, e um botão só sobe um. E ela aparece **mesmo na raiz**, com um degrau
+    só — sem isso, ela nasce no primeiro clique e some no último, que é quando
+    a pessoa mais precisa saber onde está.
+    """
+    from workspace.graficos.series import Migalha
+
+    profundidade = nivel_de(filtros)
+    trilha = [
+        Migalha(
+            rotulo="Empresa",
+            url=_url_com(base, filtros, regional="", cc="", contrato=""),
+            atual=profundidade == 0,
+        )
+    ]
+    valores = (filtros.regional, filtros.centro_custo, filtros.contrato)
+    for indice, (parametro, _, _) in enumerate(HIERARQUIA):
+        if not valores[indice]:
+            break
+        # Ao voltar para um degrau, os de baixo são LIMPOS: subir para a regional
+        # com o centro de custo ainda no filtro mostraria a regional recortada
+        # por um CC que a trilha diz não estar mais ativo.
+        limpeza = {p: "" for p, _, _ in HIERARQUIA[indice + 1:]}
+        trilha.append(
+            Migalha(
+                rotulo=valores[indice],
+                url=_url_com(base, filtros, **limpeza),
+                atual=indice + 1 == profundidade,
+            )
+        )
+    return trilha
+
+
+def _bloco_perfuracao(escopo, filtros: Filtros, base: str):
+    """A barra do nível seguinte — cada barra desce um degrau.
+
+    Sai da CARTEIRA e não de uma consulta própria: ela já respeita o escopo da
+    pessoa, e uma segunda consulta poderia oferecer uma regional que ela não
+    alcança — o que revelaria a existência dela.
+    """
+    from workspace.graficos import series
+
+    profundidade = nivel_de(filtros)
+    if profundidade >= len(HIERARQUIA):
+        return series.barras_por_categoria(
+            [], chave="perfuracao", titulo="Detalhe", fronteira=FRONTEIRA
+        )
+
+    parametro, rotulo, atributo = HIERARQUIA[profundidade]
+    provedor = contrato.obter(contrato.ProvedorCarteira)
+    if provedor is None:
+        return series.barras_por_categoria(
+            [], chave="perfuracao", titulo=f"Receita por {rotulo.lower()}"
+        )
+
+    carteira = _filtrar_carteira(provedor.contratos(escopo), filtros)
+    por_categoria: dict[str, Decimal] = {}
+    for c in carteira:
+        chave_cat = getattr(c, atributo, "") or "—"
+        por_categoria[chave_cat] = por_categoria.get(chave_cat, Decimal("0")) + (
+            c.valor_mensal or Decimal("0")
+        )
+
+    pontos = [
+        series.Ponto(
+            rotulo=nome,
+            valor=valor,
+            # A URL pronta, do servidor. O JS só navega.
+            url=_url_com(base, filtros, **{parametro: nome}) if nome != "—" else "",
+        )
+        for nome, valor in sorted(por_categoria.items(), key=lambda p: -p[1])
+    ]
+
+    return series.barras_por_categoria(
+        pontos,
+        chave="perfuracao",
+        titulo=f"Receita mensal por {rotulo.lower()}",
+        rotulo_serie="Valor mensal",
+    )
 
 
 def _estreitar_por_atributo(recorte: contrato.Escopo, filtros: Filtros):

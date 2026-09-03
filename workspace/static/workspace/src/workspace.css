@@ -4088,3 +4088,37 @@ tr[data-abre-resumo]:focus-visible {
   gap: var(--au-3);
   margin: var(--au-2) 0 0;
 }
+
+/* ── Perfuração: a trilha e a fronteira (Onda 11) ────────────────────
+   A trilha fica SEMPRE visível, inclusive na raiz com um degrau só: descobrir
+   onde se está pela ausência dela é como alguém conclui que a tela quebrou. */
+
+.au-migalhas {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--au-1);
+  margin-bottom: var(--au-3);
+  font-size: var(--au-t-sm);
+}
+.au-migalha { color: var(--au-accent-text); }
+.au-migalha--atual { color: var(--au-text); font-weight: 600; }
+/* O separador em `::before` e não no HTML: ele é decoração, e um "›" solto
+   no texto seria lido em voz alta por leitor de tela. */
+.au-migalha + .au-migalha::before,
+.au-migalha + .au-migalha--atual::before {
+  content: "›";
+  margin-right: var(--au-1);
+  color: var(--au-text-subtle);
+}
+
+/* A fronteira: o último nível diz que é o último. Beco sem saída silencioso é
+   pior que a ausência do nível. */
+.au-gr-fronteira {
+  margin: 0;
+  padding: var(--au-3) var(--au-4);
+  border-left: 3px solid var(--au-border-strong);
+  background: var(--au-surface-sunken);
+  font-size: var(--au-t-sm);
+  color: var(--au-text-muted);
+}

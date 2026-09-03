@@ -327,7 +327,78 @@ fracionária hoje — e é por isso que o guard precisa continuar.
 
 ---
 
-## 25.7 ADR
+## 25.7 Onda 11 — perfurar (mecanismo 1)
+
+Isolado, e só na faixa do dinheiro. É o passo 7 do plano: ligar a perfuração nas
+cinco faixas de uma vez tornaria impossível dizer qual delas quebrou.
+
+### A hierarquia
+
+`empresa → regional → centro de custo → contrato`. Cada barra do bloco de
+perfuração desce um degrau; a trilha de migalhas sobe quantos forem precisos.
+
+### O estado mora na URL — e não há parâmetro `nivel`
+
+`?regional=Sudeste&cc=1042` é a tela inteira. Colar esse endereço numa mensagem
+reproduz exatamente o que a pessoa está vendo.
+
+**O nível é derivado dos filtros**, e não lido da URL. Um `?nivel=cc` ao lado de
+`?cc=1042` seria uma segunda verdade sobre o mesmo fato, e as duas discordariam
+no dia em que alguém editasse a URL à mão.
+
+Descer **preserva** os outros filtros — janela, serviço, layer. Perder a janela
+de seis meses ao descer um nível é como alguém conclui que o filtro "não
+funciona". E subir na trilha **limpa** os níveis de baixo: voltar para a regional
+com o centro de custo ainda ativo mostraria a regional recortada por um CC que a
+trilha diz não estar mais lá.
+
+### A trilha aparece mesmo na raiz
+
+Com um degrau só, "Empresa". Sem isso ela nasceria no primeiro clique e sumiria
+no último — que é quando a pessoa mais precisa saber onde está.
+
+### Perfurar funciona sem JavaScript
+
+A URL de cada ponto é montada em **Python** e viaja como dimensão do `dataset`.
+O JS lê `params.data[3]` e navega; ele não sabe qual filtro pertence a qual
+nível, e não precisa saber.
+
+A **tabela irmã usa a mesma URL** num `<a>`. Não são duas implementações: as
+duas leem `bloco.urls`.
+
+E o JS só navega para caminho que comece com `/`. URL absoluta vinda de dado
+seria um redirecionamento aberto com passos extras.
+
+### A fronteira
+
+Perfurar até o contrato funciona; até a ocorrência, não — o detalhe operacional
+mora no Platform. No último nível o bloco **não tem barra para clicar**, e a tela
+diz por quê. Beco sem saída silencioso é pior que a ausência do nível: quem
+clicou e não viu nada acontecer conclui que a tela quebrou.
+
+### O defeito que a perfuração descobriu
+
+`resultados/providers.py::_recortar` combinava regional, centro de custo e
+contrato com **OU**.
+
+Consequência concreta: descer para o CC 1042 dentro do Sudeste devolvia também os
+contratos do 1055, porque `regional=Sudeste OR cc=1042` é o Sudeste inteiro.
+**Quem perfurou viu a lista crescer ao descer um nível.**
+
+E o mesmo `OU` alargava a permissão: um gerente lotado no CC 1042 da unidade
+Sudeste enxergava a regional inteira, e não a operação dele.
+
+As três dimensões são uma **hierarquia**, e a mais específica passou a vencer:
+`contrato > centro de custo > regional`. Isso **estreita** — a direção segura, e
+a que o módulo já pratica ("o filtro estreita o escopo; nunca o alarga").
+
+Melhor que um `E` entre as três, que daria tela vazia no dia em que o nome da
+unidade no organograma não batesse com o campo `regional` do espelho — texto
+livre, vindo de fora.
+
+---
+
+## 25.8 ADR
 
 ### ADR-041 · O bundle é versionado; o PDF leva tabela e diz que não tem gráfico
 

@@ -63,17 +63,36 @@ def _recortar(consulta, escopo: Escopo | None, *, ate_o_contrato: str = ""):
     Um parâmetro só, e não um por campo, porque regional, centro de custo e
     código moram TODOS no contrato — quem sabe chegar até ele sabe filtrar pelos
     três. Três parâmetros deixariam possível passar dois caminhos incoerentes.
+
+    ## As três dimensões são uma HIERARQUIA, e a mais específica vence
+
+    `regional ⊃ centro de custo ⊃ contrato`. Com mais de uma preenchida, filtrar
+    pela mais específica é a única leitura que faz sentido — e as outras duas
+    estão implícitas nela.
+
+    Antes da Onda 11 elas eram combinadas com **OU**, e isso produzia um defeito
+    concreto: descer para o centro de custo 1042 dentro do Sudeste devolvia
+    também os contratos do 1055, porque `regional=Sudeste OR cc=1042` é o
+    Sudeste inteiro. Quem perfurou viu a lista **crescer** ao descer um nível.
+
+    O mesmo `OU` alargava a permissão: um gerente lotado no CC 1042 da unidade
+    Sudeste enxergava a regional inteira, e não a operação dele. Trocar para a
+    mais específica **estreita** — que é a direção segura, e a que o resto deste
+    módulo já pratica ("o filtro estreita o escopo; nunca o alarga").
+
+    E é melhor que um `E` entre as três: `regional=Sudeste AND cc=1042` daria
+    tela vazia no dia em que o nome da unidade no organograma não batesse com o
+    campo `regional` do espelho, que é texto livre vindo de fora.
     """
     if escopo is None or escopo.tudo:
         return consulta
-    condicao = Q()
-    if escopo.regionais:
-        condicao |= Q(**{f"{ate_o_contrato}regional__in": escopo.regionais})
-    if escopo.centros_custo:
-        condicao |= Q(**{f"{ate_o_contrato}centro_custo__in": escopo.centros_custo})
     if escopo.contratos:
-        condicao |= Q(**{f"{ate_o_contrato}codigo__in": escopo.contratos})
-    return consulta.filter(condicao)
+        campo, valores = "codigo", escopo.contratos
+    elif escopo.centros_custo:
+        campo, valores = "centro_custo", escopo.centros_custo
+    else:
+        campo, valores = "regional", escopo.regionais
+    return consulta.filter(Q(**{f"{ate_o_contrato}{campo}__in": valores}))
 
 
 def _proc(registro) -> Procedencia:

@@ -60,6 +60,23 @@
     grafico.setOption(opcao);
     instancias.set(chave, grafico);
 
+    // A PERFURAÇÃO. O clique navega para uma URL que o SERVIDOR montou e
+    // mandou como dimensão do `dataset` — este arquivo não sabe qual filtro
+    // pertence a qual nível, e não precisa saber.
+    //
+    // Montar a URL aqui exigiria replicar a hierarquia em JavaScript, e ela
+    // mudaria de lugar sozinha na primeira dimensão nova.
+    if (tela.dataset.perfura) {
+      grafico.on("click", function (params) {
+        var destino = params && params.data && params.data[3];
+        if (typeof destino === "string" && destino.charAt(0) === "/") {
+          // Só caminho relativo deste produto. Uma URL absoluta vinda de dado
+          // seria um redirecionamento aberto com passos extras.
+          window.location.assign(destino);
+        }
+      });
+    }
+
     // A tabela vira o "ver os números", e não mais o conteúdo principal.
     // `data-manter-aberta` é o bloco em que a grade É o conteúdo e o gráfico é
     // o resumo — ali fechar esconderia o principal.
