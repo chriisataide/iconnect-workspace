@@ -19,6 +19,23 @@ possível para um CPF, e o melhor lugar possível para alguém colar um sem pens
 **O carimbo de cada faixa.** Um PDF sem procedência é a pior versão do problema
 que o carimbo existe para resolver: ele é lido dias depois, longe da tela, sem
 como conferir se o número era de ontem ou de três semanas atrás.
+
+## Por que ele NÃO tem gráfico (ADR-041)
+
+Desde a Onda 10 os gráficos são desenhados pelo ECharts, no navegador. Este PDF
+é gerado no servidor, que não roda JavaScript.
+
+As três saídas possíveis eram: subir um Chromium sem interface para imprimir a
+página real; gerar o SVG em Node com o ECharts em modo servidor; ou levar as
+TABELAS e dizer isso.
+
+A terceira, e sem hesitação. As duas primeiras põem um navegador ou o Node no
+caminho crítico de exportar um documento num projeto Django — e este PDF circula
+para **conferência**, não para apresentação: quem quer o gráfico abre a tela, que
+é onde ele é interativo.
+
+O rodapé diz que o gráfico ficou de fora. Um documento que silenciosamente mostra
+menos que a tela é como alguém conclui que o número mudou.
 """
 
 from __future__ import annotations
@@ -92,6 +109,20 @@ def gerar(panorama: dict) -> bytes:
 
     for faixa in panorama["faixas"]:
         historia.extend(_faixa(faixa, estilos))
+
+    # O rodapé que diz o que ficou de fora — ADR-041. Um PDF que mostra menos
+    # que a tela, em silêncio, é como alguém conclui que o número mudou.
+    historia.append(Spacer(1, 6 * mm))
+    historia.append(
+        Paragraph(
+            _escapar(
+                "Os gráficos desta apresentação são desenhados no navegador e "
+                "não entram no PDF. Os números deles estão nas tabelas acima — "
+                "são os mesmos. Para ver os gráficos, abra a tela de Resultados."
+            ),
+            estilos["texto"],
+        )
+    )
 
     documento.build(historia)
     return buffer.getvalue()

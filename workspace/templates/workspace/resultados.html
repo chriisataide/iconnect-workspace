@@ -32,6 +32,18 @@
   </p>
 {% endblock %}
 
+{% comment %}
+  O BUNDLE DO ECHARTS SÓ AQUI, e não na casca.
+
+  São 640 KB (217 KB comprimidos) — caro demais para a home, o catálogo e as
+  reservas, que não desenham nada. Bloco `scripts` e não `<script>` solto no
+  corpo: a casca já define a ordem, e `defer` mantém o HTML pintando antes.
+{% endcomment %}
+{% block scripts %}
+  <script src="{% estatico 'workspace/js/echarts.min.js' %}" defer></script>
+  <script src="{% estatico 'workspace/js/echarts-adb.js' %}" defer></script>
+{% endblock %}
+
 {% block corpo %}
 <div class="au-resultados{% if apresentacao %} au-resultados--apresentacao{% endif %}">
 

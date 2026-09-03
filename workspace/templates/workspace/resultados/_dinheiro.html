@@ -1,4 +1,4 @@
-{% load i18n wks %}
+{% load i18n wks graficos %}
 {% comment %}
   A DINÂMICA DE SEIS COLUNAS, e a do meio é a que importa.
 
@@ -35,15 +35,17 @@
   </div>
 </div>
 
+{% comment %}
+  GRÁFICO ACIMA, TABELA DE SEIS COLUNAS ABAIXO — como no benchmark, onde em
+  quase toda tela o gráfico convive com a grade e é na grade que se confere.
+
+  Cada `{% templatetag openblock %} grafico {% templatetag closeblock %}` traz a
+  própria tabela irmã dentro de um `<details>`: sem JavaScript o gráfico não
+  existe, e é ela que continua respondendo.
+{% endcomment %}
 <div class="au-graficos">
-  <figure class="au-grafico">
-    <figcaption class="au-grafico-titulo">{% trans "Receita bruta, 13 meses" %}</figcaption>
-    {% include "workspace/_serie_svg.html" with serie=faixa.conteudo.grafico_receita rotulo=_("Receita bruta por mês") %}
-  </figure>
-  <figure class="au-grafico">
-    <figcaption class="au-grafico-titulo">{% trans "EBITDA, 13 meses" %}</figcaption>
-    {% include "workspace/_serie_svg.html" with serie=faixa.conteudo.grafico_ebitda rotulo=_("EBITDA por mês") %}
-  </figure>
+  {% grafico faixa.conteudo.grafico_receita %}
+  {% grafico faixa.conteudo.grafico_ebitda %}
 </div>
 
 <div class="au-tabela">

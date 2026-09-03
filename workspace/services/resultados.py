@@ -306,7 +306,6 @@ def dinheiro(escopo: contrato.Escopo, filtros: Filtros) -> Faixa:
         return _sem_dado(faixa, "lançamento financeiro")
 
     do_mes = [linha for linha in serie if _no_mes(linha, filtros.competencia)]
-    from workspace.services import grafico
 
     faixa.conteudo = {
         "serie": serie,
@@ -316,10 +315,44 @@ def dinheiro(escopo: contrato.Escopo, filtros: Filtros) -> Faixa:
         # Dois gráficos e não seis. Receita responde "quanto entrou" e EBITDA
         # responde "quanto sobrou" — as outras quatro linhas do benchmark são
         # decomposição, e decomposição se lê na tabela, não em barra.
-        "grafico_receita": grafico.da_serie(serie, "receita_bruta"),
-        "grafico_ebitda": grafico.da_serie(serie, "ebitda"),
+        #
+        # Onda 10: os dois deixaram de ser SVG calculado à mão e passaram a ser
+        # `Bloco` do ECharts, com VALOR EM CIMA DE CADA PONTO e a tabela irmã
+        # junto. O SVG desenhava e não dizia quanto — o que faz alguém abrir a
+        # tabela para ler o mesmo número duas linhas abaixo.
+        "grafico_receita": _bloco_mensal(
+            serie, "receita_bruta", "receita", "Receita bruta, 13 meses"
+        ),
+        "grafico_ebitda": _bloco_mensal(
+            serie, "ebitda", "ebitda", "EBITDA, 13 meses"
+        ),
     }
     return faixa
+
+
+def _bloco_mensal(linhas, campo: str, chave: str, titulo: str):
+    """Um mês por ponto, somando o campo entre contratos.
+
+    A soma por rótulo existe porque a série vem por CONTRATO e por mês: sem ela,
+    treze meses de doze contratos virariam 156 barras.
+    """
+    from workspace.graficos import series
+
+    por_mes: dict[str, Decimal] = {}
+    ordem: list[str] = []
+    for linha in linhas:
+        rotulo = f"{linha.mes:02d}/{str(linha.ano)[2:]}"
+        if rotulo not in por_mes:
+            por_mes[rotulo] = Decimal("0")
+            ordem.append(rotulo)
+        por_mes[rotulo] += getattr(linha, campo) or Decimal("0")
+
+    return series.serie_temporal(
+        [(rotulo, por_mes[rotulo]) for rotulo in ordem],
+        chave=chave,
+        titulo=titulo,
+        rotulo_serie=titulo.split(",")[0],
+    )
 
 
 def _no_mes(linha, competencia: date) -> bool:

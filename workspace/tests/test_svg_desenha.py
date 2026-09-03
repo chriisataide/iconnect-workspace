@@ -19,8 +19,15 @@ mostrava um retângulo branco de 140 pixels.
 Porque o defeito não está no template: `x="{{ barra.x }}"` está correto. Ele
 nasce no encontro entre um `float` e a localização, e só existe depois do render.
 
-`workspace/services/grafico.py` corrige na origem — as coordenadas saem de lá
-como string. Este teste é o que descobre o próximo SVG que não passar por lá.
+## O módulo que causou o defeito não existe mais — o guard, sim
+
+`workspace/services/grafico.py` desenhava a série em SVG calculado à mão, e foi
+substituído pelo ECharts na Onda 10. Ele foi apagado; **este arquivo ficou**.
+
+O produto continua desenhando SVG à mão em vários lugares — o medidor da bandeja
+de aprovação, os ícones, a arte da tela de entrar. Nenhum deles tem coordenada
+fracionária hoje, e é exatamente por isso que o guard precisa continuar: o
+primeiro que tiver vai falhar do mesmo jeito silencioso.
 """
 
 from __future__ import annotations
@@ -137,52 +144,3 @@ def test_nenhum_atributo_de_svg_sai_com_virgula(client, espelho, diretoria, rota
         f"navegador descarta o elemento em silêncio. Exemplos: {achados[:5]}. "
         "Formate a coordenada em Python; ver `workspace/services/grafico.py`."
     )
-
-
-@pytest.mark.django_db
-def test_o_grafico_de_resultados_desenha_barras_de_verdade(client, espelho, diretoria):
-    """Não basta o `<rect>` existir: ele precisa ter altura maior que zero.
-
-    Um `height="0"` é tão invisível quanto um `height="1,5"`, e sai de uma série
-    toda zerada — que é um caso legítimo e precisa de estado vazio, não de um
-    gráfico transparente.
-    """
-    from decimal import Decimal
-
-    from workspace.services import grafico
-
-    serie = grafico.barras(
-        [("01/26", Decimal("100")), ("02/26", Decimal("-40")), ("03/26", Decimal("0"))]
-    )
-
-    assert len(serie.barras) == 3
-    assert all(float(b.altura) > 0 for b in serie.barras), "barra sem altura não existe"
-    assert serie.barras[1].negativa is True
-    # Zero no MEIO quando há negativo, e não na base: é o que faz o EBITDA
-    # negativo apontar para baixo em vez de virar uma barra minúscula para cima.
-    assert 0 < float(serie.linha_zero) < grafico.ALTURA
-
-
-def test_a_coordenada_sempre_usa_ponto():
-    from workspace.services import grafico
-
-    assert grafico.coordenada(10.52) == "10.52"
-    assert grafico.coordenada(176.0) == "176", "sem cauda de zero"
-    assert grafico.coordenada(0.5) == "0.5", "e sem arredondar para zero"
-    assert "," not in grafico.coordenada(1234.56)
-
-
-@pytest.mark.django_db
-def test_a_serie_vazia_diz_isso_em_vez_de_desenhar_nada(client, diretoria):  # noqa: ARG001
-    """Série sem ponto nenhum não vira um SVG vazio — vira uma frase.
-
-    SVG vazio e SVG com coordenada inválida têm a MESMA aparência na tela, e
-    foi por isso que o defeito da vírgula durou tanto: quem olhou concluiu "não
-    tem dado".
-    """
-    from workspace.services import grafico
-
-    serie = grafico.barras([])
-
-    assert serie.vazia is True
-    assert serie.barras == []

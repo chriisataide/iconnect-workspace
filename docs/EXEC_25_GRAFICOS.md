@@ -126,7 +126,108 @@ e fechar de novo não deveria custar uma reescrita.
 
 ---
 
-## 25.6 ADR
+## 25.6 Onda 10 — a biblioteca
+
+### A escolha, e a versão
+
+**Apache ECharts 6.1.0**, licença Apache-2.0, com renderizador **SVG**.
+
+ECharts e não Chart.js porque o benchmark precisa de medidor (Score PEC), mapa de
+calor em tabela e eixo duplo com barra + linha (1.1.02): os três vêm de fábrica,
+enquanto o Chart.js exige plugin para dois deles e só desenha em canvas.
+
+Canvas não dá texto selecionável, não tem árvore de acessibilidade e piora o PDF.
+E — medido — ele é **7 KB menor**. A escolha pelo SVG custa alguma coisa, e vale
+dizer que custa.
+
+### O tamanho, medido e não estimado
+
+| Build | minificado | gzip |
+|---|---|---|
+| só barra + linha | 558 KB | 190 KB |
+| catálogo (6 tipos de série) | 639 KB | **217 KB** |
+| pacote completo — proibido | 1.095 KB | 360 KB |
+
+O tree-shaking corta **40%**, e não 80%: o núcleo do ECharts é a maior parte, e
+190 KB é o piso mesmo com um gráfico só.
+
+Por isso o bundle **só carrega nas telas que declaram gráfico**, pelo bloco
+`{% templatetag openblock %} scripts {% templatetag closeblock %}`. A home, o
+catálogo e as reservas não pagam nada.
+
+### Os números vêm do servidor — inclusive a vírgula
+
+O ECharts formata em en-US por padrão. O caminho óbvio seria um `formatter` em JS
+com `Intl.NumberFormat('pt-BR')` — e aí a mesma regra existiria em dois lugares,
+o gráfico e a **tabela irmã**, que mostra exatamente os mesmos números.
+
+`formatter` aceita um **template em string** com `{@dimensão}`, resolvido contra o
+dado bruto — conferido no fonte da 6.1.0, `lib/model/mixin/dataFormat.js`. Então o
+Python manda o texto pronto como uma dimensão a mais do `dataset`, e o formatador
+é a string `"{@rotulo}"`.
+
+**Zero função em JavaScript.** `workspace/graficos/formato.py` é a fonte única.
+
+As faixas da escala, com o motivo de cada corte:
+
+    abaixo de 10 mil     1.234       abreviar não encurta nada
+    até 999 mil          840 Mil     sem casa decimal: `840,3 Mil` é ruído
+    de 1 milhão          1,23 Mi     duas casas, porque a primeira decide
+
+O arredondamento é conferido **depois** de aplicado: 999.999 vira `1,00 Mi`, e não
+`1.000 Mil` — o segundo está certo na conta e errado na tela.
+
+### A tabela irmã é FALLBACK, e não acessibilidade
+
+No desenho anterior — SVG calculado em Python — o gráfico existia sem JavaScript.
+Aqui não existe: sem JS, o `<div>` fica vazio.
+
+Por isso o `<details>` nasce **`open` no HTML**, e o JS o fecha depois de
+desenhar. Escrevê-lo condicionalmente deixaria a tabela fechada para quem não tem
+JavaScript — que é exatamente quem depende dela.
+
+E não há como pedir metade: `{% templatetag openblock %} grafico {% templatetag closeblock %}`
+renderiza os dois, do mesmo objeto `Bloco`, com os mesmos textos formatados.
+
+### O que a Onda 10 apagou
+
+`workspace/services/grafico.py` e `workspace/templates/workspace/_serie_svg.html`
+— o SVG calculado à mão. Foram substituídos, e código que ninguém renderiza é o
+que `test_nenhum_template_e_orfao` existe para impedir.
+
+**O guard da vírgula ficou.** `test_svg_desenha.py` continua varrendo as telas
+atrás de coordenada com vírgula decimal: o produto ainda desenha SVG à mão no
+medidor da bandeja, nos ícones e na arte da tela de entrar. Nenhum tem coordenada
+fracionária hoje — e é por isso que o guard precisa continuar.
+
+---
+
+## 25.7 ADR
+
+### ADR-041 · O bundle é versionado; o PDF leva tabela e diz que não tem gráfico
+
+**Contexto.** Duas decisões que o mesmo fato produz: os gráficos passaram a ser
+desenhados por JavaScript, e o servidor não roda JavaScript.
+
+**Decisão, parte 1 — o artefato vai versionado.** `build/echarts/` tem
+`package.json` e `entrada.js`; o que sai dali, `echarts.min.js`, entra no
+repositório. Deploy e CI **nunca precisam de Node** — só quem regenera o bundle
+precisa.
+
+**Decisão, parte 2 — o PDF é PDF-2.** Ele leva as **tabelas**, e o rodapé diz que
+os gráficos ficaram de fora e onde vê-los.
+
+**Consequência.** As alternativas eram um Chromium sem interface no pipeline de
+exportação, ou o ECharts em modo servidor sob Node. As duas põem um segundo
+runtime no caminho crítico de exportar um documento num projeto Django, e as duas
+existem para um documento que circula para **conferência**, não para
+apresentação: quem quer o gráfico abre a tela, onde ele é interativo.
+
+O rodapé não é cortesia. Um PDF que mostra menos que a tela, em silêncio, é como
+alguém conclui que o número mudou.
+
+Se alguém reclamar, PDF-1 (Chromium) é o caminho — e aí a decisão terá um pedido
+atrás, que é o que falta hoje.
 
 ### ADR-040 · `style-src` abre para a biblioteca de gráficos; `script-src` não
 

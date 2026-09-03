@@ -149,6 +149,9 @@ casa, que era o ponto de existir um contrato.
 | Nada em [resultados/](resultados/) tem formulário, nem no `/admin/` | O dado nasce onde é operado. Editar o espelho criaria duas verdades sobre a mesma linha — e a segunda venceria até a próxima carga, ou não venceria, conforme a precedência ([ADR-018](docs/EXEC_16_INGESTAO.md)). |
 | Regra de exceção com **zero** continua na lista | Sumir esconderia que a regra existe — e a discussão sobre "deveríamos vigiar X" voltaria em seis meses. E "sem ocorrências" **não** é o mesmo que "não avaliada": a segunda quer dizer que a fonte não está no ar, e as duas pedem ações opostas ([ADR-027](docs/EXEC_18_EXCECOES.md)). |
 | Cinco regras estão no banco **desligadas** | ASO, reciclagem, advertências, experiência e a conciliação de centro de custo. Elas dependem do HRIS e do orçamento, e ficam registradas com a fonte anotada — é o que responde "por que não vigiamos isso?" sem ninguém perguntar. |
+| Os números do gráfico vêm do **servidor**, inclusive a vírgula | O `formatter` do ECharts é a string `{@rotulo}`, e o texto em pt-BR chega como dimensão do `dataset`. Zero função em JS: a mesma regra num segundo lugar divergiria da primeira, e a **tabela irmã** mostra exatamente os mesmos números ([EXEC 25](docs/EXEC_25_GRAFICOS.md)). |
+| Todo gráfico vem com a **tabela irmã**, aberta no HTML | Sem JavaScript o gráfico não existe — a tabela deixou de ser acessibilidade e virou o fallback. O `<details>` nasce `open` e o JS o fecha: escrevê-lo condicionalmente esconderia a grade justamente de quem depende dela. |
+| O **PDF não tem gráfico**, e diz isso no rodapé | Ele é gerado no servidor, que não roda JavaScript. As alternativas — Chromium sem interface, ou ECharts sob Node — põem um segundo runtime no caminho crítico de exportar um documento. Um PDF que mostra menos que a tela, em silêncio, é como alguém conclui que o número mudou ([ADR-041](docs/EXEC_25_GRAFICOS.md)). |
 | Este produto atende **um** público | Três públicos, três produtos, uma marca: o Portal ADB é este; ADB Cliente e ADB Fornecedor são outros. O modelo de permissão assume `Pessoa` com lotação no organograma — um "papel de cliente" exigiria um segundo modelo de identidade, ou gente no organograma que não trabalha aqui ([ADR-038](docs/EXEC_23_PUBLICOS.md)). |
 | Destino não configurado **não aparece**, nem como "em breve" | "Em breve" é promessa, e ninguém decidiu construir o ADB Cliente. Ele continua **registrado sem endereço** — a decisão de não existir é informação, e some se ele não estiver em lugar nenhum ([ADR-039](docs/EXEC_23_PUBLICOS.md)). |
 | Existem **dois orçados**, e eles não se fundem | O teto de operação é nosso e responde "isto cabe?" na aprovação; o orçado contábil é do Sankhya e responde "o mês fechou onde deveria?". A tela mostra os dois lado a lado com a diferença, e nenhuma linha de código escolhe vencedor — divergência entre fontes se resolve por regra declarada, não dentro de um `if` ([ADR-036](docs/EXEC_22_ORCAMENTO.md)). |
@@ -227,6 +230,7 @@ justificativa no PR.
 | [EXEC 22](docs/EXEC_22_ORCAMENTO.md) | Orçamento anual e revisão: a onda que começou decidindo a posse, com os ADRs 036–037 |
 | [EXEC 23](docs/EXEC_23_PUBLICOS.md) | Segmentação de público: um ADR e um tile, não um módulo, com os ADRs 038–039 |
 | [EXEC 24](docs/EXEC_24_LIGAR_AS_FONTES.md) | O roteiro de ligar as três fontes e instalar o agendamento — o que falta é acesso, não código |
+| [EXEC 25](docs/EXEC_25_GRAFICOS.md) | Gráficos com biblioteca: a CSP que abriu, o ECharts e o PDF sem gráfico, com os ADRs 040–041 |
 
 ---
 

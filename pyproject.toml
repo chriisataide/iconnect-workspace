@@ -123,4 +123,7 @@ cargas = 97.0      # medido 97.39 · conectores, carregador, transporte
 # 3200 → 3210: os 9 do SVG que não desenhava. Metade deles renderiza a tela com
 #   dado de VERDADE — a primeira versão passava sem a correção, porque sem
 #   espelho a série sai vazia e não há coordenada para conferir.
-minimo = 3210
+# 3210 → 3240: os 35 de `test_graficos.py`, menos os 5 que saíram junto com o SVG
+#   calculado à mão. O que eles seguram: tabela irmã em todo gráfico, formatação
+#   pt-BR num lugar só, e o bundle não virar o pacote completo.
+minimo = 3240

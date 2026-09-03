@@ -1,0 +1,15 @@
+{
+  "name": "workspace-echarts",
+  "private": true,
+  "version": "1.0.0",
+  "description": "Build customizado do ECharts para o iConnect Workspace. O artefato vai versionado em workspace/static/; esta pasta só o regenera.",
+  "scripts": {
+    "build": "esbuild entrada.js --bundle --minify --format=iife --global-name=EChartsADB --outfile=../../workspace/static/workspace/js/echarts.min.js --legal-comments=inline --banner:js=\"/* Apache ECharts 6.1.0 · build customizado do iConnect Workspace · regerar: build/echarts/README.md */\""
+  },
+  "dependencies": {
+    "echarts": "6.1.0"
+  },
+  "devDependencies": {
+    "esbuild": "^0.25.0"
+  }
+}

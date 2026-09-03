@@ -3315,25 +3315,10 @@ tr[data-abre-resumo]:focus-visible {
   color: var(--au-text-subtle);
 }
 
-.au-serie { display: block; width: 100%; height: 140px; }
-.au-serie-barra { fill: var(--au-accent); }
-/* Negativa em cor de perigo: o EBITDA negativo aponta para baixo E muda de cor.
-   Só a direção seria fácil de perder num gráfico pequeno. */
-.au-serie-barra--negativa { fill: var(--au-danger); }
-.au-serie-zero { stroke: var(--au-border-strong); stroke-width: 1; }
+/* As regras de `.au-serie*` saíram na Onda 10 com o SVG calculado à mão.
+   O que desenha série agora é o ECharts, e as cores dele vêm da `option`
+   montada em Python — ver `workspace/graficos/series.py`. */
 
-/* Os rótulos em HTML, fora do SVG: texto dentro de um SVG esticado por
-   `preserveAspectRatio="none"` estica junto e as letras deformam. */
-.au-serie-eixo {
-  display: flex;
-  justify-content: space-between;
-  margin: var(--au-1, 4px) 0 0;
-  padding: 0;
-  list-style: none;
-  font-size: 10px;
-  font-variant-numeric: tabular-nums;
-  color: var(--au-text-subtle);
-}
 
 /* ── Filtros ─────────────────────────────────────────────────────
    A barra padronizada que se repete em toda tela futura. Aprende-se uma vez. */
@@ -4033,3 +4018,29 @@ tr[data-abre-resumo]:focus-visible {
   font-size: var(--au-t-xs);
   color: var(--au-text-muted);
 }
+
+/* ── Gráficos com biblioteca (Onda 10) ───────────────────────────────
+   O contêiner e a tabela irmã. A `option` inteira — cores inclusive — vem do
+   Python; aqui só mora o que envolve o gráfico. */
+
+.au-gr { margin: 0 0 var(--au-5); }
+.au-gr-titulo {
+  font-size: var(--au-t-xs);
+  text-transform: uppercase;
+  letter-spacing: .04em;
+  color: var(--au-text-muted);
+  margin-bottom: var(--au-2);
+}
+/* A altura vem do atributo `data-altura` e é aplicada pelo JS. Este mínimo
+   segura o layout enquanto o bundle não carregou — sem ele, a tabela irmã
+   pularia para cima e voltaria. */
+.au-gr-tela { width: 100%; min-height: 120px; }
+
+.au-gr-tabela { margin-top: var(--au-2); }
+.au-gr-tabela > summary {
+  font-size: var(--au-t-xs);
+  color: var(--au-text-muted);
+  cursor: pointer;
+  padding: var(--au-1) 0;
+}
+.au-gr-tabela[open] > summary { margin-bottom: var(--au-2); }

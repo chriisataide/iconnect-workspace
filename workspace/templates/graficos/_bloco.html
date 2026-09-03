@@ -1,0 +1,82 @@
+{% load i18n graficos %}
+{% comment %}
+  UM GRÁFICO E A TABELA QUE DIZ O MESMO.
+
+  A tabela não é acessibilidade — é FALLBACK. Sem JavaScript o `<div>` do
+  gráfico fica vazio, e é a tabela que continua respondendo à pergunta.
+
+  Por isso ela vem dentro de um `<details>` que o JS FECHA ao inicializar o
+  gráfico. Sem JS, o `<details open>` fica aberto: quem não tem script vê a
+  grade, e não um retângulo em branco.
+
+  O caminho inverso — fechada no HTML e aberta por JS — deixaria a tabela
+  escondida justamente para quem não pode abri-la.
+{% endcomment %}
+<figure class="au-gr" data-grafico-bloco="{{ bloco.chave }}">
+  <figcaption class="au-gr-titulo">{{ bloco.titulo }}</figcaption>
+
+  {% if bloco.vazio %}
+    {% comment %}
+      Estado vazio que EXPLICA — restrição 6. Um gráfico sem ponto nenhum não
+      desenha eixo com escala inventada: ele diz que não há série.
+    {% endcomment %}
+    <p class="au-vazio-dica">
+      {% trans "Sem série para desenhar nesta janela. Não é zero — é ausência de dado." %}
+    </p>
+  {% else %}
+    {% comment %}
+      `role="img"` com o resumo em texto. O `aria.enabled` do ECharts descreve a
+      ESTRUTURA do gráfico; este atributo descreve o ASSUNTO, que é o que
+      interessa a quem não vê.
+
+      A altura vem de `data-altura` e é aplicada pelo JS — sem `style=`, que o
+      lint deste repositório continua proibindo em template nosso.
+    {% endcomment %}
+    <div class="au-gr-tela"
+         id="grafico-{{ bloco.chave }}"
+         data-grafico-tela="{{ bloco.chave }}"
+         data-altura="{{ bloco.altura }}"
+         role="img"
+         aria-label="{{ bloco.resumo }}"></div>
+
+    {% dados_do_grafico bloco %}
+
+    {% comment %}
+      `open` SEMPRE no HTML, e o JS fecha depois de desenhar.
+
+      Escrevê-lo condicionalmente deixaria a tabela fechada para quem não tem
+      JavaScript — que é exatamente quem depende dela. `data-manter-aberta`
+      inverte a ordem para os blocos em que a grade é o conteúdo principal e o
+      gráfico é o resumo.
+    {% endcomment %}
+    <details class="au-gr-tabela" data-grafico-tabela="{{ bloco.chave }}"
+             {% if aberta %}data-manter-aberta="1"{% endif %} open>
+      <summary>{% trans "Ver os números" %}</summary>
+      <div class="au-tabela">
+        <table>
+          <caption class="au-sr">{{ bloco.titulo }}</caption>
+          <thead>
+            <tr>
+              {% for coluna in bloco.colunas %}
+                <th {% if coluna.numerica %}class="au-num"{% endif %} scope="col">{{ coluna.titulo }}</th>
+              {% endfor %}
+            </tr>
+          </thead>
+          <tbody>
+            {% for linha in bloco.linhas %}
+              <tr>
+                {% for celula in linha %}
+                  {% if forloop.first %}
+                    <th scope="row">{{ celula }}</th>
+                  {% else %}
+                    <td class="au-num">{{ celula }}</td>
+                  {% endif %}
+                {% endfor %}
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </details>
+  {% endif %}
+</figure>

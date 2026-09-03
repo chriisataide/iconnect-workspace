@@ -419,13 +419,23 @@ def test_nenhuma_resposta_contem_style(client, espelho, diretoria, rota):
     assert "style=" not in conteudo
 
 
-def test_o_grafico_sai_em_svg_com_atributos(client, espelho, diretoria):
+def test_o_grafico_sai_com_a_tabela_irma(client, espelho, diretoria):
+    """Atualizado na Onda 10, não removido.
+
+    Ele afirmava `<svg class="au-serie">`, do SVG calculado à mão — que saiu.
+    O que ele afirma agora é a regra que não muda com a biblioteca: **todo
+    gráfico vem acompanhado da tabela com os mesmos números**.
+
+    Sem JavaScript o gráfico não existe, e a tabela deixou de ser
+    acessibilidade para virar o fallback.
+    """
     client.force_login(diretoria)
 
     conteudo = client.get(reverse("workspace:resultados")).content.decode()
 
-    assert "<svg class=\"au-serie\"" in conteudo
-    assert "au-serie-barra" in conteudo
+    assert 'data-grafico-tela=' in conteudo
+    assert 'data-grafico-tabela=' in conteudo
+    assert conteudo.count("data-grafico-tela=") == conteudo.count("data-grafico-tabela=")
 
 
 def test_o_sem_amostra_do_contrato_e_o_mesmo_do_espelho():

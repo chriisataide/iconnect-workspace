@@ -1,0 +1,4 @@
+# O que se instala para construir não vai para o repositório. O que sai da
+# construção — `workspace/static/workspace/js/echarts.min.js` — vai.
+node_modules/
+package-lock.json
