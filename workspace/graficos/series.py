@@ -55,7 +55,18 @@ from decimal import Decimal
 from workspace.graficos import formato as fmt
 
 #: Altura padrão do gráfico, em pixels. Casada com o CSS `.au-gr-tela`.
-ALTURA = 260
+ALTURA = 300
+
+#: Espaço reservado ACIMA da área de desenho quando o rótulo fica em cima da
+#: barra e é girado.
+#:
+#: Girado, `R$ 262 Mil` mede cerca de sessenta pixels de altura — e com o padrão
+#: de 28 ele era **cortado pela borda do gráfico**. Apareceu na tela: o rótulo da
+#: barra mais alta do EBITDA saía pela metade.
+#:
+#: Sessenta e oito, e não "o suficiente": abaixo disso o corte volta na primeira
+#: série que tiver um valor de sete dígitos.
+FOLGA_DO_ROTULO = 68
 
 #: As cores saem dos tokens do produto, e não da paleta do ECharts.
 #:
@@ -257,6 +268,12 @@ def serie_temporal(
                 "axisLine": {"lineStyle": {"color": COR_GRADE}},
             },
             "yAxis": _eixo_de_valor(),
+            # A folga para o rótulo girado. Sem ela, o da barra mais alta é
+            # cortado pela borda — e o corte não avisa: ele simplesmente some.
+            "grid": {
+                "left": 8, "right": 8, "top": FOLGA_DO_ROTULO, "bottom": 8,
+                "containLabel": True,
+            },
             "series": [
                 {
                     "type": tipo,
@@ -346,7 +363,10 @@ def barras_comparadas(
                 "itemHeight": 8,
                 "textStyle": {"color": COR_TEXTO, "fontSize": 11},
             },
-            "grid": {"left": 8, "right": 8, "top": 28, "bottom": 30, "containLabel": True},
+            # Folga menor que a das outras: aqui o rótulo das barras fica DENTRO
+            # delas, e só a etiqueta do percentual sobe. Ela não gira e mede
+            # cerca de vinte pixels.
+            "grid": {"left": 8, "right": 8, "top": 34, "bottom": 30, "containLabel": True},
             "xAxis": {
                 "type": "category",
                 "axisLabel": {"color": COR_TEXTO, "fontSize": 11},
@@ -1380,6 +1400,10 @@ def barras_por_categoria(
                 "axisLine": {"lineStyle": {"color": COR_GRADE}},
             },
             "yAxis": _eixo_de_valor(),
+            "grid": {
+                "left": 8, "right": 8, "top": FOLGA_DO_ROTULO, "bottom": 8,
+                "containLabel": True,
+            },
             "series": [
                 {
                     "type": "bar",

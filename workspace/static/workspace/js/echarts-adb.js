@@ -91,6 +91,7 @@
   }
 
   function iniciar() {
+    limparCamposVazios();
     document.querySelectorAll("[data-grafico-tela]").forEach(desenhar);
     if (instancias.size === 0) return;
 
@@ -110,6 +111,30 @@
     if (window.matchMedia) {
       window.matchMedia("print").addEventListener("change", redimensionar);
     }
+  }
+
+  /* A barra de filtros manda TODO campo, inclusive os vazios — é o que o
+   * navegador faz com um `<form method="get">`. O resultado é uma URL como
+   * `?regional=&cc=&contrato=&servico=` que funciona e é feia de colar.
+   *
+   * A tela é para ser COMPARTILHADA numa mensagem, e uma URL com seis campos
+   * vazios convida a pessoa a truncá-la antes de enviar. Este trecho tira os
+   * vazios no envio.
+   *
+   * Sem JavaScript, a URL continua com eles — e continua correta. Por isso a
+   * limpeza mora aqui e não numa view: ela é cosmética, e o que é cosmético não
+   * pode virar requisito de funcionamento.
+   */
+  function limparCamposVazios() {
+    document.querySelectorAll("form[data-limpar-vazios]").forEach(function (form) {
+      form.addEventListener("submit", function () {
+        form.querySelectorAll("input[name], select[name]").forEach(function (campo) {
+          if (campo.type !== "checkbox" && campo.value === "") {
+            campo.disabled = true;
+          }
+        });
+      });
+    });
   }
 
   if (document.readyState === "loading") {

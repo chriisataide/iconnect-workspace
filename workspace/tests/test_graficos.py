@@ -969,3 +969,48 @@ def test_o_bundle_nao_carrega_o_heatmap():
 
     assert "HeatmapChart" not in imports
     assert "VisualMapComponent" not in imports
+
+
+def test_o_rotulo_girado_em_cima_tem_folga_para_nao_ser_cortado():
+    """Apareceu na tela: o rótulo da barra mais alta do EBITDA saía pela metade.
+
+    Girado, `R$ 262 Mil` mede cerca de sessenta pixels de altura. Com a folga
+    padrão de 28, ele era cortado pela borda do gráfico — e o corte não avisa:
+    ele simplesmente some.
+    """
+    # Só valores POSITIVOS: com negativo o rótulo vai para dentro da barra, e o
+    # caso que este teste protege é o do rótulo em cima.
+    positivos = [("09/25", Decimal("1298267.36")), ("10/25", Decimal("1100000"))]
+
+    for bloco in (
+        series.serie_temporal(positivos, chave="a", titulo="t"),
+        series.barras_por_categoria(
+            [series.Ponto("Sudeste", Decimal("84000"))], chave="b", titulo="t"
+        ),
+    ):
+        rotulo = bloco.option["series"][0]["label"]
+        assert rotulo["rotate"] == 90 and rotulo["position"] == "top"
+        assert bloco.option["grid"]["top"] >= series.FOLGA_DO_ROTULO, (
+            f"{bloco.chave}: rótulo girado em cima sem folga — ele será cortado"
+        )
+
+
+def test_com_negativo_o_rotulo_desce_para_dentro_e_nao_precisa_de_folga():
+    """Em cima, o rótulo do valor negativo cairia dentro do eixo."""
+    bloco = series.serie_temporal(
+        [("01/26", Decimal("100")), ("02/26", Decimal("-40"))], chave="x", titulo="t"
+    )
+
+    assert bloco.option["series"][0]["label"]["position"] == "inside"
+
+
+def test_a_comparada_precisa_de_menos_folga_porque_o_rotulo_vai_dentro():
+    """Só a etiqueta do percentual sobe, e ela não gira."""
+    bloco = series.barras_comparadas(
+        [("01/26", Decimal("100"), Decimal("80"))],
+        chave="x", titulo="t", rotulo_a="A", rotulo_b="B",
+        rotulo_linha="%", linha=[Decimal("125")],
+    )
+
+    assert bloco.option["series"][0]["label"]["position"] == "insideBottom"
+    assert 20 < bloco.option["grid"]["top"] < series.FOLGA_DO_ROTULO

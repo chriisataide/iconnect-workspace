@@ -57,7 +57,17 @@
     query string vai para o histórico do navegador, para o log do servidor e
     para o corpo do e-mail em que alguém cola o link.
   {% endcomment %}
-  <form class="au-filtros au-filtros--resultados" method="get" action="">
+  {% comment %}
+    `data-limpar-vazios`: o JS desabilita os campos em branco no envio, para a
+    URL não sair com `?regional=&cc=&contrato=&servico=`. É COSMÉTICO — a tela é
+    para ser colada numa mensagem, e seis campos vazios convidam a pessoa a
+    truncar o link antes de enviar.
+
+    Sem JavaScript a URL continua com eles, e continua correta. O que é
+    cosmético não pode virar requisito de funcionamento.
+  {% endcomment %}
+  <form class="au-filtros au-filtros--resultados" method="get" action=""
+        data-limpar-vazios="1">
     <div class="au-filtro">
       <label class="au-filtro-rotulo" for="f-competencia">{% trans "Competência" %}</label>
       <select class="au-input au-input--compacto" id="f-competencia" name="competencia">
