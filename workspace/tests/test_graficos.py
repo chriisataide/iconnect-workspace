@@ -23,6 +23,7 @@ from django.urls import reverse
 from identidade.tests import fabricas as f
 from workspace.graficos import formato as fmt
 from workspace.graficos import series
+from workspace.services import resultados
 
 RAIZ = Path(__file__).resolve().parent.parent.parent
 BUNDLE = RAIZ / "workspace" / "static" / "workspace" / "js" / "echarts.min.js"
@@ -189,7 +190,14 @@ def test_a_option_serializa_em_json_com_decimal_e_data(client, espelho, diretori
     assert blocos
     for corpo in blocos:
         option = json.loads(corpo)
-        assert option["dataset"]["source"]
+        # `dataset` OU `series[].data`: a série temporal e a comparada usam
+        # `dataset` com dimensões nomeadas, e a rosca, o bullet e a dispersão
+        # levam o dado no próprio item — a segunda forma é a que aceita cor e
+        # tamanho por ponto. Exigir só a primeira reprovaria os tipos novos.
+        tem_dado = bool(option.get("dataset", {}).get("source")) or any(
+            s.get("data") for s in option.get("series", [])
+        )
+        assert tem_dado, "option serializada sem dado nenhum"
 
 
 def test_o_bloco_de_dados_leva_o_nonce_da_requisicao(client, espelho, diretoria):
@@ -1014,3 +1022,152 @@ def test_a_comparada_precisa_de_menos_folga_porque_o_rotulo_vai_dentro():
 
     assert bloco.option["series"][0]["label"]["position"] == "insideBottom"
     assert 20 < bloco.option["grid"]["top"] < series.FOLGA_DO_ROTULO
+
+
+# ── As faixas 3 a 7 — passo 6 ───────────────────────────────────────
+
+
+@pytest.fixture
+def massa(db):
+    """A massa das três fontes, plantada pelo conector de CSV.
+
+    É o que responde à pergunta "não daria para fazer um dado mockado?": ele já
+    existe, e não é mock — é o ESPELHO, cheio por arquivo em vez de por API. A
+    tela lê do espelho, e o espelho não sabe quem o encheu.
+    """
+    from django.core.management import call_command
+
+    call_command("semear_fontes", "--aplicar", verbosity=0)
+    call_command("semear_resultados", "--aplicar", verbosity=0)
+
+
+def test_toda_faixa_com_dado_tem_grafico(client, massa, diretoria):
+    """Uma faixa de números sem desenho é uma tabela com título — e a onda 10
+    existe para que ela não seja isso."""
+    client.force_login(diretoria)
+
+    html = client.get(reverse("workspace:resultados")).content.decode()
+    desenhados = set(re.findall(r'data-grafico-tela="([^"]+)"', html))
+
+    for esperado in (
+        "receita", "ebitda", "perfuracao", "carteira", "mix",
+        "vencimentos", "projetos-situacao", "projetos-marcos", "satisfacao",
+    ):
+        assert esperado in desenhados, f"a faixa de {esperado} ficou sem gráfico"
+    assert 'data-mapa-calor="quadro"' in html, "o quadro de pessoas ficou sem mapa"
+
+
+def test_todo_grafico_da_tela_tem_tabela_irma(client, massa, diretoria):
+    client.force_login(diretoria)
+
+    html = client.get(reverse("workspace:resultados")).content.decode()
+
+    telas = re.findall(r'data-grafico-tela="([^"]+)"', html)
+    tabelas = re.findall(r'data-grafico-tabela="([^"]+)"', html)
+    assert set(telas) == set(tabelas)
+
+
+def test_a_dispersao_deixa_de_fora_quem_nao_tem_amostra_e_diz_quantos(
+    client, massa, diretoria
+):
+    """Um contrato que faturou uma vez apareceria no quadrante errado por falta
+    de histórico, e não por desempenho."""
+    client.force_login(diretoria)
+
+    resposta = client.get(reverse("workspace:resultados"))
+    conteudo = resposta.context["por_chave"]["contratos"].conteudo
+
+    no_grafico = len(conteudo["grafico"].linhas)
+    na_carteira = len(conteudo["carteira"])
+    assert no_grafico + conteudo["fora_do_grafico"] == na_carteira
+    if conteudo["fora_do_grafico"]:
+        assert "ficaram de fora do gráfico" in resposta.content.decode() or \
+               "ficou de fora do gráfico" in resposta.content.decode()
+
+
+def test_a_dispersao_marca_o_limiar_de_margem(client, massa, diretoria):
+    """Sem a linha, o quadrante que importa não tem fronteira visível."""
+    client.force_login(diretoria)
+
+    grafico = client.get(reverse("workspace:resultados")).context[
+        "por_chave"
+    ]["contratos"].conteudo["grafico"]
+
+    marcas = grafico.option["series"][0]["markLine"]["data"]
+    assert marcas and marcas[0]["yAxis"] == float(resultados.MARGEM_MINIMA)
+
+
+def test_o_mapa_do_quadro_inverte_os_limiares(client, massa, diretoria):
+    """Turnover de 8,4% é crítico, não excelente. Sem a inversão, quem perdeu
+    metade da equipe apareceria em verde."""
+    client.force_login(diretoria)
+
+    mapa = client.get(reverse("workspace:resultados")).context[
+        "por_chave"
+    ]["pessoas"].conteudo["mapa"]
+
+    situacoes = {c.situacao for _, celulas in mapa.linhas for c in celulas}
+    assert series.FAROL_CRITICO in situacoes, (
+        "com turnover acima de 5% em algum CC, alguma célula tem de ser crítica"
+    )
+
+
+def test_a_satisfacao_mostra_o_numero_dentro_do_segmento(client, massa, diretoria):
+    """Uma barra de 100% esconde se ela vale doze respostas ou mil — e doze é o
+    número real desta massa."""
+    client.force_login(diretoria)
+
+    grafico = client.get(reverse("workspace:resultados")).context[
+        "por_chave"
+    ]["satisfacao"].conteudo["grafico"]
+
+    for serie in grafico.option["series"]:
+        assert serie["label"]["position"] == "inside"
+        assert serie["data"][0]["rotulo"].isdigit()
+
+
+def test_os_projetos_ganham_dois_graficos_e_nao_um(client, massa, diretoria):
+    """A rosca responde "como está a carteira" e o bullet responde "o que vence
+    antes do quê". Espremê-las num só produziria um que não responde nenhuma."""
+    client.force_login(diretoria)
+
+    conteudo = client.get(reverse("workspace:resultados")).context[
+        "por_chave"
+    ]["projetos"].conteudo
+
+    assert conteudo["grafico"].option["series"][0]["type"] == "pie"
+    assert conteudo["grafico_marcos"].option["series"][0]["type"] == "bar"
+
+
+def test_os_vencimentos_usam_barra_porque_a_ordem_importa(client, massa, diretoria):
+    """As faixas são cumulativas no tempo. Uma rosca ordena por tamanho e perde
+    a única coisa que importa — qual vence antes."""
+    client.force_login(diretoria)
+
+    grafico = client.get(reverse("workspace:resultados")).context[
+        "por_chave"
+    ]["vencimentos"].conteudo["grafico"]
+
+    assert grafico.option["series"][0]["type"] == "bar"
+    assert [linha[0] for linha in grafico.linhas] == [
+        "até 30 dias", "até 60 dias", "até 90 dias", "até 180 dias"
+    ]
+
+
+def test_faixa_indisponivel_nao_ganha_grafico_vazio(client, diretoria):
+    """Sem espelho, a faixa diz que a fonte não está conectada — e não desenha
+    um eixo com escala inventada."""
+    from workspace.providers import resultados as contrato
+
+    guardados = dict(contrato._provedores)
+    contrato.limpar()
+    try:
+        client.force_login(diretoria)
+        resposta = client.get(reverse("workspace:resultados"))
+        assert resposta.status_code == 200
+        for chave in ("contratos", "projetos", "pessoas", "satisfacao"):
+            conteudo = resposta.context["por_chave"][chave].conteudo or {}
+            assert not conteudo.get("grafico"), f"{chave} desenhou sem fonte"
+    finally:
+        contrato.limpar()
+        contrato._provedores.update(guardados)

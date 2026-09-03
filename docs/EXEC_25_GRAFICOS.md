@@ -490,7 +490,75 @@ inteira" — o silêncio seria ambíguo.
 
 ---
 
-## 25.9 ADR
+## 25.9 As faixas 3 a 7 — o catálogo ligado no resto do painel
+
+As ondas 10 e 11 desenharam receita, EBITDA e a barra da perfuração. As outras
+cinco faixas continuaram sendo tabela. Este passo liga o catálogo nelas.
+
+### O que estava errado no diagnóstico
+
+A primeira leitura foi que as faixas 3 a 7 dependiam de fonte não configurada, e
+por isso não teriam gráfico até haver credencial. Está errado, e o erro vale
+registrar porque ele confunde duas coisas diferentes.
+
+**Espelho não é integração.** O espelho é tabela local do app `resultados`. Quem
+o enche é um conector — API, CSV ou um comando de management. `semear_resultados`
+enche as seis faixas por CSV hoje, sem credencial nenhuma. A tela lê do espelho e
+**não sabe quem o encheu** — que é precisamente a restrição 3.
+
+Ou seja: a pergunta "não daria para fazer um dado mockado para criar a página e
+testar?" já tinha resposta afirmativa no repositório. O que falta para a carteira
+e a satisfação não é dado — é a rotina que substitui o CSV pela API.
+
+### Qual forma para qual pergunta
+
+| Faixa | Tipo | A pergunta que ele responde |
+|---|---|---|
+| Carteira | dispersão | quais contratos faturam bem **e** dão margem ruim |
+| Mix | rosca | quanto do faturamento vem de cada serviço |
+| Vencimentos | barras por categoria | o que vence antes do quê |
+| Projetos | rosca + bullet | como está a carteira, e o que atrasa |
+| Quadro | mapa de calor | qual centro de custo perde gente |
+| Satisfação | barra de composição | quanto de cada nota, e sobre quantas respostas |
+
+Três escolhas aqui não são óbvias, e são as que os testes protegem.
+
+**A dispersão exclui quem não tem amostra, e diz quantos.** Um contrato que
+faturou uma vez cai num quadrante por falta de histórico, não por desempenho —
+e o quadrante ruim é o que gera conversa com o cliente. Ele sai do gráfico e o
+número de excluídos aparece por escrito abaixo dele. Restrição 5: sem amostra é
+`—`, e não `0`.
+
+**O mapa do quadro inverte os limiares.** Turnover e absenteísmo são métricas em
+que **menor é melhor**. `mapa_calor_tabela(maior_melhor=False)` existe por isso.
+Sem a inversão, o centro de custo que perdeu metade da equipe apareceria em
+verde — que é o modo mais caro de um painel estar errado, porque ninguém
+desconfia de verde.
+
+**Os projetos ganham dois gráficos, e não um.** A rosca responde "como está a
+carteira" e o bullet responde "o que vence antes do quê". Espremer as duas num só
+produz um gráfico que não responde nenhuma das duas.
+
+**Os vencimentos são barra, e não rosca.** As faixas são cumulativas no tempo, e
+a rosca ordena por tamanho — perdendo a única coisa que importa aqui, que é a
+ordem cronológica.
+
+### O número dentro do segmento
+
+A satisfação usa `position: "inside"`. Uma barra de composição que chega a 100%
+esconde se ela vale doze respostas ou mil, e doze é o número real desta massa. A
+contagem aparece dentro do segmento; o percentual, na tabela irmã.
+
+### Sem fonte, sem gráfico
+
+`_com_graficos()` só desenha a faixa cujo espelho respondeu. Faixa sem conteúdo
+mantém o texto que diz qual fonte falta — restrição 6 —, e não ganha um eixo com
+escala inventada. `test_faixa_indisponivel_nao_ganha_grafico_vazio` derruba o
+provider e confere que nenhuma das quatro desenha.
+
+---
+
+## 25.10 ADR
 
 ### ADR-041 · O bundle é versionado; o PDF leva tabela e diz que não tem gráfico
 

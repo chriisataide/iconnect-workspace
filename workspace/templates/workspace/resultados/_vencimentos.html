@@ -1,4 +1,4 @@
-{% load i18n wks %}
+{% load i18n wks graficos %}
 {% comment %}
   A "Defesa de Território" do benchmark, reduzida ao que a ADB responde.
 
@@ -6,6 +6,14 @@
   não em "30". Repeti-lo nas duas faria a soma das faixas não bater com a
   carteira, e alguém contaria duas vezes na reunião.
 {% endcomment %}
+{% comment %}
+  BARRA e não rosca: as faixas são CUMULATIVAS no tempo e têm ordem. Uma rosca
+  ordena por tamanho e perde a única coisa que importa aqui — qual vence antes.
+{% endcomment %}
+{% if faixa.conteudo.grafico %}
+  {% grafico faixa.conteudo.grafico %}
+{% endif %}
+
 <div class="au-colunas au-colunas--quatro">
   {% for bloco in faixa.conteudo.blocos %}
     <div class="au-bloco-vencimento{% if bloco.dias <= 30 and bloco.contratos %} au-bloco-vencimento--urgente{% endif %}">

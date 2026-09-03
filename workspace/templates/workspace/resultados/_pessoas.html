@@ -1,4 +1,4 @@
-{% load i18n wks %}
+{% load i18n wks graficos %}
 {% if faixa.conteudo.quadro %}
   <div class="au-kpi-linha">
     <div class="au-kpi">
@@ -30,6 +30,19 @@
     — e o número que pedia ação desaparece dentro de um número tranquilo. Foi a
     média que escondeu isso na primeira montagem desta faixa.
   {% endcomment %}
+  {% comment %}
+    MAPA DE CALOR em tabela — a grade do Score PEC do benchmark.
+
+    Tabela e não `heatmap`: o número precisa ser SELECIONÁVEL, porque alguém vai
+    copiar uma linha dela para um e-mail. E ela continua legível sem JavaScript.
+
+    Menor é melhor aqui: turnover de 8,4% é crítico, não excelente — os limiares
+    invertem, e o farol acompanha o número com o rótulo escrito.
+  {% endcomment %}
+  {% if faixa.conteudo.mapa %}
+    {% mapa_calor faixa.conteudo.mapa %}
+  {% endif %}
+
   <h3 class="au-subsecao">{% trans "Por centro de custo" %}</h3>
   <div class="au-tabela">
     <table>

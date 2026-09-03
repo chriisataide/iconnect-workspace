@@ -40,6 +40,7 @@ from identidade.services.autorizacao import (
 )
 from workspace.providers import resultados as contrato
 from workspace.providers.frescor import NATIVO
+from workspace.graficos import formato as fmt
 from workspace.services import frescor as frs
 
 PERMISSAO = "eco.ler"
@@ -365,6 +366,44 @@ def dinheiro(escopo: contrato.Escopo, filtros: Filtros) -> Faixa:
         ),
     }
     return faixa
+
+
+def _com_graficos(faixas: dict) -> None:
+    """Acrescenta o gráfico de cada faixa — passo 6.
+
+    Fora dos montadores de propósito: eles são a leitura do espelho, e desenhar
+    é outra coisa. Misturar as duas faria cada montador precisar do catálogo de
+    gráficos para responder quantos contratos existem.
+    """
+    contratos_ = faixas.get("contratos")
+    if contratos_ is not None and contratos_.disponivel and contratos_.conteudo:
+        contratos_.conteudo["grafico"] = _grafico_da_carteira(contratos_.conteudo)
+        contratos_.conteudo["grafico_mix"] = _grafico_do_mix(contratos_.conteudo)
+        contratos_.conteudo["fora_do_grafico"] = sum(
+            1
+            for c in contratos_.conteudo.get("carteira", [])
+            if c.margem_contribuicao_pct is None or c.layer == SEM_AMOSTRA
+        )
+
+    vencimentos_ = faixas.get("vencimentos")
+    if vencimentos_ is not None and vencimentos_.disponivel and vencimentos_.conteudo:
+        vencimentos_.conteudo["grafico"] = _grafico_dos_vencimentos(
+            vencimentos_.conteudo
+        )
+
+    projetos_ = faixas.get("projetos")
+    if projetos_ is not None and projetos_.disponivel and projetos_.conteudo:
+        rosca, bullet = _grafico_dos_projetos(projetos_.conteudo)
+        projetos_.conteudo["grafico"] = rosca
+        projetos_.conteudo["grafico_marcos"] = bullet
+
+    pessoas_ = faixas.get("pessoas")
+    if pessoas_ is not None and pessoas_.disponivel and pessoas_.conteudo:
+        pessoas_.conteudo["mapa"] = _mapa_do_quadro(pessoas_.conteudo)
+
+    satisfacao_ = faixas.get("satisfacao")
+    if satisfacao_ is not None and satisfacao_.disponivel and satisfacao_.conteudo:
+        satisfacao_.conteudo["grafico"] = _grafico_da_satisfacao(satisfacao_.conteudo)
 
 
 def _com_perfuracao(faixa, escopo, filtros: Filtros):
@@ -1086,6 +1125,7 @@ def painel(pessoa, parametros, cache: dict | None = None) -> dict:
     # passo 7 do plano: um mecanismo isolado, numa faixa só. Ligar nas cinco de
     # uma vez tornaria impossível dizer qual delas quebrou.
     _com_perfuracao(faixas["dinheiro"], recorte, filtros)
+    _com_graficos(faixas)
 
     return {
         "filtros": filtros,
@@ -1724,3 +1764,182 @@ def dados(pessoa, parametros, cache: dict | None = None) -> dict:
             for rotulo in ordem
         ],
     }
+
+
+# ── Os gráficos das faixas 3 a 7 — passo 6 ──────────────────────────
+#
+# Um tipo por faixa, e cada escolha responde a uma pergunta diferente. Repetir
+# barra em todas seria mais fácil de escrever e diria menos: o tipo do gráfico é
+# parte do que ele afirma.
+
+
+def _grafico_da_carteira(conteudo: dict):
+    """Dispersão: receita × margem, tamanho pelo valor mensal.
+
+    É a adição nossa ao catálogo, e é aqui que ela ganha sentido: o quadrante
+    direito-inferior — **grande e pouco rentável** — é o que nenhuma tabela
+    ordenada mostra, porque ordenar por um esconde o outro.
+
+    A linha do limiar de 10% é a fronteira do quadrante. Sem ela, ele existe e
+    ninguém vê onde começa.
+    """
+    from workspace.graficos import series
+
+    pontos = [
+        (
+            c.codigo,
+            c.valor_mensal or Decimal("0"),
+            c.margem_contribuicao_pct,
+            c.valor_mensal or Decimal("0"),
+        )
+        for c in conteudo.get("carteira", [])
+        # Sem amostra fica FORA do gráfico: um contrato que faturou uma vez
+        # apareceria no quadrante errado por falta de histórico, e não por
+        # desempenho. O rodapé diz quantos ficaram de fora.
+        if c.margem_contribuicao_pct is not None and c.layer != SEM_AMOSTRA
+    ]
+    return series.dispersao(
+        pontos,
+        chave="carteira",
+        titulo="Receita mensal × margem, por contrato",
+        rotulo_x="Receita mensal",
+        rotulo_y="Margem %",
+        limiar_y=MARGEM_MINIMA,
+    )
+
+
+def _grafico_do_mix(conteudo: dict):
+    """Rosca do mix por serviço, com o total no centro."""
+    from workspace.graficos import series
+
+    return series.rosca(
+        [(item["servico"], item["valor"]) for item in conteudo.get("mix", [])],
+        chave="mix",
+        titulo="Mix da carteira, por serviço",
+        centro_rotulo="carteira mensal",
+    )
+
+
+def _grafico_dos_vencimentos(conteudo: dict):
+    """Barras por faixa de vencimento — 30, 60, 90, 180 dias.
+
+    Barra e não rosca: as faixas são **cumulativas no tempo** e têm ordem. Uma
+    rosca ordena por tamanho e perde a única coisa que importa aqui, que é qual
+    vence antes.
+    """
+    from workspace.graficos import series
+
+    return series.barras_por_categoria(
+        [
+            series.Ponto(
+                rotulo=f"até {bloco['dias']} dias",
+                valor=sum(
+                    (c.valor_mensal or Decimal("0") for c in bloco["contratos"]),
+                    Decimal("0"),
+                ),
+            )
+            for bloco in conteudo.get("blocos", [])
+        ],
+        chave="vencimentos",
+        titulo="Valor mensal a vencer, por faixa",
+        rotulo_serie="Valor mensal",
+    )
+
+
+def _grafico_dos_projetos(conteudo: dict):
+    """Rosca por situação, e o bullet dos marcos em risco.
+
+    Devolve os DOIS: a rosca responde "como está a carteira de projetos" e o
+    bullet responde "o que vence antes do quê". São perguntas diferentes, e
+    espremê-las num gráfico só produziria um que não responde nenhuma.
+    """
+    from workspace.graficos import series
+
+    rosca = series.rosca(
+        [
+            (item["situacao"], Decimal(item["quantidade"]))
+            for item in conteudo.get("por_situacao", [])
+        ],
+        chave="projetos-situacao",
+        titulo="Projetos por situação",
+        centro_rotulo="projetos",
+        centro_valor=str(
+            sum(i["quantidade"] for i in conteudo.get("por_situacao", []))
+        ),
+        formatar_tabela=lambda v: fmt.numero(v),
+    )
+
+    hoje = timezone.localdate()
+    marcos = [
+        (
+            f"{m.projeto} · {m.titulo}"[:40],
+            Decimal((m.prazo - hoje).days) if m.prazo else None,
+            Decimal("0"),
+        )
+        for m in conteudo.get("marcos_em_risco", [])
+    ]
+    bullet = series.bullet(
+        marcos,
+        chave="projetos-marcos",
+        titulo="Marcos em risco — dias até o prazo",
+        rotulo_valor="Dias restantes",
+        rotulo_meta="Hoje",
+        formatar=lambda v: fmt.numero(v) + " d" if v is not None else fmt.VAZIO,
+        formatar_tabela=lambda v: fmt.numero(v) + " d" if v is not None else fmt.VAZIO,
+    )
+    return rosca, bullet
+
+
+def _mapa_do_quadro(conteudo: dict):
+    """Mapa de calor do turnover por centro de custo.
+
+    Tabela e não `heatmap`: é a grade do Score PEC do benchmark, e o número
+    precisa ser selecionável — alguém vai copiar uma linha dela para um e-mail.
+
+    **Menor é melhor**, e por isso os limiares invertem: turnover de 8,4% é
+    crítico, não excelente.
+    """
+    from workspace.graficos import series
+
+    por_centro = conteudo.get("por_centro", [])
+    return series.mapa_calor_tabela(
+        ["Turnover", "Absenteísmo"],
+        [
+            (q.centro_custo or "—", [q.turnover_pct, q.absenteismo_pct])
+            for q in por_centro
+        ],
+        chave="quadro",
+        titulo="Turnover e absenteísmo por centro de custo",
+        critico=Decimal("5"),
+        atencao=Decimal("3"),
+        maior_melhor=False,
+    )
+
+
+def _grafico_da_satisfacao(conteudo: dict):
+    """Barra de composição: promotor, neutro, detrator.
+
+    Composição e não rosca: são três categorias com **ordem** — de promotor a
+    detrator —, e a rosca embaralha essa ordem ao ordenar por tamanho.
+
+    O valor absoluto fica dentro de cada segmento: uma barra de 100% esconde se
+    ela vale doze respostas ou mil, e doze é o número real desta massa.
+    """
+    from workspace.graficos import series
+
+    contagem = conteudo.get("contagem", {})
+    return series.barra_composicao(
+        [
+            (rotulo, Decimal(contagem.get(chave, 0)))
+            for chave, rotulo in (
+                ("promotor", "Promotores"),
+                ("neutro", "Neutros"),
+                ("detrator", "Detratores"),
+            )
+            if contagem.get(chave)
+        ],
+        chave="satisfacao",
+        titulo="Distribuição das avaliações",
+        formatar=lambda v: fmt.numero(v),
+        formatar_tabela=lambda v: fmt.numero(v),
+    )

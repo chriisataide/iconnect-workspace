@@ -1,4 +1,4 @@
-{% load i18n wks %}
+{% load i18n wks graficos %}
 <div class="au-kpi-linha">
   <div class="au-kpi">
     <span class="au-kpi-rotulo">{% trans "contratos na carteira" %}</span>
@@ -48,6 +48,29 @@
       </li>
     {% endfor %}
   </ul>
+{% endif %}
+
+{% comment %}
+  A DISPERSÃO — o tipo 11, adição nossa ao catálogo.
+
+  Ela responde o que nenhuma tabela ordenada responde: quais contratos são
+  GRANDES e POUCO RENTÁVEIS. Ordenar por receita esconde a margem; ordenar por
+  margem esconde o tamanho. O quadrante direito-inferior mostra os dois.
+
+  A linha tracejada é o limiar de 10%. Sem ela, o quadrante existe e ninguém vê
+  onde começa.
+{% endcomment %}
+{% if faixa.conteudo.grafico %}
+  {% grafico faixa.conteudo.grafico %}
+  {% if faixa.conteudo.fora_do_grafico %}
+    <p class="au-vazio-dica">
+      {% blocktrans count n=faixa.conteudo.fora_do_grafico %}{{ n }} contrato ficou de fora do gráfico por não ter amostra suficiente — ele continua na tabela.{% plural %}{{ n }} contratos ficaram de fora do gráfico por não terem amostra suficiente — eles continuam na tabela.{% endblocktrans %}
+    </p>
+  {% endif %}
+{% endif %}
+
+{% if faixa.conteudo.grafico_mix %}
+  {% grafico faixa.conteudo.grafico_mix %}
 {% endif %}
 
 <h3 class="au-subsecao">{% trans "Mix por serviço" %}</h3>

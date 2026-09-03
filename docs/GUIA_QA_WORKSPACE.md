@@ -1461,6 +1461,21 @@ python manage.py semear_resultados --aplicar
 - **Console limpo.** A CSP é estrita: se algum `style=` escapar, o gráfico sai
   torto **sem erro nenhum** no console — confira que as barras existem e têm
   altura diferente entre si.
+- **As nove faixas com número têm desenho.** Receita, EBITDA, exceções,
+  carteira, mix, vencimentos, projetos (dois gráficos), quadro e satisfação.
+  Faixa com tabela e sem gráfico é regressão do passo 6.
+- **Toda tabela irmã abre.** Clique no `<details>` abaixo de cada gráfico: os
+  números da tabela têm de ser os mesmos do desenho, em pt-BR. Se um deles vier
+  com ponto decimal, o formatador foi contornado em algum lugar.
+- **O mapa do quadro pinta turnover alto de VERMELHO.** Menor é melhor nessas
+  duas métricas. Se o centro de custo que mais perdeu gente estiver em verde,
+  **abra bug**: é o modo mais caro do painel estar errado, porque ninguém
+  desconfia de verde.
+- **A dispersão da carteira diz quantos ficaram de fora.** Contrato com menos de
+  três meses de histórico sai do gráfico e é contado por escrito. Se o texto
+  disser zero e a carteira tiver contrato novo, a exclusão parou de funcionar.
+- **A barra da satisfação mostra a CONTAGEM dentro do segmento.** Uma barra de
+  100% sobre doze respostas e outra sobre mil desenham igual.
 
 **Modo apresentação** (`?apresentacao=1`): sem trilho, sem filtros, tipografia
 maior. Confira no *view-source* que `au-rail-item` **não está no HTML** — e não

@@ -88,6 +88,12 @@ Ele **nunca reativa** uma fonte desligada à mão. Desativar é o freio de quem
 opera, quase sempre no meio de um incidente; a semeadora roda no deploy
 seguinte, que é exatamente quando desfazer isso seria pior.
 
+E, mesmo sem credencial nenhuma, o painel de resultados desenha as nove faixas.
+Quem enche o espelho é `semear_resultados --aplicar`, por CSV. **Espelho não é
+integração:** a tela lê a tabela local e não sabe quem a encheu — ligar a API do
+Sankhya depois troca o conector, e não a tela. É por isso que carteira, mix,
+vencimentos, projetos, quadro e satisfação já podem ser conferidos hoje.
+
 Rodar uma carga:
 
 ```bash

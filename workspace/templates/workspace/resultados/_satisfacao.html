@@ -1,4 +1,13 @@
-{% load i18n wks %}
+{% load i18n wks graficos %}
+{% comment %}
+  COMPOSIÇÃO e não rosca: promotor, neutro e detrator têm ORDEM, e a rosca a
+  embaralha ao ordenar por tamanho. O valor absoluto fica dentro de cada
+  segmento — uma barra de 100% esconde se ela vale doze respostas ou mil.
+{% endcomment %}
+{% if faixa.conteudo.grafico %}
+  {% grafico faixa.conteudo.grafico %}
+{% endif %}
+
 <div class="au-kpi-linha">
   <div class="au-kpi">
     <span class="au-kpi-rotulo">{% trans "promotores" %}</span>
