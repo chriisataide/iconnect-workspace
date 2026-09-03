@@ -776,12 +776,15 @@ def test_contexto_do_rail_usa_pessoa_aberta_para_anonimo():
              "workspace:aprovacoes"]
 )
 def test_nenhuma_tela_usa_atributo_style(client, cenario, rota):
-    """A CSP de produção traz nonce em `style-src`, e navegador moderno IGNORA
-    `unsafe-inline` quando há nonce — nonce não se aplica a atributo `style=""`.
+    """O mesmo que o lint de `test_csp_e_estilo_inline.py`, pelo outro lado.
 
-    Foi por isso que a barra de orçamento virou SVG: `width` é atributo, não
-    estilo. Este teste impede a regressão silenciosa, que só apareceria em
-    produção como layout quebrado.
+    Aquele varre os TEMPLATES, como arquivo. Este varre o HTML RENDERIZADO — e é
+    o que pega o `style=` que não está em template nenhum: o que um serviço monta
+    numa string, o que vem de um campo de texto do banco, o que um filtro produz.
+
+    Os dois se sobrepõem de propósito. Depois da Onda 9.5 o navegador aceita
+    estilo inline, e quando a cobrança sai do browser é melhor que ela sobre em
+    dois lugares do que caia em nenhum.
     """
     client.force_login(cenario["ana"])
     corpo = client.get(reverse(rota)).content.decode()

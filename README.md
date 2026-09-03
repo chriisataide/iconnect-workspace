@@ -35,7 +35,13 @@ cookie de sessão. A consequência era medível, não teórica:
   um produto que precisa de `unsafe-inline` em `style-src`.
 
 O terceiro item deixou de ser um problema no primeiro dia deste repositório: a
-CSP aqui não tem `unsafe-inline` em nenhuma diretiva.
+CSP aqui nasceu sem `unsafe-inline` em diretiva nenhuma.
+
+Ela deixou de ser assim na Onda 9.5, e de propósito: `style-src` abriu para
+comportar a biblioteca de gráficos, que escreve `style=` no DOM como toda
+biblioteca de mercado. **`script-src` não abriu** — continua `'self'` com nonce.
+A regra "nenhum `style=` em template nosso" virou lint, e é ela que mantém aberta
+a porta de voltar atrás ([ADR-040](docs/EXEC_25_GRAFICOS.md)).
 
 ---
 
@@ -166,7 +172,7 @@ casa, que era o ponto de existir um contrato.
 | …e enviar qualquer coisa também | **Assinar em nome de alguém** exige identidade: enviar pedido, aprovar, acertar, cancelar, marcar reserva, confirmar leitura, baixar anexo. Sempre no envio, nunca na consulta — quando o mesmo endereço faz as duas coisas, a fronteira passa entre o GET e o POST. A tela `/entrar/` existe só para isso: nenhum link leva até ela. |
 | "Aplicativos" é a última faixa da home | A home abria por lá, com o iConnect como tile herói — o que a fazia um *app launcher*, com o trabalho da pessoa em segundo lugar. |
 | Anexos moram fora de `MEDIA_ROOT` | Segurança, não organização de pasta: servidor web serve `MEDIA_ROOT` sem passar por view. No projeto anterior o nginx expôs `/media/` sem autenticação. |
-| Nenhum `style=` em template | A CSP não tem `unsafe-inline`. Navegador ignora `unsafe-inline` quando há nonce, e nonce não se aplica a atributo `style` — o estilo é descartado **em silêncio**. Por isso a barra da bandeja é SVG, onde `width` é atributo. |
+| Nenhum `style=` em template **nosso** | `style-src` abriu na Onda 9.5 para a biblioteca de gráficos: o que ela injeta é aceito, o que nós escrevemos, não. A cobrança saiu do navegador e virou lint sobre o repositório inteiro — é ele que mantém aberta a porta de fechar `style-src` de novo com uma linha, e não com uma auditoria. A barra da bandeja segue em SVG, onde `width` é atributo: desenhar assim sobrevive à política fechada ([ADR-040](docs/EXEC_25_GRAFICOS.md)). |
 | A busca não pré-preenche o formulário | "quero 3 dias de férias em setembro" abre o pedido em branco. Interpretar quantidade e data erra sem avisar, e pedido com data errada é pior que pedido vazio. |
 | Módulos marcados "Em breve" | Módulo sem dado é pior que módulo ausente (ADR-012). |
 | Notificação pode repetir | Não há constraint de unicidade, de propósito: constraint em aviso falha *silenciando* a pessoa, que é pior que avisar duas vezes. |

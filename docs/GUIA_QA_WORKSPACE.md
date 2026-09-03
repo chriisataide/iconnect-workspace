@@ -310,9 +310,14 @@ explícita ("Nenhum comunicado no ar.").
 
 ### 2.7 Nada de estilo inline
 
-A CSP de produção usa nonce em `style-src`, e navegador moderno **ignora
-`unsafe-inline` quando há nonce**. Isso significa que qualquer `style="…"` num
-template do Workspace é bloqueado silenciosamente em produção.
+`style-src` tem `unsafe-inline` desde a Onda 9.5 — a biblioteca de gráficos
+precisa dele. O navegador **aceita** um `style="…"` agora, e por isso a regra
+passou a ser cobrada por lint (`test_csp_e_estilo_inline.py`), sobre o
+repositório inteiro.
+
+O que continua valendo: **estilo inline escrito por nós é bug**, mesmo desenhando
+na tela. O que a biblioteca injeta é aceito. E `script-src` continua sem
+`unsafe-inline` — um `onclick=` segue bloqueado, em silêncio.
 
 **Como testar:** abra o console do navegador em cada tela. Zero erro de CSP,
 zero aviso de recurso bloqueado. O console é fonte de verdade aqui — ele já

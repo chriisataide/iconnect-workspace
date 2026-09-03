@@ -117,4 +117,7 @@ cargas = 97.0      # medido 97.39 · conectores, carregador, transporte
 #   do portal do funcionário — vale mais que o tamanho.
 # 3170 → 3190: os 14 de `conferir_integracoes`, metade deles sobre o comando NÃO
 #   imprimir credencial. A saída dele existe para ser colada num chamado.
-minimo = 3190
+# 3190 → 3200: os 8 da CSP depois que `style-src` abriu. São os que impedem duas
+#   regressões opostas: alguém fechar `style-src` de novo (o gráfico sai errado
+#   em silêncio) e alguém abrir `script-src` junto.
+minimo = 3200

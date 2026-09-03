@@ -197,17 +197,50 @@ ARQUIVOS_PRIVADOS_ROOT = Path(
 
 # ── Segurança ───────────────────────────────────────────────────────
 
-# CSP sem `unsafe-inline` em nenhuma diretiva. O Workspace não tem um único
-# `style=` nem `onclick=` — há teste que verifica —, então a política estrita
-# não exige nonce e não tem exceção para manter.
-SEGURANCA_CSP = (
+# ── A CSP ───────────────────────────────────────────────────────────
+#
+# Até a Onda 9.5, esta política não tinha `unsafe-inline` em diretiva nenhuma, e
+# o comentário aqui dizia isso com orgulho. Ele mudou, e a razão está no ADR-040
+# (docs/EXEC_25_GRAFICOS.md): a decisão de produto passou a ser usar biblioteca
+# de gráficos, e toda biblioteca de mercado escreve `style=` no DOM — tooltip,
+# redimensionamento, posição de legenda.
+#
+# ## O que abriu, e o que NÃO abriu
+#
+#   style-src   'self' 'unsafe-inline'   — abriu. É o preço da biblioteca.
+#   script-src  'self' 'nonce-…'         — INTOCADA quanto a inline. Nenhuma
+#                                          biblioteca de gráfico precisa dela.
+#
+# ## Por que o nonce está em script-src e NÃO em style-src
+#
+# Navegador moderno **ignora `unsafe-inline` quando há nonce na mesma diretiva**.
+# Um nonce em `style-src` manteria o comportamento antigo com a aparência de ter
+# aberto — e o sintoma seria gráfico saindo errado, em silêncio, sem nada no log.
+#
+# Em `script-src` o nonce não enfraquece nada: ele só anula `unsafe-inline`, que
+# não está lá. O que ele faz é permitir, sem ambiguidade, o bloco
+# `<script type="application/json" nonce="…">` que leva os números do servidor
+# para o gráfico.
+#
+# ## As contrapartidas
+#
+# Com `style-src` aberta, o vetor real passa a ser injeção de CSS: um seletor de
+# atributo com `background-image` vaza o valor de um campo para fora. Seis das
+# oito saídas já estavam fechadas desde o início; `frame-src 'none'` entrou
+# nesta onda — `default-src` a cobria, e `default-src 'self'` permite iframe de
+# mesma origem.
+#
+# A política é montada POR REQUISIÇÃO em `iconnect_workspace.seguranca`, porque o
+# nonce muda a cada uma. Esta constante é o molde, com `{nonce}` no lugar.
+SEGURANCA_CSP_MOLDE = (
     "default-src 'self'; "
-    "script-src 'self'; "
-    "style-src 'self'; "
+    "script-src 'self' 'nonce-{nonce}'; "
+    "style-src 'self' 'unsafe-inline'; "
     "img-src 'self' data:; "
     "font-src 'self'; "
     "connect-src 'self'; "
     "form-action 'self'; "
+    "frame-src 'none'; "
     "frame-ancestors 'none'; "
     "base-uri 'self'; "
     "object-src 'none'"

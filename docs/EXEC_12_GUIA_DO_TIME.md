@@ -251,7 +251,7 @@ Todo `FileField` usa `ArmazenamentoPrivado`, que **não tem `base_url`** — `.u
 
 ### 8 · Nenhum estilo ou handler inline
 
-A CSP é `default-src 'self'`, sem `unsafe-inline`. Navegador moderno **descarta `style=""` em silêncio** quando há política estrita — o elemento simplesmente não recebe o estilo, e nada aparece no log. Por isso a barra tripla da bandeja é desenhada em SVG, onde `width` é atributo.
+A CSP é `default-src 'self'`. `script-src` continua sem `unsafe-inline` — um `onclick=` é **descartado em silêncio**, e nada aparece no log. `style-src` abriu na Onda 9.5 para a biblioteca de gráficos, e por isso `style=` em template nosso passou a ser cobrado por **lint** e não pelo navegador. A barra tripla da bandeja segue em SVG, onde `width` é atributo: ela sobrevive à política fechada, e fechar de novo não deveria custar uma reescrita.
 
 ---
 

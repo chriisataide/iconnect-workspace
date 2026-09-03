@@ -198,11 +198,27 @@ def test_o_logout_nao_e_um_link():
 # ── Cabeçalhos e CSP ────────────────────────────────────────────────
 
 
-def test_a_csp_nao_tem_unsafe_inline(client):
+def test_a_csp_nao_abriu_script_src(client):
+    """Atualizado na Onda 9.5, não removido.
+
+    Ele afirmava "sem `unsafe-inline` em diretiva nenhuma", e isso deixou de ser
+    verdade de propósito: `style-src` abriu para a biblioteca de gráficos
+    (ADR-040). O que ele afirma agora é a parte que **não** pode mudar —
+    `script-src` sem inline e sem `eval`.
+
+    A conferência completa da política mora em `test_csp_e_estilo_inline.py`,
+    inclusive a que exige `unsafe-inline` presente em `style-src`: sem ela, um
+    "endurecimento" bem-intencionado quebraria o gráfico em silêncio.
+    """
     resposta = client.get(reverse("workspace:home"))
     csp = resposta["Content-Security-Policy"]
+    script_src = next(
+        p.strip() for p in csp.split(";") if p.strip().startswith("script-src")
+    )
 
-    assert "unsafe-inline" not in csp
+    assert "unsafe-inline" not in script_src
+    # `unsafe-eval` em NENHUMA diretiva. Biblioteca que precise dele interpreta
+    # string como código, e a string vem de um JSON montado pelo servidor.
     assert "unsafe-eval" not in csp
     assert "default-src 'self'" in csp
 
@@ -216,9 +232,18 @@ def test_os_cabecalhos_de_seguranca_vao_em_toda_resposta(client):
 
 
 def test_nenhum_template_usa_estilo_ou_handler_inline():
-    """A CSP é `style-src 'self'` sem `unsafe-inline`: navegador moderno
-    DESCARTA `style=""` em silêncio, e o elemento simplesmente não recebe o
-    estilo — sem nada no log do servidor."""
+    """Estilo inline e handler `on*=` em template do Workspace.
+
+    Depois da Onda 9.5 as duas metades têm motivos diferentes, e vale separar:
+
+    - `on*=` continua **bloqueado pelo navegador** — `script-src` não abriu, e o
+      handler é descartado em silêncio;
+    - `style=` passou a ser aceito pelo navegador, e proibido por LINT. O que a
+      biblioteca de gráficos injeta é aceito; o que nós escrevemos, não.
+
+    Este cobre `workspace/templates/`; `test_csp_e_estilo_inline.py` cobre o
+    repositório inteiro, inclusive `contas/`.
+    """
     ofensores = []
     for caminho in (RAIZ / "workspace" / "templates").rglob("*.html"):
         texto = caminho.read_text(encoding="utf-8")

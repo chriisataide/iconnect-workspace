@@ -62,12 +62,17 @@ jobs:
         # demais para a cobertura sozinha detectar remoção.
         run: python scripts/check_coverage_ratchet.py
 
-      - name: Nenhum estilo inline escapou
-        # A CSP de produção não tem `unsafe-inline`. Um `style=` que entre aqui
-        # não desenha em produção e não avisa em lugar nenhum — o navegador
-        # descarta em silêncio. Este gate é o que mantém a política estrita
-        # possível.
-        run: python -m pytest workspace/tests/test_telas_servicos.py -k atributo_style -q
+      - name: A CSP e o estilo inline
+        # Depois da Onda 9.5, `style-src` tem `unsafe-inline` — o navegador
+        # ACEITA estilo inline agora. Este gate é o que passou a cobrar no lugar
+        # dele, e ele é maior do que era: varre o repositório inteiro, e afirma
+        # que `script-src` NÃO abriu junto.
+        #
+        # O teste renderizado continua, no mesmo gate: aquele pega o `style=`
+        # que um serviço monta em string e que nenhum template contém.
+        run: |
+          python -m pytest workspace/tests/test_csp_e_estilo_inline.py -q
+          python -m pytest workspace/tests/test_telas_servicos.py -k atributo_style -q
 
       - name: A separação com o iConnect continua de pé
         run: python -m pytest workspace/tests/test_isolamento.py -q
