@@ -120,4 +120,7 @@ cargas = 97.0      # medido 97.39 · conectores, carregador, transporte
 # 3190 → 3200: os 8 da CSP depois que `style-src` abriu. São os que impedem duas
 #   regressões opostas: alguém fechar `style-src` de novo (o gráfico sai errado
 #   em silêncio) e alguém abrir `script-src` junto.
-minimo = 3200
+# 3200 → 3210: os 9 do SVG que não desenhava. Metade deles renderiza a tela com
+#   dado de VERDADE — a primeira versão passava sem a correção, porque sem
+#   espelho a série sai vazia e não há coordenada para conferir.
+minimo = 3210

@@ -10,6 +10,25 @@ E porque template não faz conta. `{% widthratio %}` resolve uma proporção e n
 resolve escala com base negativa, que é o caso de margem de contribuição — o
 gráfico do EBITDA tem barras para os dois lados.
 
+## Coordenada de SVG é TEXTO, e não número
+
+Este módulo devolve `x`, `y`, `largura` e `altura` como **string**, com ponto
+decimal. Parece detalhe e não é: foi o defeito que deixou os dois gráficos da
+tela de Resultados **em branco**, e ninguém viu por semanas.
+
+O Django localiza número em template. Com `LANGUAGE_CODE = "pt-br"`, `{{ 10.52 }}`
+renderiza `10,52` — que é o certo para um valor numa tabela e é **inválido** num
+atributo de SVG. A gramática de `x=""` é ASCII com ponto; com vírgula, o
+navegador descarta o `<rect>` inteiro. Sem erro no console, sem nada no log do
+servidor: o gráfico simplesmente não está lá.
+
+`{% localize off %}` no template resolveria — e cairia no dia em que alguém
+escrevesse o próximo SVG. Formatar aqui resolve para todo template que use este
+módulo, inclusive os que ainda não existem.
+
+`valor` continua `Decimal`: ele vai para o `<title>`, que é texto para gente ler,
+onde a vírgula é o certo.
+
 ## O que este módulo NÃO faz
 
 Não escolhe cor, não escreve rótulo em português e não sabe o que é receita. Ele
@@ -29,12 +48,27 @@ ALTURA = 180
 MARGEM = 4
 
 
+def coordenada(valor: float) -> str:
+    """Um número pronto para entrar num atributo de SVG.
+
+    Ponto decimal sempre, e sem zeros à toa: `10.52`, `176`, `0.5`. O `:g` corta
+    a cauda de `176.0` sem transformar `0.5` em `0`.
+
+    Público de propósito: quem escrever o próximo SVG deste produto precisa
+    achar isto antes de escrever `x="{{ algo }}"`.
+    """
+    return f"{float(valor):g}"
+
+
 @dataclass(frozen=True)
 class Barra:
-    x: float
-    y: float
-    largura: float
-    altura: float
+    #: STRING, e não `float`. Ver o cabeçalho do módulo: número em atributo de
+    #: SVG passa pela localização do Django e sai com vírgula, e o navegador
+    #: descarta o retângulo em silêncio.
+    x: str
+    y: str
+    largura: str
+    altura: str
     rotulo: str
     valor: Decimal
     #: `True` quando o valor é negativo. O template decide o que fazer com isso;
@@ -50,7 +84,9 @@ class Serie:
     #: Onde fica o zero. Com valores só positivos ele é a base; com negativos,
     #: fica no meio — e é o que faz o EBITDA negativo apontar para baixo em vez
     #: de virar uma barra minúscula para cima.
-    linha_zero: float = ALTURA
+    #:
+    #: String pelo mesmo motivo das coordenadas da barra: ela vai para `y1`.
+    linha_zero: str = coordenada(ALTURA)
     maximo: Decimal = Decimal("0")
     minimo: Decimal = Decimal("0")
 
@@ -93,12 +129,12 @@ def barras(
         negativa = valor < 0
         desenhadas.append(
             Barra(
-                x=round(indice * passo + (passo - espessura) / 2, 2),
-                y=round(zero if negativa else zero - comprimento, 2),
-                largura=round(espessura, 2),
+                x=coordenada(round(indice * passo + (passo - espessura) / 2, 2)),
+                y=coordenada(round(zero if negativa else zero - comprimento, 2)),
+                largura=coordenada(round(espessura, 2)),
                 # Altura mínima de meio pixel: barra de valor zero com altura
                 # zero some, e sumir é diferente de valer zero.
-                altura=round(max(comprimento, 0.5), 2),
+                altura=coordenada(round(max(comprimento, 0.5), 2)),
                 rotulo=rotulo,
                 valor=valor,
                 negativa=negativa,
@@ -109,7 +145,7 @@ def barras(
         barras=desenhadas,
         largura=largura,
         altura=altura,
-        linha_zero=round(zero, 2),
+        linha_zero=coordenada(round(zero, 2)),
         maximo=maximo,
         minimo=minimo,
     )
