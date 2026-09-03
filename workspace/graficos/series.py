@@ -19,6 +19,21 @@ Por isso todo bloco carrega `<table>` com os mesmos números, e por isso ela abr
 por padrão quando não há JS. O benchmark faz isso naturalmente — em quase toda
 tela o gráfico convive com a grade, e é na grade que a pessoa confere.
 
+## O rótulo é GIRADO, e é assim que treze meses cabem
+
+Com o texto na horizontal, `R$ 1,19 Mi` mede mais que a largura de uma barra de
+treze — e os rótulos se sobrepõem até virarem uma mancha. Foi o que aconteceu na
+primeira versão desta onda, e o que o Portal GPS resolve girando o texto em 90°
+e pondo-o **dentro** da barra.
+
+Girado, o rótulo ocupa a ALTURA, que sobra, em vez da largura, que falta. É a
+razão de `label.rotate: 90` estar em todo tipo daqui — e de a fonte ser 10px:
+o rótulo é conferência, não manchete.
+
+Barra baixa demais para caber o texto dentro fica sem rótulo, e não com o texto
+transbordando: `labelLayout.hideOverlap` deixa o ECharts esconder o que não cabe.
+O número continua na tabela irmã, que é onde se confere.
+
 ## Cor nunca sozinha
 
 O benchmark depende de verde/amarelo/vermelho em quase tudo. Aqui toda
@@ -85,6 +100,31 @@ class Bloco:
     @property
     def vazio(self) -> bool:
         return not self.linhas
+
+
+def _rotulo(dimensao: str = "rotulo", cor: str = COR_TEXTO, dentro: bool = False) -> dict:
+    """O rótulo por ponto — GIRADO em 90°.
+
+    É o que faz treze meses caberem, e é o que o Portal GPS faz. Na horizontal,
+    `R$ 1,19 Mi` mede mais que a largura de uma barra de treze e os rótulos
+    viram uma mancha.
+
+    `hideOverlap` fica no `labelLayout` de quem chama: o que não couber some, e
+    o número continua na tabela irmã.
+    """
+    return {
+        "show": True,
+        # A dimensão nomeada, resolvida contra o dado bruto. Conferido no fonte
+        # da 6.1.0, `lib/model/mixin/dataFormat.js`.
+        "formatter": f"{{@{dimensao}}}",
+        "rotate": 90,
+        "position": "insideBottom" if dentro else "top",
+        "align": "left" if dentro else "center",
+        "verticalAlign": "middle",
+        "distance": 6,
+        "fontSize": 10,
+        "color": cor,
+    }
 
 
 def _eixo_de_valor(rotulos_curtos: bool = True) -> dict:
@@ -180,25 +220,15 @@ def serie_temporal(
                     "itemStyle": {"color": COR_PRINCIPAL},
                     "barMaxWidth": 34,
                     "smooth": False,
-                    "label": {
-                        "show": True,
-                        # A dimensão nomeada, resolvida contra o dado bruto.
-                        # Conferido no fonte da 6.1.0, `dataFormat.js`.
-                        "formatter": "{@rotulo}",
-                        # Negativo embaixo da barra; positivo em cima. Com
-                        # `top` fixo, o rótulo do negativo cai dentro do eixo.
-                        "position": "top",
-                        "fontSize": 10,
-                        "color": COR_TEXTO,
-                    },
-                    "tooltip": {"valueFormatter": None},
+                    "label": _rotulo(),
+                    "labelLayout": {"hideOverlap": True},
                 }
             ],
         }
     )
     if negativos:
-        # Com valor negativo o rótulo `top` sobrepõe o eixo. `insideBottom` põe
-        # o texto dentro da barra que desce, que é onde há espaço.
+        # Com valor negativo o rótulo em cima sobrepõe o eixo. Dentro da barra
+        # que desce há espaço, e o branco garante contraste sobre o azul.
         option["series"][0]["label"]["position"] = "inside"
         option["series"][0]["label"]["color"] = "#ffffff"
 
@@ -292,22 +322,21 @@ def barras_comparadas(
                     "name": rotulo_a,
                     "encode": {"x": "mes", "y": "a"},
                     "itemStyle": {"color": COR_PRINCIPAL},
-                    "barMaxWidth": 22,
-                    "label": {
-                        "show": True, "formatter": "{@rotulo_a}",
-                        "position": "top", "fontSize": 9, "color": COR_TEXTO,
-                    },
+                    "barMaxWidth": 26,
+                    # DENTRO da barra e girado, como no Portal GPS: com duas
+                    # séries lado a lado e treze meses, rótulo em cima não cabe
+                    # de jeito nenhum.
+                    "label": _rotulo("rotulo_a", cor="#ffffff", dentro=True),
+                    "labelLayout": {"hideOverlap": True},
                 },
                 {
                     "type": "bar",
                     "name": rotulo_b,
                     "encode": {"x": "mes", "y": "b"},
                     "itemStyle": {"color": COR_SECUNDARIA},
-                    "barMaxWidth": 22,
-                    "label": {
-                        "show": True, "formatter": "{@rotulo_b}",
-                        "position": "top", "fontSize": 9, "color": COR_TEXTO,
-                    },
+                    "barMaxWidth": 26,
+                    "label": _rotulo("rotulo_b", cor=COR_TEXTO, dentro=True),
+                    "labelLayout": {"hideOverlap": True},
                 },
             ],
         }
@@ -323,10 +352,21 @@ def barras_comparadas(
                 "itemStyle": {"color": COR_LINHA},
                 "lineStyle": {"color": COR_LINHA, "width": 2},
                 "symbolSize": 6,
+                "z": 10,
+                # O percentual NÃO gira: ele é curto, e é a leitura principal do
+                # bloco — no GPS ele aparece numa etiqueta escura sobre a linha.
                 "label": {
-                    "show": True, "formatter": "{@rotulo_linha}",
-                    "position": "top", "fontSize": 9, "color": COR_LINHA,
+                    "show": True,
+                    "formatter": "{@rotulo_linha}",
+                    "position": "top",
+                    "fontSize": 10,
+                    "fontWeight": "bold",
+                    "color": "#ffffff",
+                    "backgroundColor": COR_LINHA,
+                    "padding": [2, 4],
+                    "borderRadius": 3,
                 },
+                "labelLayout": {"hideOverlap": True},
             }
         )
 

@@ -158,14 +158,34 @@ class Filtros:
     contrato: str = ""
     servico: str = ""
     status: str = ""
+    #: `"1"`, `"2"`, `"3"` — o porte do contrato. String e não inteiro porque
+    #: `sem_amostra` é uma resposta legítima do espelho, e não um número.
+    layer: str = ""
     deficitario: bool = False
+    #: Quantos meses a série mostra. É filtro de LEITURA e não de dado: treze
+    #: meses num gráfico com rótulo por ponto é o limite do que cabe, e seis é
+    #: o que se olha numa reunião mensal.
+    #:
+    #: Nasceu de uma reclamação concreta — "os números ficam um em cima do
+    #: outro". Girar o rótulo resolveu metade; poder estreitar a janela é a
+    #: outra metade, e é a que a pessoa controla.
+    janela: int = MESES_DA_SERIE
 
     @property
     def de(self) -> date:
-        """O início da série de treze meses."""
+        """O início da série."""
         ano, mes = self.competencia.year, self.competencia.month
-        total = ano * 12 + (mes - 1) - (MESES_DA_SERIE - 1)
+        total = ano * 12 + (mes - 1) - (self.meses - 1)
         return date(total // 12, total % 12 + 1, 1)
+
+    @property
+    def meses(self) -> int:
+        """A janela, presa entre 3 e o teto da série.
+
+        Três é o mínimo em que uma tendência existe; abaixo disso o gráfico é
+        uma comparação, e comparação se lê melhor em tabela.
+        """
+        return max(3, min(int(self.janela or MESES_DA_SERIE), MESES_DA_SERIE))
 
     @property
     def ate(self) -> date:
@@ -210,8 +230,18 @@ def ler_filtros(parametros, hoje: date | None = None) -> Filtros:
         contrato=(parametros.get("contrato") or "").strip()[:40],
         servico=(parametros.get("servico") or "").strip()[:20],
         status=(parametros.get("status") or "").strip()[:20],
+        layer=(parametros.get("layer") or "").strip()[:12],
         deficitario=parametros.get("deficitario") in ("1", "true", "sim"),
+        janela=_inteiro(parametros.get("janela"), MESES_DA_SERIE),
     )
+
+
+def _inteiro(texto, padrao: int) -> int:
+    """`?janela=abacaxi` é uma URL digitada errada, não um ataque."""
+    try:
+        return int(texto)
+    except (TypeError, ValueError):
+        return padrao
 
 
 def _competencia(texto: str | None, hoje: date) -> date:
@@ -316,18 +346,41 @@ def dinheiro(escopo: contrato.Escopo, filtros: Filtros) -> Faixa:
         # responde "quanto sobrou" — as outras quatro linhas do benchmark são
         # decomposição, e decomposição se lê na tabela, não em barra.
         #
-        # Onda 10: os dois deixaram de ser SVG calculado à mão e passaram a ser
-        # `Bloco` do ECharts, com VALOR EM CIMA DE CADA PONTO e a tabela irmã
-        # junto. O SVG desenhava e não dizia quanto — o que faz alguém abrir a
-        # tabela para ler o mesmo número duas linhas abaixo.
-        "grafico_receita": _bloco_mensal(
-            serie, "receita_bruta", "receita", "Receita bruta, 13 meses"
+        # Onda 10: o realizado CONTRA o orçado, com a razão em linha no eixo
+        # direito — a 1.1.02 do benchmark. É o desenho que responde "o mês
+        # fechou onde deveria" numa olhada, e a razão de a linha existir.
+        "grafico_receita": _bloco_comparado(
+            serie, "receita_bruta", "receita_orcada", "receita",
+            f"Receita bruta, {filtros.meses} meses",
         ),
+        # EBITDA fica SEM par: o espelho não traz EBITDA orçado. Inventar um
+        # denominador para ter a linha seria a pior forma de completar um
+        # gráfico — o bloco diz o que tem, e a razão fica de fora.
         "grafico_ebitda": _bloco_mensal(
-            serie, "ebitda", "ebitda", "EBITDA, 13 meses"
+            serie, "ebitda", "ebitda", f"EBITDA, {filtros.meses} meses"
         ),
     }
     return faixa
+
+
+def _por_mes(linhas, campo: str) -> tuple[list[str], dict[str, Decimal | None]]:
+    """Soma um campo por mês. `None` quando NENHUMA linha do mês tem o valor.
+
+    A diferença entre `None` e `Decimal("0")` é a de sempre: um mês sem orçado
+    não é um mês de orçado zero, e somá-lo como zero faria a razão dar 0% num
+    mês em que ninguém orçou nada.
+    """
+    total: dict[str, Decimal | None] = {}
+    ordem: list[str] = []
+    for linha in linhas:
+        rotulo = f"{linha.mes:02d}/{str(linha.ano)[2:]}"
+        if rotulo not in total:
+            total[rotulo] = None
+            ordem.append(rotulo)
+        valor = getattr(linha, campo, None)
+        if valor is not None:
+            total[rotulo] = (total[rotulo] or Decimal("0")) + valor
+    return ordem, total
 
 
 def _bloco_mensal(linhas, campo: str, chave: str, titulo: str):
@@ -338,20 +391,47 @@ def _bloco_mensal(linhas, campo: str, chave: str, titulo: str):
     """
     from workspace.graficos import series
 
-    por_mes: dict[str, Decimal] = {}
-    ordem: list[str] = []
-    for linha in linhas:
-        rotulo = f"{linha.mes:02d}/{str(linha.ano)[2:]}"
-        if rotulo not in por_mes:
-            por_mes[rotulo] = Decimal("0")
-            ordem.append(rotulo)
-        por_mes[rotulo] += getattr(linha, campo) or Decimal("0")
-
+    ordem, total = _por_mes(linhas, campo)
     return series.serie_temporal(
-        [(rotulo, por_mes[rotulo]) for rotulo in ordem],
+        [(rotulo, total[rotulo]) for rotulo in ordem],
         chave=chave,
         titulo=titulo,
         rotulo_serie=titulo.split(",")[0],
+    )
+
+
+def _bloco_comparado(linhas, campo_re: str, campo_or: str, chave: str, titulo: str):
+    """Realizado × orçado, com `%RExOR` na linha do eixo direito.
+
+    A linha é o que a faixa existe para mostrar: dois números lado a lado dizem
+    quanto; a razão entre eles diz se está onde deveria. É a leitura que o
+    benchmark põe em etiqueta escura sobre a linha, e é a primeira coisa que
+    alguém procura na reunião.
+
+    Mês sem orçado fica sem barra clara e **sem ponto na linha** — e não com um
+    ponto em zero, que seria lido como "não cumpriu nada".
+    """
+    from workspace.graficos import series
+
+    ordem, realizado = _por_mes(linhas, campo_re)
+    _, orcado = _por_mes(linhas, campo_or)
+
+    pontos = [(rotulo, realizado[rotulo], orcado.get(rotulo)) for rotulo in ordem]
+    razao = [
+        (
+            (re / orc * 100) if (re is not None and orc) else None
+        )
+        for _, re, orc in pontos
+    ]
+
+    return series.barras_comparadas(
+        pontos,
+        chave=chave,
+        titulo=titulo,
+        rotulo_a="Realizado",
+        rotulo_b="Orçado",
+        rotulo_linha="%RExOR",
+        linha=razao,
     )
 
 
@@ -465,6 +545,8 @@ def _filtrar_carteira(carteira, filtros: Filtros):
         carteira = [c for c in carteira if c.servico == filtros.servico]
     if filtros.status:
         carteira = [c for c in carteira if c.status == filtros.status]
+    if filtros.layer:
+        carteira = [c for c in carteira if c.layer == filtros.layer]
     if filtros.deficitario:
         carteira = [c for c in carteira if c.deficitario]
     return carteira
@@ -961,7 +1043,7 @@ def painel(pessoa, parametros, cache: dict | None = None) -> dict:
     """Tudo o que a tela mostra. Levanta `SemResultados` para quem não tem escopo."""
     escopo = escopo_de(pessoa, cache=cache)
     filtros = ler_filtros(parametros)
-    recorte = filtros.aplicar(escopo)
+    recorte = _estreitar_por_atributo(filtros.aplicar(escopo), filtros)
 
     faixas: dict[str, Faixa] = {}
     for chave, montador in MONTADORES:
@@ -975,7 +1057,73 @@ def painel(pessoa, parametros, cache: dict | None = None) -> dict:
         "faixas": [faixas[chave] for chave, _ in MONTADORES],
         "por_chave": faixas,
         "competencias": _competencias_oferecidas(filtros.competencia),
+        # Os serviços que EXISTEM no espelho, e não uma lista escrita à mão:
+        # uma opção que não devolve linha nenhuma é pior que a ausência dela.
+        "servicos": _servicos_oferecidos(faixas),
+        "janelas": JANELAS,
     }
+
+
+#: As janelas oferecidas. Três é o mínimo em que uma tendência existe; treze é
+#: o teto do que cabe com rótulo por ponto.
+JANELAS: tuple[int, ...] = (3, 6, 12, MESES_DA_SERIE)
+
+
+def _estreitar_por_atributo(recorte: contrato.Escopo, filtros: Filtros):
+    """Traduz `serviço` e `layer` em uma LISTA DE CONTRATOS, e estreita o escopo.
+
+    Sem isto, os dois filtravam só a faixa da carteira: a pessoa escolhia
+    "serviço = cftv", a lista de contratos encolhia, e o gráfico do dinheiro
+    continuava mostrando a empresa inteira.
+
+    Duas faixas discordando sobre o mesmo filtro, na mesma tela, é o defeito que
+    faz alguém deixar de confiar no número — e ele não dá erro nem aparece em
+    log.
+
+    A tradução acontece UMA vez, aqui, e vale para todas as faixas. Fazê-la
+    dentro de cada montador seria a mesma consulta cinco vezes, e cinco lugares
+    para ela divergir.
+    """
+    if not (filtros.servico or filtros.layer):
+        return recorte
+
+    provedor = contrato.obter(contrato.ProvedorCarteira)
+    if provedor is None:
+        # Sem carteira não há como traduzir. Devolver o recorte largo mostraria
+        # mais do que o filtro pediu; devolver vazio esconderia tudo. O largo é
+        # o menos errado: a faixa da carteira já diz que a fonte não respondeu.
+        return recorte
+
+    codigos = tuple(
+        sorted(
+            c.codigo
+            for c in provedor.contratos(recorte)
+            if (not filtros.servico or c.servico == filtros.servico)
+            and (not filtros.layer or c.layer == filtros.layer)
+        )
+    )
+    if not codigos:
+        # Nenhum contrato casa. `("",)` é um código que não existe — e é o que
+        # faz as faixas dizerem "sem dado" em vez de mostrarem tudo, que é o que
+        # uma tupla vazia significaria em `Escopo`.
+        codigos = ("",)
+
+    return contrato.Escopo(
+        regionais=recorte.regionais,
+        centros_custo=recorte.centros_custo,
+        contratos=codigos,
+    )
+
+
+def _servicos_oferecidos(faixas: dict) -> list[str]:
+    """Os serviços presentes na carteira visível, ordenados.
+
+    Sai das FAIXAS já montadas e não de uma consulta nova: elas já respeitam o
+    escopo da pessoa, e uma segunda consulta poderia oferecer um serviço que ela
+    não alcança — o que revelaria a existência dele.
+    """
+    contratos = getattr(faixas.get("contratos"), "conteudo", None) or {}
+    return sorted({c.servico for c in contratos.get("carteira", []) if c.servico})
 
 
 def _competencias_oferecidas(atual: date, quantas: int = MESES_DA_SERIE) -> list[date]:

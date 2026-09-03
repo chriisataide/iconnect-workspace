@@ -189,6 +189,59 @@ JavaScript — que é exatamente quem depende dela.
 E não há como pedir metade: `{% templatetag openblock %} grafico {% templatetag closeblock %}`
 renderiza os dois, do mesmo objeto `Bloco`, com os mesmos textos formatados.
 
+### O rótulo é girado — e é assim que treze meses cabem
+
+A primeira versão pôs o valor em cima de cada barra, na horizontal. Com treze
+meses, `R$ 1,19 Mi` mede mais que a largura de uma barra, e os rótulos viraram
+uma mancha ilegível.
+
+O Portal GPS resolve girando o texto em 90° e pondo-o **dentro** da barra —
+girado, o rótulo ocupa a altura, que sobra, em vez da largura, que falta. É o que
+`_rotulo()` faz em todo tipo do catálogo.
+
+`labelLayout.hideOverlap` deixa o ECharts esconder o que ainda não couber. O
+número continua na tabela irmã, que é onde se confere.
+
+**O percentual não gira.** Ele é curto e é a leitura principal do bloco — no
+benchmark ele aparece numa etiqueta escura sobre a linha, e aqui também.
+
+### A faixa do dinheiro: realizado × orçado, com a razão em linha
+
+É a 1.1.02 do benchmark. Duas barras dizem **quanto**; a linha no eixo direito
+diz **se está onde deveria** — e é a primeira coisa que alguém procura na
+reunião.
+
+Mês sem orçado fica **sem barra clara e sem ponto na linha**. Um ponto em zero
+seria lido como "não cumpriu nada", e o que houve foi ninguém ter orçado.
+
+**O EBITDA fica sem par**, e de propósito: o espelho não traz EBITDA orçado.
+Inventar um denominador para ter a linha seria a pior forma de completar um
+gráfico. O bloco mostra o que tem.
+
+### Os filtros, e a segunda causa da sobreposição
+
+Girar o rótulo resolveu metade do amontoado. A outra metade é poder **estreitar
+a janela**, e essa é a que a pessoa controla: 3, 6, 12 ou 13 meses.
+
+Entraram também **serviço** e **layer** — os dois já eram lidos da query string e
+não tinham campo na tela: o filtro existia e ninguém alcançava.
+
+E entraram **valendo para a tela inteira**. Antes, `serviço` e `layer` filtravam
+só a faixa da carteira: a pessoa escolhia "cftv", a lista de contratos encolhia,
+e o gráfico do dinheiro continuava mostrando a empresa inteira.
+
+> Duas faixas discordando sobre o mesmo filtro, na mesma tela, é o defeito que
+> faz alguém deixar de confiar no número — e ele não dá erro nem aparece em log.
+
+`_estreitar_por_atributo()` traduz os dois numa lista de contratos e estreita o
+`Escopo` **uma vez**, antes de montar qualquer faixa. Filtro que não casa com
+nada devolve `("",)` — um código que não existe —, porque tupla vazia em `Escopo`
+significa "a empresa inteira".
+
+O seletor de serviço oferece só o que existe na carteira **visível**: uma segunda
+consulta poderia oferecer um serviço fora do escopo da pessoa, o que revelaria a
+existência dele.
+
 ### O que a Onda 10 apagou
 
 `workspace/services/grafico.py` e `workspace/templates/workspace/_serie_svg.html`

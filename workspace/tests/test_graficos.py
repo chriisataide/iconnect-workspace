@@ -31,10 +31,14 @@ TOKENS = RAIZ / "workspace" / "static" / "workspace" / "src" / "tokens.css"
 
 @pytest.fixture
 def espelho(db):
-    """O espelho com série — sem ele a faixa financeira não desenha nada.
+    """O espelho com série — e com o que os testes precisam PROVAR.
 
-    Mesmo cuidado de `test_svg_desenha.py`: um teste de gráfico sem dado passa
-    com e sem a correção, e não protege coisa alguma.
+    Treze meses, dois serviços e **receita orçada preenchida**. A primeira
+    versão tinha seis meses, um serviço e nenhum orçado: os testes da janela, do
+    filtro e da linha de percentual passavam sem provar nada, porque não havia
+    o que estreitar nem o que comparar.
+
+    Cenário pobre é a forma mais silenciosa de um teste não proteger.
     """
     from datetime import timedelta
 
@@ -44,25 +48,39 @@ def espelho(db):
 
     hoje = timezone.localdate()
     competencia = hoje.replace(day=1)
-    contrato = Contrato.objects.create(
-        fonte=Fonte.PLATFORM, chave_externa="plt-C-GR", codigo="C-GR",
-        nome_cliente="Cliente do gráfico", servico="cftv",
-        centro_custo="1042", regional="Sudeste",
-        inicio_vigencia=hoje - timedelta(days=400),
-        fim_vigencia=hoje + timedelta(days=300),
-        valor_mensal=Decimal("100000"),
-    )
-    for atras in range(6):
+
+    def _contrato(codigo, servico):
+        # `layer` é DERIVADA do ROB pelo espelho — não é campo do contrato. Por
+        # isso este cenário não a fixa: o filtro de layer é exercitado pela
+        # tradução em `_estreitar_por_atributo`, e não por um valor plantado.
+        return Contrato.objects.create(
+            fonte=Fonte.PLATFORM, chave_externa=f"plt-{codigo}", codigo=codigo,
+            nome_cliente=f"Cliente {codigo}", servico=servico,
+            centro_custo="1042", regional="Sudeste",
+            inicio_vigencia=hoje - timedelta(days=800),
+            fim_vigencia=hoje + timedelta(days=300),
+            valor_mensal=Decimal("100000"),
+        )
+
+    contratos = [_contrato("C-CFTV", "cftv"), _contrato("C-ALAR", "alarme")]
+
+    # Treze meses, para a janela ter o que estreitar.
+    for atras in range(13):
         total = competencia.year * 12 + (competencia.month - 1) - atras
         ano, mes = total // 12, total % 12 + 1
-        CompetenciaResultado.objects.create(
-            fonte=Fonte.SANKHYA, chave_externa=f"snk-C-GR-{ano}{mes:02d}",
-            contrato=contrato, centro_custo="1042", ano=ano, mes=mes,
-            receita_bruta=Decimal("1298267.36"),
-            margem_contribuicao=Decimal("-38132.23"),
-            ebitda=Decimal("-96352.11"),
-        )
-    return contrato
+        for contrato in contratos:
+            CompetenciaResultado.objects.create(
+                fonte=Fonte.SANKHYA,
+                chave_externa=f"snk-{contrato.codigo}-{ano}{mes:02d}",
+                contrato=contrato, centro_custo="1042", ano=ano, mes=mes,
+                receita_bruta=Decimal("1298267.36"),
+                # ORÇADO preenchido: sem ele não há segunda barra nem linha de
+                # percentual, e os testes da faixa comparada passariam vazios.
+                receita_orcada=Decimal("1200000.00"),
+                margem_contribuicao=Decimal("-38132.23"),
+                ebitda=Decimal("-96352.11"),
+            )
+    return contratos
 
 
 @pytest.fixture
@@ -451,3 +469,182 @@ def test_barras_comparadas_tem_legenda_com_nome_escrito():
 
     assert bloco.option["legend"]["bottom"] == 0
     assert [s["name"] for s in bloco.option["series"]] == ["Realizado", "Orçado"]
+
+
+# ── O rótulo girado — a sobreposição ────────────────────────────────
+
+
+def test_o_rotulo_do_ponto_e_girado():
+    """Na horizontal, `R$ 1,19 Mi` mede mais que a largura de uma barra de
+    treze — e os rótulos viram uma mancha. Foi o que aconteceu na primeira
+    versão desta onda, e o que o Portal GPS resolve girando o texto."""
+    bloco = series.serie_temporal(_pontos(), chave="x", titulo="t")
+
+    assert bloco.option["series"][0]["label"]["rotate"] == 90
+
+
+def test_o_que_nao_cabe_some_em_vez_de_transbordar():
+    """Barra baixa demais para o texto fica SEM rótulo. O número continua na
+    tabela irmã, que é onde se confere."""
+    bloco = series.serie_temporal(_pontos(), chave="x", titulo="t")
+
+    assert bloco.option["series"][0]["labelLayout"]["hideOverlap"] is True
+
+
+def test_nas_barras_comparadas_o_rotulo_vai_dentro_da_barra():
+    """Com duas séries lado a lado e treze meses, rótulo em cima não cabe de
+    jeito nenhum."""
+    bloco = series.barras_comparadas(
+        [("01/26", Decimal("100"), Decimal("80"))],
+        chave="x", titulo="t", rotulo_a="A", rotulo_b="B",
+    )
+
+    for serie in bloco.option["series"][:2]:
+        assert serie["label"]["rotate"] == 90
+        assert serie["label"]["position"] == "insideBottom"
+
+
+def test_o_percentual_da_linha_nao_gira():
+    """Ele é curto, e é a leitura principal do bloco — no benchmark ele aparece
+    numa etiqueta escura sobre a linha."""
+    bloco = series.barras_comparadas(
+        [("01/26", Decimal("100"), Decimal("80"))],
+        chave="x", titulo="t", rotulo_a="A", rotulo_b="B",
+        rotulo_linha="%", linha=[Decimal("125")],
+    )
+    linha = bloco.option["series"][2]["label"]
+
+    assert "rotate" not in linha
+    assert linha["backgroundColor"] == series.COR_LINHA
+
+
+# ── A faixa do dinheiro ─────────────────────────────────────────────
+
+
+def test_a_faixa_do_dinheiro_compara_realizado_com_orcado(client, espelho, diretoria):
+    """Dois números lado a lado dizem quanto; a razão entre eles diz se está
+    onde deveria — e é a primeira coisa que alguém procura na reunião."""
+    client.force_login(diretoria)
+
+    html = client.get(reverse("workspace:resultados")).content.decode()
+    corpo = re.search(
+        r'id="grafico-dados-receita"[^>]*>(.*?)</script>', html, re.S
+    ).group(1)
+    option = json.loads(corpo)
+
+    assert [s["name"] for s in option["series"]] == ["Realizado", "Orçado", "%RExOR"]
+    assert option["series"][2]["yAxisIndex"] == 1
+
+
+def test_mes_sem_orcado_nao_vira_ponto_em_zero_na_linha():
+    """Um ponto em zero seria lido como "não cumpriu nada" — e o que houve foi
+    ninguém ter orçado."""
+    from workspace.services import resultados as svc
+
+    class Linha:
+        def __init__(self, mes, re_, or_):
+            self.ano, self.mes = 2026, mes
+            self.receita_bruta, self.receita_orcada = re_, or_
+
+    bloco = svc._bloco_comparado(
+        [Linha(1, Decimal("100"), Decimal("80")), Linha(2, Decimal("100"), None)],
+        "receita_bruta", "receita_orcada", "x", "t",
+    )
+    fonte = bloco.option["dataset"]["source"]
+
+    assert fonte[0][3] is not None
+    assert fonte[1][2] is None, "sem orçado, sem barra clara"
+    assert fonte[1][3] is None, "sem orçado, sem ponto na linha"
+
+
+def test_o_ebitda_nao_ganha_par_inventado(client, espelho, diretoria):
+    """O espelho não traz EBITDA orçado. Inventar um denominador para ter a
+    linha seria a pior forma de completar um gráfico."""
+    client.force_login(diretoria)
+
+    html = client.get(reverse("workspace:resultados")).content.decode()
+    corpo = re.search(
+        r'id="grafico-dados-ebitda"[^>]*>(.*?)</script>', html, re.S
+    ).group(1)
+    option = json.loads(corpo)
+
+    assert len(option["series"]) == 1
+
+
+# ── Os filtros ──────────────────────────────────────────────────────
+
+
+def test_a_janela_estreita_a_serie(client, espelho, diretoria):
+    """A outra metade da sobreposição: girar o rótulo resolveu uma, e poder
+    estreitar a janela é a que a pessoa controla."""
+    client.force_login(diretoria)
+
+    def pontos(query):
+        html = client.get(
+            reverse("workspace:resultados") + query
+        ).content.decode()
+        corpo = re.search(
+            r'id="grafico-dados-receita"[^>]*>(.*?)</script>', html, re.S
+        ).group(1)
+        return len(json.loads(corpo)["dataset"]["source"])
+
+    assert pontos("") == 13
+    assert pontos("?janela=6") == 6
+    assert pontos("?janela=3") == 3
+
+
+def test_a_janela_tem_piso_e_teto(client, espelho, diretoria):
+    """Três é o mínimo em que uma tendência existe. E `?janela=999` é uma URL
+    digitada errada, não um ataque."""
+    from workspace.services import resultados as svc
+
+    assert svc.ler_filtros({"janela": "1"}).meses == 3
+    assert svc.ler_filtros({"janela": "999"}).meses == svc.MESES_DA_SERIE
+    assert svc.ler_filtros({"janela": "abacaxi"}).meses == svc.MESES_DA_SERIE
+
+
+def test_o_filtro_de_servico_move_o_grafico_do_dinheiro(client, espelho, diretoria):
+    """Duas faixas discordando sobre o mesmo filtro, na mesma tela, é o defeito
+    que faz alguém deixar de confiar no número — e ele não dá erro."""
+    client.force_login(diretoria)
+
+    def total(query):
+        html = client.get(
+            reverse("workspace:resultados") + query
+        ).content.decode()
+        achado = re.search(
+            r'id="grafico-dados-receita"[^>]*>(.*?)</script>', html, re.S
+        )
+        if not achado:
+            return 0
+        fonte = json.loads(achado.group(1))["dataset"]["source"]
+        return sum(p[1] or 0 for p in fonte)
+
+    inteiro = total("")
+    recortado = total("?servico=cftv")
+
+    assert inteiro > 0
+    assert recortado < inteiro, "o filtro não chegou ao gráfico"
+
+
+def test_filtro_sem_nenhum_contrato_mostra_vazio_e_nao_tudo(client, espelho, diretoria):
+    """Tupla vazia em `Escopo` significa "a empresa inteira". Um filtro que não
+    casa com nada precisa dizer "nada", e não "tudo"."""
+    from workspace.services import resultados as svc
+    from workspace.providers import resultados as contrato_res
+
+    recorte = svc._estreitar_por_atributo(
+        contrato_res.Escopo(), svc.ler_filtros({"servico": "nao-existe"})
+    )
+
+    assert recorte.contratos == ("",)
+
+
+def test_o_seletor_de_servico_so_oferece_o_que_existe(client, espelho, diretoria):
+    """Uma opção que não devolve linha nenhuma é pior que a ausência dela."""
+    client.force_login(diretoria)
+
+    contexto = client.get(reverse("workspace:resultados")).context
+
+    assert contexto["servicos"], "o espelho tem serviço, o seletor precisa listar"
+    assert all(isinstance(s, str) and s for s in contexto["servicos"])

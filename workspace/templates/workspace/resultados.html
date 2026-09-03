@@ -85,6 +85,46 @@
              value="{{ filtros.contrato }}" maxlength="40"
              placeholder="{% trans 'todos' %}">
     </div>
+    {% comment %}
+      SERVIÇO, LAYER e JANELA — os três que faltavam.
+
+      Os dois primeiros já eram lidos da query string e não tinham campo: o
+      filtro existia e ninguém alcançava. O terceiro nasceu de uma reclamação
+      concreta — "os números ficam um em cima do outro". Girar o rótulo resolveu
+      metade; estreitar a janela é a outra metade, e é a que a pessoa controla.
+
+      `<select>` e não texto livre: os valores vêm do espelho, e digitar
+      "monitoramento " com espaço devolvia zero linhas sem dizer por quê.
+    {% endcomment %}
+    <div class="au-filtro">
+      <label class="au-filtro-rotulo" for="f-servico">{% trans "Serviço" %}</label>
+      <select class="au-input au-input--compacto" id="f-servico" name="servico">
+        <option value="">{% trans "todos" %}</option>
+        {% for opcao in servicos %}
+          <option value="{{ opcao }}" {% if opcao == filtros.servico %}selected{% endif %}>{{ opcao }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="au-filtro">
+      <label class="au-filtro-rotulo" for="f-layer">{% trans "Layer" %}</label>
+      <select class="au-input au-input--compacto" id="f-layer" name="layer">
+        <option value="">{% trans "todas" %}</option>
+        <option value="1" {% if filtros.layer == "1" %}selected{% endif %}>1 · até 300 mil</option>
+        <option value="2" {% if filtros.layer == "2" %}selected{% endif %}>2 · 300 a 600 mil</option>
+        <option value="3" {% if filtros.layer == "3" %}selected{% endif %}>3 · acima de 600 mil</option>
+        <option value="sem_amostra" {% if filtros.layer == "sem_amostra" %}selected{% endif %}>{% trans "sem amostra" %}</option>
+      </select>
+    </div>
+    <div class="au-filtro">
+      <label class="au-filtro-rotulo" for="f-janela">{% trans "Janela" %}</label>
+      <select class="au-input au-input--compacto" id="f-janela" name="janela">
+        {% for opcao in janelas %}
+          <option value="{{ opcao }}" {% if opcao == filtros.meses %}selected{% endif %}>
+            {% blocktrans count n=opcao %}{{ n }} mês{% plural %}{{ n }} meses{% endblocktrans %}
+          </option>
+        {% endfor %}
+      </select>
+    </div>
     <label class="au-filtro au-filtro--check">
       <input class="au-check" type="checkbox" name="deficitario" value="1"
              {% if filtros.deficitario %}checked{% endif %}>
