@@ -216,6 +216,7 @@ justificativa no PR.
 |---|---|
 | [`.env.example`](.env.example) | Todas as variáveis de ambiente, o que cada uma protege e quais são obrigatórias em produção |
 | [Guia de QA](docs/GUIA_QA_WORKSPACE.md) | O contrato de cada tela: para que serve, quando é útil, o que é defeito e o que é decisão |
+| [Pendências](docs/PENDENCIAS.md) | As onze coisas que faltam — e **nenhuma delas é código**: são acessos, decisões e infraestrutura, separados por de quem dependem |
 | [Blueprint](docs/BLUEPRINT_ICONNECT_WORKSPACE.md) | A visão do produto |
 | [EXEC 01–10](docs/) | As dez etapas de planejamento, da arquitetura ao reposicionamento |
 | [EXEC 10](docs/EXEC_10_REPOSICIONAMENTO.md) | Onde "Portal" virou "iConnect Workspace", com os ADRs 010–014 |
@@ -249,3 +250,10 @@ mantidos de verdade — em vez de um CSV importado à mão.
 **Assistente de conhecimento.** Depende dos POPs e normativos reais. Com o SSO
 ligado, o mesmo token lê a biblioteca do SharePoint e a ingestão deixa de exigir
 upload manual.
+
+**E, antes de qualquer coisa nova: as onze pendências.** Nenhuma é código — são
+sete variáveis de ambiente, um `crontab` que não foi instalado, três garantias de
+infraestrutura e algumas decisões que só o dono do produto toma. Estão em
+[docs/PENDENCIAS.md](docs/PENDENCIAS.md), separadas por **de quem dependem**,
+porque misturar "falta programar" com "falta pedir a senha" é como uma pendência
+de dez minutos fica seis semanas esperando um sprint.

@@ -1185,14 +1185,18 @@ problema**. São dois caminhos para o mesmo lugar, de propósito.
 
 **Um módulo não é um sistema novo** — é uma vista sobre o que já existe.
 
+São **doze**, e nenhum deles é "Em breve" (conferido em 03/09/2026):
+
 | Módulo | Domínios | Tela |
 |---|---|---|
 | RH | `rh.*` | catálogo |
 | Financeiro | `fin.*` | catálogo |
 | Operações | `ops.*` | catálogo |
-| Logística | `log.*` | catálogo |
+| Suprimentos | `log.*` | catálogo |
 | Redes | `ti.acesso` | catálogo |
-| Compras | `com.*` | catálogo |
+| Vendas | `ven.*` | catálogo |
+| Marketing | `mkt.*` | catálogo |
+| Jurídico | `jur.*` | catálogo |
 | Universidade | `hab.*` | catálogo |
 | Reservas | — | **própria** |
 | Correspondências | — | **própria** |
@@ -1202,8 +1206,9 @@ problema**. São dois caminhos para o mesmo lugar, de propósito.
 
 - Cada módulo lista **só** os serviços dos seus domínios.
 - Anônimo vê a vitrine e, no lugar de "Pedir", vê "Entrar".
-- Módulo sem domínio e sem tela própria fica **"Em breve"** — e não abre página
-  vazia. O honesto é dizer "em breve".
+- **Nenhum módulo abre "Em breve" hoje**, e o selo não aparece na home. Se ele
+  voltar a aparecer, é regressão: "em breve" é uma promessa, e uma promessa que
+  ninguém assinou é pior que a ausência (ADR-039).
 - A navegação por intenção cobre 100% do catálogo; a por departamento **não**.
   `jur.analise` (Análise de contrato) não tem tile nenhum hoje. **Isso é
   conhecido, não é bug.**
@@ -2287,7 +2292,7 @@ bug de tela.
 | Integração com M365 / HRIS | Suíte definida, integração não construída. |
 | `semear_workspace` | Não existe. Documentos, comunicados e correspondências se criam dentro do produto (ver 1.3); recursos têm `semear_recursos`. |
 | Monitor de rede (viabilidade do módulo TI) | Pergunta aberta ao dono do produto. |
-| 14 dos 24 módulos previstos | Marcados "Em breve" de propósito — ver 3.10. |
+| Os módulos previstos além dos 12 | Não estão marcados "Em breve": simplesmente **não existem na lista**. Ausência é honesta; promessa não é (ADR-039). |
 | **Fonte externa "não configurada"** | Nenhuma credencial de Sankhya, monday ou Platform existe em desenvolvimento — e **nunca** existirá no repositório (ela vive em variável de ambiente). "Não configurada" é estado **normal**, e é diferente de "atrasada" e de "desativada". O espelho é enchido por CSV via `semear_resultados`. |
 | Gráfico dentro do PDF | Decisão registrada (ADR-041) — ver 2.8. |
 | Carga automática de madrugada | O `deploy/crontab` existe no repositório e **não está instalado** em nenhuma máquina. Carga só roda por comando à mão. |
@@ -2350,7 +2355,7 @@ que não tem como conferir o número.
 | `no such column` / `OperationalError` | migração pendente (seção 1.1) |
 | Tela vazia sem dado | massa de teste faltando (seção 1.2 e 1.3) |
 | "Você não tem acesso" | papel/lotação faltando (seção 1.4) |
-| Módulo "Em breve" | decisão de produto (seção 6) |
+| Módulo que você esperava e não está na lista | decisão de produto (seção 6) — são 12, e a lista está na 3.10 |
 | iConnect não é o tile principal | decisão de produto (seção 3.1) |
 | Pedido não pré-preenchido pela frase da busca | decisão de produto (seção 3.2) |
 | Gráfico em branco, mas a tabela abaixo tem os números | **Workspace** — abra o bug **com o console anexado**. É sempre CSP ou número mal formatado, e a tela não mostra erro nenhum (seção 2.8) |
