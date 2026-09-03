@@ -506,7 +506,9 @@ def test_semear_de_novo_nao_derruba_a_subida():
     reg.semear()
     reg.semear()
 
-    assert len(reg.todas()) == 18
+    # 19 desde a Onda 8, quando a conciliação de centro de custo ganhou
+    # avaliador — ela esperava o orçamento anual existir.
+    assert len(reg.todas()) == 19
 
 
 def test_a_base_responde_a_tudo_sem_fazer_nada():

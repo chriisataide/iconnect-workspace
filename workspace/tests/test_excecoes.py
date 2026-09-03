@@ -53,8 +53,11 @@ def test_a_semeadora_registra_as_ligadas_e_as_desligadas(regras):
     ligadas = RegraExcecao.objects.filter(ativa=True).count()
     desligadas = RegraExcecao.objects.filter(ativa=False)
 
-    assert ligadas == 18
-    assert desligadas.count() == 5
+    # 18 → 19 e 5 → 4 na Onda 8: `cc-sem-orcado-e-o-inverso` ligou. Ela nasceu
+    # desligada com a nota "só passa a valer quando o orçamento existir aqui
+    # dentro", e o orçamento anual passou a existir.
+    assert ligadas == 19
+    assert desligadas.count() == 4
     assert all(r.fonte_requerida for r in desligadas), "cada uma diz do que depende"
 
 

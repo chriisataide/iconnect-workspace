@@ -110,4 +110,6 @@ cargas = 97.0      # medido 97.39 · conectores, carregador, transporte
 # 2950 → 3050: os 96 de `test_metas.py`, que é o maior arquivo novo desde a
 #   auditoria de segurança — e o que protege o único lugar do produto onde uma
 #   grade de pessoas com nota poderia nascer sem ninguém notar.
-minimo = 3050
+# 3050 → 3120: os 64 do orçamento anual (`workspace` + `financas`), incluindo os
+#   que provam que o teto vigente não muda sem revisão.
+minimo = 3120

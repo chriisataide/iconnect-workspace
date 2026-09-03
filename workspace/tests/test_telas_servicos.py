@@ -507,10 +507,30 @@ def test_faixa_do_pedido_nao_desenha_fora_do_grafico(client, cenario, provider):
     assert fim <= 100.01, f"a barra terminou em {fim}"
 
 
-@pytest.mark.django_db
-def test_sem_orcamento_a_tela_diz_que_nao_calcula(client, cenario):
-    """0% o aprovador leria como folga."""
+@pytest.fixture
+def sem_provider():
+    """O registro de orçamento vazio, DEVOLVIDO ao fim.
+
+    O `limpar()` estava solto neste arquivo, sem restauração: o provider é
+    estado de PROCESSO — registrado no `ready()` do `financas` —, e limpá-lo sem
+    devolver deixava todo teste seguinte da sessão sem domínio financeiro.
+
+    Não doeu enquanto nada depois dependia dele. Doeu no dia em que a tela de
+    orçamento anual passou a depender, e o teste que quebrou foi o novo — que é
+    a pior forma de o defeito aparecer: quem procura a causa olha primeiro para
+    o código que acabou de escrever.
+    """
+    anterior = provedor.obter()
     provedor.limpar()
+    yield
+    provedor.limpar()
+    if anterior is not None:
+        provedor.registrar(anterior)
+
+
+@pytest.mark.django_db
+def test_sem_orcamento_a_tela_diz_que_nao_calcula(client, cenario, sem_provider):
+    """0% o aprovador leria como folga."""
     svc.solicitar(cenario["item"], cenario["ana"], {"o_que": "x"}, Decimal("12400"))
 
     client.force_login(cenario["gestor"])
@@ -723,6 +743,9 @@ def test_contexto_do_rail_usa_pessoa_aberta_para_anonimo():
         # Nem planos de ação: eles nascem de uma regra de exceção, e o
         # anônimo não vê regra nenhuma.
         "ve_planos": False,
+        # Nem orçamento: o teto de um centro de custo é dinheiro da
+        # empresa, e o hub é aberto.
+        "ve_orcamento": False,
         "planos_vencidos": 0,
         "ve_fontes": False,
         # E o mesmo para estoque e equipamentos: a porta do estoque não é

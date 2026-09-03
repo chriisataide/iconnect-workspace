@@ -108,6 +108,9 @@ def test_o_trilho_do_anonimo_e_todo_zero(client, gente_com_coisas):
         # Nem planos de ação: eles nascem de uma regra de exceção, e o
         # anônimo não vê regra nenhuma.
         "ve_planos": False,
+        # Nem orçamento: o teto de um centro de custo é dinheiro da
+        # empresa, e o hub é aberto.
+        "ve_orcamento": False,
         "planos_vencidos": 0,
         "ve_fontes": False,
         # Estoque e custódia entram na mesma regra: a porta do estoque não é

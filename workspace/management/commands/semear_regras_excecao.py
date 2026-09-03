@@ -158,6 +158,23 @@ REGRAS = (
         "exige_plano": True, "prazo_do_plano": 15,
     },
     {
+        # LIGADA na Onda 8. Ela nasceu registrada e desligada na Onda 4, com o
+        # texto "só passa a valer quando o orçamento existir aqui dentro" — e
+        # agora ele existe: `financas.OrcamentoAnual`, com ano, linhas e
+        # revisão. É o que a nota de então prometia.
+        "chave": "cc-sem-orcado-e-o-inverso", "ordem": 185,
+        "titulo": "Centro de custo no ERP e fora do orçamento (e o inverso)",
+        "descricao_curta": "A conciliação de códigos entre Sankhya e o "
+                           "orçamento. Código divergente não dá erro: produz "
+                           "uma linha com realizado e sem orçado.",
+        "severidade": Severidade.ALTA, "escopo_papel": "financeiro",
+        "fonte_requerida": "sankhya",
+        # Conciliação de código não se resolve sozinha, e o benchmark é explícito
+        # ao dizer que ela precisa ser uma REGRA, e não um cuidado. Com limiar,
+        # ela cobra resposta — e a resposta é conferida na reverificação.
+        "exige_plano": True, "prazo_do_plano": 30,
+    },
+    {
         "chave": "marco-vencido", "ordem": 160,
         "titulo": "Marco vencido sem replanejamento",
         "descricao_curta": "Se alguém tivesse replanejado, o prazo seria outro.",
@@ -192,15 +209,6 @@ REGRAS = (
 #: é o registro — "efetivo do CC 1042" —, e nunca a pessoa com documento ao
 #: lado. É o que a leitura do benchmark marcou como não copiar.
 DESLIGADAS = (
-    {
-        "chave": "cc-sem-orcado-e-o-inverso", "ordem": 190,
-        "titulo": "Centro de custo no ERP e fora do orçamento (e o inverso)",
-        "descricao_curta": "A conciliação de códigos entre Sankhya e o "
-                           "orçamento. Só passa a valer quando o orçamento "
-                           "existir aqui dentro.",
-        "severidade": Severidade.ALTA, "escopo_papel": "financeiro",
-        "fonte_requerida": "sankhya + financas",
-    },
     {
         "chave": "aso-vencido", "ordem": 200,
         "titulo": "Efetivo com ASO vencido",

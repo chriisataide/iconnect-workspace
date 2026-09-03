@@ -266,3 +266,266 @@ def conectar() -> None:
     # acontece em teste e com autoreload do runserver, e duplicado dobraria o
     # comprometido.
     aprovacao_decidida.connect(ao_decidir, dispatch_uid="workspace.orcamento.ao_decidir")
+
+
+# ── A grade anual (Onda 8) ──────────────────────────────────────────
+#
+# ## A decisão que veio antes do model
+#
+# Já existiam DOIS orçados neste produto, e a onda começou por decidir de quem
+# é cada um:
+#
+#   `financas`     teto de OPERAÇÃO   → responde "isto cabe?" na aprovação
+#   `resultados`   orçado CONTÁBIL    → responde "o mês fechou onde deveria?"
+#
+# Eles não se fundem. Quando divergem, isso é **divergência entre fontes** — a
+# regra que a ingestão já criou —, e não algo que um `if` resolve. Ver ADR-036.
+#
+# ## As seis colunas
+#
+# O benchmark (§3.7) usa `realizado | ajustes | realizado ajustado | orçado |
+# %RExOR | diferença`, e a coluna do meio é onde a operação declara o que já
+# aconteceu e ainda não bateu na contabilidade — "sem ela a conversa vira briga
+# sobre o número em vez de decisão".
+#
+# A nossa coluna do meio é o **comprometido**: aprovado e não pago. É o mesmo
+# papel, com um número que o Workspace POSSUI — ele nasce da aprovação, que é
+# daqui.
+
+
+PERMISSAO_ORCAMENTO = "fin.orcamento.ler"
+PERMISSAO_REVISAR = "fin.orcamento.revisar"
+
+MESES = (
+    "jan", "fev", "mar", "abr", "mai", "jun",
+    "jul", "ago", "set", "out", "nov", "dez",
+)
+
+
+class SemOrcamento(Exception):
+    """Esta pessoa não responde por centro de custo nenhum."""
+
+
+@dataclass(frozen=True)
+class LinhaDoMes:
+    """Um mês da grade — as seis colunas."""
+
+    mes: int
+    orcado: Decimal | None
+    comprometido: Decimal
+    realizado: Decimal
+
+    @property
+    def rotulo(self) -> str:
+        return MESES[self.mes - 1]
+
+    @property
+    def consumido(self) -> Decimal:
+        """Realizado + comprometido. A coluna que decide, e não o realizado.
+
+        Decidir por realizado é como se estoura um orçamento sem ninguém
+        perceber: o que foi aprovado e ainda não pagou já é dinheiro gasto, só
+        que invisível no extrato.
+        """
+        return self.realizado + self.comprometido
+
+    @property
+    def saldo(self) -> Decimal | None:
+        if self.orcado is None:
+            return None
+        return self.orcado - self.consumido
+
+    @property
+    def percentual(self) -> Decimal | None:
+        """`None` sem orçado, e nunca 0. Sem teto não há denominador."""
+        if not self.orcado:
+            return None
+        return (self.consumido / self.orcado * Decimal("100")).quantize(Decimal("0.1"))
+
+    @property
+    def estourado(self) -> bool:
+        saldo = self.saldo
+        return saldo is not None and saldo < 0
+
+
+def pode_ler_orcamento(pessoa, cache: dict | None = None) -> bool:
+    from identidade.services.autorizacao import pode
+
+    return pode(pessoa, PERMISSAO_ORCAMENTO, cache=cache)
+
+
+def pode_revisar(pessoa, cache: dict | None = None) -> bool:
+    from identidade.services.autorizacao import pode
+
+    return pode(pessoa, PERMISSAO_REVISAR, cache=cache)
+
+
+def centros_visiveis(pessoa, cache: dict | None = None) -> list:
+    """Os centros de custo que esta pessoa alcança.
+
+    Escopo global vê todos; qualquer outro vê o da própria lotação. Levanta
+    `SemOrcamento` para quem não alcança nenhum — 403, e não uma grade de zeros:
+    uma grade zerada para quem nunca vai ter dado faz a pessoa achar que a
+    empresa não gastou nada.
+    """
+    from identidade.services.autorizacao import ESCOPO_GLOBAL, escopo_de
+
+    if not pode_ler_orcamento(pessoa, cache=cache):
+        raise SemOrcamento("Orçamento é de quem responde por centro de custo.")
+
+    todos = centros_de_custo()
+    if escopo_de(pessoa, PERMISSAO_ORCAMENTO, cache=cache) == ESCOPO_GLOBAL:
+        return todos
+
+    from identidade.models import Lotacao
+
+    codigo = (
+        Lotacao.objects.filter(user=pessoa)
+        .values_list("centro_custo_codigo", flat=True)
+        .first()
+    )
+    meus = [c for c in todos if codigo and c.codigo == codigo]
+    if not meus:
+        raise SemOrcamento(
+            "Sua lotação não aponta para nenhum centro de custo com orçamento."
+        )
+    return meus
+
+
+def grade_anual(centro_custo_codigo: str, ano: int) -> list[LinhaDoMes]:
+    """Os doze meses, com as seis colunas. Nenhuma chamada de rede.
+
+    O orçado vem do contrato; o comprometido, de `Compromisso`, que é daqui; o
+    realizado, do contrato de novo. Um mês sem orçado devolve `None` e não zero
+    — e a tela escreve "—".
+    """
+    provider = provedor.obter()
+    do_ano = provider.orcamento_do_ano(centro_custo_codigo, ano) if provider else {}
+
+    linhas = []
+    for mes in range(1, 13):
+        competencia = date(ano, mes, 1)
+        orcado = do_ano.get(mes)
+        if orcado is None and provider is not None:
+            # Cai no teto avulso do centro de custo — é o que a bandeja usa, e a
+            # grade precisa mostrar o MESMO número, senão as duas telas
+            # discordam sobre o mesmo mês.
+            orcado = provider.orcamento_do_mes(centro_custo_codigo, competencia)
+        linhas.append(
+            LinhaDoMes(
+                mes=mes,
+                orcado=orcado,
+                comprometido=(
+                    Compromisso.objects.ativos()
+                    .do_centro_custo(centro_custo_codigo, competencia)
+                    .total()
+                ),
+                realizado=(
+                    provider.realizado_no_mes(centro_custo_codigo, competencia)
+                    if provider
+                    else Decimal("0")
+                ),
+            )
+        )
+    return linhas
+
+
+def revisoes(centro_custo_codigo: str, ano: int) -> list:
+    provider = provedor.obter()
+    return provider.revisoes_do_ano(centro_custo_codigo, ano) if provider else []
+
+
+def montar(centro_custo_codigo: str, ano: int, valores: dict, quem, cache=None) -> bool:
+    """Escreve o rascunho do ano. Recusa em orçamento vigente."""
+    if not pode_revisar(quem, cache=cache):
+        raise OrcamentoError("Montar o orçamento é de quem responde pelo dinheiro.")
+    provider = provedor.obter()
+    if provider is None:
+        return False
+    return provider.montar_orcamento(centro_custo_codigo, ano, valores)
+
+
+def vigorar(centro_custo_codigo: str, ano: int, quem, cache=None) -> bool:
+    if not pode_revisar(quem, cache=cache):
+        raise OrcamentoError("Pôr um orçamento em vigor é de quem responde pelo dinheiro.")
+    provider = provedor.obter()
+    if provider is None:
+        return False
+    return provider.vigorar_orcamento(centro_custo_codigo, ano, quem)
+
+
+def revisar(centro_custo_codigo: str, ano: int, deltas: dict, motivo: str, quem,
+            cache=None):
+    """A ÚNICA forma de mexer num orçamento vigente. Motivo obrigatório.
+
+    É a regra do benchmark — "só pode gastar se tiver recurso e fizer a revisão
+    orçamentária" — pelo lado que importa: o teto não muda sem revisão. Antes
+    desta onda, alguém com `is_staff` editava o campo e ninguém ficava sabendo.
+    """
+    if not pode_revisar(quem, cache=cache):
+        raise OrcamentoError("Revisar o orçamento é de quem responde pelo dinheiro.")
+    motivo = (motivo or "").strip()
+    if not motivo:
+        # Sem motivo a revisão vira uma edição com data. O motivo é a metade que
+        # sobrevive à pessoa que a fez.
+        raise OrcamentoError("A revisão exige o motivo. Ele fica no histórico.")
+    provider = provedor.obter()
+    if provider is None:
+        return None
+    return provider.revisar_orcamento(centro_custo_codigo, ano, deltas, motivo, quem)
+
+
+def confronto_com_o_espelho(centro_custo_codigo: str, ano: int) -> list[dict]:
+    """O nosso teto contra o orçado do Sankhya, lado a lado — e SEM desempate.
+
+    Nenhum código escolhe vencedor aqui. Os dois números aparecem, a diferença
+    aparece, e resolver é decisão de gente com a regra de precedência na mão.
+    Escolher dentro de um `if` é o que a restrição 5 do produto proíbe, e o
+    motivo é simples: o `if` teria razão até o dia em que não tivesse, e ninguém
+    saberia dizer quando esse dia foi.
+
+    Lista vazia quando o espelho não está conectado — que é estado normal, e não
+    falha.
+    """
+    from workspace.providers import resultados as espelho
+
+    provedor_financeiro = espelho.obter(espelho.ProvedorResultadoFinanceiro)
+    if provedor_financeiro is None:
+        return []
+
+    provider = provedor.obter()
+    nosso = provider.orcamento_do_ano(centro_custo_codigo, ano) if provider else {}
+
+    # `serie_competencia` e não `consolidado`: o orçado por mês está no
+    # `CompetenciaDTO`, e o consolidado é uma soma que não carrega orçado nenhum.
+    # Uma consulta para os doze meses, e não doze — a tela abre com o ano
+    # inteiro, e doze idas ao espelho por centro de custo seriam N+1 por página.
+    do_espelho = {
+        c.mes: c.custo_orcado
+        for c in provedor_financeiro.serie_competencia(
+            espelho.Escopo(centros_custo=(centro_custo_codigo,)),
+            date(ano, 1, 1),
+            date(ano, 12, 1),
+        )
+        if c.ano == ano
+    }
+
+    linhas = []
+    for mes in range(1, 13):
+        contabil = do_espelho.get(mes)
+        meu = nosso.get(mes)
+        if meu is None and contabil is None:
+            continue
+        linhas.append(
+            {
+                "mes": mes,
+                "rotulo": MESES[mes - 1],
+                "operacao": meu,
+                "contabil": contabil,
+                "diferenca": (
+                    (meu - contabil) if meu is not None and contabil is not None
+                    else None
+                ),
+            }
+        )
+    return linhas

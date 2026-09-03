@@ -1,0 +1,175 @@
+{% extends "workspace/_shell_modulo.html" %}
+{% load i18n wks %}
+
+{% block titulo %}{{ centro.codigo }} · {{ ano }}{% endblock %}
+{% block rail %}{% include "workspace/_rail_servicos.html" with aba="orcamento" %}{% endblock %}
+{% block trilha %}
+  <a href="{% url 'workspace:orcamento' %}">{% trans "Orçamento" %}</a>
+  <span>{{ centro.codigo }} · {{ ano }}</span>
+{% endblock %}
+{% block pagina_titulo %}{{ centro.codigo }} · {{ centro.nome }}{% endblock %}
+{% block voltar_url %}{% url 'workspace:orcamento' %}{% endblock %}
+
+{% block pagina_descricao %}
+  <p class="au-pagina-desc">
+    {% blocktrans with a=ano %}Ano {{ a }}.{% endblocktrans %}
+    {% trans "O teto vigente muda por revisão, com motivo e autor." %}
+  </p>
+{% endblock %}
+
+{% block corpo %}
+{% comment %}
+  AS SEIS COLUNAS, adaptadas do §3.7 do benchmark. Lá a coluna do meio é
+  "ajustes (potencial do contrato)" — o que a operação declara que já aconteceu
+  e ainda não bateu na contabilidade.
+
+  Aqui a coluna do meio é o COMPROMETIDO: aprovado e não pago. Mesmo papel, com
+  um número que o Workspace possui — ele nasce da aprovação, que é daqui.
+{% endcomment %}
+<div class="au-tabela">
+  <table>
+    <caption class="au-sr">{% trans "Os doze meses do orçamento" %}</caption>
+    <thead>
+      <tr>
+        <th>{% trans "Mês" %}</th>
+        <th>{% trans "Orçado" %}</th>
+        <th>{% trans "Comprometido" %}</th>
+        <th>{% trans "Realizado" %}</th>
+        <th>{% trans "Consumido" %}</th>
+        <th>{% trans "Saldo" %}</th>
+        <th>{% trans "%" %}</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for m in grade %}
+        <tr class="{% if m.estourado %}au-linha--estourada{% endif %}">
+          <th scope="row">{{ m.rotulo }}</th>
+          <td class="au-num">{% if m.orcado is not None %}{{ m.orcado|moeda }}{% else %}—{% endif %}</td>
+          <td class="au-num">{{ m.comprometido|moeda }}</td>
+          <td class="au-num">{{ m.realizado|moeda }}</td>
+          <td class="au-num">{{ m.consumido|moeda }}</td>
+          <td class="au-num">{% if m.saldo is not None %}{{ m.saldo|moeda }}{% else %}—{% endif %}</td>
+          {% comment %}
+            Sem teto não há denominador: "—" e não "0%", que o aprovador leria
+            como folga total.
+          {% endcomment %}
+          <td class="au-num">{% if m.percentual is not None %}{{ m.percentual }}%{% else %}—{% endif %}</td>
+        </tr>
+      {% endfor %}
+    </tbody>
+    <tfoot>
+      <tr>
+        <th scope="row">{% trans "Ano" %}</th>
+        <td class="au-num">{{ total_orcado|moeda }}</td>
+        <td class="au-num" colspan="2"></td>
+        <td class="au-num">{{ total_consumido|moeda }}</td>
+        <td class="au-num" colspan="2"></td>
+      </tr>
+    </tfoot>
+  </table>
+</div>
+
+{% if confronto %}
+  {% comment %}
+    OS DOIS ORÇADOS, LADO A LADO — e sem desempate.
+
+    Nenhum código escolhe vencedor: o nosso teto de operação e o orçado contábil
+    do Sankhya aparecem, a diferença aparece, e resolver é decisão de gente com
+    a regra de precedência na mão. Escolher dentro de um `if` teria razão até o
+    dia em que não tivesse, e ninguém saberia dizer quando esse dia foi.
+  {% endcomment %}
+  <section class="au-secao" aria-labelledby="confronto">
+    <h2 class="au-secao-titulo" id="confronto">{% trans "O nosso teto e o orçado do Sankhya" %}</h2>
+    <p class="au-vazio-dica">
+      {% trans "São dois números com donos diferentes: o teto de operação é nosso e responde “isto cabe?”; o orçado contábil é do Sankhya e responde “o mês fechou onde deveria?”. Divergência não se resolve aqui — ela vira ocorrência no painel de exceções." %}
+    </p>
+    <div class="au-tabela">
+      <table>
+        <caption class="au-sr">{% trans "Confronto entre o teto de operação e o orçado contábil" %}</caption>
+        <thead>
+          <tr>
+            <th>{% trans "Mês" %}</th>
+            <th>{% trans "Operação (nosso)" %}</th>
+            <th>{% trans "Contábil (Sankhya)" %}</th>
+            <th>{% trans "Diferença" %}</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for c in confronto %}
+            <tr>
+              <th scope="row">{{ c.rotulo }}</th>
+              <td class="au-num">{% if c.operacao is not None %}{{ c.operacao|moeda }}{% else %}—{% endif %}</td>
+              <td class="au-num">{% if c.contabil is not None %}{{ c.contabil|moeda }}{% else %}—{% endif %}</td>
+              <td class="au-num">{% if c.diferenca is not None %}{{ c.diferenca|moeda }}{% else %}—{% endif %}</td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </section>
+{% endif %}
+
+<section class="au-secao" aria-labelledby="revisoes">
+  <h2 class="au-secao-titulo" id="revisoes">{% trans "Revisões" %}</h2>
+  {% if revisoes %}
+    <ul class="au-revisoes">
+      {% for r in revisoes %}
+        <li class="au-revisao">
+          <span class="au-revisao-numero">{% blocktrans with n=r.numero %}Revisão {{ n }}{% endblocktrans %}</span>
+          <span class="au-revisao-total">{{ r.total|moeda }}</span>
+          <span class="au-revisao-motivo">{{ r.motivo }}</span>
+          <span class="au-revisao-autor">{{ r.autor|default:"—" }} · {{ r.criada_em|date:"d/m/Y" }}</span>
+        </li>
+      {% endfor %}
+    </ul>
+  {% else %}
+    <p class="au-vazio-dica">
+      {% trans "Nenhuma revisão neste ano. O orçamento está como foi posto em vigor." %}
+    </p>
+  {% endif %}
+</section>
+
+{% if pode_revisar %}
+  <section class="au-secao au-revisar" aria-labelledby="revisar">
+    <h2 class="au-secao-titulo" id="revisar">{% trans "Revisar" %}</h2>
+    <form class="au-form" method="post"
+          action="{% url 'workspace:revisar_orcamento' codigo=centro.codigo ano=ano %}">
+      {% csrf_token %}
+      {% comment %}
+        Campos de DELTA, e não de valor final. Em branco quer dizer "não mexi
+        neste mês" — tratar em branco como zero faria uma revisão de julho zerar
+        os outros onze.
+      {% endcomment %}
+      <p class="au-ajuda">
+        {% trans "Informe quanto MUDA em cada mês — positivo acrescenta, negativo tira. Mês em branco fica como está." %}
+      </p>
+      <div class="au-deltas">
+        {% for m in grade %}
+          <div class="au-delta">
+            <label class="au-rotulo" for="delta_{{ m.mes }}">{{ m.rotulo }}</label>
+            <input class="au-input" type="text" id="delta_{{ m.mes }}" name="delta_{{ m.mes }}"
+                   inputmode="decimal">
+          </div>
+        {% endfor %}
+      </div>
+
+      <label class="au-rotulo" for="motivo">{% trans "Motivo da revisão" %}</label>
+      <input class="au-input" type="text" id="motivo" name="motivo" maxlength="300" required>
+      <p class="au-ajuda">
+        {% trans "Obrigatório. Sem motivo, a revisão vira uma edição com data — e o motivo é a metade que sobrevive a quem a fez." %}
+      </p>
+
+      <button class="au-btn au-btn--primario" type="submit">{% trans "Aplicar revisão" %}</button>
+    </form>
+
+    <form class="au-vigorar" method="post"
+          action="{% url 'workspace:vigorar_orcamento' codigo=centro.codigo ano=ano %}">
+      {% csrf_token %}
+      <button class="au-btn au-btn--sutil" type="submit">{% trans "Pôr o rascunho deste ano em vigor" %}</button>
+      <p class="au-ajuda">
+        {% trans "Só funciona se houver um rascunho com linhas. Depois de vigorar, o teto muda por revisão." %}
+      </p>
+    </form>
+  </section>
+{% endif %}
+{% endblock %}

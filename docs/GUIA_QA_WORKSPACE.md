@@ -1777,6 +1777,69 @@ qualquer tela desta onda, e reabertura de quadro apurado.
 
 ---
 
+### 3.24 Orçamento anual e revisão — `/workspace/orcamento/` (código 15)
+
+**Para que serve.** O teto de operação, mês a mês — o número que a bandeja de
+aprovação usa para dizer se um pedido cabe. E a **revisão**, que é a única forma
+de mudá-lo depois que ele entra em vigor.
+
+**Antes de testar:**
+
+```bash
+python manage.py semear_centros_custo --aplicar
+python manage.py semear_orcamento     --aplicar   # importa o teto avulso
+python manage.py semear_papeis        --aplicar
+```
+
+**O que testar, em ordem de importância:**
+
+- **O teto vigente não muda sem revisão.** Vá ao `/admin/` e tente mudar a
+  situação de um orçamento vigente: o campo é somente leitura. Tente editar as
+  linhas — elas mudam, mas só valem em rascunho. Se houver qualquer caminho que
+  altere o teto **vigente** sem gravar uma `RevisaoOrcamento`, **abra bug de
+  gravidade alta**: era o defeito que esta onda veio consertar.
+- **A revisão exige motivo.** Deixe o campo em branco: a tela recusa. Sem motivo,
+  a revisão vira uma edição com data.
+- **Campo em branco é "não mexi", e não "zerei".** Revise só julho e confira os
+  outros onze meses: têm de ficar como estavam. Se zerarem, **abra bug** — uma
+  revisão de julho teria apagado o ano.
+- **Os dois orçados aparecem lado a lado.** Com o espelho conectado, a seção "O
+  nosso teto e o orçado do Sankhya" mostra os dois e a diferença. Se aparecer
+  **um número só**, alguém escolheu vencedor dentro do código — é o que a
+  restrição 5 proíbe.
+- **Consumido é realizado + comprometido.** Aprove um pedido de R$ 4.000 num CC
+  e confira: a coluna "Comprometido" sobe **antes** de qualquer pagamento. Se
+  ela só mexer no pagamento, um orçamento pode estourar sem ninguém ver.
+- **Sem teto, "—" e nunca "0%".** Abra um centro de custo sem orçamento: as
+  colunas de saldo e % mostram travessão. Se mostrarem `0,0%`, o aprovador leria
+  como folga total.
+
+**Permissão:**
+
+- `financeiro@icodev.com.br` e `diretoria@` leem todos os CCs e **revisam**.
+- `gestor@` lê **só o próprio** CC e **não** revisa — a tela não mostra o
+  formulário, e um POST forjado dá 403.
+- **`almoxarife@` recebe 403**, e não uma grade de zeros.
+- Centro de custo alheio dá **403, e não 404** — 404 transformaria a tela num
+  verificador de códigos.
+- Quem tem a permissão e **não tem lotação** também recebe 403.
+
+**A regra que ligou nesta onda.** `cc-sem-orcado-e-o-inverso` estava registrada e
+desligada desde a Onda 4, esperando o orçamento existir aqui dentro. Ela agora
+aparece **ligada** no painel de exceções e **cobra plano de ação**. Confira as
+duas direções: CC com realizado e sem teto, e CC com teto e desconhecido no ERP.
+
+**A carga inicial.** `semear_orcamento --aplicar` importa o teto avulso de cada
+CC para doze meses iguais, já em vigor. Rodar de novo **não** toca no que já
+existe — se ele apagar uma revisão, **abra bug**. Centro sem teto é **pulado**, e
+não vira um ano de zeros.
+
+**O que NÃO existe, e não é bug:** editar orçamento vigente, apagar revisão,
+curva de sazonalidade na importação, e orçamento por projeto ou por contrato — o
+grão é o centro de custo.
+
+---
+
 ## 4. Matriz perfil × tela
 
 Use como plano de cobertura. **A coluna "Anônimo" é a mais esquecida e a que mais
@@ -1799,6 +1862,7 @@ esconde defeito** — nos dois sentidos.
 | **Ciclos de planejamento** | ➜ login | **403** | ✅ lê; só Diretoria **conduz** | **403** |
 | **Planos de ação** | ➜ login | **403** | ✅ lê; só o papel da regra **fecha** | **403** |
 | **Metas e PDI** | ➜ login | ✅ **só o próprio** | ✅ os liderados; só o gestor **aprova** | ✅ só o próprio |
+| **Orçamento** | ➜ login | **403** | ✅ lê o próprio CC; só Financeiro **revisa** | **403** |
 
 As células em negrito são os testes de autorização que valem mais: bandeja vazia
 para colaborador, fila invisível para gestor, cancelamento de terceiros só para

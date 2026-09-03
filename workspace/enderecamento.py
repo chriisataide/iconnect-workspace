@@ -222,6 +222,9 @@ TELAS: tuple[Tela, ...] = (
     # conversa em dois horizontes: o ciclo e a carreira.
     Tela("14", "Metas e avaliação", "workspace:metas"),
     Tela("14.1", "Plano de desenvolvimento", "workspace:desenvolvimento"),
+    # O orçamento anual. `15` e não dentro de `08`: indicadores medem o
+    # trabalho do produto, e orçamento é o dinheiro da empresa.
+    Tela("15", "Orçamento", "workspace:orcamento"),
     Tela("09", "Relatórios", "workspace:relatorios"),
     Tela("26.1", "Oportunidades de marketing", "workspace:marketing"),
     Tela("30", "Pessoas e papéis", "workspace:pessoas"),

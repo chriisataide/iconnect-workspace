@@ -35,6 +35,7 @@ python manage.py semear_papeis            --aplicar   # os papéis e suas permis
 python manage.py importar_organograma docs/exemplos/organograma-inicial.csv --aplicar
 python manage.py semear_acessos           --aplicar   # dá papel a quem está no organograma
 python manage.py semear_centros_custo     --aplicar   # um CentroCusto por código usado na lotação
+python manage.py semear_orcamento         --aplicar   # o teto avulso vira orçamento anual em vigor
 
 # 2 · WORKSPACE. O saldo de estoque é POR UNIDADE — sem unidade, não tem onde morar.
 python manage.py semear_regras_aprovacao  --aplicar   # a cadeia por faixa de valor

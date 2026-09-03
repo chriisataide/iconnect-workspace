@@ -34,6 +34,12 @@ from .metas import (
     metas,
     quadro_acao,
 )
+from .orcamento import (
+    orcamento,
+    orcamento_centro,
+    revisar_orcamento,
+    vigorar_orcamento,
+)
 from .planos import fechar_plano, plano, plano_novo, planos
 from .resultados import fontes, recarregar_fonte, resultados, resultados_pdf
 from .conteudo import (
@@ -154,7 +160,11 @@ __all__ = [
     "meta_editar",
     "meta_remover",
     "metas",
+    "orcamento",
+    "orcamento_centro",
     "quadro_acao",
+    "revisar_orcamento",
+    "vigorar_orcamento",
     "plano",
     "plano_novo",
     "planos",

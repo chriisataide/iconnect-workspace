@@ -100,7 +100,7 @@
   "Atender" e "Aprovar" só aparecem para quem tem algo esperando. Rail com item
   vazio ensina o usuário a ignorar o rail.
 {% endcomment %}
-{% if ve_indicadores or administra_papeis or ve_publicacoes or ve_faq or ve_documentos or ve_marketing or ve_candidaturas or ve_ciclos or ve_planos %}
+{% if ve_indicadores or administra_papeis or ve_publicacoes or ve_faq or ve_documentos or ve_marketing or ve_candidaturas or ve_ciclos or ve_planos or ve_orcamento %}
   <p class="au-rail-grupo">{% trans "Acompanhar" %}</p>
   {% comment %}
     Indicadores aparece para quem tem `ind.ler` — Diretoria, Sócios e R.H. — e
@@ -159,6 +159,19 @@
       {% if planos_vencidos %}
         <span class="au-rail-contagem au-rail-contagem--alerta">{{ planos_vencidos }}</span>
       {% endif %}
+    </a>
+  {% endif %}
+  {% comment %}
+    ORÇAMENTO fica em Acompanhar e ao lado de Resultados, e não em Consultar:
+    ele é o dinheiro da empresa, e não uma consulta de rotina. Só para quem
+    responde por centro de custo — item de trilho que leva a 403 ensina a
+    ignorar o trilho.
+  {% endcomment %}
+  {% if ve_orcamento %}
+    <a class="au-rail-item {% if aba == 'orcamento' %}au-rail-item--ativo{% endif %}"
+       href="{% url 'workspace:orcamento' %}">
+      <svg class="au-icon" aria-hidden="true"><use href="#i-wallet"></use></svg>
+      {% trans "Orçamento" %}
     </a>
   {% endif %}
   {% if ve_resultados %}

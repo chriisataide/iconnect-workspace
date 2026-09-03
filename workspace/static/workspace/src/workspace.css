@@ -3954,3 +3954,49 @@ tr[data-abre-resumo]:focus-visible {
 .au-meta-tipo,
 .au-meta-peso,
 .au-meta-alvo { font-variant-numeric: tabular-nums; }
+
+/* ── Orçamento anual e revisão (15) ──────────────────────────────────
+   As seis colunas do §3.7 do benchmark, com o COMPROMETIDO no lugar dos
+   "ajustes": aprovado e não pago é o número que o Workspace possui. */
+
+/* Número em coluna alinha à direita e usa cifras de largura fixa. Sem isso,
+   uma coluna de valores vira uma serra, e comparar dois meses exige contar
+   dígitos. */
+.au-num {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+/* Mês estourado é o achado da tela — a linha inteira, e não só a célula do
+   saldo: quem varre a grade procura a linha, não a coluna. */
+.au-linha--estourada { background: var(--au-danger-bg); }
+.au-linha--estourada .au-num { color: var(--au-danger-text); }
+
+.au-estourou { color: var(--au-danger-text); font-weight: 600; }
+.au-orcamento-nota { margin-top: var(--au-5); }
+
+.au-revisoes { margin: 0; padding: 0; list-style: none; }
+.au-revisao {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--au-2);
+  padding: var(--au-2) 0;
+  border-bottom: 1px solid var(--au-border);
+  font-size: var(--au-t-sm);
+}
+.au-revisao-numero { font-weight: 600; flex: 0 0 7rem; }
+.au-revisao-total { font-variant-numeric: tabular-nums; flex: 0 0 8rem; }
+.au-revisao-motivo { flex: 1 1 14rem; min-width: 0; }
+.au-revisao-autor { font-size: var(--au-t-xs); color: var(--au-text-subtle); }
+
+.au-revisar { margin-top: var(--au-6); }
+.au-deltas {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(6rem, 1fr));
+  gap: var(--au-2);
+  margin-bottom: var(--au-4);
+}
+.au-delta { display: grid; gap: var(--au-1); }
+.au-vigorar { margin-top: var(--au-5); }

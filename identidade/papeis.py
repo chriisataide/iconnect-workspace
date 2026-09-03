@@ -97,6 +97,11 @@ PAPEIS_V1 = [
             "met.ler.equipe",
             "met.definir.equipe",
             "met.aprovar.equipe",
+            # O orçamento do PRÓPRIO centro de custo, sem revisar. Quem responde
+            # por uma operação precisa saber quanto resta antes de aprovar o
+            # pedido do liderado — e mexer no teto é outra conversa, com o
+            # Financeiro.
+            "fin.orcamento.ler.departamento",
         ],
         "descricao": (
             "Responde por uma equipe. Aprova o que vem dos liderados e vê a "
@@ -144,6 +149,8 @@ PAPEIS_V1 = [
             "met.ler.global",
             "met.definir.global",
             "met.aprovar.global",
+            "fin.orcamento.ler.global",
+            "fin.orcamento.revisar.global",
             # Responder por QUALQUER regra com limiar. A diretoria assina o
             # plano do contrato deficitário porque é ela que responde por ele
             # numa reunião de conselho — e porque, nas regras sem papel
@@ -246,6 +253,11 @@ PAPEIS_V1 = [
             # a visão da empresa faria a conferência acontecer na planilha, que
             # é de onde este produto está tentando tirar a conversa.
             "eco.ler.global",
+            # O orçamento anual, e a REVISÃO. Ler e revisar separadas: montar o
+            # ano é ato de planejamento, e mudar o teto vigente é ato de
+            # governança — a segunda deixa motivo e autor no histórico.
+            "fin.orcamento.ler.global",
+            "fin.orcamento.revisar.global",
             # Responder pelos planos das regras que o Financeiro atende — a de
             # margem abaixo do limiar, à frente de todas. `.departamento` e não
             # `.global`: o escopo decide o alcance, e o papel da regra decide

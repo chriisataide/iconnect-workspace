@@ -232,3 +232,92 @@ class MarcoVencidoSemReplanejamento(RegraBase):
             for m in provedor.marcos_em_risco(contrato.Escopo(), 0)
             if m.vencido
         ]
+
+
+class CentroDeCustoSemConciliacao(RegraBase):
+    """Regra 19 — centro de custo no ERP e fora do orçamento, e o inverso.
+
+    Registrada e **desligada** desde a Onda 4, com a nota "só passa a valer
+    quando o orçamento existir aqui dentro". A Onda 8 criou o orçamento anual, e
+    a regra ligou.
+
+    ## Por que ela é uma regra, e não um cuidado
+
+    O benchmark é explícito: *"Código divergente não dá erro: produz uma linha
+    com realizado e sem orçado, que parece estouro de orçamento e não é. A
+    conciliação de códigos precisa ser uma regra de exceção, não um cuidado."*
+
+    Um cuidado é uma coisa que alguém lembra na primeira semana. Uma regra roda
+    todo dia e cobra plano de ação.
+
+    ## As duas direções
+
+    - **no ERP e fora do orçamento** — o Sankhya lançou realizado num centro de
+      custo que ninguém orçou aqui. A linha parece estouro e não é;
+    - **no orçamento e fora do ERP** — orçamos um centro de custo que o ERP não
+      conhece. O teto existe e nunca será consumido, e a folga é falsa.
+
+    As duas na mesma regra porque são o **mesmo defeito** — um cadastro que não
+    bate — e separá-las faria alguém corrigir metade.
+    """
+
+    chave = "cc-sem-orcado-e-o-inverso"
+    fonte = "sankhya"
+
+    def disponivel(self) -> bool:
+        from workspace.providers import orcamento as orcamento_contrato
+
+        # Precisa das DUAS pontas: sem o espelho não há o lado do ERP, e sem o
+        # domínio financeiro não há o lado do orçamento. Uma ponta só produziria
+        # uma lista em que tudo é divergente.
+        return (
+            contrato.obter(contrato.ProvedorResultadoFinanceiro) is not None
+            and orcamento_contrato.obter() is not None
+        )
+
+    def avaliar(self, janela: int) -> list[Ocorrencia]:
+        from datetime import date
+
+        from workspace.providers import orcamento as orcamento_contrato
+
+        espelho = contrato.obter(contrato.ProvedorResultadoFinanceiro)
+        financeiro = orcamento_contrato.obter()
+        hoje = timezone.localdate()
+        responsavel = quem_responde("financeiro")
+
+        no_erp = {
+            c.centro_custo
+            for c in espelho.serie_competencia(
+                contrato.Escopo(), date(hoje.year, 1, 1), date(hoje.year, 12, 1)
+            )
+            if c.centro_custo
+        }
+        no_orcamento = {
+            c.codigo
+            for c in financeiro.centros()
+            if c.ativo and financeiro.orcamento_do_ano(c.codigo, hoje.year)
+        }
+
+        ocorrencias = [
+            Ocorrencia(
+                chave=f"cc-erp:{codigo}",
+                titulo=f"{codigo} · no ERP e sem orçamento aqui",
+                detalhe="realizado sem teto: a linha parece estouro e não é",
+                url=reverse("workspace:orcamento"),
+                responsavel=responsavel,
+                papel="financeiro",
+            )
+            for codigo in sorted(no_erp - no_orcamento)
+        ]
+        ocorrencias += [
+            Ocorrencia(
+                chave=f"cc-orcamento:{codigo}",
+                titulo=f"{codigo} · orçado aqui e desconhecido no ERP",
+                detalhe="teto que nunca será consumido: a folga é falsa",
+                url=reverse("workspace:orcamento"),
+                responsavel=responsavel,
+                papel="financeiro",
+            )
+            for codigo in sorted(no_orcamento - no_erp)
+        ]
+        return ocorrencias

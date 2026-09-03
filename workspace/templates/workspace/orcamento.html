@@ -1,0 +1,73 @@
+{% extends "workspace/_shell_modulo.html" %}
+{% load i18n wks %}
+
+{% block titulo %}{% trans "Orçamento" %}{% endblock %}
+{% block rail %}{% include "workspace/_rail_servicos.html" with aba="orcamento" %}{% endblock %}
+{% block trilha %}<span>{% trans "Orçamento" %}</span>{% endblock %}
+{% block pagina_titulo %}{% trans "Orçamento" %} {{ ano }}{% endblock %}
+{% block voltar_url %}{% url 'workspace:home' %}{% endblock %}
+
+{% block pagina_descricao %}
+  <p class="au-pagina-desc">
+    {% trans "O teto de operação — o número que a bandeja de aprovação usa para dizer se um pedido cabe." %}
+  </p>
+{% endblock %}
+
+{% block corpo %}
+<form class="au-filtros" method="get">
+  <label class="au-rotulo" for="ano">{% trans "Ano" %}</label>
+  <select class="au-input" id="ano" name="ano">
+    {% for a in anos %}
+      <option value="{{ a }}" {% if a == ano %}selected{% endif %}>{{ a }}</option>
+    {% endfor %}
+  </select>
+  <button class="au-btn au-btn--sutil" type="submit">{% trans "Ver" %}</button>
+</form>
+
+{% if linhas %}
+  <div class="au-tabela">
+    <table>
+      <caption class="au-sr">{% trans "Centros de custo e consumo do ano" %}</caption>
+      <thead>
+        <tr>
+          <th>{% trans "Centro de custo" %}</th>
+          <th>{% trans "Orçado no ano" %}</th>
+          <th>{% trans "Consumido" %}</th>
+          <th>{% trans "Meses estourados" %}</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for l in linhas %}
+          <tr>
+            <td>
+              <a href="{% url 'workspace:orcamento_centro' codigo=l.centro.codigo ano=ano %}">
+                {{ l.centro.codigo }} · {{ l.centro.nome }}
+              </a>
+            </td>
+            {% comment %}
+              "—" e NÃO "0" quando nenhum mês tem teto. O total de um orçamento
+              inexistente não é zero, e zero seria lido como "não pode gastar
+              nada" — restrição 5.
+            {% endcomment %}
+            <td class="au-num">{% if l.orcado is not None %}{{ l.orcado|moeda }}{% else %}—{% endif %}</td>
+            <td class="au-num">{{ l.consumido|moeda }}</td>
+            <td>
+              {% if l.estourados %}
+                <span class="au-estourou">{% blocktrans count n=l.estourados|length %}{{ n }} mês{% plural %}{{ n }} meses{% endblocktrans %}</span>
+              {% else %}—{% endif %}
+            </td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+{% else %}
+  <p class="au-vazio-dica">
+    {% trans "Nenhum centro de custo com orçamento para o seu escopo. Cadastre em Pessoas e papéis, ou rode `semear_orcamento --aplicar` para importar o teto avulso de cada centro." %}
+  </p>
+{% endif %}
+
+<p class="au-vazio-dica au-orcamento-nota">
+  {% trans "Consumido é realizado mais comprometido — o que já saiu somado ao que foi aprovado e ainda não pagou. Decidir só pelo realizado é como se estoura um orçamento sem ninguém perceber." %}
+</p>
+{% endblock %}

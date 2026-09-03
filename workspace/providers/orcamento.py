@@ -46,6 +46,26 @@ class CentroDeCusto:
         return f"{self.codigo} · {self.nome}"
 
 
+@dataclass(frozen=True)
+class RevisaoDoOrcamento:
+    """Uma revisão, como a tela a mostra. Dataclass e não o model de `financas`.
+
+    O `delta` é o que mudou por mês, e não o valor final: "quanto mudou?" é a
+    pergunta que se faz numa revisão orçamentária, e o final obrigaria a
+    reconstruir a série por diferença.
+    """
+
+    numero: int
+    motivo: str
+    deltas: dict
+    autor: str = ""
+    criada_em: date | None = None
+
+    @property
+    def total(self) -> Decimal:
+        return sum((Decimal(str(v)) for v in self.deltas.values()), Decimal("0"))
+
+
 class OrcamentoProvider(ABC):
     """Quem sabe responder sobre orçamento e gasto realizado."""
 
@@ -59,6 +79,33 @@ class OrcamentoProvider(ABC):
         0%.
         """
         return None
+
+    def orcamento_do_mes(
+        self, centro_custo_codigo: str, competencia: date
+    ) -> Decimal | None:
+        """O teto DAQUELE mês. `None` = não definido.
+
+        Existe porque orçamento anual tem doze números, e `orcamento_mensal()`
+        tem um só: sem competência, dezembro e janeiro teriam o mesmo teto — e
+        dezembro nunca tem.
+
+        A implementação padrão cai em `orcamento_mensal()`, e é de propósito:
+        um domínio que ainda não faz orçamento anual continua respondendo o que
+        sabe, e nada no Workspace precisa saber qual dos dois respondeu.
+        """
+        return self.orcamento_mensal(centro_custo_codigo)
+
+    def orcamento_do_ano(self, centro_custo_codigo: str, ano: int) -> dict:
+        """`{mes: valor}` do orçamento VIGENTE do ano. Vazio quando não há.
+
+        Um dicionário e não uma lista de doze: mês sem linha é diferente de mês
+        com teto zero, e uma lista obrigaria a inventar um valor para o buraco.
+        """
+        return {}
+
+    def revisoes_do_ano(self, centro_custo_codigo: str, ano: int) -> list:
+        """O histórico de revisões, para a tela mostrar o que mudou e por quê."""
+        return []
 
     def realizado_no_mes(self, centro_custo_codigo: str, competencia: date) -> Decimal:
         """Soma do que de fato saiu no mês da competência."""
@@ -93,6 +140,33 @@ class OrcamentoProvider(ABC):
     ) -> "CentroDeCusto | None":
         """Cria ou atualiza um centro de custo. `None` quando o domínio não
         aceita escrita — e aí a tela diz isso em vez de fingir que gravou."""
+        return None
+
+    # ── Orçamento anual ──────────────────────────────────────────────
+    #
+    # A escrita do orçamento vigente NÃO passa por aqui, e é a decisão da onda:
+    # o teto vigente só muda por REVISÃO, e a revisão exige motivo e autor. Um
+    # `salvar_orcamento(codigo, ano, valores)` genérico seria a porta por onde a
+    # exigência se perde — bastaria alguém chamá-lo. Ver ADR-037.
+
+    def montar_orcamento(
+        self, centro_custo_codigo: str, ano: int, valores: dict
+    ) -> bool:
+        """Escreve as doze linhas de um orçamento em RASCUNHO. `False` se não dá."""
+        return False
+
+    def vigorar_orcamento(self, centro_custo_codigo: str, ano: int, quem) -> bool:
+        """Rascunho → vigente. `False` quando não há rascunho para pôr em vigor."""
+        return False
+
+    def revisar_orcamento(
+        self, centro_custo_codigo: str, ano: int, deltas: dict, motivo: str, quem
+    ) -> "RevisaoDoOrcamento | None":
+        """Aplica um delta por mês ao orçamento vigente, com motivo e autor.
+
+        `None` quando o domínio não faz orçamento anual — e aí a tela diz isso,
+        em vez de deixar a pessoa achar que revisou.
+        """
         return None
 
     def __repr__(self) -> str:  # pragma: no cover - conveniência de depuração

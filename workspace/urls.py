@@ -171,6 +171,15 @@ urlpatterns = [
          name="quadro_acao"),
     path("metas/<int:pessoa_id>/", views.metas, name="metas_de"),
     path("metas/<int:pessoa_id>/abrir/", views.abrir_quadro, name="abrir_quadro"),
+    # Orçamento anual e revisão (15). O teto vigente muda por REVISÃO — não há
+    # rota de edição, e é a decisão da onda, não uma folga do formulário.
+    path("orcamento/", views.orcamento, name="orcamento"),
+    path("orcamento/<str:codigo>/<int:ano>/", views.orcamento_centro,
+         name="orcamento_centro"),
+    path("orcamento/<str:codigo>/<int:ano>/revisar/", views.revisar_orcamento,
+         name="revisar_orcamento"),
+    path("orcamento/<str:codigo>/<int:ano>/vigorar/", views.vigorar_orcamento,
+         name="vigorar_orcamento"),
     path("planos/", views.planos, name="planos"),
     path("planos/novo/", views.plano_novo, name="plano_novo"),
     path("planos/<int:pk>/", views.plano, name="plano"),

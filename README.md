@@ -143,6 +143,8 @@ casa, que era o ponto de existir um contrato.
 | Nada em [resultados/](resultados/) tem formulário, nem no `/admin/` | O dado nasce onde é operado. Editar o espelho criaria duas verdades sobre a mesma linha — e a segunda venceria até a próxima carga, ou não venceria, conforme a precedência ([ADR-018](docs/EXEC_16_INGESTAO.md)). |
 | Regra de exceção com **zero** continua na lista | Sumir esconderia que a regra existe — e a discussão sobre "deveríamos vigiar X" voltaria em seis meses. E "sem ocorrências" **não** é o mesmo que "não avaliada": a segunda quer dizer que a fonte não está no ar, e as duas pedem ações opostas ([ADR-027](docs/EXEC_18_EXCECOES.md)). |
 | Cinco regras estão no banco **desligadas** | ASO, reciclagem, advertências, experiência e a conciliação de centro de custo. Elas dependem do HRIS e do orçamento, e ficam registradas com a fonte anotada — é o que responde "por que não vigiamos isso?" sem ninguém perguntar. |
+| Existem **dois orçados**, e eles não se fundem | O teto de operação é nosso e responde "isto cabe?" na aprovação; o orçado contábil é do Sankhya e responde "o mês fechou onde deveria?". A tela mostra os dois lado a lado com a diferença, e nenhuma linha de código escolhe vencedor — divergência entre fontes se resolve por regra declarada, não dentro de um `if` ([ADR-036](docs/EXEC_22_ORCAMENTO.md)). |
+| O **teto vigente muda por revisão** | Com motivo, autor e delta por mês. Antes disso, quem tivesse `is_staff` editava um campo e ninguém ficava sabendo — e "quem mudou o teto de julho, quando e por quê" não tinha resposta ([ADR-037](docs/EXEC_22_ORCAMENTO.md)). |
 | A meta guarda a **fórmula**, e nunca o número | `Meta.fator_1` é `"ebitda"`, não `120000`. O valor é lido do espelho na apuração e só então congelado — a meta é auditável porque a conta está na tela, e a comparação entre quadros continua funcionando no segundo ano. O preço é real e é o certo: só se escreve meta sobre o que o produto sabe medir ([ADR-034](docs/EXEC_21_METAS.md)). |
 | Não existe **grade de pessoas com nota** | A lista de quem você lidera traz situação; a do R.H. traz contagem. Uma coluna de nota ao lado de uma lista de nomes é uma planilha de desempenho, e ela circula — restrição 8, no lugar em que é mais fácil de violar sem perceber. |
 | O plano de ação **não fecha porque alguém disse que resolveu** | Fechar roda a regra de novo sobre a mesma ocorrência. Se ela ainda dispara, o plano fecha como "não resolvido" — o texto de quem fechou fica junto, mas não decide. Um painel em que o próprio interessado declara o sucesso mede quem preenche formulário ([ADR-033](docs/EXEC_20_PLANOS.md)). |
@@ -214,6 +216,7 @@ justificativa no PR.
 | [EXEC 19](docs/EXEC_19_CICLOS.md) | O ciclo de planejamento e a ATA: a pauta como objeto do produto, com os ADRs 029–031 |
 | [EXEC 20](docs/EXEC_20_PLANOS.md) | O plano de ação com limiar: a regra dos 10% generalizada, com os ADRs 032–033 |
 | [EXEC 21](docs/EXEC_21_METAS.md) | Metas, avaliação e PDI: a meta auditável porque a fórmula está na tela, com os ADRs 034–035 |
+| [EXEC 22](docs/EXEC_22_ORCAMENTO.md) | Orçamento anual e revisão: a onda que começou decidindo a posse, com os ADRs 036–037 |
 
 ---
 

@@ -79,6 +79,7 @@ SEM_SESSAO = {
     "ve_excecoes": False,
     "ve_ciclos": False,
     "ve_planos": False,
+    "ve_orcamento": False,
     "planos_vencidos": 0,
     "ve_fontes": False,
     "ve_estoque": False,
@@ -134,6 +135,7 @@ def _calcular(request: HttpRequest) -> dict:
     from workspace.services import notificacoes as nt
     from workspace.services import recrutamento as rec
     from workspace.services import ciclos as cic
+    from workspace.services import orcamento as orc
     from workspace.services import planos as pln
     from workspace.services import excecoes as exc
     from workspace.services import resultados as res
@@ -190,6 +192,10 @@ def _calcular(request: HttpRequest) -> dict:
         # acompanha alguma regra com limiar"; o contador ao lado é o que está
         # VENCIDO, que é a única parte da lista que pede ação hoje.
         "ve_planos": ve_planos,
+        # §Onda 8 — a grade anual de orçamento. `pode()` sem alvo: o recorte dos
+        # centros de custo é da consulta, e o trilho só precisa saber se a
+        # pessoa responde por algum.
+        "ve_orcamento": orc.pode_ler_orcamento(pessoa, cache=cache),
         "planos_vencidos": (
             pln.planos_visiveis(pessoa, cache=cache).vencidos().count()
             if ve_planos

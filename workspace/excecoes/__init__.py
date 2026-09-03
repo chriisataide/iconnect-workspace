@@ -61,6 +61,8 @@ def semear() -> None:
         espelho.DetratorSemTratativa(),
         espelho.ProjetoBloqueadoHaMuito(),
         espelho.MarcoVencidoSemReplanejamento(),
+        # Ligada na Onda 8: ela esperava o orçamento existir aqui dentro.
+        espelho.CentroDeCustoSemConciliacao(),
         ingestao.FonteAtrasada(),
         ingestao.DivergenciaEntreFontes(),
     )
