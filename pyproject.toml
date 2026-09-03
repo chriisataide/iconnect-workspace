@@ -112,4 +112,7 @@ cargas = 97.0      # medido 97.39 · conectores, carregador, transporte
 #   grade de pessoas com nota poderia nascer sem ninguém notar.
 # 3050 → 3120: os 64 do orçamento anual (`workspace` + `financas`), incluindo os
 #   que provam que o teto vigente não muda sem revisão.
-minimo = 3120
+# 3120 → 3170: os 25 dos públicos da marca. É o menor arquivo das nove ondas, e
+#   metade dele é sobre uma configuração errada que mandaria cliente para dentro
+#   do portal do funcionário — vale mais que o tamanho.
+minimo = 3170

@@ -4000,3 +4000,36 @@ tr[data-abre-resumo]:focus-visible {
 }
 .au-delta { display: grid; gap: var(--au-1); }
 .au-vigorar { margin-top: var(--au-5); }
+
+/* ── Os outros públicos da marca (Onda 9) ────────────────────────────
+   Três públicos, três produtos, uma marca. Esta seção só existe quando há
+   destino configurado: vazio quer dizer ausente, e não "em breve". */
+
+.au-porta-publicos {
+  margin-top: var(--au-5);
+  padding-top: var(--au-4);
+  border-top: 1px solid var(--au-border);
+}
+.au-porta-publicos-titulo {
+  margin: 0;
+  font-weight: 600;
+  font-size: var(--au-t-sm);
+}
+.au-porta-publicos-nota {
+  margin: var(--au-1) 0 var(--au-3);
+  font-size: var(--au-t-xs);
+  color: var(--au-text-muted);
+}
+.au-porta-publicos-lista { margin: 0; padding: 0; list-style: none; }
+.au-porta-publicos-lista li {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--au-2);
+  padding: var(--au-1) 0;
+}
+.au-porta-publicos-lista a { font-weight: 600; }
+.au-porta-publicos-lista span {
+  font-size: var(--au-t-xs);
+  color: var(--au-text-muted);
+}

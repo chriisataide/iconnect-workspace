@@ -285,6 +285,23 @@ CSRF_COOKIE_NAME = "wks_csrf"
 # O destino do tile no launcher e dos cards que levam para fora.
 ICONNECT_URL = _env("ICONNECT_URL", "https://app.icodev.com.br/login/")
 
+# ── Os outros públicos da marca ─────────────────────────────────────
+#
+# Três públicos, três produtos, uma marca — a leitura do benchmark. Este produto
+# é o **Portal ADB**, do colaborador. Cliente e fornecedor entram em OUTRO lugar,
+# e o modelo de permissão daqui não os comporta: ele assume `Pessoa` com
+# `Lotacao` no organograma. Ver ADR-038.
+#
+# VAZIAS por padrão, e é o estado de hoje: nenhum dos dois produtos existe.
+# Vazio quer dizer AUSENTE, e não "em breve" — "em breve" é promessa, e ninguém
+# decidiu que eles vão existir (ADR-039).
+#
+# Precisam ser absolutas e apontar para fora deste host; `workspace/publicos.py`
+# recusa na subida do processo o que mandaria cliente para o portal do
+# funcionário.
+ADB_CLIENTE_URL = _env("ADB_CLIENTE_URL", "")
+ADB_FORNECEDOR_URL = _env("ADB_FORNECEDOR_URL", "")
+
 # A raiz da API. VAZIA por padrão, e é isso que mantém o produto instalável sem
 # o iConnect: sem esta variável, `integracoes.disponivel()` é falso, as telas
 # que dependem dela dizem isso em português, e nada mais quebra.

@@ -108,6 +108,17 @@ def limpar() -> None:
         _apps.clear()
 
 
+def _publicos_externos() -> list:
+    """Os públicos da marca com endereço configurado.
+
+    Importado dentro da função e não no topo: `publicos.semear()` roda no mesmo
+    `ready()` que este módulo, e a ordem entre os dois não deve importar.
+    """
+    from workspace import publicos
+
+    return publicos.externos()
+
+
 def catalogo_semente() -> list[AppSpec]:
     """Os destinos da faixa Aplicativos do Workspace.
 
@@ -170,6 +181,28 @@ def catalogo_semente() -> list[AppSpec]:
             # sinal fraco — o que importa é não ter borda de marca.
             ordem=110,
         ),
+        # ── Os OUTROS públicos da marca ──────────────────────────────
+        #
+        # "ADB Cliente" e "ADB Fornecedor", quando existirem. Um tile e não um
+        # módulo — foi o que o benchmark previu, e é o que a Onda 9 entregou.
+        #
+        # Só os CONFIGURADOS entram: `publicos.externos()` devolve lista vazia
+        # enquanto não houver endereço, e aqui isso vira ausência. Um `AppSpec`
+        # sem rota apareceria como "em breve", que é uma promessa — e ninguém
+        # decidiu que esses produtos vão existir (ADR-039).
+        *[
+            AppSpec(
+                chave=f"publico-{publico.chave}",
+                nome=publico.nome,
+                descricao=publico.descricao,
+                icone="globe",
+                url_direta=publico.url,
+                # Depois do iConnect: as entradas que SAEM deste produto ficam
+                # juntas no fim da faixa.
+                ordem=120,
+            )
+            for publico in _publicos_externos()
+        ],
         # O card "HelpDesk" SAIU daqui — §38.
         #
         # Ele levava para fora e não fazia mais nada. Desde o §21 existe

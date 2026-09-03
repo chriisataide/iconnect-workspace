@@ -228,6 +228,27 @@ class LoginComFreio(ComFreio, LoginView):
 
     template_name = "contas/entrar.html"
 
+    def get_context_data(self, **kwargs):
+        """Acrescenta os OUTROS públicos da marca, quando existirem.
+
+        Quem é cliente ou fornecedor e digitou o endereço errado bate hoje numa
+        tela de login que nunca vai passar — e sem nada dizendo para onde ir. É
+        o único lugar do produto onde essa pessoa aparece, e por isso é aqui que
+        o roteamento mora.
+
+        Lista vazia é o estado normal: enquanto os outros produtos não
+        existirem, a tela não desenha nada. Ver ADR-039.
+
+        Importado dentro do método porque `contas` não conhece `workspace` — a
+        direção da dependência é a outra, e um `import` no topo a inverteria
+        para exibir três linhas de texto.
+        """
+        from workspace import publicos
+
+        contexto = super().get_context_data(**kwargs)
+        contexto["outros_publicos"] = publicos.externos()
+        return contexto
+
 
 class LoginDoAdminComFreio(ComFreio, LoginView):
     """A porta do `/admin/`, com o MESMO freio.

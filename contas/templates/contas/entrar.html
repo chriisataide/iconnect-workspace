@@ -92,6 +92,40 @@
         {% trans "Sua conta é a do Workspace, e não a do iConnect Platform — são dois cadastros." %}
         <a href="{% url 'workspace:home' %}">{% trans "Voltar ao Workspace" %}</a>
       </p>
+
+      {% if outros_publicos %}
+        {% comment %}
+          O ROTEAMENTO — a metade prática da Onda 9.
+
+          Três públicos, três produtos, uma marca. Este é o Portal ADB, do
+          colaborador; cliente e fornecedor entram em outro lugar, e o modelo de
+          permissão daqui não os comporta (ADR-038).
+
+          Esta tela é o ÚNICO ponto do produto onde essas pessoas aparecem:
+          quem errou o endereço bate num login que nunca vai passar. Sem estas
+          linhas, ela tenta a senha três vezes e abre um chamado.
+
+          A seção só existe quando há destino configurado. Sem nenhum, ela não é
+          desenhada vazia — vazio quer dizer ausente, e não "em breve"
+          (ADR-039).
+        {% endcomment %}
+        <section class="au-porta-publicos" aria-labelledby="outros-publicos">
+          <p class="au-porta-publicos-titulo" id="outros-publicos">
+            {% trans "Você é cliente ou fornecedor?" %}
+          </p>
+          <p class="au-porta-publicos-nota">
+            {% trans "Sua entrada é outra — esta é a do colaborador da ADB." %}
+          </p>
+          <ul class="au-porta-publicos-lista">
+            {% for p in outros_publicos %}
+              <li>
+                <a href="{{ p.url }}">{{ p.nome }}</a>
+                <span>{{ p.descricao }}</span>
+              </li>
+            {% endfor %}
+          </ul>
+        </section>
+      {% endif %}
     </section>
 
     {% comment %}

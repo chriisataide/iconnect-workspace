@@ -1840,6 +1840,58 @@ grão é o centro de custo.
 
 ---
 
+### 3.25 Os outros públicos da marca — `/entrar/` e a faixa Aplicativos
+
+**Para que serve.** Três públicos, três produtos, uma marca. Este produto é o
+**Portal ADB**, do colaborador; cliente e fornecedor entram em outro lugar, e o
+Workspace só os **roteia**.
+
+**Não há tela nova.** Se você procurar um módulo de públicos, ele não existe — e
+isso é a entrega, não a falta dela.
+
+**O estado de hoje:** `ADB_CLIENTE_URL` e `ADB_FORNECEDOR_URL` vazias. Nada
+aparece em lugar nenhum.
+
+**Para testar o roteamento**, ponha no `.env`:
+
+```
+ADB_CLIENTE_URL=https://cliente.exemplo.com.br/
+```
+
+e reinicie o servidor.
+
+**O que testar:**
+
+- **Com a variável vazia**, `/entrar/` **não** mostra a seção "Você é cliente ou
+  fornecedor?" — nem vazia, nem com "em breve". Se aparecer um destino apagado
+  ou uma promessa, **abra bug**: ninguém decidiu que esses produtos vão existir.
+- **Com a variável preenchida**, a seção aparece abaixo do formulário, com o
+  nome e a descrição, e o link leva para fora.
+- **O "Portal ADB" não aparece na própria tela de entrar.** Dizer a quem já está
+  aqui que a entrada dele é aqui não ajuda ninguém.
+- **O tile aparece na faixa Aplicativos da home**, no fim, ao lado do iConnect
+  Platform — as entradas que **saem** deste produto ficam juntas.
+
+**As configurações que o produto RECUSA** (o servidor não sobe, e a mensagem diz
+por quê — teste uma de cada vez):
+
+| Valor | Por que é recusado |
+|---|---|
+| `/workspace/` | não é absoluto: mandaria cliente para dentro deste produto |
+| `//evil.exemplo.com/` | sem esquema |
+| `javascript:alert(1)` | esquema não é http(s), e o valor vira `href` na tela de login |
+| um host que esteja em `ALLOWED_HOSTS` | aponta para este próprio produto |
+
+Se qualquer um desses **subir o servidor**, é achado de segurança: a tela de
+entrar estaria confirmando a um cliente que o portal do funcionário é o lugar
+certo dele.
+
+**O que NÃO existe, e não é bug:** login de cliente ou fornecedor aqui, papel de
+"cliente", e módulo de públicos. O modelo de permissão assume colaborador com
+lotação no organograma — ver ADR-038.
+
+---
+
 ## 4. Matriz perfil × tela
 
 Use como plano de cobertura. **A coluna "Anônimo" é a mais esquecida e a que mais

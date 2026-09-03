@@ -143,6 +143,8 @@ casa, que era o ponto de existir um contrato.
 | Nada em [resultados/](resultados/) tem formulário, nem no `/admin/` | O dado nasce onde é operado. Editar o espelho criaria duas verdades sobre a mesma linha — e a segunda venceria até a próxima carga, ou não venceria, conforme a precedência ([ADR-018](docs/EXEC_16_INGESTAO.md)). |
 | Regra de exceção com **zero** continua na lista | Sumir esconderia que a regra existe — e a discussão sobre "deveríamos vigiar X" voltaria em seis meses. E "sem ocorrências" **não** é o mesmo que "não avaliada": a segunda quer dizer que a fonte não está no ar, e as duas pedem ações opostas ([ADR-027](docs/EXEC_18_EXCECOES.md)). |
 | Cinco regras estão no banco **desligadas** | ASO, reciclagem, advertências, experiência e a conciliação de centro de custo. Elas dependem do HRIS e do orçamento, e ficam registradas com a fonte anotada — é o que responde "por que não vigiamos isso?" sem ninguém perguntar. |
+| Este produto atende **um** público | Três públicos, três produtos, uma marca: o Portal ADB é este; ADB Cliente e ADB Fornecedor são outros. O modelo de permissão assume `Pessoa` com lotação no organograma — um "papel de cliente" exigiria um segundo modelo de identidade, ou gente no organograma que não trabalha aqui ([ADR-038](docs/EXEC_23_PUBLICOS.md)). |
+| Destino não configurado **não aparece**, nem como "em breve" | "Em breve" é promessa, e ninguém decidiu construir o ADB Cliente. Ele continua **registrado sem endereço** — a decisão de não existir é informação, e some se ele não estiver em lugar nenhum ([ADR-039](docs/EXEC_23_PUBLICOS.md)). |
 | Existem **dois orçados**, e eles não se fundem | O teto de operação é nosso e responde "isto cabe?" na aprovação; o orçado contábil é do Sankhya e responde "o mês fechou onde deveria?". A tela mostra os dois lado a lado com a diferença, e nenhuma linha de código escolhe vencedor — divergência entre fontes se resolve por regra declarada, não dentro de um `if` ([ADR-036](docs/EXEC_22_ORCAMENTO.md)). |
 | O **teto vigente muda por revisão** | Com motivo, autor e delta por mês. Antes disso, quem tivesse `is_staff` editava um campo e ninguém ficava sabendo — e "quem mudou o teto de julho, quando e por quê" não tinha resposta ([ADR-037](docs/EXEC_22_ORCAMENTO.md)). |
 | A meta guarda a **fórmula**, e nunca o número | `Meta.fator_1` é `"ebitda"`, não `120000`. O valor é lido do espelho na apuração e só então congelado — a meta é auditável porque a conta está na tela, e a comparação entre quadros continua funcionando no segundo ano. O preço é real e é o certo: só se escreve meta sobre o que o produto sabe medir ([ADR-034](docs/EXEC_21_METAS.md)). |
@@ -217,6 +219,7 @@ justificativa no PR.
 | [EXEC 20](docs/EXEC_20_PLANOS.md) | O plano de ação com limiar: a regra dos 10% generalizada, com os ADRs 032–033 |
 | [EXEC 21](docs/EXEC_21_METAS.md) | Metas, avaliação e PDI: a meta auditável porque a fórmula está na tela, com os ADRs 034–035 |
 | [EXEC 22](docs/EXEC_22_ORCAMENTO.md) | Orçamento anual e revisão: a onda que começou decidindo a posse, com os ADRs 036–037 |
+| [EXEC 23](docs/EXEC_23_PUBLICOS.md) | Segmentação de público: um ADR e um tile, não um módulo, com os ADRs 038–039 |
 
 ---
 

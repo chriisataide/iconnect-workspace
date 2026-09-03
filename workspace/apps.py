@@ -38,6 +38,13 @@ class WorkspaceConfig(AppConfig):
 
         semear_fatores()
 
+        # Os públicos da marca. Aqui e não numa tela: uma URL mal configurada
+        # mandaria cliente para dentro do portal do funcionário, e o lugar de
+        # descobrir isso é na subida do processo, onde ainda é barato.
+        from .publicos import semear as semear_publicos
+
+        semear_publicos()
+
         # Liga orçamento ao motor de aprovação. APR não conhece Compromisso e
         # orçamento não conhece cadeia de aprovação — o sinal é a costura.
         from .services.orcamento import conectar as conectar_orcamento
