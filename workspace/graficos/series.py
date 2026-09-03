@@ -412,3 +412,864 @@ def _resumo(titulo: str, pontos, formatar) -> str:
         f"Menor em {menor[0]}, {formatar(menor[1])}. "
         "Os números estão na tabela abaixo."
     )
+
+
+# ── Os tipos restantes do catálogo ──────────────────────────────────
+
+
+def cascata(
+    passos: list[tuple[str, Decimal]],
+    *,
+    chave: str,
+    titulo: str,
+    inicial: Decimal | None = None,
+    rotulo_inicial: str = "Início",
+    rotulo_final: str = "Final",
+    formatar=fmt.moeda_curta,
+    formatar_tabela=fmt.moeda,
+    altura: int = ALTURA,
+) -> Bloco:
+    """Cascata (*waterfall*) — "conquista × perda (ROB)" do benchmark.
+
+    O ECharts não tem série de cascata. A receita conhecida é uma barra
+    **empilhada** com uma série de base **transparente**: a base sobe até onde o
+    passo começa, e a parte visível é o passo.
+
+    `inicial` desenha a coluna de partida e a de chegada. Sem ela o gráfico é só
+    o movimento — que é o caso de "conquistas e perdas do mês", onde o saldo
+    inicial não é o assunto.
+
+    Positivo em verde, negativo em vermelho, **e o valor escrito dentro**: cor
+    nunca sozinha.
+    """
+    if not passos:
+        return Bloco(chave=chave, titulo=titulo, option={}, altura=altura)
+
+    rotulos: list[str] = []
+    bases: list[float | None] = []
+    valores: list[float] = []
+    textos: list[str] = []
+    cores: list[str] = []
+
+    acumulado = inicial or Decimal("0")
+    if inicial is not None:
+        rotulos.append(rotulo_inicial)
+        bases.append(0)
+        valores.append(float(acumulado))
+        textos.append(formatar(acumulado))
+        cores.append(COR_PRINCIPAL)
+
+    for rotulo, delta in passos:
+        rotulos.append(rotulo)
+        # A base é o menor dos dois extremos: numa queda, ela fica no valor de
+        # chegada e o bloco visível sobe até o de partida.
+        base = min(acumulado, acumulado + delta)
+        bases.append(float(base))
+        valores.append(abs(float(delta)))
+        textos.append(formatar(delta))
+        cores.append(COR_POSITIVO if delta >= 0 else COR_NEGATIVO)
+        acumulado += delta
+
+    if inicial is not None:
+        rotulos.append(rotulo_final)
+        bases.append(0)
+        valores.append(float(acumulado))
+        textos.append(formatar(acumulado))
+        cores.append(COR_PRINCIPAL)
+
+    option = _base(altura)
+    option.update(
+        {
+            "xAxis": {
+                "type": "category",
+                "data": rotulos,
+                "axisLabel": {"color": COR_TEXTO, "fontSize": 11},
+                "axisTick": {"show": False},
+                "axisLine": {"lineStyle": {"color": COR_GRADE}},
+            },
+            "yAxis": _eixo_de_valor(),
+            "series": [
+                {
+                    # A base invisível. `stack` compartilhado é o que a empilha
+                    # debaixo do passo; `transparent` é o que a esconde sem
+                    # tirá-la do empilhamento.
+                    "type": "bar",
+                    "name": "base",
+                    "stack": "cascata",
+                    "silent": True,
+                    "itemStyle": {"color": "transparent"},
+                    "emphasis": {"itemStyle": {"color": "transparent"}},
+                    "data": bases,
+                    "tooltip": {"show": False},
+                    "legendHoverLink": False,
+                },
+                {
+                    "type": "bar",
+                    "name": titulo,
+                    "stack": "cascata",
+                    "barMaxWidth": 40,
+                    "data": [
+                        {"value": valor, "itemStyle": {"color": cor}, "rotulo": texto}
+                        for valor, cor, texto in zip(valores, cores, textos)
+                    ],
+                    "label": {
+                        "show": True,
+                        # `{@rotulo}` não vale aqui: os dados são objetos e não
+                        # `dataset`. O ECharts expõe o item cru em `{c}`… mas ele
+                        # traz o valor, não o texto. `data.rotulo` é lido por
+                        # `{@rotulo}` mesmo assim — o `retrieveRawValue` procura
+                        # a dimensão no item bruto.
+                        "formatter": "{@rotulo}",
+                        "rotate": 90,
+                        "position": "inside",
+                        "fontSize": 10,
+                        "color": "#ffffff",
+                    },
+                    "labelLayout": {"hideOverlap": True},
+                },
+            ],
+            # Sem legenda: a série de base não deve aparecer nela, e uma legenda
+            # de um item só é ruído.
+            "legend": {"show": False},
+        }
+    )
+
+    linhas = []
+    acumulado = inicial or Decimal("0")
+    if inicial is not None:
+        linhas.append([rotulo_inicial, formatar_tabela(acumulado), formatar_tabela(acumulado)])
+    for rotulo, delta in passos:
+        acumulado += delta
+        linhas.append([rotulo, formatar_tabela(delta), formatar_tabela(acumulado)])
+    if inicial is not None:
+        linhas.append([rotulo_final, "—", formatar_tabela(acumulado)])
+
+    return Bloco(
+        chave=chave,
+        titulo=titulo,
+        option=option,
+        colunas=[Coluna("Passo", numerica=False), Coluna("Movimento"), Coluna("Acumulado")],
+        linhas=linhas,
+        resumo=(
+            f"{titulo}: {len(passos)} movimentos, terminando em "
+            f"{formatar_tabela(acumulado)}. Os números estão na tabela abaixo."
+        ),
+        altura=altura,
+    )
+
+
+def _paleta(quantos: int) -> list[str]:
+    """Cores para série categórica, em ordem de contraste decrescente.
+
+    Repete a partir da sexta: com mais de cinco categorias, o gráfico já está
+    dizendo que a categoria errada foi escolhida — e repetir cor é melhor que
+    inventar uma que não passa no contraste.
+    """
+    base = [COR_PRINCIPAL, COR_SECUNDARIA, COR_LINHA, COR_POSITIVO, COR_NEGATIVO]
+    return [base[i % len(base)] for i in range(quantos)]
+
+
+def barra_composicao(
+    partes: list[tuple[str, Decimal]],
+    *,
+    chave: str,
+    titulo: str,
+    formatar=fmt.moeda_curta,
+    formatar_tabela=fmt.moeda,
+    altura: int = 120,
+) -> Bloco:
+    """Uma barra horizontal única, empilhada — a composição de um total.
+
+    É o "mix da carteira": uma linha só, cada segmento uma categoria, o valor
+    **dentro do segmento** e a legenda embaixo.
+
+    Altura menor que o padrão de propósito: uma barra não precisa de 260px, e
+    ocupar esse espaço faria a composição parecer mais importante que a série.
+    """
+    if not partes:
+        return Bloco(chave=chave, titulo=titulo, option={}, altura=altura)
+
+    total = sum((valor for _, valor in partes), Decimal("0"))
+    cores = _paleta(len(partes))
+
+    option = _base(altura)
+    option.update(
+        {
+            "grid": {"left": 8, "right": 8, "top": 8, "bottom": 34, "containLabel": True},
+            "xAxis": {"type": "value", "show": False},
+            "yAxis": {"type": "category", "data": [""], "show": False},
+            "legend": {
+                "bottom": 0,
+                "icon": "roundRect",
+                "itemHeight": 8,
+                "textStyle": {"color": COR_TEXTO, "fontSize": 11},
+            },
+            "tooltip": {"trigger": "item", "confine": True},
+            "series": [
+                {
+                    "type": "bar",
+                    "name": nome,
+                    "stack": "total",
+                    "barMaxWidth": 34,
+                    "itemStyle": {"color": cor},
+                    "data": [{"value": float(valor), "rotulo": formatar(valor)}],
+                    # O valor DENTRO do segmento: é o que faz a cor não estar
+                    # sozinha numa barra em que os rótulos só existem na legenda.
+                    "label": {
+                        "show": True,
+                        "formatter": "{@rotulo}",
+                        "position": "inside",
+                        "fontSize": 10,
+                        "color": "#ffffff",
+                    },
+                    "labelLayout": {"hideOverlap": True},
+                }
+                for (nome, valor), cor in zip(partes, cores)
+            ],
+        }
+    )
+
+    return Bloco(
+        chave=chave,
+        titulo=titulo,
+        option=option,
+        colunas=[Coluna("Categoria", numerica=False), Coluna("Valor"), Coluna("Participação")],
+        linhas=[
+            [
+                nome,
+                formatar_tabela(valor),
+                fmt.percentual(valor / total * 100) if total else fmt.VAZIO,
+            ]
+            for nome, valor in partes
+        ],
+        resumo=(
+            f"{titulo}: {len(partes)} categorias, total de {formatar_tabela(total)}. "
+            "Os números estão na tabela abaixo."
+        ),
+        altura=altura,
+    )
+
+
+def empilhada_percentual(
+    categorias: list[str],
+    series_por_nome: list[tuple[str, list[Decimal]]],
+    *,
+    chave: str,
+    titulo: str,
+    formatar=fmt.curto,
+    formatar_tabela=fmt.numero,
+    altura: int = ALTURA,
+) -> Bloco:
+    """Barras horizontais empilhadas, com o **valor absoluto** em cada segmento.
+
+    Empilhada percentual mostra proporção e esconde tamanho: duas linhas de 100%
+    parecem iguais quando uma vale dez e a outra dez mil. O valor dentro do
+    segmento devolve o tamanho — é a mesma razão pela qual o benchmark escreve o
+    número dentro de cada pedaço.
+    """
+    if not categorias or not series_por_nome:
+        return Bloco(chave=chave, titulo=titulo, option={}, altura=altura)
+
+    cores = _paleta(len(series_por_nome))
+    option = _base(altura)
+    option.update(
+        {
+            "grid": {"left": 8, "right": 8, "top": 8, "bottom": 34, "containLabel": True},
+            "xAxis": {"type": "value", "show": False},
+            "yAxis": {
+                "type": "category",
+                "data": categorias,
+                "axisLabel": {"color": COR_TEXTO, "fontSize": 11},
+                "axisTick": {"show": False},
+                "axisLine": {"show": False},
+            },
+            "legend": {
+                "bottom": 0, "icon": "roundRect", "itemHeight": 8,
+                "textStyle": {"color": COR_TEXTO, "fontSize": 11},
+            },
+            "series": [
+                {
+                    "type": "bar",
+                    "name": nome,
+                    "stack": "total",
+                    "barMaxWidth": 26,
+                    "itemStyle": {"color": cor},
+                    "data": [
+                        {"value": float(v), "rotulo": formatar(v)} for v in valores
+                    ],
+                    "label": {
+                        "show": True, "formatter": "{@rotulo}",
+                        "position": "inside", "fontSize": 10, "color": "#ffffff",
+                    },
+                    "labelLayout": {"hideOverlap": True},
+                }
+                for (nome, valores), cor in zip(series_por_nome, cores)
+            ],
+        }
+    )
+
+    linhas = []
+    for indice, categoria in enumerate(categorias):
+        celulas = [categoria]
+        for _, valores in series_por_nome:
+            celulas.append(formatar_tabela(valores[indice]))
+        linhas.append(celulas)
+
+    return Bloco(
+        chave=chave,
+        titulo=titulo,
+        option=option,
+        colunas=[Coluna("Categoria", numerica=False)]
+        + [Coluna(nome) for nome, _ in series_por_nome],
+        linhas=linhas,
+        resumo=f"{titulo}: {len(categorias)} categorias. Os números estão na tabela abaixo.",
+        altura=altura,
+    )
+
+
+def rosca(
+    fatias: list[tuple[str, Decimal]],
+    *,
+    chave: str,
+    titulo: str,
+    centro_rotulo: str = "",
+    centro_valor: str = "",
+    formatar_tabela=fmt.moeda,
+    altura: int = ALTURA,
+) -> Bloco:
+    """Rosca com o total no centro.
+
+    Rosca e não pizza: o buraco no meio é onde mora o total, e é ele que
+    responde a primeira pergunta. Sem o centro preenchido, a rosca é uma pizza
+    com menos tinta.
+
+    Máximo prático de cinco a seis fatias — acima disso a legenda é maior que o
+    desenho, e a leitura é a da tabela.
+    """
+    if not fatias:
+        return Bloco(chave=chave, titulo=titulo, option={}, altura=altura)
+
+    total = sum((valor for _, valor in fatias), Decimal("0"))
+    cores = _paleta(len(fatias))
+
+    option = _base(altura)
+    option.pop("grid", None)
+    option.update(
+        {
+            "tooltip": {"trigger": "item", "confine": True},
+            "legend": {
+                "bottom": 0, "icon": "circle", "itemHeight": 8,
+                "textStyle": {"color": COR_TEXTO, "fontSize": 11},
+            },
+            # O total no centro, como texto do próprio gráfico.
+            "title": {
+                "text": centro_valor or fmt.moeda_curta(total),
+                "subtext": centro_rotulo or "total",
+                "left": "center",
+                "top": "38%",
+                "textStyle": {"fontSize": 18, "color": COR_TEXTO},
+                "subtextStyle": {"fontSize": 11, "color": COR_TEXTO},
+            },
+            "series": [
+                {
+                    "type": "pie",
+                    "radius": ["55%", "75%"],
+                    "center": ["50%", "45%"],
+                    "avoidLabelOverlap": True,
+                    "itemStyle": {"borderColor": "#ffffff", "borderWidth": 2},
+                    # O nome E o valor no rótulo externo: cor nunca sozinha, e a
+                    # legenda embaixo não diz quanto.
+                    "label": {
+                        "show": True,
+                        "formatter": "{b}\\n{d}%",
+                        "fontSize": 10,
+                        "color": COR_TEXTO,
+                    },
+                    "labelLine": {"length": 8, "length2": 8},
+                    "data": [
+                        {"name": nome, "value": float(valor), "itemStyle": {"color": cor}}
+                        for (nome, valor), cor in zip(fatias, cores)
+                    ],
+                }
+            ],
+        }
+    )
+
+    return Bloco(
+        chave=chave,
+        titulo=titulo,
+        option=option,
+        colunas=[Coluna("Fatia", numerica=False), Coluna("Valor"), Coluna("Participação")],
+        linhas=[
+            [
+                nome,
+                formatar_tabela(valor),
+                fmt.percentual(valor / total * 100) if total else fmt.VAZIO,
+            ]
+            for nome, valor in fatias
+        ],
+        resumo=(
+            f"{titulo}: {len(fatias)} fatias, total de {formatar_tabela(total)}. "
+            "Os números estão na tabela abaixo."
+        ),
+        altura=altura,
+    )
+
+
+#: As faixas do medidor, na ordem do pior para o melhor. Cada uma tem NOME —
+#: cor nunca sozinha, e num medidor a cor é quase tudo o que existe.
+FAIXAS_PADRAO: tuple[tuple[Decimal, str, str], ...] = (
+    (Decimal("50"), "crítico", COR_NEGATIVO),
+    (Decimal("75"), "atenção", COR_LINHA),
+    (Decimal("100"), "bom", COR_POSITIVO),
+)
+
+
+def medidor(
+    valor: Decimal | None,
+    *,
+    chave: str,
+    titulo: str,
+    faixas: tuple = FAIXAS_PADRAO,
+    maximo: Decimal = Decimal("100"),
+    quantidade_por_faixa: dict[str, int] | None = None,
+    sufixo: str = "",
+    altura: int = 220,
+) -> Bloco:
+    """Ponteiro com faixas de governança — o Score PEC do benchmark.
+
+    A tabela irmã traz a **quantidade por faixa**, e não só o ponteiro: um
+    medidor diz onde a média caiu e esconde a distribuição. Média 78 com metade
+    dos contratos abaixo de 50 é uma conversa diferente de média 78 com todos
+    entre 70 e 85 — e o benchmark mostra as duas coisas lado a lado.
+
+    `valor` `None` desenha o medidor **sem ponteiro** e a tela diz "sem
+    amostra". Um ponteiro em zero seria lido como nota zero.
+    """
+    quantidade_por_faixa = quantidade_por_faixa or {}
+    if valor is None and not quantidade_por_faixa:
+        return Bloco(chave=chave, titulo=titulo, option={}, altura=altura)
+
+    # `axisLine.lineStyle.color` do ECharts é uma lista de `[proporção, cor]`,
+    # com a proporção acumulada de 0 a 1.
+    cores = [[float(limite / maximo), cor] for limite, _, cor in faixas]
+
+    option = _base(altura)
+    option.pop("grid", None)
+    option.pop("tooltip", None)
+    option.update(
+        {
+            "series": [
+                {
+                    "type": "gauge",
+                    "min": 0,
+                    "max": float(maximo),
+                    "startAngle": 200,
+                    "endAngle": -20,
+                    "radius": "94%",
+                    "center": ["50%", "62%"],
+                    "axisLine": {"lineStyle": {"width": 16, "color": cores}},
+                    "pointer": {"show": valor is not None, "width": 4},
+                    "progress": {"show": False},
+                    "axisTick": {"show": False},
+                    "splitLine": {"length": 8, "lineStyle": {"color": "#ffffff", "width": 2}},
+                    "axisLabel": {"distance": 22, "fontSize": 10, "color": COR_TEXTO},
+                    "anchor": {"show": True, "size": 8, "itemStyle": {"color": COR_TEXTO}},
+                    "detail": {
+                        "valueAnimation": False,
+                        "fontSize": 24,
+                        "color": COR_TEXTO,
+                        "offsetCenter": [0, "42%"],
+                        # `{value}` é o formatador nativo do gauge — e ele é o
+                        # ÚNICO lugar do catálogo onde não dá para usar
+                        # `{@dimensão}`, porque o gauge não tem `dataset`. Por
+                        # isso o valor entra já arredondado, e o sufixo vem
+                        # pronto do Python.
+                        "formatter": f"{{value}}{sufixo}" if valor is not None else "—",
+                    },
+                    "data": [
+                        {
+                            "value": float(round(valor, 1)) if valor is not None else 0,
+                            "name": titulo,
+                        }
+                    ],
+                    "title": {"show": False},
+                }
+            ]
+        }
+    )
+
+    linhas = []
+    for limite, nome, _ in faixas:
+        linhas.append(
+            [
+                f"{nome} · até {fmt.numero(limite)}{sufixo}",
+                fmt.numero(quantidade_por_faixa.get(nome, 0)),
+            ]
+        )
+
+    return Bloco(
+        chave=chave,
+        titulo=titulo,
+        option=option,
+        colunas=[Coluna("Faixa", numerica=False), Coluna("Quantidade")],
+        linhas=linhas,
+        resumo=(
+            f"{titulo}: {fmt.numero(valor, 1)}{sufixo}."
+            if valor is not None
+            else f"{titulo}: sem amostra."
+        )
+        + " A distribuição por faixa está na tabela abaixo.",
+        altura=altura,
+    )
+
+
+def bullet(
+    itens: list[tuple[str, Decimal | None, Decimal | None]],
+    *,
+    chave: str,
+    titulo: str,
+    rotulo_valor: str = "Realizado",
+    rotulo_meta: str = "Meta",
+    formatar=fmt.curto,
+    formatar_tabela=fmt.numero,
+    altura: int = 0,
+) -> Bloco:
+    """Barra fina com a meta marcada — o que cabe numa célula de tabela.
+
+    `itens` é `[(rótulo, valor, meta), …]`. A meta vira uma `markLine` vertical:
+    ela cruza a barra no ponto do alvo, e a leitura é "passou ou não passou" sem
+    ler número nenhum.
+
+    Altura calculada pela quantidade de linhas: um bullet de três itens com
+    260px de altura vira três tarjas gordas separadas por vazio.
+    """
+    if not itens:
+        return Bloco(chave=chave, titulo=titulo, option={}, altura=altura or 120)
+
+    altura = altura or max(90, 34 * len(itens) + 40)
+    rotulos = [rotulo for rotulo, _, _ in itens]
+    valores = [
+        {"value": float(v) if v is not None else None, "rotulo": formatar(v)}
+        for _, v, _ in itens
+    ]
+    metas = [float(m) if m is not None else None for _, _, m in itens]
+
+    option = _base(altura)
+    option.update(
+        {
+            "grid": {"left": 8, "right": 8, "top": 8, "bottom": 8, "containLabel": True},
+            "xAxis": {"type": "value", "show": False},
+            "yAxis": {
+                "type": "category",
+                "data": rotulos,
+                "inverse": True,
+                "axisLabel": {"color": COR_TEXTO, "fontSize": 11},
+                "axisTick": {"show": False},
+                "axisLine": {"show": False},
+            },
+            "series": [
+                {
+                    "type": "bar",
+                    "name": rotulo_valor,
+                    "barMaxWidth": 12,
+                    "itemStyle": {"color": COR_PRINCIPAL, "borderRadius": 2},
+                    "data": valores,
+                    "label": {
+                        "show": True, "formatter": "{@rotulo}",
+                        "position": "right", "fontSize": 10, "color": COR_TEXTO,
+                    },
+                    "labelLayout": {"hideOverlap": True},
+                    "markLine": {
+                        "symbol": "none",
+                        "silent": True,
+                        "lineStyle": {"color": COR_NEGATIVO, "width": 2},
+                        "label": {"show": False},
+                        "data": [
+                            {"xAxis": meta, "yAxis": indice}
+                            for indice, meta in enumerate(metas)
+                            if meta is not None
+                        ],
+                    },
+                }
+            ],
+        }
+    )
+
+    return Bloco(
+        chave=chave,
+        titulo=titulo,
+        option=option,
+        colunas=[
+            Coluna("Item", numerica=False),
+            Coluna(rotulo_valor),
+            Coluna(rotulo_meta),
+            Coluna("Atingiu", numerica=False),
+        ],
+        linhas=[
+            [
+                rotulo,
+                formatar_tabela(valor),
+                formatar_tabela(meta),
+                # A palavra, e não só a marca no gráfico: quem lê a tabela não
+                # vê a `markLine`.
+                ("sim" if (valor is not None and meta is not None and valor >= meta)
+                 else "não" if (valor is not None and meta is not None) else "—"),
+            ]
+            for rotulo, valor, meta in itens
+        ],
+        resumo=f"{titulo}: {len(itens)} itens contra a meta. Detalhe na tabela abaixo.",
+        altura=altura,
+    )
+
+
+def dispersao(
+    pontos: list[tuple[str, Decimal, Decimal, Decimal]],
+    *,
+    chave: str,
+    titulo: str,
+    rotulo_x: str = "Receita",
+    rotulo_y: str = "Margem",
+    formatar_x=fmt.moeda_curta,
+    formatar_y=fmt.percentual,
+    limiar_y: Decimal | None = None,
+    altura: int = 300,
+) -> Bloco:
+    """Receita × margem, com o tamanho do ponto pelo valor mensal.
+
+    Adição nossa, e não do benchmark. Ela responde a pergunta que nenhuma das
+    outras responde: **quais contratos são grandes E pouco rentáveis** — o
+    quadrante direito-inferior, que é onde o dinheiro está e a margem não.
+
+    `pontos` é `[(rótulo, x, y, tamanho), …]`. `limiar_y` desenha a linha da
+    margem mínima: sem ela, o quadrante que importa não tem fronteira visível.
+    """
+    if not pontos:
+        return Bloco(chave=chave, titulo=titulo, option={}, altura=altura)
+
+    tamanhos = [float(t) for _, _, _, t in pontos] or [1.0]
+    maior = max(tamanhos) or 1.0
+
+    option = _base(altura)
+    option.update(
+        {
+            "tooltip": {"trigger": "item", "confine": True},
+            "xAxis": {
+                **_eixo_de_valor(),
+                "name": rotulo_x,
+                "nameLocation": "middle",
+                "nameGap": 28,
+                "nameTextStyle": {"color": COR_TEXTO, "fontSize": 11},
+            },
+            "yAxis": {
+                **_eixo_de_valor(),
+                "name": rotulo_y,
+                "nameLocation": "middle",
+                "nameGap": 40,
+                "nameTextStyle": {"color": COR_TEXTO, "fontSize": 11},
+            },
+            "series": [
+                {
+                    "type": "scatter",
+                    "name": titulo,
+                    "symbolSize": 8,
+                    "itemStyle": {"color": COR_PRINCIPAL, "opacity": 0.75},
+                    "data": [
+                        {
+                            "name": rotulo,
+                            "value": [float(x), float(y)],
+                            # O tamanho proporcional, entre 8 e 34 pixels. Sem
+                            # piso, o contrato pequeno vira um ponto que ninguém
+                            # acha; sem teto, o maior cobre os vizinhos.
+                            "symbolSize": 8 + 26 * (float(t) / maior),
+                            "rotulo": rotulo,
+                        }
+                        for rotulo, x, y, t in pontos
+                    ],
+                    "label": {
+                        "show": True, "formatter": "{@rotulo}",
+                        "position": "top", "fontSize": 9, "color": COR_TEXTO,
+                    },
+                    "labelLayout": {"hideOverlap": True},
+                    "markLine": (
+                        {
+                            "symbol": "none",
+                            "silent": True,
+                            "lineStyle": {"color": COR_NEGATIVO, "type": "dashed"},
+                            "label": {
+                                "formatter": formatar_y(limiar_y),
+                                "color": COR_NEGATIVO,
+                                "fontSize": 10,
+                            },
+                            "data": [{"yAxis": float(limiar_y)}],
+                        }
+                        if limiar_y is not None
+                        else {"data": []}
+                    ),
+                }
+            ],
+        }
+    )
+
+    return Bloco(
+        chave=chave,
+        titulo=titulo,
+        option=option,
+        colunas=[
+            Coluna("Item", numerica=False), Coluna(rotulo_x), Coluna(rotulo_y),
+        ],
+        linhas=[
+            [rotulo, formatar_x(x), formatar_y(y)] for rotulo, x, y, _ in pontos
+        ],
+        resumo=(
+            f"{titulo}: {len(pontos)} pontos, {rotulo_x} contra {rotulo_y}. "
+            "Os números estão na tabela abaixo."
+        ),
+        altura=altura,
+    )
+
+
+# ── Os dois que NÃO são gráfico ─────────────────────────────────────
+
+
+#: As faixas do farol, do pior para o melhor. `nome` é o que vai escrito ao
+#: lado — cor nunca sozinha, e num farol a cor é a única coisa que existe.
+FAROL_CRITICO = "critico"
+FAROL_ATENCAO = "atencao"
+FAROL_BOM = "bom"
+FAROL_INDEFINIDO = "indefinido"
+
+ROTULO_DO_FAROL = {
+    FAROL_CRITICO: "crítico",
+    FAROL_ATENCAO: "atenção",
+    FAROL_BOM: "bom",
+    FAROL_INDEFINIDO: "sem amostra",
+}
+
+
+@dataclass(frozen=True)
+class Farol:
+    """Não é gráfico: é um `<span>` com classe e **rótulo textual**.
+
+    Desenhar um círculo colorido de 10px com ECharts custaria um contêiner, uma
+    inicialização e 217 KB de biblioteca para pintar um ponto. E o ponto sozinho
+    não diz nada a quem não distingue as cores.
+
+    `situacao` vira classe CSS; `rotulo` vira texto ao lado. Os dois sempre.
+    """
+
+    situacao: str
+    valor: str = ""
+
+    @property
+    def rotulo(self) -> str:
+        return ROTULO_DO_FAROL.get(self.situacao, ROTULO_DO_FAROL[FAROL_INDEFINIDO])
+
+
+def farol(
+    valor: Decimal | None,
+    *,
+    critico: Decimal,
+    atencao: Decimal,
+    maior_melhor: bool = True,
+    formatar=fmt.percentual,
+) -> Farol:
+    """A faixa de um valor. `None` devolve **indefinido**, e nunca "crítico".
+
+    Sem amostra não é o pior caso: é ausência de caso. Pintar de vermelho o que
+    ninguém mediu manda alguém correr atrás do problema errado.
+    """
+    if valor is None:
+        return Farol(situacao=FAROL_INDEFINIDO, valor=fmt.VAZIO)
+
+    texto = formatar(valor)
+    if maior_melhor:
+        situacao = (
+            FAROL_CRITICO if valor < critico
+            else FAROL_ATENCAO if valor < atencao
+            else FAROL_BOM
+        )
+    else:
+        # Turnover, absenteísmo, custo: menor é melhor, e os limiares invertem.
+        situacao = (
+            FAROL_CRITICO if valor > critico
+            else FAROL_ATENCAO if valor > atencao
+            else FAROL_BOM
+        )
+    return Farol(situacao=situacao, valor=texto)
+
+
+@dataclass(frozen=True)
+class Celula:
+    """Uma célula do mapa de calor: o texto e a faixa."""
+
+    texto: str
+    situacao: str = FAROL_INDEFINIDO
+
+
+@dataclass
+class MapaDeCalor:
+    """Uma TABELA com classe de faixa por célula — e não um `heatmap`.
+
+    O prompt do catálogo dá as duas opções e recomenda a tabela. As razões:
+
+    - ela é **menor**: zero bytes de biblioteca, e o mapa de calor costuma ser a
+      grade inteira de uma tela;
+    - ela continua legível **sem JavaScript**, que é o pior cenário do resto do
+      catálogo e o normal aqui;
+    - o número fica **selecionável e copiável**, e uma grade de score existe para
+      alguém copiar uma linha dela para um e-mail.
+
+    A cor é reforço: cada célula traz o número escrito, e a legenda nomeia as
+    faixas.
+    """
+
+    chave: str
+    titulo: str
+    colunas: list[str]
+    linhas: list[tuple[str, list[Celula]]]
+    legenda: list[tuple[str, str]] = field(default_factory=list)
+
+    @property
+    def vazio(self) -> bool:
+        return not self.linhas
+
+
+def mapa_calor_tabela(
+    colunas: list[str],
+    linhas: list[tuple[str, list[Decimal | None]]],
+    *,
+    chave: str,
+    titulo: str,
+    critico: Decimal,
+    atencao: Decimal,
+    maior_melhor: bool = True,
+    formatar=fmt.percentual,
+) -> MapaDeCalor:
+    """A grade do Score PEC: uma linha por item, uma coluna por período."""
+    return MapaDeCalor(
+        chave=chave,
+        titulo=titulo,
+        colunas=colunas,
+        linhas=[
+            (
+                nome,
+                [
+                    Celula(
+                        texto=(f := farol(
+                            valor, critico=critico, atencao=atencao,
+                            maior_melhor=maior_melhor, formatar=formatar,
+                        )).valor,
+                        situacao=f.situacao,
+                    )
+                    for valor in valores
+                ],
+            )
+            for nome, valores in linhas
+        ],
+        legenda=[
+            (FAROL_BOM, ROTULO_DO_FAROL[FAROL_BOM]),
+            (FAROL_ATENCAO, ROTULO_DO_FAROL[FAROL_ATENCAO]),
+            (FAROL_CRITICO, ROTULO_DO_FAROL[FAROL_CRITICO]),
+        ],
+    )

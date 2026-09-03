@@ -648,3 +648,324 @@ def test_o_seletor_de_servico_so_oferece_o_que_existe(client, espelho, diretoria
 
     assert contexto["servicos"], "o espelho tem serviço, o seletor precisa listar"
     assert all(isinstance(s, str) and s for s in contexto["servicos"])
+
+
+# ── O resto do catálogo ─────────────────────────────────────────────
+
+
+def test_a_cascata_usa_uma_base_transparente():
+    """O ECharts não tem série de cascata. A receita é barra EMPILHADA com uma
+    série de base transparente: a base sobe até onde o passo começa."""
+    bloco = series.cascata(
+        [("Conquistas", Decimal("300")), ("Perdas", Decimal("-120"))],
+        chave="x", titulo="Movimento", inicial=Decimal("1000"),
+    )
+    base, passos = bloco.option["series"]
+
+    assert base["itemStyle"]["color"] == "transparent"
+    assert base["stack"] == passos["stack"]
+    assert base["silent"] is True
+
+
+def test_a_cascata_desce_a_base_no_passo_negativo():
+    """Numa queda a base fica no valor de CHEGADA, e o bloco visível sobe até o
+    de partida. Com a base no de partida, a barra sairia do gráfico."""
+    bloco = series.cascata(
+        [("Perdas", Decimal("-120"))], chave="x", titulo="t", inicial=Decimal("1000")
+    )
+    bases = bloco.option["series"][0]["data"]
+
+    # [início=0, passo=880, final=0]
+    assert bases[1] == 880.0
+
+
+def test_a_cascata_fecha_no_acumulado():
+    bloco = series.cascata(
+        [("A", Decimal("300")), ("B", Decimal("-120"))],
+        chave="x", titulo="t", inicial=Decimal("1000"),
+    )
+
+    assert bloco.linhas[-1][2] == fmt.moeda(Decimal("1180"))
+
+
+def test_a_cascata_pinta_ganho_e_perda_e_escreve_o_valor():
+    """Cor nunca sozinha: verde e vermelho, com o número dentro da barra."""
+    bloco = series.cascata(
+        [("A", Decimal("300")), ("B", Decimal("-120"))], chave="x", titulo="t"
+    )
+    dados = bloco.option["series"][1]["data"]
+
+    assert dados[0]["itemStyle"]["color"] == series.COR_POSITIVO
+    assert dados[1]["itemStyle"]["color"] == series.COR_NEGATIVO
+    assert dados[1]["rotulo"] == fmt.moeda_curta(Decimal("-120"))
+
+
+def test_a_barra_de_composicao_e_uma_categoria_so():
+    bloco = series.barra_composicao(
+        [("cftv", Decimal("300")), ("alarme", Decimal("100"))],
+        chave="x", titulo="Mix",
+    )
+
+    assert bloco.option["yAxis"]["data"] == [""]
+    assert len(bloco.option["series"]) == 2
+    assert all(s["stack"] == "total" for s in bloco.option["series"])
+
+
+def test_a_composicao_calcula_a_participacao_na_tabela():
+    bloco = series.barra_composicao(
+        [("cftv", Decimal("300")), ("alarme", Decimal("100"))],
+        chave="x", titulo="Mix",
+    )
+
+    assert bloco.linhas[0][2] == "75,0%"
+    assert bloco.linhas[1][2] == "25,0%"
+
+
+def test_a_empilhada_escreve_o_valor_absoluto_no_segmento():
+    """Empilhada percentual mostra proporção e ESCONDE tamanho: duas linhas de
+    100% parecem iguais quando uma vale dez e a outra dez mil."""
+    bloco = series.empilhada_percentual(
+        ["Sudeste", "Sul"],
+        [("cftv", [Decimal("10"), Decimal("10000")])],
+        chave="x", titulo="t",
+    )
+    dados = bloco.option["series"][0]["data"]
+
+    assert dados[0]["rotulo"] == fmt.curto(Decimal("10"))
+    assert dados[1]["rotulo"] == fmt.curto(Decimal("10000"))
+    assert bloco.option["series"][0]["label"]["position"] == "inside"
+
+
+def test_a_rosca_tem_buraco_e_o_total_no_centro():
+    """Rosca e não pizza: o buraco é onde mora o total, e é ele que responde a
+    primeira pergunta."""
+    bloco = series.rosca(
+        [("cftv", Decimal("300")), ("alarme", Decimal("100"))],
+        chave="x", titulo="Mix",
+    )
+
+    assert bloco.option["series"][0]["radius"] == ["55%", "75%"]
+    assert bloco.option["title"]["text"] == fmt.moeda_curta(Decimal("400"))
+
+
+def test_o_medidor_tem_faixas_com_nome_e_quantidade():
+    """Um medidor diz onde a média caiu e esconde a distribuição. Média 78 com
+    metade abaixo de 50 é outra conversa."""
+    bloco = series.medidor(
+        Decimal("78"), chave="x", titulo="Score",
+        quantidade_por_faixa={"crítico": 4, "atenção": 9, "bom": 12},
+    )
+
+    assert len(bloco.option["series"][0]["axisLine"]["lineStyle"]["color"]) == 3
+    assert [linha[1] for linha in bloco.linhas] == ["4", "9", "12"]
+    assert all(
+        nome in linha[0]
+        for nome, linha in zip(("crítico", "atenção", "bom"), bloco.linhas)
+    )
+
+
+def test_o_medidor_sem_amostra_nao_aponta_para_zero():
+    """Um ponteiro em zero seria lido como nota zero."""
+    bloco = series.medidor(
+        None, chave="x", titulo="Score", quantidade_por_faixa={"bom": 0}
+    )
+
+    assert bloco.option["series"][0]["pointer"]["show"] is False
+    assert bloco.option["series"][0]["detail"]["formatter"] == "—"
+
+
+def test_o_bullet_marca_a_meta_e_escreve_se_atingiu():
+    """A `markLine` é a leitura "passou ou não passou" sem ler número. A palavra
+    fica na tabela, porque quem lê a tabela não vê a linha."""
+    bloco = series.bullet(
+        [("Sudeste", Decimal("120"), Decimal("100")),
+         ("Sul", Decimal("80"), Decimal("100"))],
+        chave="x", titulo="t",
+    )
+    marcas = bloco.option["series"][0]["markLine"]["data"]
+
+    assert len(marcas) == 2
+    assert [linha[3] for linha in bloco.linhas] == ["sim", "não"]
+
+
+def test_o_bullet_calcula_a_altura_pela_quantidade():
+    """Três itens com 260px de altura viram três tarjas gordas separadas por
+    vazio."""
+    dois = series.bullet(
+        [("a", Decimal("1"), Decimal("1")), ("b", Decimal("1"), Decimal("1"))],
+        chave="x", titulo="t",
+    )
+    seis = series.bullet(
+        [(str(i), Decimal("1"), Decimal("1")) for i in range(6)], chave="y", titulo="t"
+    )
+
+    assert seis.altura > dois.altura
+
+
+def test_a_dispersao_dimensiona_o_ponto_pelo_valor():
+    """Sem piso, o contrato pequeno vira um ponto que ninguém acha; sem teto, o
+    maior cobre os vizinhos."""
+    bloco = series.dispersao(
+        [("CT-1", Decimal("100"), Decimal("12"), Decimal("10")),
+         ("CT-2", Decimal("900"), Decimal("3"), Decimal("100"))],
+        chave="x", titulo="t",
+    )
+    tamanhos = [p["symbolSize"] for p in bloco.option["series"][0]["data"]]
+
+    assert min(tamanhos) >= 8
+    assert max(tamanhos) <= 34
+    assert tamanhos[1] > tamanhos[0]
+
+
+def test_a_dispersao_desenha_o_limiar_quando_existe():
+    """Sem a linha da margem mínima, o quadrante que importa — grande e pouco
+    rentável — não tem fronteira visível."""
+    com = series.dispersao(
+        [("CT-1", Decimal("100"), Decimal("12"), Decimal("10"))],
+        chave="x", titulo="t", limiar_y=Decimal("10"),
+    )
+    sem = series.dispersao(
+        [("CT-1", Decimal("100"), Decimal("12"), Decimal("10"))],
+        chave="y", titulo="t",
+    )
+
+    assert com.option["series"][0]["markLine"]["data"] == [{"yAxis": 10.0}]
+    assert sem.option["series"][0]["markLine"]["data"] == []
+
+
+@pytest.mark.parametrize(
+    "tipo,argumentos",
+    [
+        ("cascata", {"passos": []}),
+        ("barra_composicao", {"partes": []}),
+        ("rosca", {"fatias": []}),
+        ("bullet", {"itens": []}),
+        ("dispersao", {"pontos": []}),
+    ],
+)
+def test_todo_tipo_vazio_devolve_bloco_sem_option(tipo, argumentos):
+    """Sem ponto nenhum não se desenha eixo com escala inventada."""
+    bloco = getattr(series, tipo)(chave="x", titulo="t", **argumentos)
+
+    assert bloco.option == {}
+    assert bloco.vazio is True
+
+
+def test_todo_tipo_do_catalogo_traz_tabela_irma():
+    """A regra que não muda com o tipo. Um `Bloco` sem `linhas` é um gráfico sem
+    fallback, e sem JS ele não existe."""
+    casos = [
+        series.serie_temporal([("01/26", Decimal("1"))], chave="a", titulo="t"),
+        series.barras_comparadas(
+            [("01/26", Decimal("1"), Decimal("2"))], chave="b", titulo="t",
+            rotulo_a="A", rotulo_b="B",
+        ),
+        series.cascata([("A", Decimal("1"))], chave="c", titulo="t"),
+        series.barra_composicao([("A", Decimal("1"))], chave="d", titulo="t"),
+        series.empilhada_percentual(["X"], [("A", [Decimal("1")])], chave="e", titulo="t"),
+        series.rosca([("A", Decimal("1"))], chave="f", titulo="t"),
+        series.medidor(Decimal("50"), chave="g", titulo="t"),
+        series.bullet([("A", Decimal("1"), Decimal("1"))], chave="h", titulo="t"),
+        series.dispersao(
+            [("A", Decimal("1"), Decimal("1"), Decimal("1"))], chave="i", titulo="t"
+        ),
+    ]
+
+    for bloco in casos:
+        assert bloco.linhas, f"{bloco.chave} não tem tabela irmã"
+        assert bloco.colunas, f"{bloco.chave} não tem cabeçalho de tabela"
+        assert bloco.resumo, f"{bloco.chave} não tem resumo para o aria-label"
+
+
+# ── Farol e mapa de calor: os que NÃO são gráfico ───────────────────
+
+
+def test_o_farol_sem_amostra_e_cinza_e_nao_vermelho():
+    """Pintar de vermelho o que ninguém mediu manda alguém correr atrás do
+    problema errado: ausência de caso não é o pior caso."""
+    f_ = series.farol(None, critico=Decimal("5"), atencao=Decimal("10"))
+
+    assert f_.situacao == series.FAROL_INDEFINIDO
+    assert f_.rotulo == "sem amostra"
+    assert f_.valor == fmt.VAZIO
+
+
+def test_o_farol_inverte_quando_menor_e_melhor():
+    """Turnover, absenteísmo, custo. Sem a inversão, quem perdeu metade da
+    equipe apareceria em verde."""
+    turnover = series.farol(
+        Decimal("8.4"), critico=Decimal("5"), atencao=Decimal("3"),
+        maior_melhor=False,
+    )
+    margem = series.farol(Decimal("8.4"), critico=Decimal("5"), atencao=Decimal("10"))
+
+    assert turnover.situacao == series.FAROL_CRITICO
+    assert margem.situacao == series.FAROL_ATENCAO
+
+
+def test_o_farol_sempre_tem_rotulo_textual():
+    """Cor nunca sozinha — e num farol a cor é a única coisa que existe."""
+    for situacao in (series.FAROL_BOM, series.FAROL_ATENCAO, series.FAROL_CRITICO):
+        assert series.ROTULO_DO_FAROL[situacao]
+
+
+def test_o_farol_renderiza_o_rotulo_ao_lado_da_marca():
+    from django.template import Context, Template
+
+    saida = Template("{% load graficos %}{% farol objeto %}").render(
+        Context({"objeto": series.farol(Decimal("2"), critico=Decimal("5"), atencao=Decimal("10"))})
+    )
+
+    assert "au-farol--critico" in saida
+    assert "crítico" in saida, "o texto ao lado da cor"
+    assert "2,0%" in saida
+
+
+def test_o_mapa_de_calor_e_tabela_e_nao_grafico():
+    """Menor, legível sem JavaScript, e com o número selecionável — que é o que
+    uma grade de score existe para permitir."""
+    from django.template import Context, Template
+
+    mapa = series.mapa_calor_tabela(
+        ["jan", "fev"],
+        [("CT-100", [Decimal("12"), Decimal("3")])],
+        chave="x", titulo="Score", critico=Decimal("5"), atencao=Decimal("10"),
+    )
+    saida = Template("{% load graficos %}{% mapa_calor mapa %}").render(
+        Context({"mapa": mapa})
+    )
+
+    assert "<table" in saida
+    assert "data-grafico-tela" not in saida, "não é gráfico: não inicializa nada"
+    assert "au-calor-celula--bom" in saida
+    assert "au-calor-celula--critico" in saida
+    # A cor é reforço: o número está escrito na célula.
+    assert "12,0%" in saida
+    # E a legenda NOMEIA as faixas.
+    assert "atenção" in saida
+
+
+def test_o_mapa_de_calor_vazio_diz_isso():
+    from django.template import Context, Template
+
+    mapa = series.mapa_calor_tabela(
+        [], [], chave="x", titulo="Score", critico=Decimal("5"), atencao=Decimal("10")
+    )
+    saida = Template("{% load graficos %}{% mapa_calor mapa %}").render(
+        Context({"mapa": mapa})
+    )
+
+    assert mapa.vazio is True
+    assert "Não é zero" in saida
+
+
+def test_o_bundle_nao_carrega_o_heatmap():
+    """O mapa de calor virou tabela; manter a série no bundle traria 45 KB que
+    nada desenha."""
+    entrada = (RAIZ / "build" / "echarts" / "entrada.js").read_text(encoding="utf-8")
+    imports = "\n".join(
+        linha for linha in entrada.splitlines() if linha.strip().startswith("import")
+    )
+
+    assert "HeatmapChart" not in imports
+    assert "VisualMapComponent" not in imports

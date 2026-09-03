@@ -1,0 +1,16 @@
+{% load i18n %}
+{% comment %}
+  O FAROL — que não é gráfico.
+
+  Um `<span>` com classe e RÓTULO TEXTUAL. Desenhar um círculo colorido de 10px
+  com ECharts custaria um contêiner, uma inicialização e 217 KB de biblioteca
+  para pintar um ponto — e o ponto sozinho não diz nada a quem não distingue as
+  cores.
+
+  Por isso o texto está sempre ao lado, e não só no `title`: cor nunca sozinha.
+{% endcomment %}
+<span class="au-farol au-farol--{{ farol.situacao }}">
+  <span class="au-farol-marca" aria-hidden="true"></span>
+  {% if farol.valor %}<span class="au-farol-valor">{{ farol.valor }}</span>{% endif %}
+  <span class="au-farol-rotulo">{{ farol.rotulo }}</span>
+</span>

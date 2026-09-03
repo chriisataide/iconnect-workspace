@@ -1,0 +1,64 @@
+{% load i18n %}
+{% comment %}
+  MAPA DE CALOR EM TABELA — e não um `heatmap` do ECharts.
+
+  Três razões, e a terceira é a que decide:
+
+  - é MENOR: zero bytes de biblioteca, e o mapa de calor costuma ser a grade
+    inteira de uma tela;
+  - continua legível SEM JavaScript, que é o pior cenário do resto do catálogo e
+    o normal aqui;
+  - o número fica SELECIONÁVEL — e uma grade de score existe para alguém copiar
+    uma linha dela para um e-mail.
+
+  A cor é reforço: cada célula traz o número escrito, e a legenda nomeia as
+  faixas.
+{% endcomment %}
+<figure class="au-gr" data-mapa-calor="{{ mapa.chave }}">
+  <figcaption class="au-gr-titulo">{{ mapa.titulo }}</figcaption>
+
+  {% if mapa.vazio %}
+    <p class="au-vazio-dica">
+      {% trans "Sem linhas para comparar nesta janela. Não é zero — é ausência de dado." %}
+    </p>
+  {% else %}
+    <div class="au-tabela">
+      <table class="au-calor">
+        <caption class="au-sr">{{ mapa.titulo }}</caption>
+        <thead>
+          <tr>
+            <th scope="col">{% trans "Item" %}</th>
+            {% for coluna in mapa.colunas %}
+              <th class="au-num" scope="col">{{ coluna }}</th>
+            {% endfor %}
+          </tr>
+        </thead>
+        <tbody>
+          {% for nome, celulas in mapa.linhas %}
+            <tr>
+              <th scope="row">{{ nome }}</th>
+              {% for celula in celulas %}
+                <td class="au-num au-calor-celula au-calor-celula--{{ celula.situacao }}">
+                  {{ celula.texto }}
+                </td>
+              {% endfor %}
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+
+    {% comment %}
+      A legenda NOMEIA as faixas. Sem ela, a cor da célula é uma convenção que
+      cada pessoa decodifica sozinha — e algumas não decodificam.
+    {% endcomment %}
+    <p class="au-calor-legenda">
+      {% for situacao, rotulo in mapa.legenda %}
+        <span class="au-farol au-farol--{{ situacao }}">
+          <span class="au-farol-marca" aria-hidden="true"></span>
+          <span class="au-farol-rotulo">{{ rotulo }}</span>
+        </span>
+      {% endfor %}
+    </p>
+  {% endif %}
+</figure>

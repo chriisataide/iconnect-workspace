@@ -8,13 +8,15 @@
 // série não foi registrada — que é uma falha barulhenta, e é o que se quer.
 import * as echarts from "echarts/core";
 
+// O `HeatmapChart` SAIU: o mapa de calor do catálogo é uma TABELA HTML, e não
+// um gráfico — menor, legível sem JavaScript, e com o número selecionável.
+// Manter o import traria uma série que nada desenha.
 import {
   BarChart,
   LineChart,
   PieChart,
   GaugeChart,
   ScatterChart,
-  HeatmapChart,
 } from "echarts/charts";
 
 import {
@@ -24,7 +26,7 @@ import {
   LegendComponent,
   MarkLineComponent,
   DatasetComponent,
-  VisualMapComponent,
+  // `VisualMapComponent` saiu junto: ele existia para o heatmap.
   AriaComponent,
 } from "echarts/components";
 
@@ -33,9 +35,9 @@ import {
 import { SVGRenderer } from "echarts/renderers";
 
 echarts.use([
-  BarChart, LineChart, PieChart, GaugeChart, ScatterChart, HeatmapChart,
+  BarChart, LineChart, PieChart, GaugeChart, ScatterChart,
   TitleComponent, TooltipComponent, GridComponent, LegendComponent,
-  MarkLineComponent, DatasetComponent, VisualMapComponent, AriaComponent,
+  MarkLineComponent, DatasetComponent, AriaComponent,
   SVGRenderer,
 ]);
 

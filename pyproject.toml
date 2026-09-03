@@ -129,4 +129,8 @@ cargas = 97.0      # medido 97.39 · conectores, carregador, transporte
 # 3240 → 3255: os 12 do rótulo girado, da faixa comparada e dos filtros novos.
 #   Metade deles só passou a valer depois de o CENÁRIO ficar rico o bastante —
 #   com seis meses e um serviço, eles passavam sem provar nada.
-minimo = 3255
+# 3255 → 3280: os 27 do resto do catálogo — cascata, composição, empilhada,
+#   rosca, medidor, bullet, dispersão, farol e mapa de calor. Cada tipo tem um
+#   teste do caso vazio e um da tabela irmã, que são as duas regras que não
+#   mudam com o tipo.
+minimo = 3280

@@ -83,3 +83,20 @@ def grafico(context, bloco, aberta=False):
         "aberta": aberta,
         "request": context.get("request"),
     }
+
+
+@register.inclusion_tag("graficos/_farol.html")
+def farol(objeto):
+    """O farol — `<span>` com classe e rótulo textual.
+
+    Tag própria e não `{% include %}` solto: o farol aparece dentro de célula de
+    tabela em várias telas, e `include with` em `<td>` é onde alguém esquece o
+    `with` e renderiza vazio.
+    """
+    return {"farol": objeto}
+
+
+@register.inclusion_tag("graficos/_mapa_calor.html")
+def mapa_calor(mapa):
+    """A grade com faixa por célula. Sem ECharts — ver `series.MapaDeCalor`."""
+    return {"mapa": mapa}

@@ -4044,3 +4044,47 @@ tr[data-abre-resumo]:focus-visible {
   padding: var(--au-1) 0;
 }
 .au-gr-tabela[open] > summary { margin-bottom: var(--au-2); }
+
+/* ── Farol e mapa de calor (Onda 10) ─────────────────────────────────
+   Os dois que NÃO são gráfico. Cor nunca sozinha: o farol tem o rótulo ao
+   lado, e cada célula do mapa traz o número escrito. */
+
+.au-farol {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--au-1);
+  font-size: var(--au-t-xs);
+  white-space: nowrap;
+}
+.au-farol-marca {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  flex: none;
+  background: var(--au-border-strong);
+}
+.au-farol-valor { font-variant-numeric: tabular-nums; font-weight: 600; }
+.au-farol-rotulo { color: var(--au-text-muted); }
+
+.au-farol--bom .au-farol-marca { background: var(--au-success); }
+.au-farol--atencao .au-farol-marca { background: var(--au-warning); }
+.au-farol--critico .au-farol-marca { background: var(--au-danger); }
+/* Indefinido é CINZA e escrito "sem amostra". Vermelho aqui mandaria alguém
+   correr atrás do problema errado: ausência de caso não é o pior caso. */
+.au-farol--indefinido .au-farol-marca { background: var(--au-border-strong); }
+
+.au-calor { font-variant-numeric: tabular-nums; }
+.au-calor-celula { font-weight: 600; }
+/* Fundo suave e TEXTO com contraste próprio: a cor de fundo é reforço, e o
+   número precisa ser legível mesmo para quem não a distingue. */
+.au-calor-celula--bom { background: var(--au-success-bg); color: var(--au-success-text); }
+.au-calor-celula--atencao { background: var(--au-warning-bg); color: var(--au-warning-text); }
+.au-calor-celula--critico { background: var(--au-danger-bg); color: var(--au-danger-text); }
+.au-calor-celula--indefinido { color: var(--au-text-subtle); }
+
+.au-calor-legenda {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--au-3);
+  margin: var(--au-2) 0 0;
+}

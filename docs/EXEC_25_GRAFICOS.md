@@ -242,6 +242,78 @@ O seletor de serviço oferece só o que existe na carteira **visível**: uma seg
 consulta poderia oferecer um serviço fora do escopo da pessoa, o que revelaria a
 existência dele.
 
+### O catálogo — onze tipos, nove no ECharts e dois fora
+
+| # | Tipo | O que responde |
+|---|---|---|
+| 1 | `barras_comparadas` | realizado × orçado, com a razão em linha — a 1.1.02 |
+| 2 | `serie_temporal` | como um número andou em N meses |
+| 3 | `cascata` | o que entrou e o que saiu entre dois saldos |
+| 4 | `empilhada_percentual` | composição por categoria, **com o valor absoluto** |
+| 5 | `barra_composicao` | o mix de um total, numa barra só |
+| 6 | `rosca` | participação, com o total no centro |
+| 7 | `medidor` | nota com faixas de governança — o Score PEC |
+| 8 | `bullet` | valor contra meta, no tamanho de uma célula |
+| 9 | `dispersao` | **quais contratos são grandes E pouco rentáveis** |
+| 10 | `farol` | **não é gráfico** — `<span>` com classe e rótulo |
+| 11 | `mapa_calor_tabela` | **não é gráfico** — `<table>` com faixa por célula |
+
+**A cascata não existe no ECharts.** A receita conhecida é barra empilhada com
+uma série de base **transparente**: numa queda a base fica no valor de chegada e
+o bloco visível sobe até o de partida. Com a base no de partida, a barra sairia
+do gráfico.
+
+**A dispersão é adição nossa**, e não do benchmark. Ela responde o que nenhuma
+das outras responde: o quadrante direito-inferior, onde o dinheiro está e a
+margem não. O tamanho do ponto fica entre 8 e 34 pixels — sem piso, o contrato
+pequeno vira um ponto que ninguém acha; sem teto, o maior cobre os vizinhos.
+
+**O medidor traz a quantidade por faixa na tabela**, e não só o ponteiro. Um
+medidor diz onde a média caiu e esconde a distribuição: média 78 com metade dos
+contratos abaixo de 50 é uma conversa diferente de média 78 com todos entre 70 e
+85 — e o benchmark mostra as duas coisas lado a lado.
+
+Medidor sem amostra desenha **sem ponteiro**. Um ponteiro em zero seria lido como
+nota zero.
+
+### Os dois que não são gráfico, e por quê
+
+**Farol.** Desenhar um círculo colorido de 10px com ECharts custaria um
+contêiner, uma inicialização e 203 KB de biblioteca para pintar um ponto. E o
+ponto sozinho não diz nada a quem não distingue as cores — por isso o rótulo
+está sempre ao lado, e não no `title`.
+
+Farol **sem amostra é cinza**, e escrito "sem amostra". Vermelho ali mandaria
+alguém correr atrás do problema errado: ausência de caso não é o pior caso.
+
+E ele **inverte** quando menor é melhor — turnover, absenteísmo, custo. Sem a
+inversão, quem perdeu metade da equipe apareceria em verde.
+
+**Mapa de calor.** O prompt do catálogo dá as duas opções e recomenda a tabela.
+Três razões, e a terceira decide:
+
+- é **menor**: zero bytes de biblioteca, e o mapa costuma ser a grade inteira;
+- continua legível **sem JavaScript**, que é o pior cenário do resto do catálogo
+  e o normal aqui;
+- o número fica **selecionável** — e uma grade de score existe para alguém copiar
+  uma linha dela para um e-mail.
+
+A escolha teve consequência no bundle: `HeatmapChart` e `VisualMapComponent`
+saíram, e ele caiu de **640 KB para 595 KB** (217 → 203 KB comprimidos).
+
+### Cor nunca sozinha, em cada tipo
+
+| Tipo | O que acompanha a cor |
+|---|---|
+| barras comparadas | legenda com o nome de cada série, valor dentro da barra |
+| cascata | verde/vermelho **mais** o valor escrito dentro |
+| empilhada e composição | valor absoluto dentro do segmento |
+| rosca | nome e percentual no rótulo externo |
+| medidor | nome da faixa **e** quantidade, na tabela |
+| bullet | a palavra "sim"/"não" na coluna *Atingiu* |
+| farol | o rótulo textual ao lado da marca |
+| mapa de calor | o número em cada célula, e a legenda nomeando as faixas |
+
 ### O que a Onda 10 apagou
 
 `workspace/services/grafico.py` e `workspace/templates/workspace/_serie_svg.html`
