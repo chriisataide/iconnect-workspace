@@ -115,4 +115,6 @@ cargas = 97.0      # medido 97.39 · conectores, carregador, transporte
 # 3120 → 3170: os 25 dos públicos da marca. É o menor arquivo das nove ondas, e
 #   metade dele é sobre uma configuração errada que mandaria cliente para dentro
 #   do portal do funcionário — vale mais que o tamanho.
-minimo = 3170
+# 3170 → 3190: os 14 de `conferir_integracoes`, metade deles sobre o comando NÃO
+#   imprimir credencial. A saída dele existe para ser colada num chamado.
+minimo = 3190

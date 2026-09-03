@@ -1,0 +1,103 @@
+# ─────────────────────────────────────────────────────────────────────
+#  iConnect Workspace — o agendamento
+#
+#  Instalar:  crontab deploy/crontab
+#  Conferir:  crontab -l
+#
+#  Ajuste APP e VENV para o caminho real da instalação. Nada mais precisa
+#  mudar.
+#
+#  ## Por que este arquivo existe
+#
+#  Dez comandos deste produto são inertes sem agendamento. Sem eles, quatro
+#  módulos deixam de fazer a única coisa que os justifica: o aviso não sai, a
+#  tendência do painel de exceções nunca aparece, e nenhum plano de ação é
+#  conferido no vencimento — o que faz a tela de planos medir esforço em vez de
+#  resultado.
+#
+#  ## A ORDEM DENTRO DO DIA IMPORTA
+#
+#      carregar_fonte  →  avaliar_excecoes  →  verificar_planos
+#
+#  Invertida, `verificar_planos` roda sobre o espelho da véspera e fecha um
+#  plano pelo número que ele tinha ANTES da última carga. O intervalo entre um
+#  degrau e o seguinte é folgado de propósito: uma carga que demora mais que o
+#  normal não pode empurrar a avaliação para depois da conferência.
+#
+#  ## Todo comando aqui grava
+#
+#  Todos aceitam rodar SEM `--aplicar`, e aí só relatam. Ao mexer neste arquivo,
+#  rode uma vez à mão sem a flag antes de agendar com ela.
+# ─────────────────────────────────────────────────────────────────────
+
+SHELL=/bin/bash
+PATH=/usr/local/bin:/usr/bin:/bin
+
+APP=/app
+VENV=/app/.venv/bin/python
+
+# Para onde vai a saída dos comandos. O cron manda por e-mail o que sai no
+# stdout, e dez e-mails por dia viram uma regra de filtro — que é como se para
+# de ler o erro do dia em que ele importa.
+MAILTO=""
+LOG=/var/log/workspace
+
+# ── 05h — as cargas das fontes externas ──────────────────────────────
+#
+# Antes de tudo o que consulta o espelho. Sem credencial, cada carga registra
+# "não configurada" — estado NORMAL, não falha — e sai em segundos.
+#
+# Uma linha por fonte e não um `for`: quando o Sankhya cair, o histórico precisa
+# mostrar que o monday carregou.
+30 5 * * *  cd $APP && $VENV manage.py carregar_fonte sankhya           --aplicar >> $LOG/carga.log 2>&1
+40 5 * * *  cd $APP && $VENV manage.py carregar_fonte monday            --aplicar >> $LOG/carga.log 2>&1
+50 5 * * *  cd $APP && $VENV manage.py carregar_fonte iconnect_platform --aplicar >> $LOG/carga.log 2>&1
+
+# ── 06h — os avisos, antes do expediente ─────────────────────────────
+#
+# Rodar todo dia NÃO vira spam: o dedupe olha o aviso não lido, e a chave inclui
+# o degrau ou a versão — publicar a v2 de um POP volta a cobrar quem leu a v1.
+0 6 * * *   cd $APP && $VENV manage.py avisar_habilitacoes --aplicar >> $LOG/avisos.log 2>&1
+5 6 * * *   cd $APP && $VENV manage.py avisar_frota        --aplicar >> $LOG/avisos.log 2>&1
+10 6 * * *  cd $APP && $VENV manage.py avisar_documentos   --aplicar >> $LOG/avisos.log 2>&1
+15 6 * * *  cd $APP && $VENV manage.py avisar_marketing    --aplicar >> $LOG/avisos.log 2>&1
+
+# ── 08h — o retrato das exceções ─────────────────────────────────────
+#
+# É DELE que sai a tendência do painel — a seta ao lado da contagem. Sem esta
+# linha, a tela mostra o estado e esconde o movimento, que é a metade
+# acionável: uma regra que foi de 3 para 40 importa mais que uma em 40 há um
+# ano.
+0 8 * * *   cd $APP && $VENV manage.py avaliar_excecoes --aplicar >> $LOG/excecoes.log 2>&1
+
+# ── 08h30 — a conferência dos planos vencidos ────────────────────────
+#
+# DEPOIS das cargas e da avaliação. Ele roda a regra de novo sobre a mesma
+# ocorrência e grava o desfecho: resolvido só quando a regra parou de encontrar.
+#
+# Fonte fora do ar NÃO fecha plano — a verificação fica "não avaliada" e o plano
+# espera a próxima rodada. Sem isso, um conector caído fecharia como resolvido
+# tudo o que dependesse dele, e o mês apareceria como o melhor do ano.
+30 8 * * *  cd $APP && $VENV manage.py verificar_planos --aplicar >> $LOG/planos.log 2>&1
+
+# ── Segunda, 07h — a conferência do estoque ──────────────────────────
+#
+# Somente leitura, de propósito: corrigir automaticamente esconderia o defeito
+# de origem. A correção certa é uma contagem de inventário na tela, que tem
+# autor e fica no razão.
+0 7 * * 1   cd $APP && $VENV manage.py conferir_estoque >> $LOG/estoque.log 2>&1
+
+# ─────────────────────────────────────────────────────────────────────
+#  O QUE NÃO ESTÁ AQUI, E POR QUÊ
+#
+#  `semear_*`  — são de instalação e de deploy, não de rotina. Rodar semeadora
+#                por cron faria uma correção feita à mão voltar sozinha na
+#                manhã seguinte, sem ninguém associar uma coisa à outra.
+#
+#  `reindexar_busca` — é sob demanda: depois de migração de dado ou de
+#                `queryset.update()` em massa. O índice normal é mantido por
+#                sinal, na hora — índice de madrugada faz o autor publicar um
+#                POP e não achá-lo, e quem não acha publica de novo.
+#
+#  `conferir_integracoes` — é diagnóstico. Rode à mão ao configurar uma fonte.
+# ─────────────────────────────────────────────────────────────────────

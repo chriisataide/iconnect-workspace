@@ -230,6 +230,8 @@ O orçamento de cada centro se define depois, **dentro do produto**: *Pessoas e 
 
 **Sem cron, os alertas não saem.** Os comandos abaixo são a razão de existir de vários módulos — e todos são inertes sem agendamento.
 
+> O arquivo pronto está em [`deploy/crontab`](../deploy/crontab): ajuste `APP` e `VENV` e rode `crontab deploy/crontab`. O roteiro completo de configuração — as três fontes, na ordem, com o que pedir a quem — está em [EXEC 24](EXEC_24_LIGAR_AS_FONTES.md).
+
 ```cron
 # Alertas diários. Rodam cedo, antes do expediente.
 0 6 * * *   cd /app && python manage.py avisar_habilitacoes --aplicar
@@ -267,6 +269,7 @@ O orçamento de cada centro se define depois, **dentro do produto**: *Pessoas e 
 | `avaliar_excecoes` | ninguém — grava o retrato | é dele que sai a tendência do painel |
 | `verificar_planos` | ninguém — fecha ou adia | plano vencido: a regra roda de novo e grava o desfecho |
 | `conferir_estoque` | ninguém — imprime | divergência entre saldo e razão |
+| `conferir_integracoes` | ninguém — imprime | **sob demanda**: o que falta em cada fonte, e de quem pedir. Nunca imprime credencial |
 
 **Rodar todo dia não vira spam.** O dedupe olha o aviso **não lido**: quem já viu e não leu continua com um. E a chave inclui o degrau ou a versão — publicar a v2 de um POP volta a cobrar quem leu a v1, e "vence em 30 dias" e "vence em 7" são dois eventos.
 

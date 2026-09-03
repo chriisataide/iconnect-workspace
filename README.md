@@ -220,6 +220,7 @@ justificativa no PR.
 | [EXEC 21](docs/EXEC_21_METAS.md) | Metas, avaliação e PDI: a meta auditável porque a fórmula está na tela, com os ADRs 034–035 |
 | [EXEC 22](docs/EXEC_22_ORCAMENTO.md) | Orçamento anual e revisão: a onda que começou decidindo a posse, com os ADRs 036–037 |
 | [EXEC 23](docs/EXEC_23_PUBLICOS.md) | Segmentação de público: um ADR e um tile, não um módulo, com os ADRs 038–039 |
+| [EXEC 24](docs/EXEC_24_LIGAR_AS_FONTES.md) | O roteiro de ligar as três fontes e instalar o agendamento — o que falta é acesso, não código |
 
 ---
 
