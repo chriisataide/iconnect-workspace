@@ -143,6 +143,11 @@ class Bloco:
     urls: list[str] = field(default_factory=list)
     #: O texto do último nível: "daqui não desce mais, e é por isto".
     fronteira: str = ""
+    #: `True` quando clicar RECORTA no mesmo nível, em vez de descer um.
+    cruzado: bool = False
+    #: O aviso de que o próximo clique troca o recorte mais antigo. Vazio quando
+    #: ainda há espaço.
+    aviso_de_substituicao: str = ""
 
     @property
     def vazio(self) -> bool:

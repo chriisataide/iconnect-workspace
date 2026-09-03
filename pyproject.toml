@@ -136,4 +136,7 @@ cargas = 97.0      # medido 97.39 · conectores, carregador, transporte
 # 3280 → 3300: os 17 da perfuração. Um deles — o que agrupa por nível — reprovou
 #   e encontrou um `OU` onde devia haver hierarquia em `_recortar`: descer para
 #   um centro de custo devolvia os contratos do vizinho.
-minimo = 3300
+# 3300 → 3325: os 25 de cruzar, pivotar e detalhar. O que mais protege é o que
+#   compara o total do detalhe com o do agregado — detalhe que não bate destrói
+#   a confiança na tela inteira.
+minimo = 3325

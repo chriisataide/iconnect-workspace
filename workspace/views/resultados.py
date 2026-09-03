@@ -24,7 +24,7 @@ from __future__ import annotations
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.core.exceptions import PermissionDenied
-from django.http import HttpRequest, HttpResponse
+from django.http import HttpRequest, HttpResponse, JsonResponse
 from django.shortcuts import redirect, render
 from django.views.decorators.http import require_POST
 
@@ -60,6 +60,44 @@ def resultados(request: HttpRequest) -> HttpResponse:
             "pode_ver_fontes": svc.pode_ver_fontes(request.user, cache=_cache(request)),
         },
     )
+
+
+@login_required
+def resultados_detalhe(request: HttpRequest) -> HttpResponse:
+    """As linhas por trás do agregado — o mecanismo 4.
+
+    Tela própria e não gaveta: a gaveta exigiria carregar a tabela por
+    JavaScript, e uma tela tem URL — que é o que permite mandar o detalhe numa
+    mensagem, do mesmo jeito que o agregado.
+
+    Link explícito, e nunca clique acidental no gráfico: descer para as linhas é
+    outra pergunta, e não uma variação da mesma.
+    """
+    try:
+        contexto = svc.detalhe(request.user, request.GET, cache=_cache(request))
+    except svc.SemResultados as sem:
+        raise PermissionDenied(str(sem))
+    return render(request, "workspace/resultados/detalhe.html", contexto)
+
+
+@login_required
+def resultados_dados(request: HttpRequest) -> JsonResponse:
+    """O agregado em JSON, com o MESMO escopo da tela.
+
+    É o erro clássico que o prompt nomeia: a tela filtra por regional e a API
+    devolve tudo. Aqui as duas chamam `escopo_de` e `ler_filtros` — não há como
+    divergir sem que alguém escreva um segundo caminho de propósito.
+
+    `@login_required` faz o anônimo cair no login; quem entra e não tem escopo
+    recebe 403, exatamente como na tela.
+    """
+    try:
+        corpo = svc.dados(request.user, request.GET, cache=_cache(request))
+    except svc.SemResultados as sem:
+        raise PermissionDenied(str(sem))
+    # `json_dumps_params` com `default=str`: `Decimal` e `date` não são JSON, e
+    # um `TypeError` aqui viraria 500 numa rota que o JS consome.
+    return JsonResponse(corpo, json_dumps_params={"default": str})
 
 
 @login_required

@@ -1,0 +1,29 @@
+{% load i18n %}
+{% comment %}
+  AS TARJAS DE FILTRO ATIVO.
+
+  > "Filtro invisível é a principal fonte de 'esse número está errado' que não
+  > está."
+
+  E no modo apresentação o problema era literal: a barra de filtros inteira era
+  escondida, então `?apresentacao=1&layer=1` mostrava números recortados sem
+  nada na tela dizendo que eram. Numa reunião, projetado.
+
+  Por isso este bloco aparece SEMPRE — inclusive em apresentação, onde os
+  controles somem e ele fica.
+{% endcomment %}
+{% if filtros_ativos %}
+  <div class="au-tarjas" role="status">
+    <span class="au-tarjas-rotulo">{% trans "Filtrado por:" %}</span>
+    {% for filtro in filtros_ativos %}
+      <span class="au-tarja">
+        <span class="au-tarja-texto">{{ filtro.rotulo }}: <b>{{ filtro.valor }}</b></span>
+        <a class="au-tarja-x" href="{{ filtro.url_remover }}"
+           aria-label="{% blocktrans with r=filtro.rotulo v=filtro.valor %}Remover o filtro {{ r }} {{ v }}{% endblocktrans %}">×</a>
+      </span>
+    {% endfor %}
+    {% if url_limpar %}
+      <a class="au-tarja-limpar" href="{{ url_limpar }}">{% trans "Limpar tudo" %}</a>
+    {% endif %}
+  </div>
+{% endif %}

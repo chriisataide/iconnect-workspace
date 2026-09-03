@@ -41,7 +41,7 @@ from .orcamento import (
     vigorar_orcamento,
 )
 from .planos import fechar_plano, plano, plano_novo, planos
-from .resultados import fontes, recarregar_fonte, resultados, resultados_pdf
+from .resultados import resultados_dados, resultados_detalhe, fontes, recarregar_fonte, resultados, resultados_pdf
 from .conteudo import (
     anexar_documento,
     baixar_documento,
@@ -170,6 +170,8 @@ __all__ = [
     "planos",
     "notificar_excecao",
     "resultados",
+    "resultados_dados",
+    "resultados_detalhe",
     "resultados_pdf",
     "confirmar_leitura",
     "cancelar_solicitacao",

@@ -188,6 +188,12 @@ urlpatterns = [
          name="notificar_excecao"),
     path("resultados/", views.resultados, name="resultados"),
     path("resultados/pdf/", views.resultados_pdf, name="resultados_pdf"),
+    # O DETALHE — mecanismo 4. Tela própria e não gaveta: uma tela tem URL, e é
+    # isso que permite mandar o detalhe numa mensagem como se manda o agregado.
+    path("resultados/detalhe/", views.resultados_detalhe, name="resultados_detalhe"),
+    # O contrato de dados. MESMO escopo da tela — o erro clássico é a API
+    # devolver tudo enquanto a tela filtra.
+    path("resultados/dados/", views.resultados_dados, name="resultados_dados"),
     path("resultados/fontes/", views.fontes, name="fontes"),
     path("resultados/fontes/<slug:chave>/recarregar/", views.recarregar_fonte,
          name="recarregar_fonte"),

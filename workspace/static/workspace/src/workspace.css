@@ -4122,3 +4122,88 @@ tr[data-abre-resumo]:focus-visible {
   font-size: var(--au-t-sm);
   color: var(--au-text-muted);
 }
+
+/* ── Tarjas de filtro ativo (Onda 11) ────────────────────────────────
+   Elas aparecem SEMPRE, inclusive em apresentação, onde os controles somem.
+   Filtro invisível é a principal fonte de "esse número está errado". */
+
+.au-tarjas {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--au-2);
+  margin-bottom: var(--au-4);
+  padding: var(--au-2) var(--au-3);
+  border-left: 3px solid var(--au-accent);
+  background: var(--au-surface-sunken);
+  border-radius: var(--au-r-md);
+  font-size: var(--au-t-sm);
+}
+.au-tarjas-rotulo { color: var(--au-text-muted); }
+.au-tarja-texto { white-space: nowrap; }
+.au-tarja {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--au-1);
+  padding: 2px var(--au-2);
+  border: 1px solid var(--au-border);
+  border-radius: 999px;
+  background: var(--au-surface);
+}
+/* O X é um LINK, e não um botão de JavaScript: remover um filtro é navegar
+   para a mesma tela sem ele, e isso funciona com o script desligado. */
+.au-tarja-x {
+  font-size: var(--au-t-md);
+  line-height: 1;
+  color: var(--au-text-muted);
+  text-decoration: none;
+}
+.au-tarja-x:hover { color: var(--au-danger-text); }
+.au-tarja-limpar { margin-left: auto; }
+
+.au-detalhe-total {
+  margin: 0 0 var(--au-4);
+  font-size: var(--au-t-md);
+  font-variant-numeric: tabular-nums;
+}
+.au-detalhe-nota {
+  display: block;
+  font-size: var(--au-t-xs);
+  font-variant-numeric: normal;
+  color: var(--au-text-muted);
+}
+.au-detalhe-procedencia {
+  display: block;
+  font-size: var(--au-t-xs);
+  color: var(--au-text-subtle);
+  font-variant-numeric: tabular-nums;
+}
+
+/* O seletor de dimensão do bloco de perfuração — pivotar. */
+.au-pivotar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--au-1);
+  margin-bottom: var(--au-2);
+  font-size: var(--au-t-xs);
+}
+.au-pivotar-rotulo { color: var(--au-text-subtle); align-self: center; }
+.au-pivotar-opcao {
+  padding: 2px var(--au-2);
+  border: 1px solid var(--au-border);
+  border-radius: 999px;
+  color: var(--au-text-muted);
+}
+.au-pivotar-opcao--atual {
+  background: var(--au-accent);
+  border-color: var(--au-accent);
+  /* `--au-btn-fg` e não `#ffffff`: no tema escuro o acento clareia, e texto
+     branco sobre ele perde contraste. O token já resolve isso nos dois temas. */
+  color: var(--au-btn-fg);
+  font-weight: 600;
+}
+.au-aviso-cruzado {
+  margin: var(--au-2) 0 0;
+  font-size: var(--au-t-xs);
+  color: var(--au-warning-text);
+}

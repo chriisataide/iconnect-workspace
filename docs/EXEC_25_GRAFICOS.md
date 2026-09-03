@@ -398,7 +398,99 @@ livre, vindo de fora.
 
 ---
 
-## 25.8 ADR
+## 25.8 Onda 11 — cruzar, pivotar, detalhar (mecanismos 2, 3 e 4)
+
+### O que este passo NÃO fez, e por quê
+
+O prompt descreve o filtro cruzado com `history.replaceState`, sem recarregar, e
+o JS recalculando as `option` a partir de um endpoint JSON.
+
+**Foi feito por round-trip de query string.** A razão está no próprio prompt, uma
+seção acima: *"os números vêm do servidor, sempre"*. Recalcular a option no
+cliente exige replicar em JavaScript a agregação por mês, o recorte por escopo e
+a formatação em pt-BR — as três coisas que este produto passou a onda inteira
+mantendo num lugar só.
+
+O prompt já prevê a saída: *"se passar de ~200 KB, volte ao round-trip por query
+string"*. A diferença é que aqui a razão não é volume, é fonte da verdade.
+
+O endpoint `/workspace/resultados/dados/` existe assim mesmo, com a mesma
+verificação de escopo — ele é o contrato que o prompt pede, e serve a quem quiser
+conferir um número sem raspar HTML.
+
+### Dois defeitos que o mecanismo 2 encontrou
+
+**Em apresentação, os filtros ficavam invisíveis.** `{% if not apresentacao %}`
+escondia a barra inteira — então `?apresentacao=1&layer=1` mostrava números
+recortados **sem nada na tela dizendo que eram**. Numa reunião, projetado.
+
+É exatamente o que o prompt nomeia: *"filtro invisível é a principal fonte de
+'esse número está errado' que não está"*.
+
+**O botão "Apresentar" descartava os filtros.** Ele levava só a competência:
+clicar com um recorte ativo trocava os números em silêncio, no caminho entre a
+tela e o projetor.
+
+### As tarjas
+
+Aparecem **sempre** — inclusive em apresentação, onde os controles somem e elas
+ficam. Cada uma com o X para remover, e "Limpar tudo" quando há alguma.
+
+O X é um **link**, e não um botão de JavaScript: remover um filtro é navegar para
+a mesma tela sem ele, e isso funciona com o script desligado.
+
+Remover um degrau da hierarquia **limpa os de baixo**, pela mesma razão da
+trilha. E "Limpar tudo" preserva competência e janela: competência é o assunto
+da tela, e devolver treze meses a quem escolheu seis é surpresa, não limpeza.
+
+### O limite de três cruzados
+
+Quatro recortes simultâneos produzem um número que ninguém explica de cabeça, e é
+aí que a tela deixa de ser usada. O quarto **substitui o mais antigo e avisa** —
+recusar o clique seria pior: a pessoa clicaria de novo achando que não pegou.
+
+O limite conta só os **atributos** (serviço, layer, deficitário). Regional,
+centro de custo e contrato são o **nível**, e a trilha já os mostra.
+
+### Pivotar é link, e não `<select>`
+
+As opções são cinco e cabem numa linha. Um link é navegação de verdade: funciona
+sem JavaScript, abre em nova aba e entra no histórico. Um `<select>` que submete
+no `change` não faz nada disso.
+
+Escolher regional, centro de custo ou contrato troca o **nível**; escolher
+serviço ou layer **reagrupa sem descer**, e ali o clique vira filtro cruzado. É a
+diferença entre os mecanismos 1 e 2, e ela fica visível na própria tela.
+
+### Detalhar é tela, e não gaveta
+
+Uma gaveta exigiria carregar a tabela por JavaScript. Uma **tela tem URL** — que
+é o que permite mandar o detalhe numa mensagem, do mesmo jeito que o agregado.
+
+Link **explícito**, e nunca clique acidental no gráfico: descer para as linhas é
+outra pergunta, e não uma variação da mesma.
+
+**O detalhe herda todos os filtros e mostra quais são no topo.** Ele reusa
+`escopo_de`, `ler_filtros` e `_estreitar_por_atributo` — as mesmas funções da
+tela. Uma segunda leitura de filtro divergiria da primeira, e o sintoma seria
+exatamente o que o prompt avisa: *"detalhe que não bate com o agregado destrói a
+confiança na tela inteira"*.
+
+`test_o_detalhe_bate_com_o_agregado` compara os dois números. É o teste mais
+importante deste passo.
+
+Cada linha traz a **procedência** — `sankhya:snk-CT-100-202609`. Este é o nível
+mais fundo da tela, e é aqui que alguém confere contra o ERP.
+
+### O PDF carrega o recorte
+
+Mesma razão das tarjas, e pior: o PDF é lido dias depois, longe da tela, por
+gente que não escolheu o recorte. Sem filtro, ele diz "Sem recorte: a empresa
+inteira" — o silêncio seria ambíguo.
+
+---
+
+## 25.9 ADR
 
 ### ADR-041 · O bundle é versionado; o PDF leva tabela e diz que não tem gráfico
 

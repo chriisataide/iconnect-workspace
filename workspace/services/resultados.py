@@ -170,6 +170,9 @@ class Filtros:
     #: outro". Girar o rótulo resolveu metade; poder estreitar a janela é a
     #: outra metade, e é a que a pessoa controla.
     janela: int = MESES_DA_SERIE
+    #: Por qual dimensão o bloco de perfuração agrupa. Vazio = a do nível
+    #: seguinte na hierarquia, que é o que quem não escolheu nada quer.
+    dimensao: str = ""
 
     @property
     def de(self) -> date:
@@ -233,6 +236,7 @@ def ler_filtros(parametros, hoje: date | None = None) -> Filtros:
         layer=(parametros.get("layer") or "").strip()[:12],
         deficitario=parametros.get("deficitario") in ("1", "true", "sim"),
         janela=_inteiro(parametros.get("janela"), MESES_DA_SERIE),
+        dimensao=(parametros.get("dim") or "").strip()[:20],
     )
 
 
@@ -377,6 +381,15 @@ def _com_perfuracao(faixa, escopo, filtros: Filtros):
     base = reverse("workspace:resultados")
     faixa.conteudo["migalhas"] = migalhas(filtros, base)
     faixa.conteudo["perfuracao"] = _bloco_perfuracao(escopo, filtros, base)
+    faixa.conteudo["dimensoes"] = [
+        {
+            "parametro": parametro,
+            "rotulo": rotulo,
+            "url": _url_com(base, filtros, dim=parametro),
+            "atual": parametro == dimensao_de(filtros)[0],
+        }
+        for parametro, rotulo, _, _ in DIMENSOES
+    ]
     return faixa
 
 
@@ -1058,8 +1071,11 @@ MONTADORES = (
 
 def painel(pessoa, parametros, cache: dict | None = None) -> dict:
     """Tudo o que a tela mostra. Levanta `SemResultados` para quem não tem escopo."""
+    from django.urls import reverse
+
     escopo = escopo_de(pessoa, cache=cache)
     filtros = ler_filtros(parametros)
+    base_url = reverse("workspace:resultados")
     recorte = _estreitar_por_atributo(filtros.aplicar(escopo), filtros)
 
     faixas: dict[str, Faixa] = {}
@@ -1083,6 +1099,13 @@ def painel(pessoa, parametros, cache: dict | None = None) -> dict:
         # uma opção que não devolve linha nenhuma é pior que a ausência dela.
         "servicos": _servicos_oferecidos(faixas),
         "janelas": JANELAS,
+        # As TARJAS. Sempre no contexto — inclusive em apresentação, onde os
+        # controles somem e elas ficam. Filtro invisível é a principal fonte de
+        # "esse número está errado" que não está.
+        "filtros_ativos": filtros_ativos(filtros, base_url),
+        "url_limpar": url_limpa(filtros, base_url),
+        "url_apresentar": url_de_apresentacao(filtros, base_url),
+        "url_detalhe": _url_com(reverse("workspace:resultados_detalhe"), filtros),
     }
 
 
@@ -1163,6 +1186,7 @@ def _url_com(base: str, filtros: Filtros, **mudancas) -> str:
         "servico": filtros.servico,
         "layer": filtros.layer,
         "janela": str(filtros.meses),
+        "dim": filtros.dimensao,
     }
     if filtros.deficitario:
         atual["deficitario"] = "1"
@@ -1206,6 +1230,174 @@ def migalhas(filtros: Filtros, base: str) -> list:
     return trilha
 
 
+# ── Filtro visível — Onda 11, mecanismos 2 e 3 ──────────────────────
+
+
+@dataclass(frozen=True)
+class FiltroAtivo:
+    """Um filtro em vigor, com o caminho para removê-lo.
+
+    ## Por que as tarjas existem
+
+    > *"Filtro invisível é a principal fonte de 'esse número está errado' que não
+    > está."*
+
+    E no modo apresentação o problema era literal: `{% if not apresentacao %}`
+    escondia a barra inteira, então `?apresentacao=1&layer=1` mostrava números
+    recortados **sem nada na tela dizendo que eram**. Numa reunião, projetado.
+
+    As tarjas aparecem SEMPRE — inclusive em apresentação, onde os controles
+    somem e elas ficam.
+    """
+
+    chave: str
+    rotulo: str
+    valor: str
+    url_remover: str
+
+
+#: Os filtros que ganham tarja, na ordem em que a tela os oferece.
+#: `(parâmetro, rótulo)`.
+COM_TARJA: tuple[tuple[str, str], ...] = (
+    ("regional", "Regional"),
+    ("cc", "Centro de custo"),
+    ("contrato", "Contrato"),
+    ("servico", "Serviço"),
+    ("layer", "Layer"),
+    ("deficitario", "Só deficitários"),
+)
+
+#: Quantos filtros CRUZADOS cabem ao mesmo tempo. O quarto substitui o mais
+#: antigo e avisa — quatro recortes simultâneos produzem um número que ninguém
+#: consegue explicar de cabeça, e é aí que a tela deixa de ser usada.
+#:
+#: Não conta os da hierarquia (regional, cc, contrato): aqueles são o NÍVEL, e a
+#: trilha já os mostra.
+MAXIMO_DE_CRUZADOS = 3
+
+CRUZAVEIS: tuple[str, ...] = ("servico", "layer", "deficitario")
+
+
+def filtros_ativos(filtros: Filtros, base: str) -> list[FiltroAtivo]:
+    """As tarjas. Vazia quando nada está filtrado."""
+    valores = {
+        "regional": filtros.regional,
+        "cc": filtros.centro_custo,
+        "contrato": filtros.contrato,
+        "servico": filtros.servico,
+        "layer": filtros.layer,
+        "deficitario": "sim" if filtros.deficitario else "",
+    }
+    ativos = []
+    for parametro, rotulo in COM_TARJA:
+        if not valores[parametro]:
+            continue
+        # Remover um degrau da hierarquia limpa os de baixo, pela mesma razão da
+        # trilha: a regional recortada por um CC que a tela diz não estar ativo
+        # é um número que não bate com nada.
+        limpeza = {parametro: ""}
+        if parametro == "regional":
+            limpeza.update({"cc": "", "contrato": ""})
+        elif parametro == "cc":
+            limpeza["contrato"] = ""
+        ativos.append(
+            FiltroAtivo(
+                chave=parametro,
+                rotulo=rotulo,
+                valor=valores[parametro],
+                url_remover=_url_com(base, filtros, **limpeza),
+            )
+        )
+    return ativos
+
+
+def url_limpa(filtros: Filtros, base: str) -> str:
+    """"Limpar tudo" — preserva a competência e a janela, e só elas.
+
+    Competência não é filtro: é o assunto da tela. E limpar a janela devolveria
+    treze meses a quem escolheu seis, o que é uma surpresa e não uma limpeza.
+    """
+    return _url_com(
+        base, filtros,
+        regional="", cc="", contrato="", servico="", layer="", deficitario="",
+    )
+
+
+def url_de_apresentacao(filtros: Filtros, base: str) -> str:
+    """O modo apresentação PRESERVANDO os filtros.
+
+    Antes ele levava só a competência: clicar em "Apresentar" com um recorte
+    ativo trocava os números em silêncio, no caminho entre a tela e o projetor.
+    """
+    return _url_com(base, filtros, apresentacao="1")
+
+
+def cruzar(filtros: Filtros, base: str, parametro: str, valor: str) -> tuple[str, bool]:
+    """A URL que ACRESCENTA um filtro cruzado. Devolve `(url, substituiu)`.
+
+    O limite de três não é estético: quatro recortes simultâneos produzem um
+    número que ninguém explica de cabeça, e é aí que a tela deixa de ser usada.
+
+    Quando o limite estoura, o mais ANTIGO sai — e a tela avisa. Recusar o
+    quarto clique seria pior: a pessoa clicaria de novo achando que não pegou.
+    """
+    if parametro not in CRUZAVEIS:
+        return _url_com(base, filtros, **{parametro: valor}), False
+
+    ordem = [p for p in CRUZAVEIS if _valor_do_filtro(filtros, p)]
+    substituiu = False
+    mudancas = {parametro: valor}
+    if parametro not in ordem and len(ordem) >= MAXIMO_DE_CRUZADOS:
+        mudancas[ordem[0]] = ""
+        substituiu = True
+    return _url_com(base, filtros, **mudancas), substituiu
+
+
+def _valor_do_filtro(filtros: Filtros, parametro: str) -> str:
+    return {
+        "regional": filtros.regional,
+        "cc": filtros.centro_custo,
+        "contrato": filtros.contrato,
+        "servico": filtros.servico,
+        "layer": filtros.layer,
+        "deficitario": "1" if filtros.deficitario else "",
+    }.get(parametro, "")
+
+
+# ── Pivotar — Onda 11, mecanismo 3 ──────────────────────────────────
+
+#: As dimensões pelas quais o bloco de perfuração pode agrupar.
+#: `(parâmetro, rótulo, atributo do contrato, cruzável)`.
+#:
+#: Regional, centro de custo e contrato são a HIERARQUIA — escolhê-las troca o
+#: nível. Serviço e layer são atributos: escolhê-los reagrupa sem descer, e o
+#: clique vira filtro cruzado.
+DIMENSOES: tuple[tuple[str, str, str, bool], ...] = (
+    ("regional", "Regional", "regional", False),
+    ("cc", "Centro de custo", "centro_custo", False),
+    ("contrato", "Contrato", "codigo", False),
+    ("servico", "Serviço", "servico", True),
+    ("layer", "Layer", "layer", True),
+)
+
+
+def dimensao_de(filtros: Filtros) -> tuple[str, str, str, bool]:
+    """A dimensão do bloco de perfuração: a escolhida, ou a do nível seguinte.
+
+    O padrão é a hierarquia — quem não escolheu nada quer descer. Escolher é o
+    mecanismo 3: o mesmo número por outra dimensão.
+    """
+    if filtros.dimensao:
+        for entrada in DIMENSOES:
+            if entrada[0] == filtros.dimensao:
+                return entrada
+    profundidade = nivel_de(filtros)
+    if profundidade >= len(HIERARQUIA):
+        return ("", "", "", False)
+    parametro, rotulo, atributo = HIERARQUIA[profundidade]
+    return (parametro, rotulo, atributo, False)
+
+
 def _bloco_perfuracao(escopo, filtros: Filtros, base: str):
     """A barra do nível seguinte — cada barra desce um degrau.
 
@@ -1215,13 +1407,12 @@ def _bloco_perfuracao(escopo, filtros: Filtros, base: str):
     """
     from workspace.graficos import series
 
-    profundidade = nivel_de(filtros)
-    if profundidade >= len(HIERARQUIA):
+    parametro, rotulo, atributo, cruzavel = dimensao_de(filtros)
+    if not parametro:
         return series.barras_por_categoria(
             [], chave="perfuracao", titulo="Detalhe", fronteira=FRONTEIRA
         )
 
-    parametro, rotulo, atributo = HIERARQUIA[profundidade]
     provedor = contrato.obter(contrato.ProvedorCarteira)
     if provedor is None:
         return series.barras_por_categoria(
@@ -1236,22 +1427,34 @@ def _bloco_perfuracao(escopo, filtros: Filtros, base: str):
             c.valor_mensal or Decimal("0")
         )
 
-    pontos = [
-        series.Ponto(
-            rotulo=nome,
-            valor=valor,
-            # A URL pronta, do servidor. O JS só navega.
-            url=_url_com(base, filtros, **{parametro: nome}) if nome != "—" else "",
-        )
-        for nome, valor in sorted(por_categoria.items(), key=lambda p: -p[1])
-    ]
+    pontos = []
+    substituiria = False
+    for nome, valor in sorted(por_categoria.items(), key=lambda p: -p[1]):
+        if nome == "—":
+            # Categoria em branco não vira filtro: `?servico=` é a ausência de
+            # filtro, e clicar nela pareceria não fazer nada.
+            pontos.append(series.Ponto(rotulo=nome, valor=valor))
+            continue
+        # Dimensão da HIERARQUIA desce um nível; atributo vira filtro CRUZADO —
+        # o mesmo nível, recortado. É a diferença entre os mecanismos 1 e 2.
+        url, substitui = cruzar(filtros, base, parametro, nome)
+        substituiria = substituiria or substitui
+        pontos.append(series.Ponto(rotulo=nome, valor=valor, url=url))
 
-    return series.barras_por_categoria(
+    bloco = series.barras_por_categoria(
         pontos,
         chave="perfuracao",
         titulo=f"Receita mensal por {rotulo.lower()}",
         rotulo_serie="Valor mensal",
     )
+    bloco.cruzado = cruzavel
+    bloco.aviso_de_substituicao = (
+        f"Já há {MAXIMO_DE_CRUZADOS} recortes ativos. Clicar aqui troca o mais "
+        "antigo — quatro ao mesmo tempo produzem um número que ninguém explica."
+        if substituiria
+        else ""
+    )
+    return bloco
 
 
 def _estreitar_por_atributo(recorte: contrato.Escopo, filtros: Filtros):
@@ -1398,4 +1601,126 @@ def panorama_das_fontes() -> dict:
         "divergencias": provedor.divergencias(abertas=True),
         "mapa": mapa_das_faixas(),
         "motivo": "",
+    }
+
+
+# ── Detalhar — Onda 11, mecanismo 4 ─────────────────────────────────
+
+#: Quantas linhas por página no detalhamento. Cinquenta é o que cabe numa tela
+#: sem rolar até perder a referência do cabeçalho.
+POR_PAGINA_DETALHE = 50
+
+
+def detalhe(pessoa, parametros, cache: dict | None = None) -> dict:
+    """As LINHAS por trás do agregado — o botão "Detalhamento" do benchmark.
+
+    ## A regra que sustenta a confiança na tela inteira
+
+    O detalhe **herda todos os filtros ativos** e **mostra quais são no topo**.
+    Detalhe que não bate com o agregado destrói a confiança na tela inteira: a
+    pessoa some com o número, não com a tela.
+
+    Por isso ele reusa `escopo_de`, `ler_filtros` e `_estreitar_por_atributo` —
+    as MESMAS funções da tela. Uma segunda leitura de filtro aqui divergiria da
+    primeira, e o sintoma seria exatamente esse.
+
+    ## E ele soma o que mostra
+
+    `total_das_linhas` sai da mesma lista que a tabela pagina. Um total calculado
+    à parte poderia discordar da soma visível — e o teste que amarra os dois é o
+    que prova que o detalhe bate com o agregado.
+    """
+    from django.urls import reverse
+
+    escopo = escopo_de(pessoa, cache=cache)
+    filtros = ler_filtros(parametros)
+    base_url = reverse("workspace:resultados")
+    recorte = _estreitar_por_atributo(filtros.aplicar(escopo), filtros)
+
+    provedor = contrato.obter(contrato.ProvedorResultadoFinanceiro)
+    linhas = []
+    if provedor is not None:
+        for linha in provedor.serie_competencia(recorte, filtros.de, filtros.ate):
+            if not _no_mes(linha, filtros.competencia):
+                continue
+            linhas.append(
+                {
+                    "contrato": linha.contrato or linha.centro_custo,
+                    "centro_custo": linha.centro_custo,
+                    "competencia": f"{linha.mes:02d}/{linha.ano}",
+                    "receita_bruta": linha.receita_bruta,
+                    "custo_direto": linha.custo_direto,
+                    "margem_contribuicao": linha.margem_contribuicao,
+                    "ebitda": linha.ebitda,
+                    "procedencia": str(linha.procedencia),
+                }
+            )
+    linhas.sort(key=lambda l: -(l["receita_bruta"] or Decimal("0")))
+
+    pagina = max(1, _inteiro(parametros.get("p"), 1))
+    inicio = (pagina - 1) * POR_PAGINA_DETALHE
+    visiveis = linhas[inicio: inicio + POR_PAGINA_DETALHE]
+
+    return {
+        "filtros": filtros,
+        # As tarjas AQUI TAMBÉM, e é a metade que o mecanismo 4 exige: o detalhe
+        # mostra quais filtros herdou.
+        "filtros_ativos": filtros_ativos(filtros, base_url),
+        "url_voltar": _url_com(base_url, filtros),
+        "linhas": visiveis,
+        "pagina": pagina,
+        "paginas": max(1, -(-len(linhas) // POR_PAGINA_DETALHE)),
+        "total_de_linhas": len(linhas),
+        # A soma da lista INTEIRA, e não da página: o agregado da tela é do
+        # recorte todo, e comparar com a soma de uma página seria comparar coisas
+        # diferentes.
+        "total_das_linhas": sum(
+            (l["receita_bruta"] or Decimal("0") for l in linhas), Decimal("0")
+        ),
+        "url_pagina": lambda n: _url_com(
+            reverse("workspace:resultados_detalhe"), filtros, p=str(n)
+        ),
+    }
+
+
+def dados(pessoa, parametros, cache: dict | None = None) -> dict:
+    """O agregado em JSON — o contrato de dados do mecanismo 2.
+
+    **Mesma verificação de escopo da tela.** É o erro clássico que o prompt
+    nomeia: a tela filtra por regional e a API devolve tudo. Aqui não há como
+    divergir, porque as duas chamam `escopo_de` e `ler_filtros` — as mesmas
+    funções, no mesmo módulo.
+
+    Ele existe para o detalhamento carregado sob demanda e para quem quiser
+    conferir um número sem raspar HTML. O volume é pequeno: treze meses e poucas
+    dimensões.
+    """
+    escopo = escopo_de(pessoa, cache=cache)
+    filtros = ler_filtros(parametros)
+    recorte = _estreitar_por_atributo(filtros.aplicar(escopo), filtros)
+
+    provedor = contrato.obter(contrato.ProvedorResultadoFinanceiro)
+    serie = provedor.serie_competencia(recorte, filtros.de, filtros.ate) if provedor else []
+
+    ordem, receita = _por_mes(serie, "receita_bruta")
+    _, orcado = _por_mes(serie, "receita_orcada")
+    _, ebitda = _por_mes(serie, "ebitda")
+
+    return {
+        "competencia": filtros.competencia.strftime("%Y-%m"),
+        "janela": filtros.meses,
+        "escopo": {
+            "regionais": list(recorte.regionais),
+            "centros_custo": list(recorte.centros_custo),
+            "contratos": list(recorte.contratos),
+        },
+        "meses": [
+            {
+                "mes": rotulo,
+                "receita_bruta": receita[rotulo],
+                "receita_orcada": orcado.get(rotulo),
+                "ebitda": ebitda.get(rotulo),
+            }
+            for rotulo in ordem
+        ],
     }

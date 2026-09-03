@@ -110,9 +110,28 @@ def gerar(panorama: dict) -> bytes:
     for faixa in panorama["faixas"]:
         historia.extend(_faixa(faixa, estilos))
 
-    # O rodapé que diz o que ficou de fora — ADR-041. Um PDF que mostra menos
-    # que a tela, em silêncio, é como alguém conclui que o número mudou.
+    # OS FILTROS ATIVOS, no rodapé. Mesma razão das tarjas na tela, e pior aqui:
+    # o PDF é lido dias depois, longe da tela, por gente que não escolheu o
+    # recorte. Um documento que mostra um número recortado sem dizer que é
+    # recortado é como alguém conclui que o número mudou.
+    ativos = panorama.get("filtros_ativos") or []
     historia.append(Spacer(1, 6 * mm))
+    if ativos:
+        historia.append(
+            Paragraph(
+                _escapar(
+                    "Recorte aplicado: "
+                    + " · ".join(f"{f.rotulo}: {f.valor}" for f in ativos)
+                ),
+                estilos["texto"],
+            )
+        )
+    else:
+        historia.append(
+            Paragraph(_escapar("Sem recorte: a empresa inteira."), estilos["texto"])
+        )
+
+
     historia.append(
         Paragraph(
             _escapar(

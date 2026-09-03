@@ -14,7 +14,16 @@
   conteúdo no HTML, e o leitor de tela leria uma navegação que ninguém pode ver.
 {% endcomment %}
 {% block rail %}
-  {% if not apresentacao %}{% include "workspace/_rail_servicos.html" with aba="resultados" %}{% endif %}
+  {% comment %}
+  AS TARJAS vêm ANTES do bloco escondido em apresentação — e é o ponto.
+
+  Antes desta onda, `?apresentacao=1&layer=1` escondia a barra de filtros
+  inteira e mostrava números recortados sem nada dizendo que eram. Numa reunião,
+  projetado.
+{% endcomment %}
+{% include "workspace/resultados/_tarjas.html" %}
+
+{% if not apresentacao %}{% include "workspace/_rail_servicos.html" with aba="resultados" %}{% endif %}
 {% endblock %}
 
 {% block trilha %}<span>{% trans "Resultados" %}</span>{% endblock %}
@@ -141,12 +150,25 @@
       <span>{% trans "Só deficitários" %}</span>
     </label>
     <button class="au-btn au-btn--sutil" type="submit">{% trans "Aplicar" %}</button>
-    <a class="au-btn au-btn--fantasma" href="{% url 'workspace:resultados' %}?competencia={{ filtros.competencia|date:'Y-m' }}&amp;apresentacao=1">
+    {% comment %}
+      "Apresentar" PRESERVA os filtros. Antes ele levava só a competência:
+      clicar com um recorte ativo trocava os números em silêncio, no caminho
+      entre a tela e o projetor.
+    {% endcomment %}
+    <a class="au-btn au-btn--fantasma" href="{{ url_apresentar }}">
       {% trans "Apresentar" %}
     </a>
     <a class="au-btn au-btn--fantasma"
        href="{% url 'workspace:resultados_pdf' %}?competencia={{ filtros.competencia|date:'Y-m' }}">
       {% trans "PDF" %}
+    </a>
+    {% comment %}
+      DETALHAR — mecanismo 4. Link EXPLÍCITO, e nunca clique acidental no
+      gráfico: descer para as linhas é outra pergunta, não uma variação da
+      mesma. E ele carrega os filtros: o detalhe herda o recorte.
+    {% endcomment %}
+    <a class="au-btn au-btn--fantasma" href="{{ url_detalhe }}">
+      {% trans "Detalhamento" %}
     </a>
     {% if pode_ver_fontes %}
       <a class="au-btn au-btn--fantasma" href="{% url 'workspace:fontes' %}">

@@ -75,7 +75,39 @@
   está na tabela irmã, num `<a>`, para quem está sem JavaScript.
 {% endcomment %}
 {% if faixa.conteudo.perfuracao %}
+  {% comment %}
+    PIVOTAR — mecanismo 3. O mesmo número por outra dimensão.
+
+    Links e não `<select>`: as opções são cinco e cabem numa linha, e um link é
+    navegação de verdade — funciona sem JavaScript, abre em nova aba, e entra no
+    histórico. Um `<select>` que submete no `change` faz nada disso.
+
+    Regional, centro de custo e contrato trocam o NÍVEL; serviço e layer
+    reagrupam sem descer, e ali o clique vira filtro cruzado.
+  {% endcomment %}
+  {% if faixa.conteudo.dimensoes %}
+    <nav class="au-pivotar" aria-label="{% trans 'Agrupar por' %}">
+      <span class="au-pivotar-rotulo">{% trans "Agrupar por:" %}</span>
+      {% for dimensao in faixa.conteudo.dimensoes %}
+        {% if dimensao.atual %}
+          <span class="au-pivotar-opcao au-pivotar-opcao--atual"
+                aria-current="true">{{ dimensao.rotulo }}</span>
+        {% else %}
+          <a class="au-pivotar-opcao" href="{{ dimensao.url }}">{{ dimensao.rotulo }}</a>
+        {% endif %}
+      {% endfor %}
+    </nav>
+  {% endif %}
+
   {% grafico faixa.conteudo.perfuracao %}
+
+  {% if faixa.conteudo.perfuracao.aviso_de_substituicao %}
+    {% comment %}
+      O aviso de que o próximo clique troca o recorte mais antigo. Recusar o
+      quarto clique seria pior: a pessoa clicaria de novo achando que não pegou.
+    {% endcomment %}
+    <p class="au-aviso-cruzado">{{ faixa.conteudo.perfuracao.aviso_de_substituicao }}</p>
+  {% endif %}
 {% endif %}
 
 <div class="au-tabela">

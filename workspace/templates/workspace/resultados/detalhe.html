@@ -1,0 +1,86 @@
+{% extends "workspace/_shell_modulo.html" %}
+{% load i18n wks %}
+
+{% block titulo %}{% trans "Detalhamento" %}{% endblock %}
+{% block rail %}{% include "workspace/_rail_servicos.html" with aba="resultados" %}{% endblock %}
+{% block trilha %}
+  <a href="{{ url_voltar }}">{% trans "Resultados" %}</a>
+  <span>{% trans "Detalhamento" %}</span>
+{% endblock %}
+{% block pagina_titulo %}{% trans "Detalhamento" %}{% endblock %}
+{% block voltar_url %}{{ url_voltar }}{% endblock %}
+{% block voltar_rotulo %}{% trans "Voltar ao agregado" %}{% endblock %}
+
+{% block pagina_descricao %}
+  <p class="au-pagina-desc">
+    {% blocktrans count n=total_de_linhas %}{{ n }} linha por trás do número.{% plural %}{{ n }} linhas por trás do número.{% endblocktrans %}
+    {% blocktrans with mes=filtros.competencia|date:"F \d\e Y" %}Competência de {{ mes }}.{% endblocktrans %}
+  </p>
+{% endblock %}
+
+{% block corpo %}
+{% comment %}
+  OS FILTROS HERDADOS, no topo.
+
+  É a regra do mecanismo 4: o detalhe herda TODOS os filtros ativos e mostra
+  quais são. Detalhe que não bate com o agregado destrói a confiança na tela
+  inteira — e a pessoa some com o número, não com a tela.
+{% endcomment %}
+{% include "workspace/resultados/_tarjas.html" %}
+
+<p class="au-detalhe-total">
+  {% trans "Soma da receita bruta destas linhas:" %}
+  <b>R$ {{ total_das_linhas|moeda }}</b>
+  <span class="au-detalhe-nota">
+    {% trans "É o mesmo recorte do agregado. Se os dois discordarem, é bug — abra." %}
+  </span>
+</p>
+
+{% if linhas %}
+  <div class="au-tabela">
+    <table>
+      <caption class="au-sr">{% trans "Linhas do recorte" %}</caption>
+      <thead>
+        <tr>
+          <th scope="col">{% trans "Contrato / centro de custo" %}</th>
+          <th scope="col">{% trans "Competência" %}</th>
+          <th class="au-num" scope="col">{% trans "Receita bruta" %}</th>
+          <th class="au-num" scope="col">{% trans "Custo direto" %}</th>
+          <th class="au-num" scope="col">{% trans "Margem" %}</th>
+          <th class="au-num" scope="col">{% trans "EBITDA" %}</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for linha in linhas %}
+          <tr>
+            <th scope="row">
+              {{ linha.contrato }}
+              {% comment %}
+                A PROCEDÊNCIA em cada linha. Este é o nível mais fundo da tela, e
+                é aqui que alguém vai conferir contra o ERP — sem a chave
+                externa, "de onde vem esse número" não tem resposta acionável.
+              {% endcomment %}
+              <small class="au-detalhe-procedencia">{{ linha.procedencia }}</small>
+            </th>
+            <td>{{ linha.competencia }}</td>
+            <td class="au-num">{{ linha.receita_bruta|moeda }}</td>
+            <td class="au-num">{{ linha.custo_direto|moeda }}</td>
+            <td class="au-num">{{ linha.margem_contribuicao|moeda }}</td>
+            <td class="au-num">{{ linha.ebitda|moeda }}</td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  {% if paginas > 1 %}
+    <nav class="au-paginacao" aria-label="{% trans 'Páginas do detalhamento' %}">
+      {% blocktrans with p=pagina n=paginas %}Página {{ p }} de {{ n }}{% endblocktrans %}
+    </nav>
+  {% endif %}
+{% else %}
+  <p class="au-vazio-dica">
+    {% trans "Nenhuma linha neste recorte. Não é zero — é ausência de linha: afrouxe um filtro acima." %}
+  </p>
+{% endif %}
+{% endblock %}
