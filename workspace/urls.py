@@ -149,6 +149,28 @@ urlpatterns = [
     # `novo/` ANTES de `<int:pk>/` por hábito, e não por necessidade: `int`
     # nunca casaria com "novo". O hábito é o que protege o dia em que alguém
     # trocar o conversor por `str`.
+    # Metas, avaliação e PDI (14). O quadro é de UMA pessoa por vez — não
+    # existe grade de pessoas com nota, e é a restrição 8 no lugar em que ela é
+    # mais fácil de violar sem perceber.
+    #
+    # `desenvolvimento/` ANTES de `<int:pessoa_id>/`: `int` não casaria com a
+    # palavra, mas a ordem é o hábito que protege o dia em que alguém trocar o
+    # conversor.
+    path("metas/", views.metas, name="metas"),
+    path("metas/desenvolvimento/", views.desenvolvimento, name="desenvolvimento"),
+    path("metas/desenvolvimento/acao/", views.acao_pdi, name="acao_pdi"),
+    path("metas/desenvolvimento/<int:pessoa_id>/", views.desenvolvimento,
+         name="desenvolvimento_de"),
+    path("metas/desenvolvimento/<int:pessoa_id>/acao/", views.acao_pdi,
+         name="acao_pdi_de"),
+    path("metas/quadro/<int:quadro_id>/meta/", views.meta_editar,
+         name="meta_editar"),
+    path("metas/quadro/<int:quadro_id>/meta/remover/", views.meta_remover,
+         name="meta_remover"),
+    path("metas/quadro/<int:quadro_id>/acao/", views.quadro_acao,
+         name="quadro_acao"),
+    path("metas/<int:pessoa_id>/", views.metas, name="metas_de"),
+    path("metas/<int:pessoa_id>/abrir/", views.abrir_quadro, name="abrir_quadro"),
     path("planos/", views.planos, name="planos"),
     path("planos/novo/", views.plano_novo, name="plano_novo"),
     path("planos/<int:pk>/", views.plano, name="plano"),

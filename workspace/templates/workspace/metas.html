@@ -1,0 +1,242 @@
+{% extends "workspace/_shell_modulo.html" %}
+{% load i18n %}
+
+{% block titulo %}{% trans "Metas" %}{% endblock %}
+{% block rail %}{% include "workspace/_rail_servicos.html" with aba="metas" %}{% endblock %}
+{% block trilha %}<span>{% trans "Metas e avaliação" %}</span>{% endblock %}
+{% block pagina_titulo %}
+  {% if sou_eu %}{% trans "Minhas metas" %}{% else %}{{ alvo.nome }}{% endif %}
+{% endblock %}
+{% block voltar_url %}{% url 'workspace:home' %}{% endblock %}
+
+{% block pagina_descricao %}
+  <p class="au-pagina-desc">
+    {{ ciclo.nome }} · {{ ciclo.inicio|date:"d/m/Y" }} a {{ ciclo.fim|date:"d/m/Y" }}
+    {% if quadro %}· {{ quadro.get_situacao_display }}{% endif %}
+  </p>
+{% endblock %}
+
+{% block corpo %}
+{% if ciclos|length > 1 %}
+  <form class="au-filtros" method="get">
+    <label class="au-rotulo" for="ciclo">{% trans "Ciclo" %}</label>
+    <select class="au-input" id="ciclo" name="ciclo">
+      {% for c in ciclos %}
+        <option value="{{ c.chave }}" {% if c.pk == ciclo.pk %}selected{% endif %}>{{ c.nome }}</option>
+      {% endfor %}
+    </select>
+    <button class="au-btn au-btn--sutil" type="submit">{% trans "Ver" %}</button>
+  </form>
+{% endif %}
+
+{% if not quadro %}
+  {% comment %}
+    Estado vazio que EXPLICA o que falta — restrição 6. "Sem quadro" é diferente
+    de "sem metas": o primeiro quer dizer que ninguém abriu ainda, e a ação é de
+    quem lidera.
+  {% endcomment %}
+  <p class="au-vazio-dica">
+    {% if sou_eu %}
+      {% trans "Você ainda não tem quadro neste ciclo. Quem lidera você é quem abre — vale combinar as metas antes." %}
+    {% else %}
+      {% trans "Esta pessoa ainda não tem quadro neste ciclo." %}
+    {% endif %}
+  </p>
+  {% if pode_abrir %}
+    <form method="post" action="{% url 'workspace:abrir_quadro' pessoa_id=alvo.pk %}">
+      {% csrf_token %}
+      <input type="hidden" name="ciclo" value="{{ ciclo.chave }}">
+      <button class="au-btn au-btn--primario" type="submit">{% trans "Abrir quadro em rascunho" %}</button>
+    </form>
+  {% endif %}
+
+{% else %}
+
+  {% if quadro.situacao == "apurado" %}
+    <p class="au-nota">
+      {% if nota is not None %}
+        {% blocktrans with n=nota %}Nota do ciclo: {{ n }}%{% endblocktrans %}
+      {% else %}
+        {% comment %}
+          Nenhuma meta pôde ser apurada. "—" e não "0" — restrição 5. Zero seria
+          uma afirmação de que a pessoa falhou.
+        {% endcomment %}
+        {% trans "Nota do ciclo: —" %}
+      {% endif %}
+      {% if nao_apuradas %}
+        <span class="au-nota-ressalva">
+          {% blocktrans count n=nao_apuradas|length %}{{ n }} meta ficou sem apuração e está fora do cálculo.{% plural %}{{ n }} metas ficaram sem apuração e estão fora do cálculo.{% endblocktrans %}
+        </span>
+      {% endif %}
+    </p>
+  {% endif %}
+
+  {% if quadro.resumo %}
+    <section class="au-secao">
+      <h2 class="au-secao-titulo">{% trans "Resumo" %}</h2>
+      <p class="au-quadro-resumo">{{ quadro.resumo|linebreaksbr }}</p>
+    </section>
+  {% endif %}
+
+  <section class="au-secao" aria-labelledby="quadro">
+    <h2 class="au-secao-titulo" id="quadro">{% trans "Quadro de metas" %}
+      <span class="au-secao-conta">{% blocktrans with p=quadro.peso_total %}peso total {{ p }}{% endblocktrans %}</span>
+    </h2>
+
+    {% if metas %}
+      <ul class="au-metas">
+        {% for m in metas %}
+          <li class="au-meta au-meta--{{ m.grupo }}">
+            <p class="au-meta-descricao">{{ m.descricao }}</p>
+            {% comment %}
+              A FÓRMULA na tela. É o que torna a meta auditável: quem lê sabe de
+              onde sai o número sem abrir o Sankhya ao lado.
+            {% endcomment %}
+            <p class="au-meta-formula">
+              <span class="au-meta-grupo">{{ m.get_grupo_display }}</span>
+              <span class="au-meta-conta">{{ m.formula }}</span>
+              <span class="au-meta-tipo">{{ m.get_tipo_calculo_display }}</span>
+              <span class="au-meta-peso">{% blocktrans with p=m.peso %}peso {{ p }}{% endblocktrans %}</span>
+              {% if m.alvo is not None %}
+                <span class="au-meta-alvo">{% blocktrans with a=m.alvo %}alvo {{ a }}{% endblocktrans %}</span>
+              {% endif %}
+            </p>
+            {% if m.detalhamento %}
+              <p class="au-meta-detalhe">{{ m.detalhamento }}</p>
+            {% endif %}
+
+            {% if m.apurada %}
+              {% if m.atingimento_pct is not None %}
+                <p class="au-meta-apuracao{% if m.bateu %} au-meta-apuracao--bateu{% endif %}">
+                  {% blocktrans with r=m.realizado a=m.atingimento_pct %}Realizado {{ r }} · {{ a }}% do alvo{% endblocktrans %}
+                  {% if m.carimbo_texto %}
+                    {% comment %}
+                      O carimbo CONGELADO da fonte, do dia da apuração. Nunca
+                      recalculado — a nota é o que foi para o comitê.
+                    {% endcomment %}
+                    <span class="au-meta-carimbo">{{ m.carimbo_texto }}</span>
+                  {% endif %}
+                </p>
+              {% else %}
+                {% comment %}
+                  NÃO APURADA não é zero. A diferença entre "não bateu" e "não
+                  deu para medir" é a diferença entre uma conversa e uma
+                  injustiça.
+                {% endcomment %}
+                <p class="au-meta-apuracao au-meta-apuracao--indefinida">
+                  {% trans "Sem apuração:" %} {{ m.motivo_sem_apuracao }}
+                </p>
+              {% endif %}
+            {% endif %}
+
+            {% if pode_definir %}
+              <p class="au-meta-acoes">
+                <a class="au-btn au-btn--sutil au-btn--pequeno"
+                   href="{% url 'workspace:meta_editar' quadro_id=quadro.pk %}?meta={{ m.pk }}">
+                  {% trans "Editar" %}
+                </a>
+              </p>
+            {% endif %}
+          </li>
+        {% endfor %}
+      </ul>
+    {% else %}
+      <p class="au-vazio-dica">
+        {% trans "Nenhuma meta escrita ainda. Um quadro sem meta não pode ser aprovado — e é de propósito: quadro vazio aprovado é a forma mais silenciosa de não ter metas." %}
+      </p>
+    {% endif %}
+
+    {% if pode_definir %}
+      <p class="au-meta-acoes">
+        <a class="au-btn au-btn--primario"
+           href="{% url 'workspace:meta_editar' quadro_id=quadro.pk %}">
+          {% trans "Escrever meta" %}
+        </a>
+      </p>
+    {% elif quadro.situacao != "rascunho" %}
+      <p class="au-vazio-dica">
+        {% trans "Este quadro foi aprovado, e por isso não muda mais. Mover a trave no meio do ciclo é o que a palavra “meta” existe para impedir — corrigir exige reabrir, e o motivo fica registrado." %}
+      </p>
+    {% endif %}
+  </section>
+
+  {% if quadro.reaberturas %}
+    {% comment %}
+      As reaberturas ficam VISÍVEIS. Um quadro reaberto três vezes num ciclo é um
+      achado sobre como as metas foram definidas, e ele desapareceria se a
+      reabertura só apagasse a data de aprovação.
+    {% endcomment %}
+    <section class="au-secao">
+      <h2 class="au-secao-titulo">{% trans "Reaberturas" %}</h2>
+      <ul class="au-reaberturas">
+        {% for r in quadro.reaberturas %}
+          <li class="au-reabertura">
+            <span class="au-reabertura-quando">{{ r.quando }}</span>
+            <span class="au-reabertura-quem">{{ r.quem }}</span>
+            <span class="au-reabertura-motivo">{{ r.motivo }}</span>
+          </li>
+        {% endfor %}
+      </ul>
+    </section>
+  {% endif %}
+
+  {% if pode_aprovar %}
+    <section class="au-secao au-quadro-acoes">
+      {% if quadro.situacao == "rascunho" %}
+        <form method="post" action="{% url 'workspace:quadro_acao' quadro_id=quadro.pk %}">
+          {% csrf_token %}
+          <input type="hidden" name="acao" value="aprovar">
+          <button class="au-btn au-btn--primario" type="submit">{% trans "Aprovar o quadro" %}</button>
+          <p class="au-ajuda">{% trans "Depois de aprovado, o quadro não muda mais." %}</p>
+        </form>
+      {% elif quadro.situacao == "aprovado" %}
+        <form method="post" action="{% url 'workspace:quadro_acao' quadro_id=quadro.pk %}">
+          {% csrf_token %}
+          <input type="hidden" name="acao" value="apurar">
+          <button class="au-btn au-btn--primario" type="submit">{% trans "Apurar o ciclo" %}</button>
+          <p class="au-ajuda">{% trans "A apuração lê o espelho e congela o realizado, com o carimbo da fonte." %}</p>
+        </form>
+        <form method="post" action="{% url 'workspace:quadro_acao' quadro_id=quadro.pk %}">
+          {% csrf_token %}
+          <input type="hidden" name="acao" value="reabrir">
+          <label class="au-rotulo" for="motivo">{% trans "Motivo para reabrir" %}</label>
+          <input class="au-input" type="text" id="motivo" name="motivo" maxlength="300" required>
+          <button class="au-btn au-btn--sutil" type="submit">{% trans "Reabrir" %}</button>
+        </form>
+      {% endif %}
+    </section>
+  {% endif %}
+
+  <p class="au-meta-acoes">
+    <a class="au-btn au-btn--sutil"
+       href="{% if sou_eu %}{% url 'workspace:desenvolvimento' %}{% else %}{% url 'workspace:desenvolvimento_de' pessoa_id=alvo.pk %}{% endif %}?ciclo={{ ciclo.chave }}">
+      {% trans "Plano de desenvolvimento" %}
+    </a>
+  </p>
+{% endif %}
+
+{% if equipe %}
+  {% comment %}
+    A lista da equipe traz SITUAÇÃO, e nunca a nota. Restrição 8 no lugar em que
+    ela é mais fácil de violar sem perceber: uma coluna de nota ao lado de uma
+    lista de nomes é uma planilha de desempenho, e ela circula.
+  {% endcomment %}
+  <section class="au-secao" aria-labelledby="equipe">
+    <h2 class="au-secao-titulo" id="equipe">{% trans "Quadros de quem você lidera" %}</h2>
+    {% if resumo %}
+      <p class="au-vazio-dica">
+        {% blocktrans with t=resumo.total r=resumo.rascunho a=resumo.aprovado p=resumo.apurado %}{{ t }} quadros no ciclo: {{ r }} em rascunho, {{ a }} aprovados, {{ p }} apurados.{% endblocktrans %}
+      </p>
+    {% endif %}
+    <ul class="au-equipe">
+      {% for linha in equipe %}
+        <li class="au-equipe-linha">
+          <a href="{% url 'workspace:metas_de' pessoa_id=linha.url %}?ciclo={{ ciclo.chave }}">{{ linha.pessoa.nome }}</a>
+          <span class="au-equipe-situacao au-equipe-situacao--{{ linha.situacao }}">{{ linha.rotulo }}</span>
+          <span class="au-equipe-metas">{% blocktrans count n=linha.metas %}{{ n }} meta{% plural %}{{ n }} metas{% endblocktrans %}</span>
+        </li>
+      {% endfor %}
+    </ul>
+  </section>
+{% endif %}
+{% endblock %}

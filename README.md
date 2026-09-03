@@ -143,6 +143,8 @@ casa, que era o ponto de existir um contrato.
 | Nada em [resultados/](resultados/) tem formulário, nem no `/admin/` | O dado nasce onde é operado. Editar o espelho criaria duas verdades sobre a mesma linha — e a segunda venceria até a próxima carga, ou não venceria, conforme a precedência ([ADR-018](docs/EXEC_16_INGESTAO.md)). |
 | Regra de exceção com **zero** continua na lista | Sumir esconderia que a regra existe — e a discussão sobre "deveríamos vigiar X" voltaria em seis meses. E "sem ocorrências" **não** é o mesmo que "não avaliada": a segunda quer dizer que a fonte não está no ar, e as duas pedem ações opostas ([ADR-027](docs/EXEC_18_EXCECOES.md)). |
 | Cinco regras estão no banco **desligadas** | ASO, reciclagem, advertências, experiência e a conciliação de centro de custo. Elas dependem do HRIS e do orçamento, e ficam registradas com a fonte anotada — é o que responde "por que não vigiamos isso?" sem ninguém perguntar. |
+| A meta guarda a **fórmula**, e nunca o número | `Meta.fator_1` é `"ebitda"`, não `120000`. O valor é lido do espelho na apuração e só então congelado — a meta é auditável porque a conta está na tela, e a comparação entre quadros continua funcionando no segundo ano. O preço é real e é o certo: só se escreve meta sobre o que o produto sabe medir ([ADR-034](docs/EXEC_21_METAS.md)). |
+| Não existe **grade de pessoas com nota** | A lista de quem você lidera traz situação; a do R.H. traz contagem. Uma coluna de nota ao lado de uma lista de nomes é uma planilha de desempenho, e ela circula — restrição 8, no lugar em que é mais fácil de violar sem perceber. |
 | O plano de ação **não fecha porque alguém disse que resolveu** | Fechar roda a regra de novo sobre a mesma ocorrência. Se ela ainda dispara, o plano fecha como "não resolvido" — o texto de quem fechou fica junto, mas não decide. Um painel em que o próprio interessado declara o sucesso mede quem preenche formulário ([ADR-033](docs/EXEC_20_PLANOS.md)). |
 | Fonte fora do ar **não fecha plano nenhum** | A conferência fica registrada como "não avaliada" e o plano continua aberto. Sem isso, um conector caído fecharia como resolvido tudo o que dependesse dele, e o mês apareceria como o melhor do ano — a mesma distinção entre *zero* e *não avaliada* do painel de exceções. |
 | A **ATA congela o carimbo de frescor** | Uma anotação feita diante de um número de três dias atrás guarda "há 3 dias" ao lado, para sempre. Recalcular na leitura reescreveria a história **para melhor**, que é a direção em que ninguém percebe — e "com que dado a sala decidiu" é justamente o que uma auditoria procura numa ATA ([ADR-030](docs/EXEC_19_CICLOS.md)). |
@@ -211,6 +213,7 @@ justificativa no PR.
 | [EXEC 18](docs/EXEC_18_EXCECOES.md) | O painel de exceções: as 18 regras, as 5 desligadas e as duas ações, com os ADRs 026–028 |
 | [EXEC 19](docs/EXEC_19_CICLOS.md) | O ciclo de planejamento e a ATA: a pauta como objeto do produto, com os ADRs 029–031 |
 | [EXEC 20](docs/EXEC_20_PLANOS.md) | O plano de ação com limiar: a regra dos 10% generalizada, com os ADRs 032–033 |
+| [EXEC 21](docs/EXEC_21_METAS.md) | Metas, avaliação e PDI: a meta auditável porque a fórmula está na tela, com os ADRs 034–035 |
 
 ---
 

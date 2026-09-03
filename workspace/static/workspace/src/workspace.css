@@ -3804,3 +3804,153 @@ tr[data-abre-resumo]:focus-visible {
 .au-verificacao--indefinida .au-verificacao-texto { color: var(--au-warning-text); }
 
 .au-plano-fechar { margin-top: var(--au-5); }
+
+/* ── Metas, avaliação e PDI (14) ─────────────────────────────────────
+   A FÓRMULA fica visível em cada meta — é o que a torna auditável. E não
+   existe grade de pessoas com nota: a lista da equipe traz situação. */
+
+.au-nota {
+  margin: 0 0 var(--au-5);
+  padding: var(--au-3) var(--au-4);
+  border-radius: var(--au-r-md);
+  background: var(--au-surface-sunken);
+  font-size: var(--au-t-lg);
+  font-variant-numeric: tabular-nums;
+}
+.au-nota-ressalva {
+  display: block;
+  font-size: var(--au-t-xs);
+  font-variant-numeric: normal;
+  color: var(--au-warning-text);
+}
+
+.au-quadro-resumo { margin: 0; }
+
+.au-metas { margin: 0; padding: 0; list-style: none; }
+.au-meta {
+  border: 1px solid var(--au-border);
+  border-left: 3px solid var(--au-border-strong);
+  border-radius: var(--au-r-md);
+  background: var(--au-surface);
+  padding: var(--au-3) var(--au-4);
+  margin-bottom: var(--au-3);
+}
+.au-meta--financeira { border-left-color: var(--au-accent); }
+.au-meta--operacional { border-left-color: var(--au-success); }
+.au-meta--pessoas { border-left-color: var(--au-warning); }
+.au-meta-descricao { margin: 0; font-weight: 600; }
+.au-meta-formula {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--au-2);
+  margin: var(--au-1) 0 0;
+  font-size: var(--au-t-xs);
+  color: var(--au-text-muted);
+}
+/* A conta em monoespaçado: ela é para ser LIDA como fórmula, e não como frase. */
+.au-meta-conta {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  color: var(--au-text);
+}
+.au-meta-detalhe {
+  margin: var(--au-2) 0 0;
+  font-size: var(--au-t-sm);
+  color: var(--au-text-muted);
+}
+.au-meta-apuracao {
+  margin: var(--au-2) 0 0;
+  font-size: var(--au-t-sm);
+  font-variant-numeric: tabular-nums;
+}
+.au-meta-apuracao--bateu { color: var(--au-success-text); font-weight: 600; }
+/* NÃO APURADA não é zero — a mesma distinção do painel de exceções, e a mesma
+   cor de aviso, para que a leitura seja a mesma em toda tela do produto. */
+.au-meta-apuracao--indefinida { color: var(--au-warning-text); }
+.au-meta-carimbo {
+  display: block;
+  font-size: var(--au-t-xs);
+  font-variant-numeric: normal;
+  color: var(--au-text-subtle);
+}
+.au-meta-acoes { margin: var(--au-3) 0 0; }
+.au-meta-remover { margin-top: var(--au-4); }
+
+.au-fatores-ajuda {
+  margin: var(--au-2) 0 var(--au-4);
+  padding-left: var(--au-4);
+  font-size: var(--au-t-xs);
+  color: var(--au-text-muted);
+}
+
+.au-reaberturas { margin: 0; padding: 0; list-style: none; }
+.au-reabertura {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--au-2);
+  padding: var(--au-2) 0;
+  border-bottom: 1px solid var(--au-border);
+  font-size: var(--au-t-sm);
+}
+.au-reabertura-quando {
+  font-variant-numeric: tabular-nums;
+  color: var(--au-text-subtle);
+  flex: 0 0 10rem;
+}
+.au-reabertura-quem { font-weight: 600; }
+.au-reabertura-motivo { color: var(--au-text-muted); }
+
+.au-quadro-acoes { display: grid; gap: var(--au-4); }
+
+.au-equipe { margin: 0; padding: 0; list-style: none; }
+.au-equipe-linha {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--au-2);
+  padding: var(--au-2) 0;
+  border-bottom: 1px solid var(--au-border);
+}
+.au-equipe-situacao { font-size: var(--au-t-xs); color: var(--au-text-muted); }
+.au-equipe-situacao--rascunho { color: var(--au-warning-text); }
+.au-equipe-metas { font-size: var(--au-t-xs); color: var(--au-text-subtle); }
+
+.au-pdi { margin: 0 0 var(--au-5); }
+.au-pdi dt {
+  font-size: var(--au-t-xs);
+  color: var(--au-text-subtle);
+  margin-top: var(--au-3);
+}
+.au-pdi dd { margin: var(--au-1) 0 0; }
+
+.au-acoes-pdi { margin: 0; padding: 0; list-style: none; }
+.au-acao-pdi {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--au-2);
+  padding: var(--au-2) var(--au-3);
+  border-left: 3px solid transparent;
+  border-bottom: 1px solid var(--au-border);
+}
+.au-acao-pdi--feita { border-left-color: var(--au-success); opacity: .75; }
+.au-acao-pdi--atrasada { border-left-color: var(--au-warning); }
+.au-acao-quando {
+  font-variant-numeric: tabular-nums;
+  color: var(--au-text-muted);
+  flex: 0 0 5rem;
+}
+.au-acao-descricao { flex: 1 1 14rem; min-width: 0; }
+.au-acao-estado { font-size: var(--au-t-xs); color: var(--au-text-subtle); }
+.au-acao-nova { margin-top: var(--au-4); }
+
+/* Os atributos da fórmula, na linha da meta. Cada um é um pedaço da conta:
+   grupo, tipo de cálculo, peso e alvo — e ler os quatro é o que permite
+   conferir a meta sem abrir outra tela. */
+.au-meta-grupo {
+  text-transform: uppercase;
+  letter-spacing: .04em;
+  font-size: .72rem;
+}
+.au-meta-tipo,
+.au-meta-peso,
+.au-meta-alvo { font-variant-numeric: tabular-nums; }

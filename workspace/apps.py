@@ -30,6 +30,14 @@ class WorkspaceConfig(AppConfig):
 
         semear_excecoes()
 
+        # O catálogo de fatores das metas. Mesmo raciocínio: fator é CÓDIGO —
+        # cada um é uma função que consulta o espelho. Um fator "cadastrado" sem
+        # função atrás seria uma meta que nunca pode ser apurada, e a descoberta
+        # aconteceria no dia da nota.
+        from .services.fatores import semear as semear_fatores
+
+        semear_fatores()
+
         # Liga orçamento ao motor de aprovação. APR não conhece Compromisso e
         # orçamento não conhece cadeia de aprovação — o sinal é a costura.
         from .services.orcamento import conectar as conectar_orcamento

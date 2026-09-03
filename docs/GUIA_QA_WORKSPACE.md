@@ -1707,6 +1707,76 @@ dois limiares na mesma regra, e "marcar como resolvido" sem conferência.
 
 ---
 
+### 3.23 Metas, avaliação e PDI — `/workspace/metas/` (código 14)
+
+**Para que serve.** O quadro de metas de **uma pessoa** num ciclo, com a fórmula
+de cada meta à vista, e o plano de desenvolvimento em `14.1`.
+
+**Antes de testar:**
+
+```bash
+python manage.py semear_ciclo_metas --aplicar
+python manage.py semear_papeis --aplicar
+# Só em ambiente de demonstração — meta de mentira em quadro de pessoa real
+# aparece no painel do R.H. como se fosse verdade:
+python manage.py semear_ciclo_metas --aplicar --com-exemplos
+```
+
+**O que testar, em ordem de importância:**
+
+- **Quadro aprovado não muda mais.** Aprove um quadro e tente editar uma meta: a
+  tela recusa e diz para reabrir. Se a edição passar, **abra bug de gravidade
+  alta** — mover a trave no meio do ciclo é o que a palavra "meta" existe para
+  impedir.
+- **Reabrir exige motivo, e o motivo fica na tela.** Reabra duas vezes e confira
+  a seção "Reaberturas". Se ela não aparecer, o achado — metas mal definidas —
+  desaparece junto.
+- **Fator sem amostra não vira zero.** Com os conectores desligados (o padrão em
+  desenvolvimento), aprove e apure um quadro: cada meta tem de dizer *"Sem
+  apuração: o espelho não tem …"*, e a nota tem de ser **"—"**. Se aparecer
+  **0%**, é o achado mais caro desta tela: uma fonte fora do ar viraria a nota de
+  uma pessoa.
+- **A meta sem apuração fica fora do denominador.** Um quadro com uma meta
+  apurada de peso 1 (120%) e uma sem apuração de peso 9 tem nota **120**, e não
+  12. Se der 12, as não apuradas estão entrando como zero.
+- **Nenhuma tela lista pessoas com nota.** A lista "Quadros de quem você lidera"
+  traz **situação**, e a linha do R.H. traz **contagem**. Se aparecer uma coluna
+  de nota, **abra achado de privacidade** — é uma planilha de desempenho, e ela
+  circula.
+- **A fórmula aparece em cada meta**, em monoespaçado: `ebitda ÷
+  orcamento_mensal`. É o que torna a meta auditável — se sumir, o número volta a
+  ser opinião.
+
+**A separação dos atos:**
+
+- **Ninguém aprova o próprio quadro.** Entre como `gestor@icodev.com.br` e abra
+  o próprio: não há botão de aprovar. A exceção é `diretoria@`, com
+  `met.aprovar.global`, e ela é deliberada — é o que destrava quem não tem
+  gestor acima.
+- **O liderado não escreve a própria meta**, e **o R.H. não aprova**.
+- **Quadro vazio não é aprovado.** Se aprovar, ele conta como cobertura sem
+  cobrar nada de ninguém.
+- **Só quadro aprovado é apurado.** Apurar rascunho permitiria escrever a meta
+  depois de ver o número.
+
+**O PDI (`14.1`):**
+
+- **É escrito pela própria pessoa.** Abra o PDI de um liderado como gestor: o
+  formulário **não aparece**, e a tela diz por quê. Se aparecer, **abra bug**.
+- Ações têm **mês e ano**, e não data. Ação de mês passado sem conclusão aparece
+  marcada como atrasada.
+- Ciclo fechado não recebe PDI novo nem ação nova.
+
+**O carimbo.** Cada meta apurada mostra de quando é o número que a pontuou,
+**congelado**. Rode uma carga depois de apurar e reabra: o texto tem de continuar
+o mesmo. Se mudar, a nota de 2026 mudaria em 2027.
+
+**O que NÃO existe, e não é bug:** meta qualitativa (o fator precisa existir no
+catálogo), mais de 12 metas por quadro, atingimento acima de 150%, exportação de
+qualquer tela desta onda, e reabertura de quadro apurado.
+
+---
+
 ## 4. Matriz perfil × tela
 
 Use como plano de cobertura. **A coluna "Anônimo" é a mais esquecida e a que mais
@@ -1728,6 +1798,7 @@ esconde defeito** — nos dois sentidos.
 | Correspondências | ➜ login | ✅ **só as minhas** | ✅ **só as minhas** | ✅ **fila completa** |
 | **Ciclos de planejamento** | ➜ login | **403** | ✅ lê; só Diretoria **conduz** | **403** |
 | **Planos de ação** | ➜ login | **403** | ✅ lê; só o papel da regra **fecha** | **403** |
+| **Metas e PDI** | ➜ login | ✅ **só o próprio** | ✅ os liderados; só o gestor **aprova** | ✅ só o próprio |
 
 As células em negrito são os testes de autorização que valem mais: bandeja vazia
 para colaborador, fila invisível para gestor, cancelamento de terceiros só para

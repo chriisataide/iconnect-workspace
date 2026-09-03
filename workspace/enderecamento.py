@@ -218,6 +218,10 @@ TELAS: tuple[Tela, ...] = (
     # generalizada. Vizinha da 11 de propósito: a exceção encontra, e a 13
     # é onde a resposta fica.
     Tela("13", "Planos de ação", "workspace:planos"),
+    # O quadro de metas e o PDI. `14` e `14.1` porque são a MESMA
+    # conversa em dois horizontes: o ciclo e a carreira.
+    Tela("14", "Metas e avaliação", "workspace:metas"),
+    Tela("14.1", "Plano de desenvolvimento", "workspace:desenvolvimento"),
     Tela("09", "Relatórios", "workspace:relatorios"),
     Tela("26.1", "Oportunidades de marketing", "workspace:marketing"),
     Tela("30", "Pessoas e papéis", "workspace:pessoas"),

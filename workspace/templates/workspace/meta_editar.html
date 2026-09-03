@@ -1,0 +1,109 @@
+{% extends "workspace/_shell_modulo.html" %}
+{% load i18n %}
+
+{% block titulo %}{% trans "Meta" %}{% endblock %}
+{% block rail %}{% include "workspace/_rail_servicos.html" with aba="metas" %}{% endblock %}
+{% block trilha %}
+  <a href="{% url 'workspace:metas_de' pessoa_id=quadro.pessoa_id %}?ciclo={{ quadro.ciclo.chave }}">{% trans "Metas" %}</a>
+  <span>{% if meta %}{% trans "Editar" %}{% else %}{% trans "Nova" %}{% endif %}</span>
+{% endblock %}
+{% block pagina_titulo %}
+  {% if meta %}{% trans "Editar meta" %}{% else %}{% trans "Escrever meta" %}{% endif %}
+{% endblock %}
+{% block voltar_url %}{% url 'workspace:metas_de' pessoa_id=quadro.pessoa_id %}{% endblock %}
+
+{% block pagina_descricao %}
+  <p class="au-pagina-desc">{{ quadro.pessoa.nome }} · {{ quadro.ciclo.nome }}</p>
+{% endblock %}
+
+{% block corpo %}
+{% if not pode_definir %}
+  <p class="au-vazio-dica">
+    {% trans "Este quadro já foi aprovado, e por isso não muda mais. Para corrigir uma meta, reabra o quadro — o motivo fica registrado." %}
+  </p>
+{% else %}
+<form class="au-form" method="post">
+  {% csrf_token %}
+  {% if meta %}<input type="hidden" name="meta" value="{{ meta.pk }}">{% endif %}
+
+  <label class="au-rotulo" for="descricao">{% trans "Descrição" %}</label>
+  <input class="au-input" type="text" id="descricao" name="descricao" maxlength="200"
+         value="{{ meta.descricao|default:'' }}" required>
+
+  <label class="au-rotulo" for="grupo">{% trans "Grupo" %}</label>
+  <select class="au-input" id="grupo" name="grupo">
+    {% for valor, rotulo in grupos %}
+      <option value="{{ valor }}" {% if meta.grupo == valor %}selected{% endif %}>{{ rotulo }}</option>
+    {% endfor %}
+  </select>
+
+  {% comment %}
+    OS FATORES — o que faz a meta ser auditável.
+
+    Um `select` do catálogo e não texto livre: duas pessoas escreveriam "EBITDA"
+    e "Ebitda realizado" para a mesma coisa, e a comparação entre quadros
+    pararia de funcionar no segundo ano.
+  {% endcomment %}
+  <label class="au-rotulo" for="fator_1">{% trans "Fator 1" %}</label>
+  <select class="au-input" id="fator_1" name="fator_1" required>
+    {% for f in fatores %}
+      <option value="{{ f.chave }}" {% if meta.fator_1 == f.chave %}selected{% endif %}>
+        {{ f.rotulo }} ({{ f.fonte }})
+      </option>
+    {% endfor %}
+  </select>
+
+  <label class="au-rotulo" for="fator_2">{% trans "Fator 2 (opcional — o divisor)" %}</label>
+  <select class="au-input" id="fator_2" name="fator_2">
+    <option value="">{% trans "— nenhum: a meta é sobre o valor absoluto do Fator 1" %}</option>
+    {% for f in fatores %}
+      <option value="{{ f.chave }}" {% if meta.fator_2 == f.chave %}selected{% endif %}>
+        {{ f.rotulo }} ({{ f.fonte }})
+      </option>
+    {% endfor %}
+  </select>
+
+  <ul class="au-fatores-ajuda">
+    {% for f in fatores %}
+      <li><strong>{{ f.rotulo }}</strong> — {{ f.descricao }}</li>
+    {% endfor %}
+  </ul>
+
+  <label class="au-rotulo" for="tipo_calculo">{% trans "Tipo de cálculo" %}</label>
+  <select class="au-input" id="tipo_calculo" name="tipo_calculo">
+    <option value="direto" {% if meta.tipo_calculo == "direto" %}selected{% endif %}>
+      {% trans "Diretamente proporcional — maior é melhor" %}
+    </option>
+    <option value="inverso" {% if meta.tipo_calculo == "inverso" %}selected{% endif %}>
+      {% trans "Inversamente proporcional — menor é melhor (turnover, custo)" %}
+    </option>
+  </select>
+
+  <label class="au-rotulo" for="alvo">{% trans "Alvo" %}</label>
+  <input class="au-input" type="text" id="alvo" name="alvo"
+         value="{{ meta.alvo|default:'' }}">
+  <p class="au-ajuda">
+    {% trans "Com Fator 2, o alvo padrão é 100% da razão. Sem Fator 2, o alvo é obrigatório — é contra ele que o valor absoluto é comparado." %}
+  </p>
+
+  <label class="au-rotulo" for="peso">{% trans "Peso" %}</label>
+  <input class="au-input" type="number" id="peso" name="peso" min="1" max="10"
+         value="{{ meta.peso|default:1 }}">
+
+  <label class="au-rotulo" for="detalhamento">{% trans "Detalhamento" %}</label>
+  <textarea class="au-input" id="detalhamento" name="detalhamento" rows="3">{{ meta.detalhamento|default:'' }}</textarea>
+  <p class="au-ajuda">{% trans "Como ler a meta, em prosa. É o que responde “o que exatamente conta aqui?” sem exigir uma reunião." %}</p>
+
+  <button class="au-btn au-btn--primario" type="submit">{% trans "Salvar meta" %}</button>
+</form>
+
+{% if meta %}
+  <form class="au-meta-remover" method="post"
+        action="{% url 'workspace:meta_remover' quadro_id=quadro.pk %}">
+    {% csrf_token %}
+    <input type="hidden" name="meta" value="{{ meta.pk }}">
+    <button class="au-btn au-btn--sutil" type="submit">{% trans "Remover esta meta" %}</button>
+  </form>
+{% endif %}
+{% endif %}
+{% endblock %}

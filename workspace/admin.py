@@ -14,7 +14,12 @@ from django.contrib import admin, messages
 from django.utils import timezone
 
 from .models import (
+    AcaoDesenvolvimento,
     AnotacaoEtapa,
+    CicloMetas,
+    Meta,
+    PlanoDesenvolvimento,
+    QuadroMetas,
     PlanoAcao,
     VerificacaoPlano,
     CicloPlanejamento,
@@ -648,3 +653,77 @@ class PlanoAcaoAdmin(admin.ModelAdmin):
         # encontra. Criado aqui, ele nasceria sobre um problema que talvez já não
         # exista — e fecharia como resolvido sem ninguém ter feito nada.
         return False
+
+
+# ── Metas, avaliação e PDI ──────────────────────────────────────────
+
+
+@admin.register(CicloMetas)
+class CicloMetasAdmin(admin.ModelAdmin):
+    """O período. É a única parte desta onda que se cadastra à mão."""
+
+    list_display = ("chave", "nome", "inicio", "fim", "situacao")
+    list_filter = ("situacao",)
+    search_fields = ("chave", "nome")
+
+
+class MetaInline(admin.TabularInline):
+    """As metas se editam DENTRO do quadro.
+
+    Numa tela própria, as metas de trinta pessoas apareceriam misturadas e
+    ordenadas por id — e um quadro de metas é justamente o agrupamento.
+
+    A APURAÇÃO é somente leitura aqui: `realizado` e `atingimento_pct` são
+    congelados pela leitura do espelho, e editá-los seria escrever a nota à mão.
+    """
+
+    model = Meta
+    extra = 0
+    fields = (
+        "ordem", "grupo", "descricao", "fator_1", "fator_2", "tipo_calculo",
+        "alvo", "peso", "realizado", "atingimento_pct", "motivo_sem_apuracao",
+    )
+    readonly_fields = ("realizado", "atingimento_pct", "motivo_sem_apuracao")
+
+
+@admin.register(QuadroMetas)
+class QuadroMetasAdmin(admin.ModelAdmin):
+    """O quadro de uma pessoa.
+
+    `situacao`, `aprovado_por`, `aprovado_em` e `reaberturas` são somente
+    leitura: aprovar, reabrir e apurar são ATOS, e cada um deixa registro. Mudar
+    a situação aqui pularia o registro — que é exatamente o que o ADR-035
+    existe para impedir.
+
+    NÃO há `list_display` com nota. Uma coluna de nota ao lado de uma lista de
+    nomes é uma planilha de desempenho, e o `/admin/` exporta.
+    """
+
+    list_display = ("pessoa", "ciclo", "situacao", "aprovado_em")
+    list_filter = ("situacao", "ciclo")
+    search_fields = ("pessoa__nome",)
+    readonly_fields = (
+        "situacao", "aprovado_por", "aprovado_em", "apurado_em", "reaberturas",
+    )
+    inlines = (MetaInline,)
+
+
+class AcaoDesenvolvimentoInline(admin.TabularInline):
+    model = AcaoDesenvolvimento
+    extra = 0
+    fields = ("ano", "mes", "descricao", "concluida_em")
+
+
+@admin.register(PlanoDesenvolvimento)
+class PlanoDesenvolvimentoAdmin(admin.ModelAdmin):
+    """O PDI. Consulta, sobretudo.
+
+    Ele é escrito pela própria pessoa na tela do produto; o `/admin/` existe
+    aqui para o caso de precisar apagar um plano criado por engano, e não para
+    redigir a carreira de alguém.
+    """
+
+    list_display = ("pessoa", "ciclo", "atualizado_em")
+    list_filter = ("ciclo",)
+    search_fields = ("pessoa__nome",)
+    inlines = (AcaoDesenvolvimentoInline,)

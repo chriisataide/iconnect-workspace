@@ -1,0 +1,110 @@
+{% extends "workspace/_shell_modulo.html" %}
+{% load i18n %}
+
+{% block titulo %}{% trans "Plano de desenvolvimento" %}{% endblock %}
+{% block rail %}{% include "workspace/_rail_servicos.html" with aba="metas" %}{% endblock %}
+{% block trilha %}
+  <a href="{% url 'workspace:metas' %}">{% trans "Metas" %}</a>
+  <span>{% trans "Desenvolvimento" %}</span>
+{% endblock %}
+{% block pagina_titulo %}{% trans "Plano de desenvolvimento" %}{% endblock %}
+{% block voltar_url %}{% url 'workspace:metas' %}{% endblock %}
+
+{% block pagina_descricao %}
+  <p class="au-pagina-desc">
+    {% if not sou_eu %}{{ alvo.nome }} · {% endif %}{{ ciclo.nome }}
+  </p>
+{% endblock %}
+
+{% block corpo %}
+{% comment %}
+  O PDI é escrito pela PESSOA. Diferente das metas de propósito: a meta é
+  combinada com quem lidera, e o plano de desenvolvimento é a conversa de
+  carreira de quem o vive. Um PDI que só o gestor edita é um PDI que a pessoa
+  não reconhece.
+{% endcomment %}
+{% if not sou_eu %}
+  <p class="au-vazio-dica">
+    {% trans "Este plano é escrito pela própria pessoa. Você lê para acompanhar a conversa, e não para redigir por ela." %}
+  </p>
+{% endif %}
+
+{% if sou_eu and editavel %}
+<form class="au-form" method="post">
+  {% csrf_token %}
+  <input type="hidden" name="ciclo" value="{{ ciclo.chave }}">
+
+  <label class="au-rotulo" for="responsabilidades">{% trans "Responsabilidades" %}</label>
+  <textarea class="au-input" id="responsabilidades" name="responsabilidades" rows="3">{{ plano.responsabilidades|default:'' }}</textarea>
+
+  <label class="au-rotulo" for="interesses">{% trans "Áreas de interesse" %}</label>
+  <textarea class="au-input" id="interesses" name="interesses" rows="3">{{ plano.interesses|default:'' }}</textarea>
+
+  {% comment %}
+    Os dois horizontes do benchmark, com o prazo NO RÓTULO: "aspirações" sem
+    prazo vira lista de desejos.
+  {% endcomment %}
+  <label class="au-rotulo" for="aspiracao_curta">{% trans "Onde quero estar em 1 a 2 anos" %}</label>
+  <textarea class="au-input" id="aspiracao_curta" name="aspiracao_curta" rows="2">{{ plano.aspiracao_curta|default:'' }}</textarea>
+
+  <label class="au-rotulo" for="aspiracao_longa">{% trans "Onde quero estar em 3 a 5 anos" %}</label>
+  <textarea class="au-input" id="aspiracao_longa" name="aspiracao_longa" rows="2">{{ plano.aspiracao_longa|default:'' }}</textarea>
+
+  <button class="au-btn au-btn--primario" type="submit">{% trans "Salvar plano" %}</button>
+</form>
+{% elif plano %}
+  <dl class="au-pdi">
+    <dt>{% trans "Responsabilidades" %}</dt><dd>{{ plano.responsabilidades|default:"—"|linebreaksbr }}</dd>
+    <dt>{% trans "Áreas de interesse" %}</dt><dd>{{ plano.interesses|default:"—"|linebreaksbr }}</dd>
+    <dt>{% trans "1 a 2 anos" %}</dt><dd>{{ plano.aspiracao_curta|default:"—"|linebreaksbr }}</dd>
+    <dt>{% trans "3 a 5 anos" %}</dt><dd>{{ plano.aspiracao_longa|default:"—"|linebreaksbr }}</dd>
+  </dl>
+{% else %}
+  <p class="au-vazio-dica">
+    {% trans "Nenhum plano escrito neste ciclo." %}
+  </p>
+{% endif %}
+
+<section class="au-secao" aria-labelledby="acoes">
+  <h2 class="au-secao-titulo" id="acoes">{% trans "Ações" %}</h2>
+  {% if acoes %}
+    <ul class="au-acoes-pdi">
+      {% for a in acoes %}
+        <li class="au-acao-pdi{% if a.concluida %} au-acao-pdi--feita{% elif a.atrasada %} au-acao-pdi--atrasada{% endif %}">
+          <span class="au-acao-quando">{{ a.mes|stringformat:"02d" }}/{{ a.ano }}</span>
+          <span class="au-acao-descricao">{{ a.descricao }}</span>
+          {% if a.concluida %}
+            <span class="au-acao-estado">{% blocktrans with d=a.concluida_em|date:"d/m/Y" %}concluída em {{ d }}{% endblocktrans %}</span>
+          {% elif sou_eu and editavel %}
+            <form method="post" action="{% if sou_eu %}{% url 'workspace:acao_pdi' %}{% else %}{% url 'workspace:acao_pdi_de' pessoa_id=alvo.pk %}{% endif %}">
+              {% csrf_token %}
+              <input type="hidden" name="ciclo" value="{{ ciclo.chave }}">
+              <input type="hidden" name="acao" value="concluir">
+              <input type="hidden" name="item" value="{{ a.pk }}">
+              <button class="au-btn au-btn--sutil au-btn--pequeno" type="submit">{% trans "Concluir" %}</button>
+            </form>
+          {% endif %}
+        </li>
+      {% endfor %}
+    </ul>
+  {% else %}
+    <p class="au-vazio-dica">
+      {% trans "Nenhuma ação registrada. Uma aspiração sem ação com mês e ano é uma intenção — e o benchmark põe as duas na mesma tela justamente por isso." %}
+    </p>
+  {% endif %}
+
+  {% if sou_eu and plano and editavel %}
+    <form class="au-form au-acao-nova" method="post" action="{% url 'workspace:acao_pdi' %}">
+      {% csrf_token %}
+      <input type="hidden" name="ciclo" value="{{ ciclo.chave }}">
+      <label class="au-rotulo" for="descricao">{% trans "Nova ação" %}</label>
+      <input class="au-input" type="text" id="descricao" name="descricao" maxlength="300" required>
+      <label class="au-rotulo" for="mes">{% trans "Mês" %}</label>
+      <input class="au-input" type="number" id="mes" name="mes" min="1" max="12" required>
+      <label class="au-rotulo" for="ano">{% trans "Ano" %}</label>
+      <input class="au-input" type="number" id="ano" name="ano" min="2020" max="2100" required>
+      <button class="au-btn au-btn--primario" type="submit">{% trans "Registrar ação" %}</button>
+    </form>
+  {% endif %}
+</section>
+{% endblock %}

@@ -17,6 +17,22 @@
 </a>
 
 <p class="au-rail-grupo">{% trans "Consultar" %}</p>
+{% comment %}
+  METAS em CONSULTAR e para todo mundo que está identificado: `met.ler.proprio`
+  está no autoatendimento, e um sistema de metas em que a pessoa não vê as
+  próprias metas é um sistema de avaliação secreta.
+
+  `{% templatetag openvariable %} eu {% templatetag closevariable %}` porque o
+  hub é aberto: para o anônimo o item não aparece, em vez de aparecer e levar ao
+  login.
+{% endcomment %}
+{% if eu %}
+  <a class="au-rail-item {% if aba == 'metas' %}au-rail-item--ativo{% endif %}"
+     href="{% url 'workspace:metas' %}">
+    <svg class="au-icon" aria-hidden="true"><use href="#i-activity"></use></svg>
+    {% trans "Minhas metas" %}
+  </a>
+{% endif %}
 <a class="au-rail-item {% if aba == 'documentacao' %}au-rail-item--ativo{% endif %}"
    href="{% url 'workspace:documentacao' %}">
   <svg class="au-icon" aria-hidden="true"><use href="#i-book"></use></svg>

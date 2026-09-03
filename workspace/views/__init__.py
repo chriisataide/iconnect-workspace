@@ -25,6 +25,15 @@ from .busca import buscar_view
 from .enderecamento import ir_para
 from .ciclos import abrir_ciclo, anotar_etapa, ciclo, ciclos, fechar_ciclo
 from .excecoes import excecoes, notificar_excecao
+from .metas import (
+    abrir_quadro,
+    acao_pdi,
+    desenvolvimento,
+    meta_editar,
+    meta_remover,
+    metas,
+    quadro_acao,
+)
 from .planos import fechar_plano, plano, plano_novo, planos
 from .resultados import fontes, recarregar_fonte, resultados, resultados_pdf
 from .conteudo import (
@@ -138,7 +147,14 @@ __all__ = [
     "ciclos",
     "excecoes",
     "fechar_ciclo",
+    "abrir_quadro",
+    "acao_pdi",
+    "desenvolvimento",
     "fechar_plano",
+    "meta_editar",
+    "meta_remover",
+    "metas",
+    "quadro_acao",
     "plano",
     "plano_novo",
     "planos",

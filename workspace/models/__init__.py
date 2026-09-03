@@ -101,6 +101,17 @@ from .ciclo import (
     OcorrenciaCiclo,
     SituacaoOcorrencia,
 )
+from .meta import (
+    AcaoDesenvolvimento,
+    CicloMetas,
+    GrupoMeta,
+    Meta,
+    PlanoDesenvolvimento,
+    QuadroMetas,
+    SituacaoCiclo,
+    SituacaoQuadro,
+    TipoCalculo,
+)
 from .plano import (
     PRAZO_PADRAO_DO_PLANO,
     PlanoAcao,
@@ -118,7 +129,16 @@ from .comunicacao import Prioridade, Publicacao, TipoPublicacao
 from .orcamento import Compromisso, SituacaoCompromisso, competencia_de
 
 __all__ = [
+    "AcaoDesenvolvimento",
     "AnotacaoEtapa",
+    "CicloMetas",
+    "GrupoMeta",
+    "Meta",
+    "PlanoDesenvolvimento",
+    "QuadroMetas",
+    "SituacaoCiclo",
+    "SituacaoQuadro",
+    "TipoCalculo",
     "PRAZO_PADRAO_DO_PLANO",
     "PlanoAcao",
     "SituacaoPlano",

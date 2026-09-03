@@ -47,6 +47,10 @@ AUTOATENDIMENTO = [
     "ti.status.ler",
     "doc.ler.publico",
     "doc.sugerir",
+    # O PRÓPRIO quadro de metas e o próprio PDI. No autoatendimento e não num
+    # papel de gestão, e é a decisão da onda: um sistema de metas em que a
+    # pessoa não vê as próprias metas é um sistema de avaliação secreta.
+    "met.ler.proprio",
 ]
 
 PAPEIS_V1 = [
@@ -86,6 +90,13 @@ PAPEIS_V1 = [
             # presidência, e a pauta de quem decide acima não é leitura de
             # rotina de quem executa abaixo.
             "cic.ler.departamento",
+            # O quadro dos liderados. `definir` e `aprovar` SEPARADAS: quem
+            # escreve a meta não a homologa sozinho no próprio quadro — o
+            # `alvo` de `pode()` é a pessoa avaliada, e o gestor não se alcança
+            # pelo `.equipe`.
+            "met.ler.equipe",
+            "met.definir.equipe",
+            "met.aprovar.equipe",
         ],
         "descricao": (
             "Responde por uma equipe. Aprova o que vem dos liderados e vê a "
@@ -127,6 +138,12 @@ PAPEIS_V1 = [
             # de quem convoca.
             "cic.ler.global",
             "cic.conduzir.global",
+            # O quadro de qualquer pessoa, inclusive o próprio: é o único papel
+            # com `met.aprovar.global`, e é o que destrava a aprovação do quadro
+            # de quem não tem gestor acima.
+            "met.ler.global",
+            "met.definir.global",
+            "met.aprovar.global",
             # Responder por QUALQUER regra com limiar. A diretoria assina o
             # plano do contrato deficitário porque é ela que responde por ele
             # numa reunião de conselho — e porque, nas regras sem papel
@@ -199,6 +216,11 @@ PAPEIS_V1 = [
             # lista diz quem se candidatou a quê e quem foi reprovado — que muda
             # a relação de uma pessoa com o gestor dela.
             "rh.recrutar.global",
+            # Lê os quadros para acompanhar a COBERTURA do ciclo — quantos
+            # rascunhos, quantos aprovados. NÃO aprova e NÃO define: metas são
+            # combinadas entre a pessoa e quem a lidera, e um R.H. que homologa
+            # transforma a conversa num processo de RH.
+            "met.ler.global",
             "hab.auditoria.ler",
             "doc.publicar.assunto",
             "com.publicar.unidade",

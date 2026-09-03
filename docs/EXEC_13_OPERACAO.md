@@ -51,6 +51,7 @@ python manage.py semear_fontes            --aplicar   # as 4 fontes e a precedê
 python manage.py semear_resultados        --aplicar   # a massa do espelho, por 3 fontes
 python manage.py semear_regras_excecao    --aplicar   # as 18 regras + as 5 desligadas
 python manage.py semear_ciclos            --aplicar   # a pauta mensal (12 etapas) e o recorte trimestral
+python manage.py semear_ciclo_metas       --aplicar   # o ciclo de metas do ano corrente
 
 python manage.py reindexar_busca                      # o índice
 
