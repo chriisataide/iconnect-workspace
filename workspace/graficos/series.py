@@ -64,9 +64,12 @@ ALTURA = 300
 #: de 28 ele era **cortado pela borda do gráfico**. Apareceu na tela: o rótulo da
 #: barra mais alta do EBITDA saía pela metade.
 #:
-#: Sessenta e oito, e não "o suficiente": abaixo disso o corte volta na primeira
-#: série que tiver um valor de sete dígitos.
-FOLGA_DO_ROTULO = 68
+#: Setenta e quatro, e não "o suficiente": abaixo disso o corte volta na
+#: primeira série que tiver um valor de sete dígitos. Era 68 enquanto o rótulo
+#: era 10px em peso normal; girado, um número em negrito de 11px mede cerca de
+#: 10% a mais, e a folga acompanha — senão a mudança que tornou o número legível
+#: seria a mesma que o cortaria.
+FOLGA_DO_ROTULO = 74
 
 #: As cores saem dos tokens do produto, e não da paleta do ECharts.
 #:
@@ -82,6 +85,8 @@ COR_NEGATIVO = "#dc2626"    # --au-danger
 # nenhum dos dois chega aos 4,5:1 exigidos. Com este, branco dá 5,48:1.
 # A cascata pinta o passo de ganho com ele E escreve o valor dentro.
 COR_POSITIVO = "#047857"    # --au-success-text
+#: O fundo da etiqueta do percentual. Ver `barras_comparadas`.
+COR_LINHA_ETIQUETA = "#b45309"  # --au-warning-text
 COR_TEXTO = "#475569"       # --au-brand-600, que é --au-text-muted no claro
 COR_GRADE = "#c7c8ed"       # --au-accent-200
 
@@ -185,20 +190,24 @@ COR_ROTULO_ESCURO = "#212369"
 
 def _rotulo(
     dimensao: str = "rotulo",
-    cor: str = COR_TEXTO,
+    cor: str = COR_ROTULO_ESCURO,
     dentro: bool = False,
-    forte: bool = False,
 ) -> dict:
-    """O rótulo por ponto — GIRADO em 90°.
+    """O rótulo por ponto — GIRADO em 90°, e sempre em NEGRITO.
 
     É o que faz treze meses caberem, e é o que o Portal GPS faz. Na horizontal,
     `R$ 1,19 Mi` mede mais que a largura de uma barra de treze e os rótulos
     viram uma mancha.
 
-    `forte` é para o rótulo DENTRO da barra: ali ele disputa com a cor de fundo,
-    e 10px em peso normal sobre lilás é o que fez alguém dizer "não dá para ver".
-    Fora da barra o fundo é branco e o peso normal basta — engrossar tudo tira o
-    contraste de onde ele importa.
+    **O negrito valia só para o rótulo de dentro, e estava errado.** O
+    raciocínio era que fora da barra o fundo é branco e o peso normal bastaria —
+    `#475569` sobre branco dá 7,5:1, contraste de sobra. Mas contraste não era o
+    problema: em 10px e peso normal, girado, o número LIA como legenda, e não
+    como dado. Quem abriu a tela disse que os valores em cima das colunas
+    atrapalhavam a visualização, e o número que passa no contraste e não é lido
+    está tão errado quanto o que não passa.
+
+    O que muda com o fundo é a COR, não o peso — ver `cor_do_rotulo`.
 
     `hideOverlap` fica no `labelLayout` de quem chama: o que não couber some, e
     o número continua na tabela irmã.
@@ -213,8 +222,8 @@ def _rotulo(
         "align": "left" if dentro else "center",
         "verticalAlign": "middle",
         "distance": 6,
-        "fontSize": 11 if forte else 10,
-        "fontWeight": "bold" if forte else "normal",
+        "fontSize": 11,
+        "fontWeight": "bold",
         "color": cor,
     }
 
@@ -427,7 +436,7 @@ def barras_comparadas(
                     # DENTRO da barra e girado, como no Portal GPS: com duas
                     # séries lado a lado e treze meses, rótulo em cima não cabe
                     # de jeito nenhum.
-                    "label": _rotulo("rotulo_a", cor="#ffffff", dentro=True, forte=True),
+                    "label": _rotulo("rotulo_a", cor="#ffffff", dentro=True),
                     "labelLayout": {"hideOverlap": True},
                 },
                 {
@@ -436,9 +445,7 @@ def barras_comparadas(
                     "encode": {"x": "mes", "y": "b"},
                     "itemStyle": {"color": COR_SECUNDARIA},
                     "barMaxWidth": 26,
-                    "label": _rotulo(
-                        "rotulo_b", cor=COR_ROTULO_ESCURO, dentro=True, forte=True
-                    ),
+                    "label": _rotulo("rotulo_b", dentro=True),
                     "labelLayout": {"hideOverlap": True},
                 },
             ],
@@ -465,7 +472,10 @@ def barras_comparadas(
                     "fontSize": 10,
                     "fontWeight": "bold",
                     "color": "#ffffff",
-                    "backgroundColor": COR_LINHA,
+                    # A ETIQUETA é mais escura que a linha. Branco sobre
+                    # `#d97706` dá 3,19:1 e reprova; sobre `#b45309`, 5,02:1.
+                    # A linha continua clara — ela é traço, não fundo de texto.
+                    "backgroundColor": COR_LINHA_ETIQUETA,
                     "padding": [2, 4],
                     "borderRadius": 3,
                 },
@@ -919,8 +929,9 @@ def rosca(
                     "label": {
                         "show": True,
                         "formatter": "{b}\\n{d}%",
-                        "fontSize": 10,
-                        "color": COR_TEXTO,
+                        "fontSize": 11,
+                        "fontWeight": "bold",
+                        "color": COR_ROTULO_ESCURO,
                     },
                     "labelLine": {"length": 8, "length2": 8},
                     "data": [
@@ -1114,7 +1125,8 @@ def bullet(
                     "data": valores,
                     "label": {
                         "show": True, "formatter": "{@rotulo}",
-                        "position": "right", "fontSize": 10, "color": COR_TEXTO,
+                        "position": "right", "fontSize": 11,
+                        "fontWeight": "bold", "color": COR_ROTULO_ESCURO,
                     },
                     "labelLayout": {"hideOverlap": True},
                     "markLine": {
@@ -1253,7 +1265,11 @@ def dispersao(
                     ],
                     "label": {
                         "show": True, "formatter": "{@rotulo}",
-                        "position": "top", "fontSize": 9, "color": COR_TEXTO,
+                        # 10px e não 11: aqui são dezenas de pontos próximos, e
+                        # o `hideOverlap` já esconde metade deles. Ganhar meio
+                        # ponto de tamanho custaria esconder mais alguns.
+                        "position": "top", "fontSize": 10,
+                        "fontWeight": "bold", "color": COR_ROTULO_ESCURO,
                     },
                     "labelLayout": {"hideOverlap": True},
                     "markLine": (

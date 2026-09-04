@@ -523,7 +523,11 @@ def test_o_percentual_da_linha_nao_gira():
     linha = bloco.option["series"][2]["label"]
 
     assert "rotate" not in linha
-    assert linha["backgroundColor"] == series.COR_LINHA
+    # A ETIQUETA é mais escura que a linha, e de propósito: branco sobre
+    # `COR_LINHA` dá 3,19:1. A linha continua clara — ela é traço, não fundo
+    # de texto.
+    assert linha["backgroundColor"] == series.COR_LINHA_ETIQUETA
+    assert bloco.option["series"][2]["lineStyle"]["color"] == series.COR_LINHA
 
 
 # ── A faixa do dinheiro ─────────────────────────────────────────────
@@ -1241,3 +1245,60 @@ def test_o_tooltip_da_dispersao_traz_o_numero_ja_formatado():
 
     assert bloco.option["tooltip"]["formatter"] == "{@detalhe}"
     assert "1.234,50" in bloco.option["series"][0]["data"][0]["detalhe"]
+
+
+def test_nenhum_rotulo_de_valor_fica_em_peso_normal(client, massa, diretoria):
+    """A varredura que faltava, e que só existe porque a correção anterior foi
+    PELA METADE.
+
+    Consertei os rótulos de DENTRO da barra e declarei o assunto encerrado. Quem
+    abriu a tela respondeu que ainda havia valor em cima das colunas difícil de
+    ler — e havia, em quatro gráficos que eu não tinha olhado, porque meu
+    critério tinha sido "onde o contraste reprova" e o critério certo é "onde há
+    número para ler".
+
+    Este teste percorre a tela inteira: qualquer série nova que mostre rótulo
+    entra aqui sem ninguém precisar lembrar.
+    """
+    client.force_login(diretoria)
+
+    html = client.get(reverse("workspace:resultados")).content.decode()
+    blocos = re.findall(
+        r'type="application/json"[^>]*>(.*?)</script>', html, re.S
+    )
+    assert blocos
+
+    fracos = []
+    for corpo in blocos:
+        for serie in json.loads(corpo).get("series", []):
+            rotulo = serie.get("label") or {}
+            if not rotulo.get("show"):
+                continue
+            if rotulo.get("fontWeight") != "bold" or rotulo.get("fontSize", 0) < 10:
+                fracos.append((serie.get("name", "?"), rotulo))
+    assert not fracos, f"rótulo de valor em peso normal ou miúdo: {fracos}"
+
+
+def test_todo_rotulo_sobre_fundo_colorido_passa_no_contraste(client, massa, diretoria):
+    """Onde o rótulo tem `backgroundColor`, o par é conferido de verdade.
+
+    A etiqueta do percentual era branca sobre `#d97706` — 3,19:1, reprovada — e
+    passou despercebida porque o olho aceita laranja com branco."""
+    client.force_login(diretoria)
+
+    html = client.get(reverse("workspace:resultados")).content.decode()
+    conferidos = 0
+    for corpo in re.findall(r'type="application/json"[^>]*>(.*?)</script>', html, re.S):
+        for serie in json.loads(corpo).get("series", []):
+            rotulo = serie.get("label") or {}
+            fundo = rotulo.get("backgroundColor")
+            if not fundo:
+                continue
+            conferidos += 1
+            claro = series._luminancia(fundo)
+            escuro = series._luminancia(rotulo["color"])
+            razao = (max(claro, escuro) + 0.05) / (min(claro, escuro) + 0.05)
+            assert razao >= 4.5, (
+                f"{rotulo['color']} sobre {fundo} dá {razao:.2f}:1"
+            )
+    assert conferidos, "nenhuma etiqueta com fundo — o teste virou decoração"
