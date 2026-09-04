@@ -75,106 +75,142 @@
     Sem JavaScript a URL continua com eles, e continua correta. O que é
     cosmético não pode virar requisito de funcionamento.
   {% endcomment %}
-  <form class="au-filtros au-filtros--resultados" method="get" action=""
-        data-limpar-vazios="1">
-    <div class="au-filtro">
-      <label class="au-filtro-rotulo" for="f-competencia">{% trans "Competência" %}</label>
-      <select class="au-input au-input--compacto" id="f-competencia" name="competencia">
-        {% for mes in competencias %}
-          <option value="{{ mes|date:'Y-m' }}"
-                  {% if mes == filtros.competencia %}selected{% endif %}>{{ mes|date:"m/Y" }}</option>
-        {% endfor %}
-      </select>
-    </div>
-    <div class="au-filtro">
-      <label class="au-filtro-rotulo" for="f-regional">{% trans "Regional" %}</label>
-      <input class="au-input au-input--compacto" id="f-regional" type="text" name="regional"
-             value="{{ filtros.regional }}" maxlength="60"
-             placeholder="{% trans 'todas' %}">
-    </div>
-    <div class="au-filtro">
-      <label class="au-filtro-rotulo" for="f-cc">{% trans "Centro de custo" %}</label>
-      <input class="au-input au-input--compacto" id="f-cc" type="text" name="cc"
-             value="{{ filtros.centro_custo }}" maxlength="20"
-             placeholder="{% trans 'todos' %}">
-    </div>
-    <div class="au-filtro">
-      <label class="au-filtro-rotulo" for="f-contrato">{% trans "Contrato" %}</label>
-      <input class="au-input au-input--compacto" id="f-contrato" type="text" name="contrato"
-             value="{{ filtros.contrato }}" maxlength="40"
-             placeholder="{% trans 'todos' %}">
-    </div>
-    {% comment %}
-      SERVIÇO, LAYER e JANELA — os três que faltavam.
+  {% comment %}
+    TRÊS GRUPOS, e não doze campos em fila.
 
-      Os dois primeiros já eram lidos da query string e não tinham campo: o
-      filtro existia e ninguém alcançava. O terceiro nasceu de uma reclamação
-      concreta — "os números ficam um em cima do outro". Girar o rótulo resolveu
-      metade; estreitar a janela é a outra metade, e é a que a pessoa controla.
+    Eram doze controles e cinco botões numa linha só, e a queixa foi de quem
+    olhou: "muito pouca opção de filtro" — quando havia opção demais e nenhuma
+    ordem. O problema não era a quantidade: era não haver como saber, de
+    relance, qual campo responde a qual pergunta.
 
-      `<select>` e não texto livre: os valores vêm do espelho, e digitar
-      "monitoramento " com espaço devolvia zero linhas sem dizer por quê.
-    {% endcomment %}
-    <div class="au-filtro">
-      <label class="au-filtro-rotulo" for="f-servico">{% trans "Serviço" %}</label>
-      <select class="au-input au-input--compacto" id="f-servico" name="servico">
-        <option value="">{% trans "todos" %}</option>
-        {% for opcao in servicos %}
-          <option value="{{ opcao }}" {% if opcao == filtros.servico %}selected{% endif %}>{{ opcao }}</option>
-        {% endfor %}
-      </select>
+    Os grupos são as três perguntas que um recorte responde, nesta ordem:
+
+      QUANDO   competência e janela — o eixo do tempo
+      ONDE     regional › centro de custo › contrato — a HIERARQUIA, e a ordem
+               dos campos é a ordem em que se desce nela
+      O QUÊ    serviço, layer, deficitários — atributos, que recortam sem descer
+
+    E as AÇÕES saem da barra de filtros. "Aplicar" muda esta tela; "Apresentar",
+    "PDF" e "Detalhamento" LEVAM para outro lugar. Lado a lado, os quatro
+    pareciam quatro formas de filtrar.
+  {% endcomment %}
+  <form class="au-filtros--resultados" method="get" action="" data-limpar-vazios="1">
+    <div class="au-filtro-grupo">
+      <p class="au-filtro-grupo-titulo">{% trans "Quando" %}</p>
+      <div class="au-filtro-grupo-campos">
+        <div class="au-filtro">
+          <label class="au-filtro-rotulo" for="f-competencia">{% trans "Competência" %}</label>
+          <select class="au-input au-input--compacto" id="f-competencia" name="competencia">
+            {% for mes in competencias %}
+              <option value="{{ mes|date:'Y-m' }}"
+                      {% if mes == filtros.competencia %}selected{% endif %}>{{ mes|date:"m/Y" }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        {% comment %}
+          A JANELA nasceu de uma reclamação concreta — "os números ficam um em
+          cima do outro". Girar o rótulo resolveu metade; estreitar a janela é a
+          outra metade, e é a que a pessoa controla.
+        {% endcomment %}
+        <div class="au-filtro">
+          <label class="au-filtro-rotulo" for="f-janela">{% trans "Janela" %}</label>
+          <select class="au-input au-input--compacto" id="f-janela" name="janela">
+            {% for opcao in janelas %}
+              <option value="{{ opcao }}" {% if opcao == filtros.meses %}selected{% endif %}>
+                {% blocktrans count n=opcao %}{{ n }} mês{% plural %}{{ n }} meses{% endblocktrans %}
+              </option>
+            {% endfor %}
+          </select>
+        </div>
+      </div>
     </div>
-    <div class="au-filtro">
-      <label class="au-filtro-rotulo" for="f-layer">{% trans "Layer" %}</label>
-      <select class="au-input au-input--compacto" id="f-layer" name="layer">
-        <option value="">{% trans "todas" %}</option>
-        <option value="1" {% if filtros.layer == "1" %}selected{% endif %}>1 · até 300 mil</option>
-        <option value="2" {% if filtros.layer == "2" %}selected{% endif %}>2 · 300 a 600 mil</option>
-        <option value="3" {% if filtros.layer == "3" %}selected{% endif %}>3 · acima de 600 mil</option>
-        <option value="sem_amostra" {% if filtros.layer == "sem_amostra" %}selected{% endif %}>{% trans "sem amostra" %}</option>
-      </select>
+
+    <div class="au-filtro-grupo">
+      <p class="au-filtro-grupo-titulo">
+        {% trans "Onde" %}
+        <span class="au-filtro-grupo-dica">{% trans "do mais amplo ao mais específico" %}</span>
+      </p>
+      <div class="au-filtro-grupo-campos">
+        <div class="au-filtro">
+          <label class="au-filtro-rotulo" for="f-regional">{% trans "Regional" %}</label>
+          <input class="au-input au-input--compacto" id="f-regional" type="text" name="regional"
+                 value="{{ filtros.regional }}" maxlength="60"
+                 placeholder="{% trans 'todas' %}">
+        </div>
+        <div class="au-filtro">
+          <label class="au-filtro-rotulo" for="f-cc">{% trans "Centro de custo" %}</label>
+          <input class="au-input au-input--compacto" id="f-cc" type="text" name="cc"
+                 value="{{ filtros.centro_custo }}" maxlength="20"
+                 placeholder="{% trans 'todos' %}">
+        </div>
+        <div class="au-filtro">
+          <label class="au-filtro-rotulo" for="f-contrato">{% trans "Contrato" %}</label>
+          <input class="au-input au-input--compacto" id="f-contrato" type="text" name="contrato"
+                 value="{{ filtros.contrato }}" maxlength="40"
+                 placeholder="{% trans 'todos' %}">
+        </div>
+      </div>
     </div>
-    <div class="au-filtro">
-      <label class="au-filtro-rotulo" for="f-janela">{% trans "Janela" %}</label>
-      <select class="au-input au-input--compacto" id="f-janela" name="janela">
-        {% for opcao in janelas %}
-          <option value="{{ opcao }}" {% if opcao == filtros.meses %}selected{% endif %}>
-            {% blocktrans count n=opcao %}{{ n }} mês{% plural %}{{ n }} meses{% endblocktrans %}
-          </option>
-        {% endfor %}
-      </select>
+
+    <div class="au-filtro-grupo">
+      <p class="au-filtro-grupo-titulo">{% trans "O quê" %}</p>
+      <div class="au-filtro-grupo-campos">
+        {% comment %}
+          `<select>` e não texto livre: os valores vêm do espelho, e digitar
+          "monitoramento " com espaço devolvia zero linhas sem dizer por quê.
+        {% endcomment %}
+        <div class="au-filtro">
+          <label class="au-filtro-rotulo" for="f-servico">{% trans "Serviço" %}</label>
+          <select class="au-input au-input--compacto" id="f-servico" name="servico">
+            <option value="">{% trans "todos" %}</option>
+            {% for opcao in servicos %}
+              <option value="{{ opcao }}" {% if opcao == filtros.servico %}selected{% endif %}>{{ opcao }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="au-filtro">
+          <label class="au-filtro-rotulo" for="f-layer">{% trans "Layer" %}</label>
+          <select class="au-input au-input--compacto" id="f-layer" name="layer">
+            <option value="">{% trans "todas" %}</option>
+            <option value="1" {% if filtros.layer == "1" %}selected{% endif %}>1 · até 300 mil</option>
+            <option value="2" {% if filtros.layer == "2" %}selected{% endif %}>2 · 300 a 600 mil</option>
+            <option value="3" {% if filtros.layer == "3" %}selected{% endif %}>3 · acima de 600 mil</option>
+            <option value="sem_amostra" {% if filtros.layer == "sem_amostra" %}selected{% endif %}>{% trans "sem amostra" %}</option>
+          </select>
+        </div>
+        <label class="au-filtro au-filtro--check">
+          <input class="au-check" type="checkbox" name="deficitario" value="1"
+                 {% if filtros.deficitario %}checked{% endif %}>
+          <span>{% trans "Só deficitários" %}</span>
+        </label>
+      </div>
     </div>
-    <label class="au-filtro au-filtro--check">
-      <input class="au-check" type="checkbox" name="deficitario" value="1"
-             {% if filtros.deficitario %}checked{% endif %}>
-      <span>{% trans "Só deficitários" %}</span>
-    </label>
-    <button class="au-btn au-btn--sutil" type="submit">{% trans "Aplicar" %}</button>
-    {% comment %}
-      "Apresentar" PRESERVA os filtros. Antes ele levava só a competência:
-      clicar com um recorte ativo trocava os números em silêncio, no caminho
-      entre a tela e o projetor.
-    {% endcomment %}
-    <a class="au-btn au-btn--fantasma" href="{{ url_apresentar }}">
-      {% trans "Apresentar" %}
-    </a>
-    <a class="au-btn au-btn--fantasma"
-       href="{% url 'workspace:resultados_pdf' %}?competencia={{ filtros.competencia|date:'Y-m' }}">
-      {% trans "PDF" %}
-    </a>
-    {% comment %}
-      DETALHAR — mecanismo 4. Link EXPLÍCITO, e nunca clique acidental no
-      gráfico: descer para as linhas é outra pergunta, não uma variação da
-      mesma. E ele carrega os filtros: o detalhe herda o recorte.
-    {% endcomment %}
-    <a class="au-btn au-btn--fantasma" href="{{ url_detalhe }}">
-      {% trans "Detalhamento" %}
-    </a>
-    {% if pode_ver_fontes %}
-      <a class="au-btn au-btn--fantasma" href="{% url 'workspace:fontes' %}">
-        {% trans "De onde vem" %}
-      </a>
-    {% endif %}
+
+    <div class="au-filtro-acoes">
+      {% comment %}
+        SEM botão de "Limpar" aqui: as tarjas já trazem "Limpar tudo", e elas só
+        aparecem quando há o que limpar. Dois lugares para a mesma ação fazem a
+        pessoa procurar qual dos dois limpa o quê.
+      {% endcomment %}
+      <button class="au-btn" type="submit">{% trans "Aplicar" %}</button>
+      <span class="au-filtro-acoes-divisor" aria-hidden="true"></span>
+      {% comment %}
+        Depois do divisor, o que LEVA PARA OUTRO LUGAR. "Apresentar" preserva os
+        filtros: antes ele levava só a competência, e clicar com um recorte
+        ativo trocava os números em silêncio, no caminho entre a tela e o
+        projetor.
+
+        "Detalhar" é link explícito, e nunca clique acidental no gráfico: descer
+        para as linhas é outra pergunta, não uma variação da mesma.
+      {% endcomment %}
+      <a class="au-btn au-btn--fantasma" href="{{ url_apresentar }}">{% trans "Apresentar" %}</a>
+      <a class="au-btn au-btn--fantasma" href="{{ url_detalhe }}">{% trans "Detalhamento" %}</a>
+      <a class="au-btn au-btn--fantasma"
+         href="{% url 'workspace:resultados_pdf' %}?competencia={{ filtros.competencia|date:'Y-m' }}">{% trans "PDF" %}</a>
+      {% if pode_ver_fontes %}
+        <a class="au-btn au-btn--fantasma" href="{% url 'workspace:fontes' %}">{% trans "De onde vem" %}</a>
+      {% endif %}
+    </div>
   </form>
 {% endif %}
 
@@ -184,12 +220,31 @@
     <h2 class="au-secao-titulo" id="destaques">{{ destaques.titulo }}</h2>
   </header>
   {% if destaques.disponivel %}
+    {% comment %}
+      O VALOR domina o cartão, e o título vira legenda dele. Era o contrário:
+      os três textos tinham peso parecido, e o número — que é a razão de o
+      cartão existir — se perdia entre eles.
+
+      A severidade aparece por SELO ESCRITO, e não só pela borda colorida de
+      3px. "Crítico" e "atenção" pedem ações diferentes: o primeiro diz que os
+      números abaixo estão velhos, o segundo aponta um número que merece
+      conversa. Distinguidos só pela cor da borda, os dois eram lidos igual —
+      e a regra do produto é que cor nunca vem sozinha.
+    {% endcomment %}
     <ul class="au-destaques">
       {% for cartao in destaques.conteudo.cartoes %}
         <li class="au-destaque au-destaque--{{ cartao.severidade }}">
-          <a class="au-destaque-link" href="#{{ cartao.ancora }}">
-            <span class="au-destaque-titulo">{{ cartao.titulo }}</span>
+          <a class="au-destaque-link" href="#{{ cartao.ancora }}"
+             {% if cartao.explicacao %}title="{{ cartao.explicacao }}"{% endif %}>
+            <span class="au-destaque-topo">
+              <span class="au-destaque-selo">
+                {% if cartao.severidade == "critico" %}{% trans "crítico" %}
+                {% else %}{% trans "atenção" %}{% endif %}
+              </span>
+              <span class="au-destaque-ir" aria-hidden="true">↓</span>
+            </span>
             <span class="au-destaque-valor">{{ cartao.valor }}</span>
+            <span class="au-destaque-titulo">{{ cartao.titulo }}</span>
             {% if cartao.detalhe %}<span class="au-destaque-detalhe">{{ cartao.detalhe }}</span>{% endif %}
           </a>
         </li>

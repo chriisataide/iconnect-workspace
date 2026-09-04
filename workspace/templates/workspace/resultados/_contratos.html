@@ -61,6 +61,20 @@
   onde começa.
 {% endcomment %}
 {% if faixa.conteudo.grafico %}
+  {% comment %}
+    COMO LER, na tela. Isto estava escrito só no comentário acima — que é o
+    único lugar da página onde o usuário nunca olha. Um gráfico que precisa de
+    explicação e não a traz junto é um gráfico que ninguém usa duas vezes.
+  {% endcomment %}
+  <p class="au-legenda-leitura">
+    {% blocktrans %}Cada bolha é um contrato. Para a <b>direita</b>, fatura mais;
+    para <b>baixo</b>, rende menos. O tamanho é o valor mensal, e a linha
+    tracejada é a margem mínima de 10%.{% endblocktrans %}
+    <b>{% blocktrans %}O que importa é o canto inferior direito: contratos
+    grandes que rendem pouco.{% endblocktrans %}</b>
+    {% blocktrans %}Eles estão em vermelho, e a tabela abaixo os repete por
+    escrito.{% endblocktrans %}
+  </p>
   {% grafico faixa.conteudo.grafico %}
   {% if faixa.conteudo.fora_do_grafico %}
     <p class="au-vazio-dica">

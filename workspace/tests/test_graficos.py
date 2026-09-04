@@ -449,7 +449,7 @@ def test_barras_comparadas_poe_a_linha_em_eixo_proprio():
         [("01/26", Decimal("100"), Decimal("80")),
          ("02/26", Decimal("120"), Decimal("90"))],
         chave="x", titulo="t", rotulo_a="Realizado", rotulo_b="Orçado",
-        rotulo_linha="%RExOR", linha=[Decimal("125"), Decimal("133")],
+        rotulo_linha="% do orçado", linha=[Decimal("125"), Decimal("133")],
     )
 
     linha = bloco.option["series"][2]
@@ -540,7 +540,7 @@ def test_a_faixa_do_dinheiro_compara_realizado_com_orcado(client, espelho, diret
     ).group(1)
     option = json.loads(corpo)
 
-    assert [s["name"] for s in option["series"]] == ["Realizado", "Orçado", "%RExOR"]
+    assert [s["name"] for s in option["series"]] == ["Realizado", "Orçado", "% do orçado"]
     assert option["series"][2]["yAxisIndex"] == 1
 
 
@@ -1171,3 +1171,73 @@ def test_faixa_indisponivel_nao_ganha_grafico_vazio(client, diretoria):
     finally:
         contrato.limpar()
         contrato._provedores.update(guardados)
+
+
+# ── O que se lê dentro da barra, e o que se lê no gráfico ───────────
+
+
+@pytest.mark.parametrize(
+    "fundo,esperado",
+    [
+        (series.COR_PRINCIPAL, "#ffffff"),   # navy escuro
+        (series.COR_SECUNDARIA, series.COR_ROTULO_ESCURO),  # lilás claro
+        (series.COR_NEGATIVO, "#ffffff"),
+    ],
+)
+def test_o_rotulo_dentro_da_barra_escolhe_a_cor_pelo_fundo(fundo, esperado):
+    """Branco sobre `#a0a2e1` dá 2,2:1, e o mínimo é 4,5:1.
+
+    Era branco fixo em quatro gráficos. O pedido foi "põe branco e negrito"; em
+    metade das barras isso APAGARIA o número, então o negrito entrou e o branco
+    virou "o que contrastar mais".
+    """
+    assert series.cor_do_rotulo(fundo) == esperado
+
+
+def test_todo_rotulo_dentro_de_barra_passa_no_contraste():
+    """A varredura da paleta inteira — a garantia que o teste acima não dá para
+    uma cor nova que alguém acrescente ao `_paleta`."""
+    for cor in series._paleta(5):
+        escolhida = series.cor_do_rotulo(cor)
+        claro = series._luminancia(cor)
+        escuro = series._luminancia(escolhida)
+        razao = (max(claro, escuro) + 0.05) / (min(claro, escuro) + 0.05)
+        assert razao >= 4.0, f"{escolhida} sobre {cor} dá só {razao:.2f}:1"
+
+
+def test_a_dispersao_pinta_de_vermelho_quem_esta_abaixo_do_limiar(espelho):
+    """A posição sozinha exige seguir a linha tracejada com o olho até cada
+    ponto. "Não entendi como ler" foi a resposta de quem abriu a tela."""
+    bloco = series.dispersao(
+        [("CT-1", Decimal("100"), Decimal("4"), Decimal("10")),
+         ("CT-2", Decimal("200"), Decimal("22"), Decimal("30"))],
+        chave="d", titulo="Dispersão", limiar_y=Decimal("10"),
+    )
+
+    pontos = bloco.option["series"][0]["data"]
+    assert pontos[0]["itemStyle"]["color"] == series.COR_NEGATIVO
+    assert pontos[1]["itemStyle"]["color"] == series.COR_PRINCIPAL
+
+
+def test_a_dispersao_repete_por_escrito_o_que_a_cor_diz(espelho):
+    """Cor nunca sozinha: a tabela irmã ganha a mesma coluna."""
+    bloco = series.dispersao(
+        [("CT-1", Decimal("100"), Decimal("4"), Decimal("10"))],
+        chave="d", titulo="Dispersão", limiar_y=Decimal("10"),
+    )
+
+    assert bloco.colunas[-1].titulo == "Situação"
+    assert bloco.linhas[0][-1] == "abaixo do mínimo"
+    assert "abaixo do mínimo" in bloco.option["series"][0]["data"][0]["detalhe"]
+
+
+def test_o_tooltip_da_dispersao_traz_o_numero_ja_formatado():
+    """`formatter` é uma string, e o texto vem pronto do Python. Um `Intl` em JS
+    poria a regra de pt-BR num segundo lugar."""
+    bloco = series.dispersao(
+        [("CT-1", Decimal("1234.5"), Decimal("8.4"), Decimal("10"))],
+        chave="d", titulo="Dispersão",
+    )
+
+    assert bloco.option["tooltip"]["formatter"] == "{@detalhe}"
+    assert "1.234,50" in bloco.option["series"][0]["data"][0]["detalhe"]

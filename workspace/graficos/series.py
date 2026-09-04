@@ -77,7 +77,11 @@ COR_PRINCIPAL = "#3539a9"   # --au-accent-600
 COR_SECUNDARIA = "#a0a2e1"  # --au-accent-300
 COR_LINHA = "#d97706"       # --au-warning
 COR_NEGATIVO = "#dc2626"    # --au-danger
-COR_POSITIVO = "#059669"    # --au-success
+# `--au-success-text`, e não `--au-success`. O verde mais claro (`#059669`) não
+# aceita rótulo dentro da barra: branco sobre ele dá 3,77:1 e escuro dá 3,69:1 —
+# nenhum dos dois chega aos 4,5:1 exigidos. Com este, branco dá 5,48:1.
+# A cascata pinta o passo de ganho com ele E escreve o valor dentro.
+COR_POSITIVO = "#047857"    # --au-success-text
 COR_TEXTO = "#475569"       # --au-brand-600, que é --au-text-muted no claro
 COR_GRADE = "#c7c8ed"       # --au-accent-200
 
@@ -163,12 +167,38 @@ class Bloco:
         return list(zip(self.linhas, self.urls or [""] * len(self.linhas)))
 
 
-def _rotulo(dimensao: str = "rotulo", cor: str = COR_TEXTO, dentro: bool = False) -> dict:
+#: O rótulo dentro da barra CLARA. Não é branco, e a razão é medida:
+#:
+#:   branco sobre #a0a2e1 ....... 2,2:1   reprova em qualquer critério
+#:   #475569 sobre #a0a2e1 ...... 3,4:1   o que havia — e o que gerou a queixa
+#:   #212369 sobre #a0a2e1 ...... 5,8:1   este
+#:
+#: Branco dentro da barra escura e este dentro da clara é a única combinação em
+#: que os dois números passam. Pintar os dois de branco atenderia ao pedido e
+#: apagaria metade deles.
+#:
+#: É `--au-accent-800`, e não uma cor inventada para a ocasião: há um teste
+#: exigindo que toda `COR_*` daqui exista em `tokens.css`, e ele me barrou —
+#: uma cor que só o gráfico conhece é o começo de uma segunda paleta.
+COR_ROTULO_ESCURO = "#212369"
+
+
+def _rotulo(
+    dimensao: str = "rotulo",
+    cor: str = COR_TEXTO,
+    dentro: bool = False,
+    forte: bool = False,
+) -> dict:
     """O rótulo por ponto — GIRADO em 90°.
 
     É o que faz treze meses caberem, e é o que o Portal GPS faz. Na horizontal,
     `R$ 1,19 Mi` mede mais que a largura de uma barra de treze e os rótulos
     viram uma mancha.
+
+    `forte` é para o rótulo DENTRO da barra: ali ele disputa com a cor de fundo,
+    e 10px em peso normal sobre lilás é o que fez alguém dizer "não dá para ver".
+    Fora da barra o fundo é branco e o peso normal basta — engrossar tudo tira o
+    contraste de onde ele importa.
 
     `hideOverlap` fica no `labelLayout` de quem chama: o que não couber some, e
     o número continua na tabela irmã.
@@ -183,7 +213,8 @@ def _rotulo(dimensao: str = "rotulo", cor: str = COR_TEXTO, dentro: bool = False
         "align": "left" if dentro else "center",
         "verticalAlign": "middle",
         "distance": 6,
-        "fontSize": 10,
+        "fontSize": 11 if forte else 10,
+        "fontWeight": "bold" if forte else "normal",
         "color": cor,
     }
 
@@ -396,7 +427,7 @@ def barras_comparadas(
                     # DENTRO da barra e girado, como no Portal GPS: com duas
                     # séries lado a lado e treze meses, rótulo em cima não cabe
                     # de jeito nenhum.
-                    "label": _rotulo("rotulo_a", cor="#ffffff", dentro=True),
+                    "label": _rotulo("rotulo_a", cor="#ffffff", dentro=True, forte=True),
                     "labelLayout": {"hideOverlap": True},
                 },
                 {
@@ -405,7 +436,9 @@ def barras_comparadas(
                     "encode": {"x": "mes", "y": "b"},
                     "itemStyle": {"color": COR_SECUNDARIA},
                     "barMaxWidth": 26,
-                    "label": _rotulo("rotulo_b", cor=COR_TEXTO, dentro=True),
+                    "label": _rotulo(
+                        "rotulo_b", cor=COR_ROTULO_ESCURO, dentro=True, forte=True
+                    ),
                     "labelLayout": {"hideOverlap": True},
                 },
             ],
@@ -579,7 +612,15 @@ def cascata(
                     "stack": "cascata",
                     "barMaxWidth": 40,
                     "data": [
-                        {"value": valor, "itemStyle": {"color": cor}, "rotulo": texto}
+                        {
+                            "value": valor,
+                            "itemStyle": {"color": cor},
+                            "rotulo": texto,
+                            # POR ITEM, e não na série: cada passo da cascata tem
+                            # a sua cor (ganho verde, perda vermelha, total
+                            # navy), e uma cor de rótulo só serviria a um deles.
+                            "label": {"color": cor_do_rotulo(cor)},
+                        }
                         for valor, cor, texto in zip(valores, cores, textos)
                     ],
                     "label": {
@@ -592,8 +633,8 @@ def cascata(
                         "formatter": "{@rotulo}",
                         "rotate": 90,
                         "position": "inside",
-                        "fontSize": 10,
-                        "color": "#ffffff",
+                        "fontSize": 11,
+                        "fontWeight": "bold",
                     },
                     "labelLayout": {"hideOverlap": True},
                 },
@@ -626,6 +667,30 @@ def cascata(
         ),
         altura=altura,
     )
+
+
+def _luminancia(cor: str) -> float:
+    """Luminância relativa da WCAG, de `#rrggbb`.
+
+    Existe para uma decisão só: rótulo branco ou escuro dentro do segmento. A
+    paleta categórica mistura tons escuros (`#3539a9`) e claros (`#a0a2e1`), e
+    pintar todos de branco — que era o que estava aqui — apaga o texto sobre os
+    claros. Não é preferência: `#ffffff` sobre `#a0a2e1` dá 2,2:1, e o mínimo
+    para texto pequeno é 4,5:1.
+    """
+    canais = []
+    for inicio in (1, 3, 5):
+        c = int(cor[inicio:inicio + 2], 16) / 255
+        canais.append(c / 12.92 if c <= 0.04045 else ((c + 0.055) / 1.055) ** 2.4)
+    return 0.2126 * canais[0] + 0.7152 * canais[1] + 0.0722 * canais[2]
+
+
+def cor_do_rotulo(fundo: str) -> str:
+    """Branco ou quase-preto, o que contrastar mais com `fundo`."""
+    luz = _luminancia(fundo)
+    contra_branco = 1.05 / (luz + 0.05)
+    contra_escuro = (luz + 0.05) / (_luminancia(COR_ROTULO_ESCURO) + 0.05)
+    return "#ffffff" if contra_branco >= contra_escuro else COR_ROTULO_ESCURO
 
 
 def _paleta(quantos: int) -> list[str]:
@@ -689,8 +754,9 @@ def barra_composicao(
                         "show": True,
                         "formatter": "{@rotulo}",
                         "position": "inside",
-                        "fontSize": 10,
-                        "color": "#ffffff",
+                        "fontSize": 11,
+                        "fontWeight": "bold",
+                        "color": cor_do_rotulo(cor),
                     },
                     "labelLayout": {"hideOverlap": True},
                 }
@@ -769,7 +835,8 @@ def empilhada_percentual(
                     ],
                     "label": {
                         "show": True, "formatter": "{@rotulo}",
-                        "position": "inside", "fontSize": 10, "color": "#ffffff",
+                        "position": "inside", "fontSize": 11,
+                        "fontWeight": "bold", "color": cor_do_rotulo(cor),
                     },
                     "labelLayout": {"hideOverlap": True},
                 }
@@ -1102,6 +1169,11 @@ def dispersao(
     rotulo_y: str = "Margem",
     formatar_x=fmt.moeda_curta,
     formatar_y=fmt.percentual,
+    #: O tooltip mostra o número EXATO. A abreviação serve ao eixo, onde não
+    #: cabe mais; quem passa o mouse num ponto quer o valor, e "R$ 1.234" no
+    #: lugar de "R$ 1.234,50" é o tipo de arredondamento que reaparece como
+    #: divergência numa conferência contra o ERP.
+    formatar_x_exato=fmt.moeda,
     limiar_y: Decimal | None = None,
     altura: int = 300,
 ) -> Bloco:
@@ -1113,6 +1185,12 @@ def dispersao(
 
     `pontos` é `[(rótulo, x, y, tamanho), …]`. `limiar_y` desenha a linha da
     margem mínima: sem ela, o quadrante que importa não tem fronteira visível.
+
+    **Três coisas dizem "este é o problema", e não uma.** A posição abaixo da
+    linha, a COR vermelha do ponto e o texto no tooltip. Só a posição não
+    bastava: alguém olhou este gráfico e disse "não entendi como ler" — e estava
+    certo, porque a explicação de como lê-lo morava num comentário do template,
+    que é o único lugar da tela onde o usuário não olha.
     """
     if not pontos:
         return Bloco(chave=chave, titulo=titulo, option={}, altura=altura)
@@ -1120,10 +1198,16 @@ def dispersao(
     tamanhos = [float(t) for _, _, _, t in pontos] or [1.0]
     maior = max(tamanhos) or 1.0
 
+    def abaixo(y: Decimal) -> bool:
+        return limiar_y is not None and y < limiar_y
+
     option = _base(altura)
     option.update(
         {
-            "tooltip": {"trigger": "item", "confine": True},
+            # O tooltip carrega o texto JÁ FORMATADO, montado no Python. Um
+            # `formatter` em JS com `Intl` colocaria a regra de pt-BR num
+            # segundo lugar, e o segundo diverge do primeiro.
+            "tooltip": {"trigger": "item", "confine": True, "formatter": "{@detalhe}"},
             "xAxis": {
                 **_eixo_de_valor(),
                 "name": rotulo_x,
@@ -1143,7 +1227,7 @@ def dispersao(
                     "type": "scatter",
                     "name": titulo,
                     "symbolSize": 8,
-                    "itemStyle": {"color": COR_PRINCIPAL, "opacity": 0.75},
+                    "itemStyle": {"opacity": 0.8},
                     "data": [
                         {
                             "name": rotulo,
@@ -1153,6 +1237,17 @@ def dispersao(
                             # acha; sem teto, o maior cobre os vizinhos.
                             "symbolSize": 8 + 26 * (float(t) / maior),
                             "rotulo": rotulo,
+                            # VERMELHO abaixo do limiar. A posição sozinha exige
+                            # que a pessoa siga a linha tracejada com o olho até
+                            # cada ponto; a cor responde de relance.
+                            "itemStyle": {
+                                "color": COR_NEGATIVO if abaixo(y) else COR_PRINCIPAL
+                            },
+                            "detalhe": (
+                                f"{rotulo}<br>{rotulo_x}: {formatar_x_exato(x)}"
+                                f"<br>{rotulo_y}: {formatar_y(y)}"
+                                + ("<br><b>abaixo do mínimo</b>" if abaixo(y) else "")
+                            ),
                         }
                         for rotulo, x, y, t in pontos
                     ],
@@ -1187,9 +1282,18 @@ def dispersao(
         option=option,
         colunas=[
             Coluna("Item", numerica=False), Coluna(rotulo_x), Coluna(rotulo_y),
+            Coluna("Situação", numerica=False),
         ],
+        # A tabela irmã ganha a mesma terceira informação que o gráfico: a cor
+        # não pode ser o único lugar onde "abaixo do mínimo" está escrito.
         linhas=[
-            [rotulo, formatar_x(x), formatar_y(y)] for rotulo, x, y, _ in pontos
+            [
+                rotulo,
+                formatar_x(x),
+                formatar_y(y),
+                "abaixo do mínimo" if abaixo(y) else "ok",
+            ]
+            for rotulo, x, y, _ in pontos
         ],
         resumo=(
             f"{titulo}: {len(pontos)} pontos, {rotulo_x} contra {rotulo_y}. "

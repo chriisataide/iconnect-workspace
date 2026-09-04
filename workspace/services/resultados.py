@@ -470,7 +470,7 @@ def _bloco_mensal(linhas, campo: str, chave: str, titulo: str):
 
 
 def _bloco_comparado(linhas, campo_re: str, campo_or: str, chave: str, titulo: str):
-    """Realizado × orçado, com `%RExOR` na linha do eixo direito.
+    """Realizado × orçado, com o `% do orçado` na linha do eixo direito.
 
     A linha é o que a faixa existe para mostrar: dois números lado a lado dizem
     quanto; a razão entre eles diz se está onde deveria. É a leitura que o
@@ -499,7 +499,9 @@ def _bloco_comparado(linhas, campo_re: str, campo_or: str, chave: str, titulo: s
         titulo=titulo,
         rotulo_a="Realizado",
         rotulo_b="Orçado",
-        rotulo_linha="%RExOR",
+        # "%RExOR" era a sigla do benchmark, e ela ia para a LEGENDA — onde o
+        # "x" no meio faz parecer multiplicação. É divisão.
+        rotulo_linha="% do orçado",
         linha=razao,
     )
 
@@ -820,11 +822,20 @@ class Destaque:
     titulo: str
     valor: str
     detalhe: str = ""
-    #: `atencao` pinta; `neutro` informa. Só a primeira classe tem cor, porque
-    #: cor que aparece sempre deixa de significar alguma coisa.
+    #: `critico` > `atencao` > `neutro`. A distinção não é decorativa: o cartão
+    #: de FONTE DESATUALIZADA invalida a leitura de tudo o que está abaixo dele
+    #: na tela, e os outros apontam um número que merece conversa. Lidos com o
+    #: mesmo peso, a pessoa trata "o Sankhya não carregou" como se fosse mais um
+    #: contrato deficitário — e decide sobre um dado velho sem saber.
+    #:
+    #: Todos os cartões nasciam `atencao`, e um campo que sempre tem o mesmo
+    #: valor não diferencia nada.
     severidade: str = "atencao"
     fonte: str = ""
     ancora: str = ""
+    #: A pergunta que o cartão responde, para quem não sabe o que ele é. Vai no
+    #: `title` do link — o valor sozinho diz "3" e não diz três do quê.
+    explicacao: str = ""
 
 
 def destaques(faixas: dict[str, Faixa], filtros: Filtros) -> Faixa:
@@ -883,8 +894,13 @@ def _cartoes_de_fonte(faixas: dict[str, Faixa]) -> list[Destaque]:
                 titulo=f"{carimbo.rotulo} está desatualizada",
                 valor=carimbo.idade or "sem carga",
                 detalhe=carimbo.motivo or "A última carga não terminou bem.",
+                severidade="critico",
                 fonte=faixa.fonte,
                 ancora="fontes",
+                explicacao=(
+                    "Enquanto esta fonte não carregar, os números das faixas "
+                    "que dependem dela são os da última carga boa."
+                ),
             )
         )
     return cartoes

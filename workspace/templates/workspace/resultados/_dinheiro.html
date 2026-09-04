@@ -120,8 +120,21 @@
         <th class="num">{% trans "Ajuste" %}</th>
         <th class="num">{% trans "Realizado ajustado" %}</th>
         <th class="num">{% trans "Orçado" %}</th>
-        <th class="num">{% trans "%RExOR" %}</th>
-        <th class="num">{% trans "Diferença" %}</th>
+        {% comment %}
+          Chamava-se `%RExOR` — "REalizado x ORçado", a sigla do benchmark. Ela
+          exigia um decodificador, e o "x" no meio fazia parecer MULTIPLICAÇÃO
+          quando é divisão. Alguém precisou perguntar o que a coluna era; numa
+          tela de diretoria, a pergunta não costuma ser feita — a pessoa
+          interpreta errado em silêncio.
+
+          A conta não mudou: realizado ajustado ÷ orçado × 100.
+        {% endcomment %}
+        <th class="num" title="{% trans 'Realizado ajustado dividido pelo orçado. Acima de 100% é gasto acima do previsto.' %}">
+          {% trans "% do orçado" %}
+        </th>
+        <th class="num" title="{% trans 'Realizado ajustado menos o orçado, em reais.' %}">
+          {% trans "Diferença" %}
+        </th>
       </tr>
     </thead>
     <tbody>
