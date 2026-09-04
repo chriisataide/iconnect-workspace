@@ -24,7 +24,9 @@ condicional e o resto igual para o estagiário e para o diretor.
 
 from __future__ import annotations
 
+import re
 from datetime import timedelta
+from pathlib import Path
 
 import pytest
 from django.urls import reverse
@@ -305,3 +307,89 @@ def test_a_home_desenha_o_card_com_o_numero(cenario, client):
 
     assert "Documento de veículo" in corpo
     assert reverse("workspace:frota") in corpo
+
+
+# ── Os quatro canais do destaque ────────────────────────────────────
+#
+# "Nem todos os cards que têm número estão em destaque" foi uma pergunta de
+# quem olhou a tela, e a resposta é que destaque NUNCA quis dizer "tem número":
+# quer dizer "inação aqui trava alguém". Um card de contagem — 15 solicitações
+# em andamento, uma norma que vai sair da vitrine — não trava ninguém.
+#
+# O que estes três testes guardam é a OUTRA metade: que a distinção continue
+# chegando por quatro canais, e não só pela cor do selo. O canal 3 (quadrado do
+# ícone cheio) é o único não-cromático, e é o que decide se quem não distingue
+# vermelho de azul consegue ler a faixa.
+
+
+def _card_no_html(corpo: str, titulo: str) -> str:
+    """O `<a>` inteiro de um card, pelo nome que aparece nele."""
+    for bloco in re.findall(r'<a class="au-app au-app--ativo.*?</a>', corpo, re.S):
+        if f'au-app-nome">{titulo}<' in bloco:
+            return bloco
+    raise AssertionError(f"card {titulo!r} não está na home")
+
+
+@pytest.fixture
+def com_urgente_e_com_contagem(cenario, client):
+    """Uma home com os DOIS tipos de card ao mesmo tempo.
+
+    Sem os dois na mesma tela, o teste passaria com a distinção apagada — que é
+    exatamente como um defeito de contraste atravessa uma suíte verde.
+    """
+    from workspace.models.frota import Veiculo
+
+    Veiculo.objects.create(
+        placa="RTA1B23",
+        modelo="Ducato",
+        unidade=cenario["unidade"],
+        licenciamento_ate=timezone.localdate() - timedelta(days=2),
+    )
+    from workspace.models.catalogo import GrupoCatalogo, ItemCatalogo
+    from workspace.services import catalogo as cat
+
+    item = ItemCatalogo.objects.create(
+        chave="teste", nome="Item de teste",
+        grupo=GrupoCatalogo.EQUIPAMENTO, dominio="ti.chamado",
+    )
+    cat.solicitar(item, cenario["almox"])
+
+    client.force_login(cenario["almox"])
+    return client.get(reverse("workspace:home")).content.decode()
+
+
+def test_o_card_urgente_traz_os_quatro_canais(com_urgente_e_com_contagem):
+    bloco = _card_no_html(com_urgente_e_com_contagem, "Documento de veículo")
+
+    assert "au-app--destaque" in bloco, "canal 1 e 3: borda e quadrado do ícone"
+    assert "au-app-marca" in bloco, "canal 2: a barra inferior"
+    assert "au-selo--alerta" in bloco, "canal 4: o selo em vermelho"
+
+
+def test_o_card_de_contagem_nao_traz_nenhum_deles(com_urgente_e_com_contagem):
+    """15 solicitações em andamento não é pendência: é o estado de uma lista.
+
+    Marcá-lo como urgente ensinaria a ignorar a marca de urgente — que é como
+    um painel deixa de ser lido."""
+    bloco = _card_no_html(com_urgente_e_com_contagem, "Minhas solicitações")
+
+    assert "au-app--destaque" not in bloco
+    assert "au-app-marca" not in bloco
+    assert "au-selo--contagem" in bloco
+    assert "au-selo--alerta" not in bloco
+
+
+def test_as_duas_classes_de_selo_existem_no_css():
+    """A classe `au-tarja-texto` já viveu meses sem regra nenhuma, e a barra do
+    SVG já ficou invisível por um motivo parecido. Selo sem CSS renderiza como
+    texto solto — legível, e sem nenhuma distinção entre urgente e contagem."""
+    css = (
+        Path(__file__).resolve().parent.parent
+        / "static/workspace/src/workspace.css"
+    ).read_text(encoding="utf-8")
+
+    for classe in ("au-selo--alerta", "au-selo--contagem", "au-app--destaque",
+                   "au-app-marca"):
+        assert f".{classe} " in css or f".{classe}{{" in css or f".{classe} {{" in css, (
+            f"{classe} é usada no template e não tem regra no CSS"
+        )

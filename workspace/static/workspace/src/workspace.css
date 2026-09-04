@@ -411,9 +411,24 @@ body {
   color: var(--au-text-muted);
 }
 
-/* O app em destaque é o iConnect — hoje o único acesso ao sistema principal.
-   Sem peso visual, ele se perde entre nove cards "em breve" idênticos, e o
-   usuário precisa ler os dez para achar o único que abre alguma coisa. */
+/* DESTAQUE = "inação aqui trava alguém". Não é "tem número".
+
+   O comentário anterior dizia que o destaque era o tile do iConnect. Não é mais,
+   desde o reposicionamento de 12/08/2026: o iConnect virou um tile entre outros,
+   sem borda e sem primeira posição, e hoje NENHUM app da faixa Aplicativos
+   recebe esta classe. Quem usa é o card urgente de MEU DIA.
+
+   A diferença entre urgente e não urgente chega por QUATRO canais, e só um deles
+   é matiz — a regra "erro nunca só por cor" do EXEC 06 vale aqui igual:
+
+     1. a borda muda de cor
+     2. a barra inferior aparece
+     3. o quadrado do ícone fica CHEIO (navy sólido), e não claro
+     4. o selo vai de `--contagem` (azul) para `--alerta` (vermelho)
+
+   O item 3 é o que salva quem não distingue vermelho de azul: é diferença de
+   luminância, e não de tom. Mexer nele sem repor outro canal não-cromático
+   deixa a urgência legível só para parte das pessoas. */
 .au-app--destaque {
   border-color: var(--au-accent);
   box-shadow: var(--au-e-1);
@@ -429,8 +444,11 @@ body {
   inset: auto 0 0 0;
   height: 3px;
   border-radius: 0 0 var(--au-r-md) var(--au-r-md);
-  /* Navy → crimson: o único lugar da interface onde o crimson aparece,
-     e é ornamento de marca, não estado. */
+  /* Navy → crimson: o único lugar da interface onde o crimson aparece.
+     Nasceu como ornamento de marca no tile do iConnect; hoje o único uso vivo é
+     estado — a faixa MEU DIA a desenha no card urgente. `aria-hidden`, porque
+     ela REFORÇA o que o selo e a descrição já dizem, e não substitui nenhum
+     dos dois. */
   background: linear-gradient(90deg, var(--au-btn-bg), var(--au-marca));
 }
 
