@@ -3,7 +3,8 @@
   "Meu dia" é o primeiro item porque é a resposta à pergunta com que a pessoa
   chega. Catálogo e Minhas solicitações são o que ela faz depois de saber.
 {% endcomment %}
-<p class="au-rail-grupo">{% trans "Hoje" %}</p>
+<details class="au-rail-secao" {% if grupo_aberto == "hoje" %}open{% endif %}>
+  <summary class="au-rail-grupo">{% trans "Hoje" %}</summary>
 <a class="au-rail-item {% if aba == 'meu_dia' %}au-rail-item--ativo{% endif %}"
    href="{% url 'workspace:meu_dia' %}">
   <svg class="au-icon" aria-hidden="true"><use href="#i-spark"></use></svg>
@@ -16,7 +17,9 @@
   {% if nao_lidas %}<span class="au-rail-contagem au-rail-contagem--alerta">{{ nao_lidas }}</span>{% endif %}
 </a>
 
-<p class="au-rail-grupo">{% trans "Consultar" %}</p>
+</details>
+<details class="au-rail-secao" {% if grupo_aberto == "consultar" %}open{% endif %}>
+  <summary class="au-rail-grupo">{% trans "Consultar" %}</summary>
 {% comment %}
   METAS em CONSULTAR e para todo mundo que está identificado: `met.ler.proprio`
   está no autoatendimento, e um sistema de metas em que a pessoa não vê as
@@ -83,7 +86,23 @@
   {% endif %}
 </a>
 
-<p class="au-rail-grupo">{% trans "Pedir" %}</p>
+{% comment %}
+  A Universidade fica em CONSULTAR e não em Acompanhar: ela é do colaborador,
+  não de quem administra. O painel de conformidade tem link próprio de dentro
+  dela, para quem pode ver.
+{% endcomment %}
+<a class="au-rail-item {% if aba == 'universidade' %}au-rail-item--ativo{% endif %}"
+   href="{% url 'workspace:universidade' %}">
+  <svg class="au-icon" aria-hidden="true"><use href="#i-book"></use></svg>
+  {% trans "Universidade" %}
+  {% if habilitacoes_pendentes %}
+    <span class="au-rail-contagem au-rail-contagem--alerta">{{ habilitacoes_pendentes }}</span>
+  {% endif %}
+</a>
+
+</details>
+<details class="au-rail-secao" {% if grupo_aberto == "pedir" %}open{% endif %}>
+  <summary class="au-rail-grupo">{% trans "Pedir" %}</summary>
 <a class="au-rail-item {% if aba == 'catalogo' %}au-rail-item--ativo{% endif %}"
    href="{% url 'workspace:servicos' %}">
   <svg class="au-icon" aria-hidden="true"><use href="#i-grid"></use></svg>
@@ -100,8 +119,24 @@
   "Atender" e "Aprovar" só aparecem para quem tem algo esperando. Rail com item
   vazio ensina o usuário a ignorar o rail.
 {% endcomment %}
-{% if ve_indicadores or administra_papeis or ve_publicacoes or ve_faq or ve_documentos or ve_marketing or ve_candidaturas or ve_ciclos or ve_planos or ve_orcamento %}
-  <p class="au-rail-grupo">{% trans "Acompanhar" %}</p>
+{% comment %}
+  "ACOMPANHAR" ERA UM GRUPO SÓ, e virou dois. Medido antes de mexer:
+
+    colaborador    11 itens no trilho   maior grupo: Consultar (6)
+    gestor         15 itens             maior grupo: Consultar (6)
+    diretoria      28 itens             maior grupo: ACOMPANHAR (14)
+
+  O trilho não estava errado — um grupo estava. "Acompanhar" tinha virado o
+  depósito de tudo que não é pedir, atender ou aprovar, e para quem tem todas as
+  permissões ele sozinho era metade da navegação.
+
+  RESULTADOS DA EMPRESA é o que a empresa produziu e o que saiu da linha.
+  GESTÃO é como a empresa se organiza e o que ela publica.
+{% endcomment %}
+</details>
+{% if ve_indicadores or ve_ciclos or ve_excecoes or ve_planos or ve_orcamento or ve_resultados %}
+  <details class="au-rail-secao" {% if grupo_aberto == "resultados" %}open{% endif %}>
+    <summary class="au-rail-grupo">{% trans "Resultados da empresa" %}</summary>
   {% comment %}
     Indicadores aparece para quem tem `ind.ler` — Diretoria, Sócios e R.H. — e
     também para quem ATENDE uma fila, que tem direito aos números da própria
@@ -188,6 +223,12 @@
       {% trans "Fontes de dados" %}
     </a>
   {% endif %}
+  </details>
+{% endif %}
+
+{% if administra_papeis or ve_publicacoes or ve_faq or ve_candidaturas or ve_marketing or ve_documentos %}
+  <details class="au-rail-secao" {% if grupo_aberto == "gestao" %}open{% endif %}>
+    <summary class="au-rail-grupo">{% trans "Gestão" %}</summary>
   {% if administra_papeis %}
     <a class="au-rail-item {% if aba == 'pessoas' %}au-rail-item--ativo{% endif %}"
        href="{% url 'workspace:pessoas' %}">
@@ -256,24 +297,13 @@
       {% endif %}
     </a>
   {% endif %}
+  </details>
 {% endif %}
 
-{% comment %}
-  A Universidade fica em CONSULTAR e não em Acompanhar: ela é do colaborador,
-  não de quem administra. O painel de conformidade tem link próprio de dentro
-  dela, para quem pode ver.
-{% endcomment %}
-<a class="au-rail-item {% if aba == 'universidade' %}au-rail-item--ativo{% endif %}"
-   href="{% url 'workspace:universidade' %}">
-  <svg class="au-icon" aria-hidden="true"><use href="#i-book"></use></svg>
-  {% trans "Universidade" %}
-  {% if habilitacoes_pendentes %}
-    <span class="au-rail-contagem au-rail-contagem--alerta">{{ habilitacoes_pendentes }}</span>
-  {% endif %}
-</a>
 
 {% if na_fila or ve_estoque or ve_frota %}
-  <p class="au-rail-grupo">{% trans "Atender" %}</p>
+  <details class="au-rail-secao" {% if grupo_aberto == "atender" %}open{% endif %}>
+    <summary class="au-rail-grupo">{% trans "Atender" %}</summary>
   {% if na_fila %}
     <a class="au-rail-item {% if aba == 'fila' %}au-rail-item--ativo{% endif %}"
        href="{% url 'workspace:fila' %}">
@@ -310,6 +340,7 @@
       {% endif %}
     </a>
   {% endif %}
+  </details>
 {% endif %}
 
 {% comment %}
@@ -320,11 +351,13 @@
   pessoa precisa ler para confiar que não esqueceu ninguém.
 {% endcomment %}
 {% if ve_aprovacoes %}
-  <p class="au-rail-grupo">{% trans "Aprovar" %}</p>
+  <details class="au-rail-secao" {% if grupo_aberto == "aprovar" %}open{% endif %}>
+    <summary class="au-rail-grupo">{% trans "Aprovar" %}</summary>
   <a class="au-rail-item {% if aba == 'aprovacoes' %}au-rail-item--ativo{% endif %}"
      href="{% url 'workspace:aprovacoes' %}">
     <svg class="au-icon" aria-hidden="true"><use href="#i-check"></use></svg>
     {% trans "Bandeja" %}
     <span class="au-rail-contagem {% if pendentes_aprovacao %}au-rail-contagem--alerta{% endif %}">{{ pendentes_aprovacao }}</span>
   </a>
+  </details>
 {% endif %}

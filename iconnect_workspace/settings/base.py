@@ -134,6 +134,10 @@ TEMPLATES = [
                 # procedência não é uma tela incompleta, é uma tela que afirma
                 # sem dizer de quando.
                 "workspace.context.carimbos",
+                # Qual grupo do trilho nasce aberto. Mesma razão dos três acima:
+                # o trilho está em toda tela, e a rota é quem sabe onde a pessoa
+                # está — não a view, que pode esquecer de dizer.
+                "workspace.navegacao.grupo_aberto",
             ],
         },
     },

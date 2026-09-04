@@ -732,15 +732,51 @@ body {
   overscroll-behavior: contain;
 }
 
+/* ── Grupos recolhíveis do trilho ───────────────────────────────
+   `<details>` e não JavaScript: abrir e fechar disclosure é comportamento
+   nativo, funciona sem JS e não pede nonce na CSP. É o mesmo mecanismo do sino.
+
+   Só o grupo da tela atual nasce aberto (`grupo_aberto`, de `navegacao.py`).
+   Para quem tem todas as permissões, o trilho ia de 28 itens visíveis para
+   cerca de sete. */
+.au-rail-secao { margin: var(--au-4) 0 0; }
+.au-rail-secao:first-of-type { margin-top: 0; }
+
 .au-rail-grupo {
-  margin: var(--au-4) 0 var(--au-1);
+  display: flex;
+  align-items: center;
+  gap: var(--au-2);
+  margin: 0 0 var(--au-1);
+  padding: var(--au-1) var(--au-2);
+  border-radius: var(--au-r-sm);
   font-size: var(--au-t-2xs);
   font-weight: 700;
   letter-spacing: .09em;
   text-transform: uppercase;
   color: var(--au-text-subtle);
+  cursor: pointer;
+  list-style: none;          /* o triângulo padrão do Firefox */
 }
-.au-rail-grupo:first-child { margin-top: 0; }
+.au-rail-grupo::-webkit-details-marker { display: none; }
+.au-rail-grupo:hover { background: var(--au-surface-sunken); color: var(--au-text-muted); }
+
+/* A seta é DESENHADA, e gira ao abrir. Sem ela, um grupo fechado parece um
+   título solto e ninguém descobre que ele clica. */
+.au-rail-grupo::after {
+  content: "";
+  width: 5px; height: 5px;
+  margin-left: auto;
+  border-right: 1.5px solid currentColor;
+  border-bottom: 1.5px solid currentColor;
+  transform: rotate(-45deg) translate(-1px, -1px);
+  transition: transform .15s;
+}
+.au-rail-secao[open] > .au-rail-grupo::after {
+  transform: rotate(45deg) translate(-2px, -2px);
+}
+@media (prefers-reduced-motion: reduce) {
+  .au-rail-grupo::after { transition: none; }
+}
 
 .au-rail-item {
   display: flex;
