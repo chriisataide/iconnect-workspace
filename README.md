@@ -1,11 +1,25 @@
-# iConnect Workspace
+# Portal ADB360
 
 **A vida corporativa da empresa em um lugar.**
 
-> O iConnect Workspace organiza a vida corporativa da empresa.
+> O Portal ADB360 organiza a vida corporativa da Autodefesa Brasil.
 > O iConnect Platform organiza toda a operação de atendimento aos clientes.
 
 São **dois produtos**. Este repositório é o primeiro.
+
+> **Sobre o nome.** Chamou-se *Portal* até 12/08/2026, *iConnect Workspace* até
+> 04/09/2026, e agora é **Portal ADB360**. Três coisas continuam com o nome
+> antigo, e as três de propósito:
+>
+> - **a rota `/workspace/…`** — endereço é endereço, e link antigo que dá 404 é
+>   pior que link com nome antigo;
+> - **o app Django `workspace`** — renomeá-lo renomearia a tabela de todo model;
+> - **os documentos `EXEC_*`**, que são registro datado. O EXEC 10 conta por que
+>   o produto deixou de se chamar Portal; reescrevê-lo apagaria a decisão em vez
+>   de mostrar que ela foi revista.
+>
+> O nome que a pessoa lê vive em `settings.PRODUTO_NOME`, e em lugar nenhum
+> além dele — há dois testes cobrando isso.
 
 ---
 

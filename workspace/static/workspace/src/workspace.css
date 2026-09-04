@@ -676,7 +676,12 @@ body {
   font-size: var(--au-t-sm);
   color: var(--au-text-subtle);
 }
-.au-rodape-marca { opacity: .75; }
+/* `height` e `width:auto` no CSS, e não só nos atributos: a marca da ADB é
+   240×189, e um `width="18" height="18"` no HTML — que era o que servia à marca
+   quadrada da iCODEV — achataria a águia em 25%. Os atributos guardam a
+   PROPORÇÃO do arquivo, para o navegador reservar a caixa; o CSS decide o
+   tamanho. */
+.au-rodape-marca { opacity: .75; height: 14px; width: auto; }
 
 /* ── Responsivo ─────────────────────────────────────────────── */
 

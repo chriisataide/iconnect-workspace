@@ -21,9 +21,17 @@
   {% endcomment %}
   <title>{% block titulo %}{% trans "Início" %}{% endblock %} · {% produto %}</title>
 
-  <link rel="icon" href="{% static 'workspace/img/favicon.ico' %}" sizes="any">
-  <link rel="icon" type="image/png" href="{% static 'workspace/img/icodev-512.png' %}">
-  <link rel="apple-touch-icon" href="{% static 'workspace/img/icodev-apple-touch.png' %}">
+  {% comment %}
+    Os três derivam do MESMO arquivo, `favicon-adb.png`, quadrado com folga de
+    8% — favicon é desenhado numa caixa quadrada, e o original (240×189) sairia
+    esticado ou recortado conforme o navegador.
+
+    O apple-touch é o único com fundo BRANCO e sem alfa: o iOS pinta a
+    transparência de preto, e a águia vermelha sobre preto some.
+  {% endcomment %}
+  <link rel="icon" href="{% static 'workspace/img/favicon-adb.ico' %}" sizes="any">
+  <link rel="icon" type="image/png" href="{% static 'workspace/img/adb-512.png' %}">
+  <link rel="apple-touch-icon" href="{% static 'workspace/img/adb-apple-touch.png' %}">
 
   <link rel="stylesheet" href="{% estatico 'workspace/src/tokens.css' %}">
   <link rel="stylesheet" href="{% estatico 'workspace/src/workspace.css' %}">
@@ -37,18 +45,18 @@
   <header class="au-topbar">
     <a class="au-brand" href="{% url 'workspace:home' %}">
       {% comment %}
-        O LOGO AINDA É O DA iCODEV — falta o arquivo da Autodefesa Brasil.
+        `width` e `height` são os do ARQUIVO (600×189), e não o tamanho na
+        tela — o CSS dá `height: 26px` e a largura se ajusta. Os dois atributos
+        existem para o navegador reservar a caixa antes de a imagem chegar: sem
+        eles a topbar salta quando o logo carrega, e o salto acontece no alto
+        de toda tela do produto.
 
-        Trocar é UMA linha: ponha `adb-wordmark.png` em
-        `workspace/static/workspace/img/` e mude o `static` abaixo. O `alt` já
-        vem de `PRODUTO_MARCA` e não precisa ser tocado.
-
-        As proporções: o CSS dá `height: 26px` e a largura se ajusta, então
-        qualquer PNG com fundo transparente e ~4:1 serve. O da ADB é mais largo
-        que o da iCODEV — confira a barra em tela estreita depois de trocar.
+        O `alt` é a EMPRESA e não o produto: "Portal ADB360" já está escrito ao
+        lado, em texto, e repetir faria o leitor de tela dizer o nome duas vezes
+        sem nunca dizer de quem é o portal.
       {% endcomment %}
-      <img class="au-brand-logo" src="{% static 'workspace/img/icodev-wordmark.png' %}"
-           alt="{% marca %}" width="176" height="60">
+      <img class="au-brand-logo" src="{% static 'workspace/img/adb-wordmark.png' %}"
+           alt="{% marca %}" width="600" height="189">
       <span class="au-brand-divisor" aria-hidden="true"></span>
       <span class="au-brand-produto">{% produto %}</span>
     </a>
@@ -248,8 +256,8 @@
   </main>
 
   <footer class="au-rodape">
-    <img class="au-rodape-marca" src="{% static 'workspace/img/icodev-mark.png' %}"
-         alt="" width="18" height="18" aria-hidden="true">
+    <img class="au-rodape-marca" src="{% static 'workspace/img/favicon-adb.png' %}"
+         alt="" width="240" height="189" aria-hidden="true">
     <span>{% blocktrans %}{{ nome_do_produto }} · a vida corporativa em um lugar{% endblocktrans %}</span>
   </footer>
 

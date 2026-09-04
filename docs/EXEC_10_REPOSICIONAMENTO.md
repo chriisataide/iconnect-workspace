@@ -1,5 +1,17 @@
 # Execução · Etapa 10 — Reposicionamento
 
+> **Revisto em 04/09/2026.** O nome decidido aqui — *iConnect Workspace* —
+> durou 23 dias. O produto passou a chamar-se **Portal ADB360**, por decisão do
+> dono do produto, e o logo passou a ser o da Autodefesa Brasil.
+>
+> **O resto deste documento continua valendo**, e é o que importa dele: a ordem
+> das faixas, o iConnect como tile entre outros, "nenhum widget nasce vazio"
+> (ADR-012) e a conta que nasce do SSO (ADR-013) não dependiam do nome. O que
+> mudou foi a etiqueta; o reposicionamento em si ficou de pé.
+>
+> Ficou uma ironia registrada: havia aqui um teste proibindo a palavra "Portal"
+> em qualquer tela. Ele guardava esta decisão, e caiu com ela.
+
 > **Documento de revisão.** Corrige a premissa de posicionamento das Etapas 1–9 sem descartá-las. Onde este documento contradiz um anterior, **este vence** — e a contradição está nomeada, com o trecho de origem, para que ninguém precise adivinhar qual versão vale.
 >
 > **12 de agosto de 2026** · Etapa 10 de 10 · **Decidido, não em consulta**

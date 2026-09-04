@@ -163,10 +163,13 @@ def test_nenhum_template_escreve_o_nome_a_mao():
     from pathlib import Path
 
     raiz = Path(__file__).resolve().parent.parent / "templates"
+    # Sem os `{% comment %}`: eles não chegam ao usuário, e um comentário que
+    # EXPLICA por que o nome não é escrito à mão não pode reprovar por citá-lo.
+    sem_comentario = re.compile(r"\{%\s*comment\s*%\}.*?\{%\s*endcomment\s*%\}", re.S)
     sujos = [
         str(arquivo.relative_to(raiz))
         for arquivo in raiz.rglob("*.html")
-        for texto in [arquivo.read_text(encoding="utf-8")]
+        for texto in [sem_comentario.sub("", arquivo.read_text(encoding="utf-8"))]
         if "iConnect Workspace" in texto or "Portal ADB360" in texto
     ]
 
@@ -181,3 +184,66 @@ def test_o_alt_do_logo_e_a_empresa_e_nao_o_produto(client, settings):
 
     assert f'alt="{settings.PRODUTO_MARCA}"' in corpo
     assert settings.PRODUTO_MARCA != settings.PRODUTO_NOME
+
+
+# ── A marca ─────────────────────────────────────────────────────────
+#
+# Logo quebrado NÃO derruba tela nenhuma: o navegador desenha o ícone de imagem
+# faltando e segue. É o tipo de defeito que sobrevive a um deploy inteiro,
+# porque quem testa olha o conteúdo e o alto da página vira paisagem.
+
+
+def _referencias_de_imagem(corpo: str) -> list[str]:
+    return re.findall(r'(?:src|href)="/static/(workspace/img/[^"]+)"', corpo)
+
+
+@pytest.mark.parametrize("rota", ["/workspace/", "/entrar/"])
+def test_toda_imagem_da_marca_existe_no_disco(client, rota):
+    from pathlib import Path
+
+    estaticos = Path(__file__).resolve().parent.parent / "static"
+    corpo = client.get(rota).content.decode()
+
+    referencias = _referencias_de_imagem(corpo)
+    assert referencias, f"{rota} não referencia imagem nenhuma da marca"
+    for caminho in referencias:
+        assert (estaticos / caminho).exists(), f"{rota} aponta para {caminho}, que não existe"
+
+
+@pytest.mark.parametrize("rota", ["/workspace/", "/entrar/"])
+def test_nenhuma_tela_ainda_carrega_a_marca_antiga(client, rota):
+    """Os arquivos da iCODEV continuam no repositório — apagar marca é decisão
+    de quem a possui, não faxina. Mas nenhuma tela pode mais carregá-los."""
+    corpo = client.get(rota).content.decode()
+
+    for caminho in _referencias_de_imagem(corpo):
+        assert "icodev" not in caminho, f"{rota} ainda carrega {caminho}"
+
+
+def test_o_favicon_e_quadrado(client):
+    """O original da ADB é 240×189. Favicon é desenhado numa caixa quadrada, e
+    quem não quadra o arquivo deixa o navegador decidir — uns esticam, outros
+    recortam, e a águia sai deformada em metade deles."""
+    from pathlib import Path
+
+    from PIL import Image
+
+    img = Path(__file__).resolve().parent.parent / "static/workspace/img"
+    for nome in ("adb-512.png", "adb-apple-touch.png", "favicon-adb.ico"):
+        largura, altura = Image.open(img / nome).size
+        assert largura == altura, f"{nome} é {largura}×{altura}, e devia ser quadrado"
+
+
+def test_o_apple_touch_nao_tem_transparencia():
+    """O iOS pinta o alfa de PRETO. A águia é vermelha, e vermelho sobre preto
+    é o contraste mais fraco que existe entre cores saturadas."""
+    from pathlib import Path
+
+    from PIL import Image
+
+    caminho = (
+        Path(__file__).resolve().parent.parent
+        / "static/workspace/img/adb-apple-touch.png"
+    )
+
+    assert Image.open(caminho).mode == "RGB", "o apple-touch precisa ser opaco"

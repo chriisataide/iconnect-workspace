@@ -28,15 +28,15 @@
   <meta name="theme-color" content="#2e3192">
   <title>{% trans "Erro no servidor" %} · {% produto %}</title>
 
-  <link rel="icon" href="{% static 'workspace/img/favicon.ico' %}" sizes="any">
+  <link rel="icon" href="{% static 'workspace/img/favicon-adb.ico' %}" sizes="any">
   <link rel="stylesheet" href="{% estatico 'workspace/src/tokens.css' %}">
   <link rel="stylesheet" href="{% estatico 'workspace/src/workspace.css' %}">
 </head>
 <body>
   <header class="au-topbar">
     <a class="au-brand" href="/workspace/">
-      <img class="au-brand-logo" src="{% static 'workspace/img/icodev-wordmark.png' %}"
-           alt="icodev" width="176" height="60">
+      <img class="au-brand-logo" src="{% static 'workspace/img/adb-wordmark.png' %}"
+           alt="{% marca %}" width="600" height="189">
       <span class="au-brand-divisor" aria-hidden="true"></span>
       <span class="au-brand-produto">{% produto %}</span>
     </a>
@@ -82,8 +82,8 @@
   </main>
 
   <footer class="au-rodape">
-    <img class="au-rodape-marca" src="{% static 'workspace/img/icodev-mark.png' %}"
-         alt="" width="18" height="18" aria-hidden="true">
+    <img class="au-rodape-marca" src="{% static 'workspace/img/favicon-adb.png' %}"
+         alt="" width="240" height="189" aria-hidden="true">
     {% produto as nome_do_produto %}
     <span>{% blocktrans %}{{ nome_do_produto }} · a vida corporativa em um lugar{% endblocktrans %}</span>
   </footer>

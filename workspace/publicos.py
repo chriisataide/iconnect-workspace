@@ -5,7 +5,9 @@
 No site do GPS, o menu **"Extranet"** tem quatro destinos: *GPS 360 – Cliente*,
 *GPS 360 – Fornecedor*, *Gerenciador Eletrônico* e *Portal GPS*. A anotação
 equivalente para a ADB é um botão com **"ADB Cliente"**, **"ADB Fornecedor"** e
-**"Portal ADB"** — três públicos, três produtos, uma marca.
+o portal do colaborador — três públicos, três produtos, uma marca. O nome do
+terceiro sai de `settings.PRODUTO_NOME`: ele é este produto, e o nome dele não
+pode ser escrito num segundo lugar.
 
 ## A decisão: este produto é o Portal ADB, e os outros dois não entram aqui
 
@@ -196,7 +198,13 @@ def semear() -> None:
     registrar(
         Publico(
             chave=INTERNO,
-            nome="Portal ADB",
+            # O nome vem do settings porque o público interno É este produto —
+            # escrevê-lo aqui seria o segundo lugar onde o nome mora, e o
+            # segundo é sempre o que fica para trás num rebatismo. Já quase
+            # aconteceu: em 04/09/2026 este literal era "Portal ADB", o produto
+            # virou "Portal ADB360", e um teste que procurava a substring passou
+            # a reprovar por causa da colisão.
+            nome=settings.PRODUTO_NOME,
             descricao="Este produto. A vida corporativa de quem trabalha aqui.",
             interno=True,
         )

@@ -1,5 +1,5 @@
 {% extends "contas/_shell_entrar.html" %}
-{% load i18n static %}
+{% load i18n static wks %}
 
 {% block titulo %}{% trans "Identificar-se" %}{% endblock %}
 
@@ -33,10 +33,10 @@
 {% block conteudo %}
 <div class="au-porta">
   <a class="au-porta-marca" href="{% url 'workspace:home' %}">
-    <img src="{% static 'workspace/img/icodev-wordmark.png' %}"
-         alt="icodev" width="132" height="45">
+    <img src="{% static 'workspace/img/adb-wordmark.png' %}"
+         alt="{% marca %}" width="600" height="189">
     <span class="au-porta-marca-divisor" aria-hidden="true"></span>
-    <span class="au-porta-marca-produto">Workspace</span>
+    <span class="au-porta-marca-produto">{% produto %}</span>
   </a>
 
   <main class="au-porta-cartao">

@@ -67,7 +67,21 @@ Isto é a coisa mais importante do documento e a que mais gera falso-positivo.
 >   nome novo. Se você vir "iConnect Workspace" em alguma tela, **é bug** — há
 >   um teste varrendo todos os templates atrás disso.
 >
-> O selo com o número da tela **saiu da topbar** na mesma data (ver 3.0).
+> O selo com o número da tela **saiu da topbar** na mesma data (ver 3.2.1).
+>
+> **O logo é o da Autodefesa Brasil**, e o favicon é a águia. Confira nas duas
+> cascas — `/workspace/` e `/entrar/`, que têm cascas DIFERENTES — e na aba do
+> navegador. Logo quebrado **não derruba tela nenhuma**: o navegador desenha o
+> ícone de imagem faltando e segue, e quem testa olha o conteúdo. Se aparecer o
+> retângulo vazio no alto, é bug.
+>
+> O `alt` do logo diz **"Autodefesa Brasil"** e não "Portal ADB360" — o nome do
+> produto já está escrito ao lado, em texto, e repetir faria o leitor de tela
+> dizer o nome duas vezes sem nunca dizer de quem é o portal.
+>
+> **A cor da barra do navegador continua azul-marinho**, e é deliberado: o
+> `theme-color` acompanha o sistema de design, que é navy em todas as telas. O
+> vermelho da marca é do logo, não da interface.
 
 **Consequência prática para o teste:** as pessoas dos dois produtos **não são as
 mesmas**. Um usuário do iConnect não é colaborador do Workspace, e vice-versa. Se
