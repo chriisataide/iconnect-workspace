@@ -1,5 +1,5 @@
 {% extends "workspace/_shell.html" %}
-{% load i18n %}
+{% load i18n wks %}
 
 {% block titulo %}{% trans "Início" %}{% endblock %}
 
@@ -17,13 +17,14 @@
 {% endcomment %}
 
 {% block conteudo %}
+  {% produto as nome_do_produto %}
   <section class="au-hero">
     <p class="au-hero-eyebrow">{{ hoje }}</p>
     <h1 class="au-hero-titulo">
       {% if autenticado %}
-        {% blocktrans %}Bem-vindo, {{ nome }}, ao Workspace.{% endblocktrans %}
+        {% blocktrans %}Bem-vindo, {{ nome }}, ao {{ nome_do_produto }}.{% endblocktrans %}
       {% else %}
-        {% trans "Bem-vindo ao Workspace." %}
+        {% blocktrans %}Bem-vindo ao {{ nome_do_produto }}.{% endblocktrans %}
       {% endif %}
     </h1>
     {% comment %}

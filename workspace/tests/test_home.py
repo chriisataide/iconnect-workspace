@@ -171,7 +171,9 @@ def test_anonimo_ve_saudacao_neutra(client, django_user_model):
 
     corpo = client.get(reverse("workspace:home")).content.decode()
 
-    assert "Bem-vindo ao Workspace." in corpo
+    # Pelo settings, e não pelo nome: a saudação neutra é o que este teste
+    # guarda, e ela não muda quando o produto é rebatizado.
+    assert f"Bem-vindo ao {settings.PRODUTO_NOME}." in corpo
     assert alguem.get_short_name() not in corpo
 
 

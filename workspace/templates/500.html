@@ -26,7 +26,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="color-scheme" content="light dark">
   <meta name="theme-color" content="#2e3192">
-  <title>{% trans "Erro no servidor" %} · iConnect Workspace</title>
+  <title>{% trans "Erro no servidor" %} · {% produto %}</title>
 
   <link rel="icon" href="{% static 'workspace/img/favicon.ico' %}" sizes="any">
   <link rel="stylesheet" href="{% estatico 'workspace/src/tokens.css' %}">
@@ -38,7 +38,7 @@
       <img class="au-brand-logo" src="{% static 'workspace/img/icodev-wordmark.png' %}"
            alt="icodev" width="176" height="60">
       <span class="au-brand-divisor" aria-hidden="true"></span>
-      <span class="au-brand-produto">Workspace</span>
+      <span class="au-brand-produto">{% produto %}</span>
     </a>
   </header>
 
@@ -84,7 +84,8 @@
   <footer class="au-rodape">
     <img class="au-rodape-marca" src="{% static 'workspace/img/icodev-mark.png' %}"
          alt="" width="18" height="18" aria-hidden="true">
-    <span>{% blocktrans %}iConnect Workspace · a vida corporativa em um lugar{% endblocktrans %}</span>
+    {% produto as nome_do_produto %}
+    <span>{% blocktrans %}{{ nome_do_produto }} · a vida corporativa em um lugar{% endblocktrans %}</span>
   </footer>
 </body>
 </html>

@@ -318,6 +318,27 @@ CSRF_COOKIE_NAME = "wks_csrf"
 # O destino do tile no launcher e dos cards que levam para fora.
 ICONNECT_URL = _env("ICONNECT_URL", "https://app.icodev.com.br/login/")
 
+# ── O nome do produto ───────────────────────────────────────────────
+#
+# Aqui, e em UM lugar só. O nome já esteve escrito à mão em vinte e um pontos —
+# título de aba, topbar, saudação da home, as duas telas de erro, o rótulo da
+# paleta — e o rebatismo de 04/09/2026 ("Workspace" → "Portal ADB360") teve de
+# achar os vinte e um. O vigésimo segundo, escrito depois, ficaria com o nome
+# antigo até alguém reparar numa tela que quase ninguém abre.
+#
+# NÃO troca a rota `/workspace/`, o app Django `workspace`, nem o nome do
+# repositório. URL é endereço: mudar `/workspace/` quebraria todo link já
+# colado em e-mail, ata e chamado — e endereço antigo que dá 404 é pior que
+# endereço com nome antigo. O dia em que valer a pena, é redirecionamento
+# permanente, não renomeação.
+PRODUTO_NOME = "Portal ADB360"
+
+# A empresa dona da marca. Vai no `alt` do logo, onde o nome do produto não
+# serve: quem usa leitor de tela precisa saber de quem é o portal, e "Portal
+# ADB360" já está escrito ao lado em texto.
+PRODUTO_MARCA = "Autodefesa Brasil"
+
+
 # ── Os outros públicos da marca ─────────────────────────────────────
 #
 # Três públicos, três produtos, uma marca — a leitura do benchmark. Este produto

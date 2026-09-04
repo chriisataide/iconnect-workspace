@@ -106,29 +106,78 @@ def test_ordem_coloca_a_platform_no_fim():
 
 
 # ── O nome do produto ───────────────────────────────────────────────
+#
+# Em 12/08/2026 o produto deixou de se chamar "Portal" e virou "iConnect
+# Workspace", e havia aqui um teste proibindo a palavra "Portal" em qualquer
+# tela. Em 04/09/2026 ele voltou a ser Portal — **Portal ADB360** — por decisão
+# do dono do produto, e aquele teste passou a guardar uma decisão revogada.
+#
+# O que ficou no lugar dele é mais durável que qualquer um dos dois nomes: o
+# nome vive em `settings.PRODUTO_NOME`, e nenhum template o escreve à mão. Um
+# terceiro rebatismo é uma linha, e não outra varredura.
 
 
-def test_a_casca_diz_workspace(client):
+def test_a_casca_usa_o_nome_do_produto(client, settings):
     corpo = client.get(reverse("workspace:home")).content.decode()
 
-    assert "iConnect Workspace" in corpo
-    assert 'class="au-brand-produto">Workspace<' in corpo
+    assert f'class="au-brand-produto">{settings.PRODUTO_NOME}<' in corpo
 
 
-def test_nenhuma_tela_ainda_diz_portal(client):
-    """"Portal" é conceito morto. Sobra dele numa tela é dívida visível ao
-    usuário — e num produto que acabou de ser renomeado, é o tipo de detalhe
-    que faz a mudança parecer inacabada."""
+def test_titulo_da_aba_tem_o_produto_como_sufixo(client, settings):
+    corpo = client.get(reverse("workspace:home")).content.decode()
+
+    assert f"<title>Início · {settings.PRODUTO_NOME}</title>" in corpo
+
+
+def test_trocar_o_nome_no_settings_troca_a_tela_inteira(client, settings):
+    """O teste que guarda a fonte única.
+
+    Se alguém escrever "Portal ADB360" à mão num template novo, este teste passa
+    — mas o dia do próximo rebatismo esse template fica para trás, e ninguém
+    percebe até um usuário reparar. Trocar o valor e conferir que NADA sobrou do
+    anterior é a única forma de provar que a fonte é mesmo única.
+    """
+    settings.PRODUTO_NOME = "Nome Inventado Para O Teste"
+
     rotas = [
         reverse("workspace:home"),
         reverse("workspace:modulo", args=("rh",)),
+        reverse("workspace:servicos"),
+        # As telas de estado vazio mandam a pessoa para o `/admin/` PELO NOME,
+        # e são as que menos gente abre — o nome antigo sobreviveria aqui.
+        reverse("workspace:reservas"),
     ]
     for rota in rotas:
         corpo = client.get(rota).content.decode()
-        assert "Portal" not in corpo, f"{rota} ainda diz Portal"
+        assert "Nome Inventado Para O Teste" in corpo, f"{rota} não usa o settings"
+        assert "Portal ADB360" not in corpo, f"{rota} escreve o nome à mão"
+        assert "iConnect Workspace" not in corpo, f"{rota} ficou com o nome antigo"
 
 
-def test_titulo_da_aba_tem_o_produto_como_sufixo(client):
+def test_nenhum_template_escreve_o_nome_a_mao():
+    """A varredura que a rota não alcança.
+
+    O teste acima só vê as telas que ele visita, e uma delas depende de estado
+    vazio para renderizar. Este lê os arquivos: qualquer template com o nome
+    literal é o próximo a ficar para trás."""
+    from pathlib import Path
+
+    raiz = Path(__file__).resolve().parent.parent / "templates"
+    sujos = [
+        str(arquivo.relative_to(raiz))
+        for arquivo in raiz.rglob("*.html")
+        for texto in [arquivo.read_text(encoding="utf-8")]
+        if "iConnect Workspace" in texto or "Portal ADB360" in texto
+    ]
+
+    assert not sujos, f"escrevem o nome à mão em vez de {{% produto %}}: {sujos}"
+
+
+def test_o_alt_do_logo_e_a_empresa_e_nao_o_produto(client, settings):
+    """"Portal ADB360" já está escrito ao lado, em texto. Repetir no `alt`
+    faria o leitor de tela dizer o nome duas vezes e não dizer de quem é o
+    portal — que é a única coisa que a imagem acrescenta."""
     corpo = client.get(reverse("workspace:home")).content.decode()
 
-    assert "<title>Início · iConnect Workspace</title>" in corpo
+    assert f'alt="{settings.PRODUTO_MARCA}"' in corpo
+    assert settings.PRODUTO_MARCA != settings.PRODUTO_NOME

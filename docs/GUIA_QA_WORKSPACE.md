@@ -1,4 +1,4 @@
-# Guia do iConnect Workspace — para quem vai testar
+# Guia do Portal ADB360 — para quem vai testar
 
 > **Para quem é este documento.** Para o QA que precisa entender *o que cada tela
 > promete* antes de decidir se ela cumpriu. Não é um roteiro de cliques: é o
@@ -49,12 +49,25 @@ tela de dado agregado que abre zerada em vez de recusar.
 
 Isto é a coisa mais importante do documento e a que mais gera falso-positivo.
 
-| | **iConnect Workspace** | **iConnect Platform** |
+| | **Portal ADB360** | **iConnect Platform** |
 |---|---|---|
 | Organiza | a vida corporativa da **empresa** | a operação de **atendimento aos clientes** |
-| Usuário | o colaborador da icodev | o técnico, o operador, o cliente |
+| Usuário | o colaborador da Autodefesa Brasil | o técnico, o operador, o cliente |
 | Onde vive | `/workspace/…` | `/login/`, `/dashboard/…`, `/fsm/…` |
 | Pessoas | organograma (`identidade.Lotacao`) | papéis do iConnect (`UserRole`, ~1.432 registros) |
+
+> **O produto foi rebatizado em 04/09/2026.** Chamava-se *iConnect Workspace* e
+> agora é **Portal ADB360**. Duas coisas **não** mudaram, e as duas geram
+> falso-positivo se você esperar o contrário:
+>
+> - **A rota continua `/workspace/…`.** Endereço é endereço: mudar quebraria
+>   todo link já colado em e-mail, ata e chamado, e link antigo que dá 404 é
+>   pior que link com nome antigo.
+> - **O app Django continua se chamando `workspace`**, e o `/admin/` mostra o
+>   nome novo. Se você vir "iConnect Workspace" em alguma tela, **é bug** — há
+>   um teste varrendo todos os templates atrás disso.
+>
+> O selo com o número da tela **saiu da topbar** na mesma data (ver 3.0).
 
 **Consequência prática para o teste:** as pessoas dos dois produtos **não são as
 mesmas**. Um usuário do iConnect não é colaborador do Workspace, e vice-versa. Se
@@ -553,11 +566,17 @@ justamente quando a pessoa ainda está decidindo como buscar.
 - A legenda embaixo do campo **não deve mostrar `p:`** para quem não administra
   papéis. Atalho anunciado que devolve vazio é pior do que atalho nenhum.
 
-**O código da tela** aparece discreto ao lado da marca, no topo, e é o mesmo que
-funciona na busca e em `/workspace/ir/<código>/`. Confira que a tela aberta e o
-código no topo batem — e que uma rota que **não é lugar** (o formulário de um
-serviço, a página de decidir uma aprovação) **não mostra código nenhum**. A
-lista viva sai do próprio produto:
+**O código da tela NÃO aparece mais na topbar** — saiu em 04/09/2026. Ele ficava
+ao lado do nome do produto e, lido ali, virava número de página; com a contagem
+do sino do outro lado, a barra tinha duas numerações que não conversavam.
+
+**O endereçamento continua inteiro**, e é isso que se testa agora: digite `02` na
+busca, e abra `/workspace/ir/02/`. Os dois têm de levar ao catálogo de serviços.
+Se pararem de funcionar, **abra bug** — o selo era a etiqueta, não o mecanismo, e
+"abra a 10" numa ata precisa continuar abrindo alguma coisa.
+
+O que se perdeu é a **descoberta**: quem estava numa tela via o código dela sem
+procurar. A lista viva sai do próprio produto:
 
 ```bash
 python manage.py shell -c "from workspace import enderecamento as e; [print(t.codigo, t.nome, t.url) for t in e.todas()]"

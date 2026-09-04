@@ -84,7 +84,7 @@
         <li class="au-vazio">
           <p class="au-vazio-titulo">{% trans "Nenhum serviço cadastrado neste módulo." %}</p>
           <p class="au-vazio-dica">
-            {% blocktrans %}Cadastre em <b>Admin › iConnect Workspace › Itens do catálogo</b>.{% endblocktrans %}
+            {% produto as nome_do_produto %}{% blocktrans %}Cadastre em <b>Admin › {{ nome_do_produto }} › Itens do catálogo</b>.{% endblocktrans %}
           </p>
         </li>
       {% endfor %}

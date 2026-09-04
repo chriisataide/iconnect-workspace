@@ -130,3 +130,25 @@ def codigo_da_tela(context) -> str:
     caminho = getattr(context.get("request"), "path", "")
     tela = end.por_caminho(caminho)
     return tela.codigo if tela else ""
+
+
+@register.simple_tag
+def produto() -> str:
+    """O nome do produto, de `settings.PRODUTO_NOME`.
+
+    Tag e não context processor porque `500.html` é renderizada **sem contexto**
+    pelo handler padrão do Django — um `{{ produto_nome }}` sairia vazio
+    justamente na tela que a pessoa vê quando tudo deu errado, e ela ficaria
+    sem saber de que sistema é o erro.
+    """
+    from django.conf import settings
+
+    return settings.PRODUTO_NOME
+
+
+@register.simple_tag
+def marca() -> str:
+    """A empresa dona da marca — o `alt` do logo. Ver `PRODUTO_MARCA`."""
+    from django.conf import settings
+
+    return settings.PRODUTO_MARCA

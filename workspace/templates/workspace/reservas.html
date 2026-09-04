@@ -151,8 +151,9 @@
   <div class="au-vazio">
     <p class="au-vazio-titulo">{% trans "Nenhum recurso cadastrado." %}</p>
     <p class="au-vazio-dica">
+      {% produto as nome_do_produto %}
       {% blocktrans %}Salas, veículos e equipamentos são cadastrados em
-      <b>Admin › iConnect Workspace › Recursos</b>.{% endblocktrans %}
+      <b>Admin › {{ nome_do_produto }} › Recursos</b>.{% endblocktrans %}
     </p>
   </div>
 {% endif %}

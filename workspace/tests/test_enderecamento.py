@@ -220,41 +220,74 @@ def test_ir_nao_decide_permissao_a_tela_decide(client):
     assert b"Por \xc3\xa1rea" not in tela.content
 
 
-# ── O código no cabeçalho ───────────────────────────────────────────
+# ── O código saiu da topbar, e o endereçamento ficou ────────────────
+#
+# Até 04/09/2026 o código aparecia ao lado do nome do produto. Lido ali ele
+# virava número de página — "00" na home, "10" nos resultados — e, com a
+# contagem do sino do outro lado, a barra tinha duas numerações que não
+# conversavam.
+#
+# O selo saiu. O ENDEREÇAMENTO não: é o que estes testes guardam, porque a
+# leitura errada seria "tiraram o código", e o que se tirou foi a etiqueta.
 
 
 @pytest.mark.django_db
-def test_a_tela_mostra_o_proprio_codigo(client):
+def test_a_topbar_nao_mostra_mais_o_codigo(client):
     conteudo = client.get(reverse("workspace:servicos")).content.decode()
 
-    assert 'class="au-codigo"' in conteudo
-    assert ">02</span>" in conteudo
+    assert 'class="au-codigo"' not in conteudo
 
 
 @pytest.mark.django_db
-def test_a_pagina_de_modulo_mostra_o_codigo_do_modulo(client):
+def test_mas_o_codigo_continua_levando_a_tela(client):
+    """O que a etiqueta anunciava continua funcionando. Se este teste cair
+    junto com o de cima, o selo levou o endereçamento embora — e aí "02" numa
+    ata vira um número que não abre nada."""
+    resposta = client.get("/workspace/ir/02/")
+
+    assert resposta.status_code == 302
+    assert resposta.headers["Location"] == reverse("workspace:servicos")
+
+
+@pytest.mark.django_db
+def test_e_o_codigo_do_modulo_tambem(client):
     """A rota é parametrizada (`workspace:modulo` + `("rh",)`), e o código sai
     do caminho — que é o motivo de `por_caminho()` não casar por `url_name`."""
-    conteudo = client.get(reverse("workspace:modulo", args=("rh",))).content.decode()
+    resposta = client.get("/workspace/ir/20/")
 
-    assert ">20</span>" in conteudo
+    assert resposta.status_code == 302
+    assert resposta.headers["Location"] == reverse("workspace:modulo", args=("rh",))
 
 
 @pytest.mark.django_db
-def test_rota_que_nao_e_lugar_nao_mostra_codigo(client):
+def test_a_tag_continua_respondendo_para_quem_precisar(client, rf):
+    """`codigo_da_tela` ficou no lugar de propósito: repor o selo é uma linha.
+
+    Uma tag sem nenhum uso seria apagada na primeira faxina, e aí voltar atrás
+    deixaria de ser uma linha."""
+    from workspace.templatetags.wks import codigo_da_tela
+
+    requisicao = rf.get(reverse("workspace:servicos"))
+
+    assert codigo_da_tela({"request": requisicao}) == "02"
+
+
+@pytest.mark.django_db
+def test_rota_que_nao_e_lugar_nao_tem_codigo(client):
     """Formulário de um item do catálogo é conteúdo, não destino.
 
     Dar endereço a ele encheria o registro de uma linha por item de catálogo, e
     o código deixaria de ser algo que se decora.
     """
     from workspace.models import GrupoCatalogo, ItemCatalogo
+    from workspace.templatetags.wks import codigo_da_tela
 
     ItemCatalogo.objects.create(
         chave="ferias", nome="Férias", grupo=GrupoCatalogo.TRABALHO,
         dominio="rh.ferias", prazo_prometido_dias=5,
         campos=[{"chave": "quando", "rotulo": "Quando", "obrigatorio": True}],
     )
+    caminho = reverse("workspace:pedir", args=("ferias",))
 
-    conteudo = client.get(reverse("workspace:pedir", args=("ferias",))).content.decode()
-
-    assert 'class="au-codigo"' not in conteudo
+    assert client.get(caminho).status_code == 200
+    assert codigo_da_tela({"request": type("R", (), {"path": caminho})()}) == ""

@@ -29,6 +29,7 @@ from __future__ import annotations
 from decimal import Decimal
 
 import pytest
+from django.conf import settings
 from django.urls import reverse
 
 from identidade.tests import fabricas as f
@@ -228,4 +229,4 @@ def test_a_home_do_anonimo_nao_traz_nome_nenhum(client, gente_com_coisas):
     pagina = corpo(client, "workspace:home")
 
     assert gente_com_coisas.get_short_name() not in pagina
-    assert "Bem-vindo ao Workspace" in pagina
+    assert f"Bem-vindo ao {settings.PRODUTO_NOME}" in pagina
