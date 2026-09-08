@@ -78,12 +78,114 @@ contratos de vigilância de órgão público, que é boa parte do mercado.
 - a informação que o radar quer já está lá: objeto, órgão, valor estimado,
   **data limite para proposta** — que é exatamente o campo `prazo_resposta`.
 
-> **A confirmar antes de qualquer código:** os endpoints exatos, os limites de
-> requisição e se há necessidade de credencial para o volume que vamos usar.
-> Não escrevi os detalhes aqui de propósito — documentação de API pública muda,
-> e um endereço errado num documento é pior que a ausência dele. A conferência é
-> meia hora de quem for implementar, e ela vem **antes** da estimativa virar
-> compromisso.
+---
+
+## 26.2.1 A conferência, feita — 08/09/2026
+
+Não é mais estimativa. Abaixo está o que foi **medido contra a API de
+produção**, e as três surpresas que só apareceram assim.
+
+### O que existe
+
+A especificação OpenAPI está em `pncp.gov.br/api/consulta/v3/api-docs` e declara
+**12 endpoints de consulta**. Um deles é exatamente o que o radar precisa:
+
+    GET /api/consulta/v1/contratacoes/proposta
+
+É "contratações com proposta ainda aberta". Obrigatórios: `dataFinal` e
+`pagina`. Opcionais que interessam: `uf`, `codigoModalidadeContratacao`,
+`codigoMunicipioIbge`, `cnpj`. `tamanhoPagina` aceita de **10 a 50**.
+
+### Surpresa 1 — não precisa de token
+
+A especificação **declara** um `bearerAuth` (JWT), e por isso o levantamento
+anterior deixou a pergunta em aberto. Declarar não é exigir: uma chamada sem
+cabeçalho nenhum voltou **HTTP 400 de validação de parâmetro**, e não 401. Ou
+seja, ela passou pela porta e parou na conferência dos campos.
+
+Com os parâmetros certos: **HTTP 200**. O `bearerAuth` é das APIs de
+manutenção — as que os órgãos usam para publicar —, e não das de consulta.
+
+**Consequência prática: nenhuma credencial a pedir a ninguém.** Este conector é
+o único dos quatro que não depende de terceiro para começar.
+
+### Surpresa 2 — a API não filtra por palavra, e isso é caro
+
+**Não existe** parâmetro de busca por texto do objeto, CNAE ou código de item.
+Os filtros são todos estruturados: data, UF, município, CNPJ, modalidade.
+
+Então a triagem por "vigilância" é **nossa**, depois de baixar. Medido na Bahia:
+
+    2.164 editais com proposta aberta
+    300 lidos (6 páginas de 50)
+      3 batem com os termos de segurança  →  1%
+
+Um por cento. Sem a triagem, o radar receberia dois mil itens de merenda
+escolar, obra e material de escritório — e viraria a tela que ninguém abre duas
+vezes. **A lista de termos é o que decide se isto serve**, e ela é do comercial.
+
+### Surpresa 3 — há limite de requisição, e ele morde
+
+Sete requisições em treze segundos → **HTTP 429 Too Many Requests**.
+
+Medido depois, com pausa: **uma requisição por segundo passa** (6 de 6). Houve
+também um `TimeoutError` isolado numa chamada mais lenta — o portal é público e
+às vezes demora, o que o conector agendado já sabe tratar (60 s de espera e
+recuo exponencial, `cargas/transporte.py`).
+
+**Consequência para o desenho:** o conector precisa de pausa entre páginas. Não
+é detalhe de implementação — é a diferença entre uma carga que roda de
+madrugada e uma que é bloqueada na terceira página todo dia.
+
+### O que a resposta traz, campo a campo
+
+Conferido num item real. À esquerda o campo do PNCP, à direita onde ele encaixa
+no que o radar **já tem**:
+
+| PNCP | `Oportunidade` |
+|---|---|
+| `numeroControlePNCP` | chave externa e procedência |
+| `objetoCompra` | título |
+| `valorTotalEstimado` | valor |
+| **`dataEncerramentoProposta`** | **`prazo_resposta`** — o campo que o radar existe para ter |
+| `unidadeOrgao.{ufSigla, municipioNome, nomeUnidade}` | órgão e lugar |
+| `modalidadeNome` | ex.: "Pregão - Eletrônico" |
+
+`linkSistemaOrigem` veio **nulo** no item conferido. Vale não contar com ele: o
+link para o edital pode ter de ser montado a partir do `numeroControlePNCP`.
+
+### O que a triagem achou de verdade
+
+Na primeira amostra, em Salvador, com proposta encerrando em **23/09**:
+
+    R$ 5.871.050,16   serviços de vigilância
+    R$ 5.115.249,72   serviços de vigilância
+
+Onze milhões em dois editais, abertos agora, que hoje só entram no radar se
+alguém lembrar de cadastrar à mão.
+
+---
+
+## 26.2.2 O custo, agora com número
+
+**Volume.** Cinco UFs a ~2.000 editais cada = 10.000 registros. A 50 por página
+são 200 requisições; a uma por segundo, **cerca de três minutos e meio**. É
+carga de madrugada, e cabe folgado na janela que o `deploy/crontab` já reserva.
+
+**Trabalho.** Um conector no padrão dos três que já existem, e nenhuma peça de
+arquitetura nova: carregador, espelho, procedência, carimbo de frescor, tela de
+fontes e histórico já estão prontos e são os mesmos.
+
+O que este conector tem **a menos** que os outros três:
+
+- não precisa de credencial;
+- não precisa de dicionário de ids (o `MONDAY_BOARDS` não tem equivalente aqui).
+
+O que ele tem **a mais**:
+
+- a pausa entre páginas;
+- a triagem por termo, que é a única regra de negócio de verdade — e a única
+  parte que não posso escrever sozinho.
 
 ---
 
@@ -125,10 +227,18 @@ O conector obedece às regras que já valem para os outros:
 
 Em ordem:
 
-1. **Meia hora** conferindo a documentação viva do PNCP: endpoints, limites,
-   e se os campos que o radar precisa estão todos lá.
-2. **Uma conversa com o comercial** para definir o filtro. Sem ele, o conector
-   entrega um radar que ninguém abre duas vezes.
+1. ~~Conferir a documentação viva do PNCP.~~ **Feito em 08/09/2026** — § 26.2.1.
+   Nenhum bloqueio: a consulta é pública, os campos que o radar precisa estão
+   todos lá, e o limite de requisição tem contorno conhecido.
+2. **Uma conversa com o comercial** para definir o filtro — e ela virou o
+   ÚNICO caminho crítico. Não é preferência: a API não filtra por palavra, a
+   triagem é nossa, e sem a lista de termos o conector baixa dois mil editais de
+   merenda escolar por UF. **Preciso de duas coisas:**
+   - as **UFs** onde a empresa disputa;
+   - os **termos** que definem um edital nosso — começo sugerido, tirado dos
+     objetos reais que a amostra devolveu: `vigilância`, `segurança
+     patrimonial`, `vigia`, `portaria`, `monitoramento eletrônico`, `controle de
+     acesso`, `brigada`, `segurança privada`, `guarda patrimonial`.
 3. **Só então** o conector, que é trabalho conhecido — o quarto de uma série em
    que os três primeiros já existem e compartilham carregador, espelho,
    procedência, carimbo de frescor e tela de fontes.
@@ -141,11 +251,18 @@ qualquer outra faixa — com carimbo, histórico e "de onde vem esse número".
 
 ## 26.5 O que este levantamento NÃO promete
 
-- **Não estimei prazo.** A estimativa depende do passo 1, e um número dado antes
-  dele seria chute com aparência de plano.
-- **Não escrevi endpoint nenhum.** Ver a nota do § 26.2.C.
 - **Não decidi o filtro.** Ele é do comercial, e é a parte que decide se o radar
-  serve ou vira ruído.
+  serve ou vira ruído. É também, agora, a única coisa que falta para começar.
+- **Não conferi os códigos de modalidade.** A especificação não os enumera. Dá
+  para ignorar no começo — sem `codigoModalidadeContratacao` a consulta traz
+  todas as modalidades, que é o que se quer enquanto o filtro é por palavra.
+- **Não sei a cobertura fora da amostra.** Medi Bahia. A proporção de 1% e o
+  volume de ~2.000 editais abertos por UF podem variar bastante em São Paulo, e
+  a leitura da primeira carga real é que responde isso.
+- **Não medi o limite de requisição com precisão.** Sei que 7 em 13 s reprova e
+  que 1 por segundo passa. Não fui além disso de propósito: é um portal público
+  do governo, e descobrir o teto exato exigiria justamente o tipo de rajada que
+  o conector nunca vai fazer.
 - **A decisão de 2026 sobre raspagem continua valendo** para feiras e eventos.
   O que este documento propõe não a contradiz: propõe uma fonte oficial para
   **outro** tipo de oportunidade, que estava na mesma tabela por acidente.
