@@ -1,0 +1,56 @@
+{% extends "workspace/_shell_modulo.html" %}
+{% load i18n wks %}
+
+{% block titulo %}{% trans "Satisfação do cliente" %}{% endblock %}
+
+{% comment %}
+  SATISFAÇÃO DO CLIENTE (17) — era a faixa 7 da tela 10.
+
+  Mesma razão da 16, outro público: o NPS é do comercial, e o papel `vendas`
+  passou a tê-lo sem receber junto o resultado financeiro da empresa.
+
+  O detrator SEM TRATATIVA é o motivo de a tela existir. Detrator com tratativa
+  é trabalho em andamento; sem tratativa é uma pessoa esperando — e por isso ele
+  não é linha de tabela, é destaque.
+
+  O comentário do cliente NÃO sai desta tela: ele não vai para o PDF nem para
+  exportação nenhuma. É por isso que esta tela não tem botão de PDF.
+{% endcomment %}
+{% block rail %}
+  {% include "workspace/resultados/_tarjas.html" %}
+  {% if not apresentacao %}
+    {% include "workspace/_rail_servicos.html" with aba="satisfacao" %}
+  {% endif %}
+{% endblock %}
+
+{% block trilha %}<span>{% trans "Satisfação do cliente" %}</span>{% endblock %}
+{% block pagina_titulo %}{% trans "Satisfação do cliente" %}{% endblock %}
+{% block voltar_url %}{% url 'workspace:home' %}{% endblock %}
+
+{% block pagina_descricao %}
+  <p class="au-pagina-desc">
+    {% if escopo_total %}{% trans "A empresa inteira." %}{% else %}{% trans "O seu recorte." %}{% endif %}
+    {% blocktrans with mes=filtros.competencia|date:"F \d\e Y" %}Competência de {{ mes }}.{% endblocktrans %}
+  </p>
+{% endblock %}
+
+{% comment %}
+  O bundle do ECharts só nas telas que desenham. Ver o comentário equivalente em
+  `resultados.html`: são 217 KB comprimidos, e a home não paga por eles.
+{% endcomment %}
+{% block scripts %}
+  <script src="{% estatico 'workspace/js/echarts.min.js' %}" defer></script>
+  <script src="{% estatico 'workspace/js/echarts-adb.js' %}" defer></script>
+{% endblock %}
+
+{% block corpo %}
+<div class="au-resultados{% if apresentacao %} au-resultados--apresentacao{% endif %}">
+
+{% if not apresentacao %}
+  {% include "workspace/resultados/_filtros.html" %}
+{% endif %}
+
+{% include "workspace/resultados/_faixas.html" %}
+
+</div>
+{% endblock %}

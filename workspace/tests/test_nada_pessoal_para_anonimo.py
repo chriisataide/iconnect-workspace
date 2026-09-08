@@ -99,6 +99,10 @@ def test_o_trilho_do_anonimo_e_todo_zero(client, gente_com_coisas):
         # financeiro não é informação institucional, e a tela de
         # fontes conta quais sistemas a empresa usa.
         "ve_resultados": False,
+        # As duas telas irmãs da 10 seguem a MESMA regra: quadro de pessoal é
+        # dado de gente, e a avaliação traz comentário de cliente.
+        "ve_quadro": False,
+        "ve_satisfacao": False,
         # §Onda 4 — o painel de exceções. `False` para anônimo pela
         # mesma razão dos outros dois: a lista de regras conta o que a
         # empresa vigia, e a grade nomeia gente.

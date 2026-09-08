@@ -76,6 +76,8 @@ SEM_SESSAO = {
     "habilitacoes_pendentes": 0,
     "ve_indicadores": False,
     "ve_resultados": False,
+    "ve_quadro": False,
+    "ve_satisfacao": False,
     "ve_excecoes": False,
     "ve_ciclos": False,
     "ve_planos": False,
@@ -184,6 +186,12 @@ def _calcular(request: HttpRequest) -> dict:
         # não uma: ver a procedência NÃO dá acesso aos números, e quem opera a
         # carga não vê o resultado financeiro.
         "ve_resultados": res.tem_acesso(pessoa, cache=cache),
+        # TRÊS perguntas e não uma, pela mesma razão de `ve_fontes` acima: quem
+        # responde por gente tem a 16 sem ter a 10, e o comercial tem a 17 sem
+        # ter nenhuma das outras. Uma pergunta só devolveria as três juntas — que
+        # é exatamente o acoplamento que separar as telas veio desfazer.
+        "ve_quadro": res.tem_acesso_a_pessoas(pessoa, cache=cache),
+        "ve_satisfacao": res.tem_acesso_a_satisfacao(pessoa, cache=cache),
         "ve_excecoes": exc.tem_painel(pessoa, cache=cache),
         # §Onda 5 — o ciclo de planejamento. Só para quem participa de
         # algum: um item de trilho que leva a 403 ensina a ignorar o trilho.

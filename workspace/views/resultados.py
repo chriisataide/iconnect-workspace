@@ -63,6 +63,52 @@ def resultados(request: HttpRequest) -> HttpResponse:
 
 
 @login_required
+def quadro(request: HttpRequest) -> HttpResponse:
+    """Quadro e jornada (16) — a antiga faixa 6 da tela 10.
+
+    Tela própria porque a PERGUNTA é de outra gente. Enquanto ela morava dentro
+    da Apresentação de Resultados, dar o turnover de um centro de custo a quem
+    responde por gente significava dar junto a margem de todo contrato da
+    empresa — e por isso ninguém dava.
+
+    Sem dado pessoal, aqui como lá: o quadro é agregado por centro de custo, e
+    nome de colaborador não entra em grade nem em exportação.
+    """
+    try:
+        panorama = svc.painel_de_pessoas(request.user, request.GET, cache=_cache(request))
+    except svc.SemResultados as sem:
+        raise PermissionDenied(str(sem))
+
+    return render(
+        request,
+        "workspace/quadro.html",
+        {**panorama, "apresentacao": request.GET.get("apresentacao") == "1"},
+    )
+
+
+@login_required
+def satisfacao(request: HttpRequest) -> HttpResponse:
+    """Satisfação do cliente (17) — a antiga faixa 7 da tela 10.
+
+    Mesma razão da 16, outro público: o NPS é do comercial. E o detrator SEM
+    tratativa é o motivo de a tela existir — ele não é linha de tabela, é uma
+    pessoa esperando.
+    """
+    try:
+        panorama = svc.painel_de_satisfacao(
+            request.user, request.GET, cache=_cache(request)
+        )
+    except svc.SemResultados as sem:
+        raise PermissionDenied(str(sem))
+
+    return render(
+        request,
+        "workspace/satisfacao.html",
+        {**panorama, "apresentacao": request.GET.get("apresentacao") == "1"},
+    )
+
+
+@login_required
 def resultados_detalhe(request: HttpRequest) -> HttpResponse:
     """As linhas por trás do agregado — o mecanismo 4.
 

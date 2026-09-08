@@ -73,7 +73,7 @@ GRUPO_POR_ROTA: dict[str, str] = {
     "resultados_detalhe": "resultados",
     "resultados_pdf": "resultados",
     "fontes": "resultados",
-    "pessoas_jornada": "resultados",
+    "quadro": "resultados",
     "satisfacao": "resultados",
     # GESTÃO — como a empresa se organiza e o que ela publica.
     "pessoas": "gestao",

@@ -1,0 +1,87 @@
+{% load i18n wks %}
+{% comment %}
+  OS DESTAQUES E AS FAIXAS — compartilhados pelas TRÊS telas de resultado.
+
+  A 10 traz quatro faixas, a 16 traz uma e a 17 traz outra. O que elas fazem
+  com uma faixa é idêntico: cabeçalho com carimbo de procedência, estado
+  vazio que explica o que falta, e o parcial certo para a chave.
+
+  Em três arquivos, a terceira semana traria uma delas com um carimbo
+  diferente — e carimbo é justamente o que não pode divergir entre telas que
+  leem o mesmo espelho.
+{% endcomment %}
+{% comment %} ── FAIXA 1 · Destaques ───────────────────────────────── {% endcomment %}
+<section class="au-secao-faixa" aria-labelledby="destaques">
+  <header class="au-secao-faixa-cabeca">
+    <h2 class="au-secao-titulo" id="destaques">{{ destaques.titulo }}</h2>
+  </header>
+  {% if destaques.disponivel %}
+    {% comment %}
+      O VALOR domina o cartão, e o título vira legenda dele. Era o contrário:
+      os três textos tinham peso parecido, e o número — que é a razão de o
+      cartão existir — se perdia entre eles.
+
+      A severidade aparece por SELO ESCRITO, e não só pela borda colorida de
+      3px. "Crítico" e "atenção" pedem ações diferentes: o primeiro diz que os
+      números abaixo estão velhos, o segundo aponta um número que merece
+      conversa. Distinguidos só pela cor da borda, os dois eram lidos igual —
+      e a regra do produto é que cor nunca vem sozinha.
+    {% endcomment %}
+    <ul class="au-destaques">
+      {% for cartao in destaques.conteudo.cartoes %}
+        <li class="au-destaque au-destaque--{{ cartao.severidade }}">
+          <a class="au-destaque-link" href="#{{ cartao.ancora }}"
+             {% if cartao.explicacao %}title="{{ cartao.explicacao }}"{% endif %}>
+            <span class="au-destaque-topo">
+              <span class="au-destaque-selo">
+                {% if cartao.severidade == "critico" %}{% trans "crítico" %}
+                {% else %}{% trans "atenção" %}{% endif %}
+              </span>
+              <span class="au-destaque-ir" aria-hidden="true">↓</span>
+            </span>
+            <span class="au-destaque-valor">{{ cartao.valor }}</span>
+            <span class="au-destaque-titulo">{{ cartao.titulo }}</span>
+            {% if cartao.detalhe %}<span class="au-destaque-detalhe">{{ cartao.detalhe }}</span>{% endif %}
+          </a>
+        </li>
+      {% endfor %}
+    </ul>
+  {% else %}
+    <div class="au-vazio">
+      <p class="au-vazio-titulo">{% trans "Nada exigindo atenção." %}</p>
+      <p class="au-vazio-dica">{{ destaques.motivo }}</p>
+    </div>
+  {% endif %}
+</section>
+
+{% for faixa in faixas %}
+  <section class="au-secao-faixa" aria-labelledby="{{ faixa.chave }}">
+    {% include "workspace/_faixa_cabeca.html" with faixa=faixa %}
+
+    {% if not faixa.disponivel %}
+      {% comment %}
+        Faixa sem dado NÃO some: ela explica o que falta. Sumir esconderia que
+        a faixa existe; um zero mentiria. As duas coisas que a leitura do
+        benchmark marcou como não copiar.
+      {% endcomment %}
+      <div class="au-vazio">
+        <p class="au-vazio-titulo">—</p>
+        <p class="au-vazio-dica">{{ faixa.motivo }}</p>
+      </div>
+
+    {% elif faixa.chave == "dinheiro" %}
+      {% include "workspace/resultados/_dinheiro.html" with faixa=faixa %}
+    {% elif faixa.chave == "contratos" %}
+      {% include "workspace/resultados/_contratos.html" with faixa=faixa %}
+    {% elif faixa.chave == "vencimentos" %}
+      {% include "workspace/resultados/_vencimentos.html" with faixa=faixa %}
+    {% elif faixa.chave == "projetos" %}
+      {% include "workspace/resultados/_projetos.html" with faixa=faixa %}
+    {% elif faixa.chave == "pessoas" %}
+      {% include "workspace/resultados/_pessoas.html" with faixa=faixa %}
+    {% elif faixa.chave == "satisfacao" %}
+      {% include "workspace/resultados/_satisfacao.html" with faixa=faixa %}
+    {% endif %}
+  </section>
+{% endfor %}
+

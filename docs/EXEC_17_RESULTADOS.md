@@ -298,3 +298,84 @@ não escondido por CSS.
 **Consequência:** duas telas divergiriam na terceira semana — e a que a diretoria
 vê na reunião é justamente a que não pode divergir. `display:none` deixaria a
 navegação no HTML, e o leitor de tela leria uma navegação que ninguém pode ver.
+
+
+---
+
+## 17.x A tela 10 vira três — e por que isso é permissão, não layout
+
+*Registrado em 04/09/2026.*
+
+### ADR-042 · Quadro e jornada e Satisfação do cliente saem da Apresentação de Resultados
+
+**Contexto.** A tela 10 tinha sete faixas. As faixas 6 e 7 — quadro/jornada e
+avaliação do cliente — respondiam perguntas de gente que não abre as outras
+cinco: o turnover de um centro de custo é conversa de R.H., e o NPS é do
+comercial.
+
+Enquanto elas moravam ali, as duas exigiam `eco.ler` — a mesma permissão que
+mostra a margem de cada contrato com o nome do cliente ao lado. A consequência
+não era teórica: **dar o NPS ao comercial exigia dar junto o resultado
+financeiro da empresa**, ninguém fazia isso, e o comercial simplesmente não via
+o NPS. A faixa existia e era lida só pela diretoria.
+
+**Decisão.** Duas telas próprias, com códigos próprios (**16** e **17**) e
+permissões próprias (`eco.pessoas` e `eco.satisfacao`).
+
+**Códigos novos, e não `10.1` e `10.2`.** Um código filho diria que elas ainda
+são parte da 10, e a decisão é justamente que não são. O ADR-015 proíbe
+renumerar depois — então é melhor errar para o lado de dois códigos
+independentes.
+
+**URL fora de `resultados/`.** `/workspace/quadro/` e `/workspace/satisfacao/`,
+e não `/workspace/resultados/quadro/`. Quem lê o endereço lê a hierarquia, e
+aninhar diria o contrário do que se decidiu.
+
+**Consequência — ninguém perde nada.** Todo papel que tinha `eco.ler.global`
+recebeu as duas permissões novas, e o gestor recebeu `eco.pessoas.departamento`,
+que é o recorte da faixa que ele já via. Uma separação que retira acesso em
+silêncio é pior do que não separar: o efeito aparece semanas depois, e ninguém
+associa à causa.
+
+**O que se ganhou** é uma linha nova na matriz, e ela é a prova de que a mudança
+serviu para alguma coisa:
+
+| | 10 · Resultados | 16 · Quadro | 17 · Satisfação |
+|---|---|---|---|
+| Diretoria, Sócios, R.H., Financeiro | ✅ | ✅ | ✅ |
+| Gestor | ✅ o CC dele | ✅ o CC dele | — |
+| **Vendas** | **—** | **—** | **✅** |
+| T.I. | — | — | — |
+
+**O que NÃO foi duplicado.** As três telas compartilham `_painel()`,
+`_faixas.html` e `_filtros.html`. Três cópias de `escopo_de` seriam três lugares
+onde "o gerente vê só o centro de custo dele" está escrito — e no dia em que
+discordassem, uma delas vazaria sem deixar rastro.
+
+**O que as telas 16 e 17 NÃO têm.** O grupo de filtros "O quê" (serviço, layer,
+deficitários) e os botões de PDF e Detalhamento: os três são atributos de
+CONTRATO, e ali não há contrato por trás do número. Um filtro que a pessoa
+escolhe e que não muda nada faz ela concluir que a tela quebrou.
+
+**A tela 99 continua listando as seis faixas.** A pergunta dela é "de onde vem
+cada número do produto", e essa pergunta não mudou porque duas faixas passaram a
+morar em outro endereço.
+
+### O trilho, na mesma onda
+
+"Acompanhar" tinha catorze itens para quem tem todas as permissões — medido:
+
+    colaborador    11 itens no trilho   maior grupo: Consultar (6)
+    gestor         15 itens             maior grupo: Consultar (6)
+    diretoria      28 itens             maior grupo: ACOMPANHAR (14)
+
+O trilho não estava errado; **um grupo** estava. Ele virou dois — "Resultados da
+empresa" e "Gestão" — e os grupos passaram a ser `<details>`, com só o da tela
+atual aberto.
+
+`<details>` e não JavaScript: abrir e fechar disclosure é comportamento nativo,
+funciona sem JS e não pede nonce na CSP. É o mesmo mecanismo do sino.
+
+Qual grupo abre sai de `navegacao.GRUPO_POR_ROTA`, lido do `resolver_match` — e
+não da variável `aba` que cada view preenche. "Cada view lembra" é a mesma aposta
+que já fez a topbar perder o sino uma vez.

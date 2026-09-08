@@ -29,6 +29,9 @@ mais.
 | Orçamento anual e revisão | 3.24 | revisão não apaga a versão anterior |
 | Os outros públicos da marca | 3.25 | nenhum link para fora que aponte para dentro |
 | Gráficos com biblioteca | **2.8** | tabela irmã em todos, e console limpo |
+| **Quadro e jornada** (16) | **3.18.2** | `vendas` NÃO abre; R.H. abre sem ver dinheiro |
+| **Satisfação do cliente** (17) | **3.18.3** | `vendas` abre — e não vê a 10 |
+| Trilho em grupos recolhíveis | **1.6** | só o grupo da tela atual nasce aberto |
 
 **Comece por aqui, nesta ordem:**
 
@@ -310,6 +313,36 @@ Em **toda** tela do Workspace, no canto superior direito:
   deslogar.
 - Em tela estreita a área some e fica o nome: nome sem área ainda identifica;
   área sem nome, não.
+
+---
+
+### 1.6 O trilho abre um grupo, e não todos
+
+Os grupos do trilho são `<details>`: só o da tela em que você está nasce aberto.
+Antes todos ficavam abertos, e para quem tem todas as permissões isso eram 28
+itens de uma vez.
+
+**O que testar:**
+
+- **Abra `/workspace/resultados/`** — "Resultados da empresa" está aberto e os
+  outros fechados. Vá para `/workspace/pessoas/` — agora "Gestão" abre e o
+  anterior fecha.
+- **Clique num título de grupo.** Ele abre e fecha. Se não fechar, alguém trocou
+  o `<details>` por JavaScript — e a CSP bloqueia `onclick` **em silêncio**.
+- **Desligue o JavaScript.** Os grupos continuam abrindo. É o teste que separa
+  disclosure nativo de gambiarra.
+- **Conte os itens de cada grupo: no máximo oito.** Acima disso a lista deixa de
+  ser lida de relance e passa a ser varrida item a item.
+- **"Acompanhar" não existe mais.** Ele virou "Resultados da empresa" e
+  "Gestão". Se você vir o antigo, é regressão.
+
+**Quantos itens cada perfil vê** — use como gabarito:
+
+```
+colaborador    11 itens   3 grupos: Hoje, Consultar, Pedir
+gestor         15 itens   5 grupos
+diretoria      28 itens   7 grupos
+```
 
 ---
 
@@ -1558,8 +1591,12 @@ ver [EXEC 16 § 16.7](EXEC_16_INGESTAO.md).
 ### 3.18 Apresentação de Resultados — `/workspace/resultados/` (código 10)
 
 **Para que serve.** É a tela que a diretoria pediu: o dinheiro, os contratos, o
-que vence, os projetos, as pessoas, a jornada e a avaliação do cliente — sete
-faixas, na competência escolhida.
+que vence e os projetos — **quatro** faixas, na competência escolhida.
+
+> **Eram sete até 04/09/2026.** Quadro/jornada e avaliação do cliente saíram
+> para as telas **16** e **17** (§ 3.18.2 e § 3.18.3): eram perguntas de outra
+> gente presas atrás da permissão do dinheiro. Se você as procurar aqui e não
+> achar, **não é bug** — e nenhum papel perdeu acesso na mudança.
 
 **Quando é útil.** Na reunião mensal, com `?apresentacao=1`.
 
@@ -1702,6 +1739,67 @@ o silêncio seria ambíguo.
 gerente e chame o endereço direto, com `?regional=` de outra regional: ele tem de
 recusar igual à tela. **Endpoint mais frouxo que a tela é achado de segurança** —
 é a porta que ninguém olha porque não tem botão.
+
+---
+
+### 3.18.2 Quadro e jornada — `/workspace/quadro/` (código 16)
+
+**Para que serve.** Efetivo, turnover, absenteísmo e horas por centro de custo.
+Era a faixa 6 da tela 10 até 04/09/2026.
+
+**Por que virou tela.** Enquanto morava dentro dos Resultados, ela exigia
+`eco.ler` — a mesma permissão que mostra a margem de cada contrato com o nome do
+cliente. Dar o turnover a quem responde por gente significava dar junto o
+resultado financeiro da empresa.
+
+**O teste que mais importa:** entre com **`rh@icodev.com.br`** e depois com
+**`vendas@icodev.com.br`**.
+
+- `rh` → **200** aqui, e **200** na tela 10 (ele já tinha as duas).
+- `vendas` → **403** aqui, e **403** na 10.
+
+Se algum papel que abria a tela 10 **perdeu** alguma coisa nesta mudança, **abra
+bug**: a separação foi feita para somar público, não para tirar.
+
+**O que mais testar:**
+
+- **O mapa de calor pinta turnover alto de VERMELHO.** Menor é melhor nessas
+  duas métricas — ver 3.18.
+- **O centro de custo que destoa aparece.** A média esconde: 8,4% num centro
+  contra 2,1% nos outros vira 2,6%.
+- **Nenhum nome de colaborador.** O quadro é agregado por centro de custo. Nome
+  em grade aqui é achado de segurança.
+- **Não há filtro de Serviço, Layer nem "Só deficitários"**, e não há botão de
+  PDF nem de Detalhamento. Os cinco são de CONTRATO, e aqui não há contrato por
+  trás do número. Se aparecerem, **abra bug** — filtro que não muda nada faz a
+  pessoa concluir que a tela quebrou.
+- **Competência e Regional continuam.** Esses recortam.
+
+---
+
+### 3.18.3 Satisfação do cliente — `/workspace/satisfacao/` (código 17)
+
+**Para que serve.** Promotores, neutros, detratores — e o **detrator sem
+tratativa** em destaque. Era a faixa 7 da tela 10.
+
+**A linha que prova que a separação serviu para alguma coisa:**
+
+- **`vendas@icodev.com.br` → 200 aqui, e 403 em `/workspace/resultados/`.**
+
+Antes isso era impossível: a única permissão que abria o NPS abria junto a
+margem de todo contrato. Na prática o comercial não via o NPS.
+
+**O que mais testar:**
+
+- **O detrator sem tratativa é DESTAQUE, não linha de tabela.** Com tratativa é
+  trabalho em andamento; sem tratativa é uma pessoa esperando.
+- **A barra mostra a CONTAGEM dentro do segmento.** 100% sobre doze respostas e
+  sobre mil desenham igual.
+- **Não existe botão de PDF nesta tela**, e é deliberado: o comentário do
+  cliente não sai daqui. Se aparecer um, **abra bug de segurança** — o PDF sai
+  do prédio.
+- **Nenhum nome de quem respondeu.** O provedor recusa esses campos; se um
+  aparecer, é achado de segurança.
 
 ---
 
@@ -2149,6 +2247,8 @@ esconde defeito** — nos dois sentidos.
 | Reservar / Minhas reservas | ➜ login | ✅ | ✅ | ✅ + cancelar de terceiros |
 | Correspondências | ➜ login | ✅ **só as minhas** | ✅ **só as minhas** | ✅ **fila completa** |
 | **Resultados** (10) | ➜ login | **403** | ✅ **só o escopo dele** | **403** |
+| **Quadro e jornada** (16) | ➜ login | **403** | ✅ só o escopo dele | **403** |
+| **Satisfação** (17) | ➜ login | **403** | ✅ (Vendas também) | **403** |
 | **Fontes de dados** (99) | ➜ login | **403** | **403** — é `eco.carga`, e não `eco.ler` | **403** |
 | **Exceções** (11) | ➜ login | **403** | ✅ só as do escopo | **403** |
 | Indicadores | ➜ login | **403** | ✅ | **403** |

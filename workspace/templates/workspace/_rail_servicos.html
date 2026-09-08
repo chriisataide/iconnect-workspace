@@ -134,7 +134,7 @@
   GESTÃO é como a empresa se organiza e o que ela publica.
 {% endcomment %}
 </details>
-{% if ve_indicadores or ve_ciclos or ve_excecoes or ve_planos or ve_orcamento or ve_resultados %}
+{% if ve_indicadores or ve_ciclos or ve_excecoes or ve_planos or ve_orcamento or ve_resultados or ve_quadro or ve_satisfacao %}
   <details class="au-rail-secao" {% if grupo_aberto == "resultados" %}open{% endif %}>
     <summary class="au-rail-grupo">{% trans "Resultados da empresa" %}</summary>
   {% comment %}
@@ -214,6 +214,28 @@
        href="{% url 'workspace:resultados' %}">
       <svg class="au-icon" aria-hidden="true"><use href="#i-wallet"></use></svg>
       {% trans "Resultados" %}
+    </a>
+  {% endif %}
+  {% comment %}
+    AS DUAS IRMÃS DA 10, e NÃO filhas dela.
+
+    `au-rail-item--filho` é para "Fontes de dados", que só existe por causa de
+    Resultados. Quadro e jornada e Satisfação existem sozinhas: quem administra
+    R.H. tem a 16 sem ter a 10, e o comercial tem a 17 sem ter nenhuma das
+    outras. Recuá-las diria que dependem da de cima.
+  {% endcomment %}
+  {% if ve_quadro %}
+    <a class="au-rail-item {% if aba == 'quadro' %}au-rail-item--ativo{% endif %}"
+       href="{% url 'workspace:quadro' %}">
+      <svg class="au-icon" aria-hidden="true"><use href="#i-users"></use></svg>
+      {% trans "Quadro e jornada" %}
+    </a>
+  {% endif %}
+  {% if ve_satisfacao %}
+    <a class="au-rail-item {% if aba == 'satisfacao' %}au-rail-item--ativo{% endif %}"
+       href="{% url 'workspace:satisfacao' %}">
+      <svg class="au-icon" aria-hidden="true"><use href="#i-spark"></use></svg>
+      {% trans "Satisfação do cliente" %}
     </a>
   {% endif %}
   {% if ve_fontes %}

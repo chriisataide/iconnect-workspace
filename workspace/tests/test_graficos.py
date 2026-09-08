@@ -90,7 +90,11 @@ def diretoria(db):
     f.lotar(pessoa, centro_custo_codigo="1042")
     f.atribuir(
         pessoa,
-        f.papel("diretoria_graficos", ["eco.ler.global"], escopo="global"),
+        f.papel(
+            "diretoria_graficos",
+            ["eco.ler.global", "eco.pessoas.global", "eco.satisfacao.global"],
+            escopo="global",
+        ),
         escopo="global",
     )
     return pessoa
@@ -1047,10 +1051,20 @@ def massa(db):
 
 def test_toda_faixa_com_dado_tem_grafico(client, massa, diretoria):
     """Uma faixa de números sem desenho é uma tabela com título — e a onda 10
-    existe para que ela não seja isso."""
+    existe para que ela não seja isso.
+
+    AS TRÊS TELAS somadas, e não só a 10: se o teste olhasse uma só, a separação
+    de 04/09/2026 teria "consertado" a cobertura fazendo dois gráficos deixarem
+    de ser conferidos.
+    """
     client.force_login(diretoria)
 
-    html = client.get(reverse("workspace:resultados")).content.decode()
+    html = "".join(
+        client.get(reverse(rota)).content.decode()
+        for rota in (
+            "workspace:resultados", "workspace:quadro", "workspace:satisfacao"
+        )
+    )
     desenhados = set(re.findall(r'data-grafico-tela="([^"]+)"', html))
 
     for esperado in (
@@ -1106,7 +1120,7 @@ def test_o_mapa_do_quadro_inverte_os_limiares(client, massa, diretoria):
     metade da equipe apareceria em verde."""
     client.force_login(diretoria)
 
-    mapa = client.get(reverse("workspace:resultados")).context[
+    mapa = client.get(reverse("workspace:quadro")).context[
         "por_chave"
     ]["pessoas"].conteudo["mapa"]
 
@@ -1121,7 +1135,7 @@ def test_a_satisfacao_mostra_o_numero_dentro_do_segmento(client, massa, diretori
     número real desta massa."""
     client.force_login(diretoria)
 
-    grafico = client.get(reverse("workspace:resultados")).context[
+    grafico = client.get(reverse("workspace:satisfacao")).context[
         "por_chave"
     ]["satisfacao"].conteudo["grafico"]
 
@@ -1167,11 +1181,18 @@ def test_faixa_indisponivel_nao_ganha_grafico_vazio(client, diretoria):
     contrato.limpar()
     try:
         client.force_login(diretoria)
-        resposta = client.get(reverse("workspace:resultados"))
-        assert resposta.status_code == 200
-        for chave in ("contratos", "projetos", "pessoas", "satisfacao"):
-            conteudo = resposta.context["por_chave"][chave].conteudo or {}
-            assert not conteudo.get("grafico"), f"{chave} desenhou sem fonte"
+        # AS TRÊS TELAS: a regra "sem fonte, sem gráfico" não é da tela 10, é do
+        # produto — e as irmãs nasceram depois dela.
+        for rota, chaves in (
+            ("workspace:resultados", ("contratos", "projetos")),
+            ("workspace:quadro", ("pessoas",)),
+            ("workspace:satisfacao", ("satisfacao",)),
+        ):
+            resposta = client.get(reverse(rota))
+            assert resposta.status_code == 200
+            for chave in chaves:
+                conteudo = resposta.context["por_chave"][chave].conteudo or {}
+                assert not conteudo.get("grafico"), f"{chave} desenhou sem fonte"
     finally:
         contrato.limpar()
         contrato._provedores.update(guardados)

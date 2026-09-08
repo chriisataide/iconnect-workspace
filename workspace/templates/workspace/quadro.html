@@ -1,0 +1,57 @@
+{% extends "workspace/_shell_modulo.html" %}
+{% load i18n wks %}
+
+{% block titulo %}{% trans "Quadro e jornada" %}{% endblock %}
+
+{% comment %}
+  QUADRO E JORNADA (16) — era a faixa 6 da tela 10.
+
+  Saiu de lá porque a PERGUNTA é de outra gente. Enquanto morava dentro da
+  Apresentação de Resultados, dar o turnover de um centro de custo a quem
+  responde por gente significava dar junto a margem de todo contrato da empresa,
+  e por isso ninguém dava: a faixa existia e era lida só pela diretoria.
+
+  SEM O GRUPO "O QUÊ" nos filtros. Serviço, layer e "só deficitários" são
+  atributos de CONTRATO, e aqui não há contrato por trás do número — um filtro
+  que a pessoa escolhe e que não muda nada faz ela concluir que a tela quebrou.
+
+  Sem dado pessoal, aqui como lá: o quadro é agregado por centro de custo.
+{% endcomment %}
+{% block rail %}
+  {% include "workspace/resultados/_tarjas.html" %}
+  {% if not apresentacao %}
+    {% include "workspace/_rail_servicos.html" with aba="quadro" %}
+  {% endif %}
+{% endblock %}
+
+{% block trilha %}<span>{% trans "Quadro e jornada" %}</span>{% endblock %}
+{% block pagina_titulo %}{% trans "Quadro e jornada" %}{% endblock %}
+{% block voltar_url %}{% url 'workspace:home' %}{% endblock %}
+
+{% block pagina_descricao %}
+  <p class="au-pagina-desc">
+    {% if escopo_total %}{% trans "A empresa inteira." %}{% else %}{% trans "O seu recorte." %}{% endif %}
+    {% blocktrans with mes=filtros.competencia|date:"F \d\e Y" %}Competência de {{ mes }}.{% endblocktrans %}
+  </p>
+{% endblock %}
+
+{% comment %}
+  O bundle do ECharts só nas telas que desenham. Ver o comentário equivalente em
+  `resultados.html`: são 217 KB comprimidos, e a home não paga por eles.
+{% endcomment %}
+{% block scripts %}
+  <script src="{% estatico 'workspace/js/echarts.min.js' %}" defer></script>
+  <script src="{% estatico 'workspace/js/echarts-adb.js' %}" defer></script>
+{% endblock %}
+
+{% block corpo %}
+<div class="au-resultados{% if apresentacao %} au-resultados--apresentacao{% endif %}">
+
+{% if not apresentacao %}
+  {% include "workspace/resultados/_filtros.html" %}
+{% endif %}
+
+{% include "workspace/resultados/_faixas.html" %}
+
+</div>
+{% endblock %}

@@ -45,6 +45,16 @@ from workspace.services import frescor as frs
 
 PERMISSAO = "eco.ler"
 
+#: As duas telas irmãs, com permissão PRÓPRIA — ver ADR-042.
+#:
+#: Quadro e jornada e Satisfação do cliente eram faixas da tela 10. São
+#: perguntas de outra gente: o turnover de um centro de custo é conversa de
+#: R.H., e o NPS é do comercial. Enquanto exigiam `eco.ler`, dar qualquer uma
+#: das duas a essa gente significava dar junto a margem de todo contrato — e por
+#: isso ninguém dava, e as duas ficavam sendo lidas só pela diretoria.
+PERMISSAO_PESSOAS = "eco.pessoas"
+PERMISSAO_SATISFACAO = "eco.satisfacao"
+
 #: Treze meses: doze para comparar com o mesmo mês do ano passado, mais o atual.
 #: Doze não bastam — a comparação anual é a única que separa crescimento de
 #: sazonalidade, e dezembro contra novembro não diz nada numa empresa que fatura
@@ -81,7 +91,12 @@ class SemResultados(Exception):
 # ── Escopo ──────────────────────────────────────────────────────────
 
 
-def escopo_de(pessoa, cache: dict | None = None) -> contrato.Escopo:
+def escopo_de(
+    pessoa,
+    permissao: str = PERMISSAO,
+    cache: dict | None = None,
+    recusa: str = "Esta tela é de quem responde por resultado.",
+) -> contrato.Escopo:
     """O recorte desta pessoa, traduzido do que `pode()` respondeu.
 
     Três respostas possíveis, e a terceira é 403:
@@ -91,10 +106,15 @@ def escopo_de(pessoa, cache: dict | None = None) -> contrato.Escopo:
       a lotação tem unidade. É o gerente, que precisa dos números da operação
       dele sem ver os da empresa.
     - **nada** — 403. Resultado financeiro não é informação institucional.
+
+    `permissao` é parâmetro porque as três telas — 10, 16 e 17 — recortam
+    IGUAL e autorizam DIFERENTE. Copiar esta função para cada uma criaria três
+    lugares onde "o gerente vê só o centro de custo dele" está escrito, e o dia
+    em que discordassem uma delas vazaria sem deixar rastro.
     """
-    escopo = escopo_da_permissao(pessoa, PERMISSAO, cache=cache)
+    escopo = escopo_da_permissao(pessoa, permissao, cache=cache)
     if escopo is None:
-        raise SemResultados("Esta tela é de quem responde por resultado.")
+        raise SemResultados(recusa)
     if escopo == ESCOPO_GLOBAL:
         return contrato.Escopo()
 
@@ -118,13 +138,23 @@ def escopo_de(pessoa, cache: dict | None = None) -> contrato.Escopo:
     return contrato.Escopo(regionais=regionais, centros_custo=centros)
 
 
-def tem_acesso(pessoa, cache: dict | None = None) -> bool:
+def tem_acesso(
+    pessoa, permissao: str = PERMISSAO, cache: dict | None = None
+) -> bool:
     """Se o trilho mostra o item. Exceção é para o caminho errado, não para um `if`."""
     try:
-        escopo_de(pessoa, cache=cache)
+        escopo_de(pessoa, permissao, cache=cache)
     except SemResultados:
         return False
     return True
+
+
+def tem_acesso_a_pessoas(pessoa, cache: dict | None = None) -> bool:
+    return tem_acesso(pessoa, PERMISSAO_PESSOAS, cache=cache)
+
+
+def tem_acesso_a_satisfacao(pessoa, cache: dict | None = None) -> bool:
+    return tem_acesso(pessoa, PERMISSAO_SATISFACAO, cache=cache)
 
 
 def _lotacao(pessoa):
@@ -1114,33 +1144,57 @@ def _cartoes_de_pessoas(faixa: Faixa | None) -> list[Destaque]:
 
 #: A ordem das faixas na tela É a mensagem, como a ordem da home. Primeiro o que
 #: exige decisão, depois o dinheiro, depois o que sustenta o dinheiro.
+#: As quatro faixas da tela 10. `pessoas` e `satisfacao` SAÍRAM daqui em
+#: 04/09/2026: são perguntas de outra gente, e viraram as telas 16 e 17.
+#:
+#: A tela 10 responde "o que a empresa produziu". Quadro e jornada respondem
+#: "como está a equipe", e a avaliação responde "o que o cliente achou" — e
+#: nenhuma das duas é lida por quem lê as outras quatro.
 MONTADORES = (
     ("dinheiro", dinheiro),
     ("contratos", contratos),
     ("vencimentos", vencimentos),
     ("projetos", projetos),
-    ("pessoas", pessoas),
-    ("satisfacao", satisfacao),
 )
 
+MONTADORES_PESSOAS = (("pessoas", pessoas),)
+MONTADORES_SATISFACAO = (("satisfacao", satisfacao),)
 
-def painel(pessoa, parametros, cache: dict | None = None) -> dict:
-    """Tudo o que a tela mostra. Levanta `SemResultados` para quem não tem escopo."""
+
+def _painel(
+    pessoa,
+    parametros,
+    *,
+    permissao: str,
+    montadores,
+    rota: str,
+    recusa: str,
+    perfura: bool = False,
+    cache: dict | None = None,
+) -> dict:
+    """O corpo comum das três telas de resultado.
+
+    As três recortam igual, filtram igual, carimbam igual e desenham igual — o
+    que muda é a permissão que abre a porta e quais faixas entram. Três cópias
+    desta função seriam três lugares onde "o gerente vê só o centro de custo
+    dele" está escrito.
+    """
     from django.urls import reverse
 
-    escopo = escopo_de(pessoa, cache=cache)
+    escopo = escopo_de(pessoa, permissao, cache=cache, recusa=recusa)
     filtros = ler_filtros(parametros)
-    base_url = reverse("workspace:resultados")
+    base_url = reverse(rota)
     recorte = _estreitar_por_atributo(filtros.aplicar(escopo), filtros)
 
     faixas: dict[str, Faixa] = {}
-    for chave, montador in MONTADORES:
+    for chave, montador in montadores:
         faixas[chave] = montador(recorte, filtros)
 
     # A perfuração entra DEPOIS de a faixa existir, e só na do dinheiro — é o
     # passo 7 do plano: um mecanismo isolado, numa faixa só. Ligar nas cinco de
     # uma vez tornaria impossível dizer qual delas quebrou.
-    _com_perfuracao(faixas["dinheiro"], recorte, filtros)
+    if perfura:
+        _com_perfuracao(faixas["dinheiro"], recorte, filtros)
     _com_graficos(faixas)
 
     return {
@@ -1148,7 +1202,7 @@ def painel(pessoa, parametros, cache: dict | None = None) -> dict:
         "escopo": recorte,
         "escopo_total": escopo.tudo,
         "destaques": destaques(faixas, filtros),
-        "faixas": [faixas[chave] for chave, _ in MONTADORES],
+        "faixas": [faixas[chave] for chave, _ in montadores],
         "por_chave": faixas,
         "competencias": _competencias_oferecidas(filtros.competencia),
         # Os serviços que EXISTEM no espelho, e não uma lista escrita à mão:
@@ -1163,6 +1217,44 @@ def painel(pessoa, parametros, cache: dict | None = None) -> dict:
         "url_apresentar": url_de_apresentacao(filtros, base_url),
         "url_detalhe": _url_com(reverse("workspace:resultados_detalhe"), filtros),
     }
+
+
+def painel(pessoa, parametros, cache: dict | None = None) -> dict:
+    """Tudo o que a tela mostra. Levanta `SemResultados` para quem não tem escopo."""
+    return _painel(
+        pessoa,
+        parametros,
+        permissao=PERMISSAO,
+        montadores=MONTADORES,
+        rota="workspace:resultados",
+        recusa="Esta tela é de quem responde por resultado.",
+        perfura=True,
+        cache=cache,
+    )
+
+
+def painel_de_pessoas(pessoa, parametros, cache: dict | None = None) -> dict:
+    return _painel(
+        pessoa,
+        parametros,
+        permissao=PERMISSAO_PESSOAS,
+        montadores=MONTADORES_PESSOAS,
+        rota="workspace:quadro",
+        recusa="Esta tela é de quem responde por gente.",
+        cache=cache,
+    )
+
+
+def painel_de_satisfacao(pessoa, parametros, cache: dict | None = None) -> dict:
+    return _painel(
+        pessoa,
+        parametros,
+        permissao=PERMISSAO_SATISFACAO,
+        montadores=MONTADORES_SATISFACAO,
+        rota="workspace:satisfacao",
+        recusa="Esta tela é de quem responde pela relação com o cliente.",
+        cache=cache,
+    )
 
 
 #: As janelas oferecidas. Três é o mínimo em que uma tendência existe; treze é
@@ -1619,10 +1711,14 @@ def mapa_das_faixas() -> list[dict]:
     Sai de `DEFINICOES`, e não de uma lista à mão nem de montar as seis faixas
     só para ler dois campos de cada: a primeira opção apodrece, a segunda toca o
     banco numa tela que não mostra número nenhum.
+
+    AS SEIS, e não as quatro da tela 10. A pergunta desta tela é "de onde vem
+    cada número do produto", e ela não muda porque duas faixas passaram a morar
+    em telas próprias — quem abre a 99 está atrás da fonte, não da tela.
     """
     return [
         {"chave": chave, "faixa": DEFINICOES[chave][0], "fonte": DEFINICOES[chave][1]}
-        for chave, _ in MONTADORES
+        for chave, _ in MONTADORES + MONTADORES_PESSOAS + MONTADORES_SATISFACAO
     ]
 
 

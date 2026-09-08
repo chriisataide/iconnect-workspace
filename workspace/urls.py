@@ -194,6 +194,11 @@ urlpatterns = [
     # O contrato de dados. MESMO escopo da tela — o erro clássico é a API
     # devolver tudo enquanto a tela filtra.
     path("resultados/dados/", views.resultados_dados, name="resultados_dados"),
+    # As duas telas irmãs da 10. FORA de `resultados/` de propósito: elas não
+    # são um recorte da apresentação de resultados, são outra pergunta com outro
+    # público — e uma URL aninhada diria o contrário a quem lê o endereço.
+    path("quadro/", views.quadro, name="quadro"),
+    path("satisfacao/", views.satisfacao, name="satisfacao"),
     path("resultados/fontes/", views.fontes, name="fontes"),
     path("resultados/fontes/<slug:chave>/recarregar/", views.recarregar_fonte,
          name="recarregar_fonte"),
