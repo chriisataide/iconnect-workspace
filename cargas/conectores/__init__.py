@@ -4,6 +4,7 @@
     conector_sankhya   financeiro, contábil, folha e compras
     conector_monday    projetos, marcos e responsáveis
     conector_platform  contratos, vigência e satisfação de cliente
+    conector_pncp      editais públicos com proposta aberta — fonte PÚBLICA
 
 Todos implementam o mesmo protocolo (`base.Conector`) e **nenhum escreve no
 banco**: quem grava é o carregador, uma vez só, do mesmo jeito para todos. Um
@@ -18,7 +19,7 @@ __all__ = ["Conector", "Janela", "Registro", "conector_de", "registrar"]
 
 
 def semear() -> None:
-    """Registra os quatro conectores. Chamado no `ready()` do app.
+    """Registra os cinco conectores. Chamado no `ready()` do app.
 
     Registrar TODOS, inclusive os sem credencial neste ambiente: `disponivel()`
     é quem responde por isso, e a diferença importa. Um conector ausente do
@@ -29,9 +30,13 @@ def semear() -> None:
     from .csv import ConectorCSV
     from .monday import ConectorMonday
     from .platform import ConectorPlatform
+    from .pncp import ConectorPNCP
     from .sankhya import ConectorSankhya
 
-    for conector in (ConectorCSV(), ConectorSankhya(), ConectorMonday(), ConectorPlatform()):
+    for conector in (
+        ConectorCSV(), ConectorSankhya(), ConectorMonday(),
+        ConectorPlatform(), ConectorPNCP(),
+    ):
         try:
             registrar(conector)
         except ValueError:

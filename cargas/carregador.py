@@ -54,6 +54,7 @@ from django.db import transaction
 from django.utils import timezone
 
 from resultados.models import (
+    EditalPublico,
     Apontamento,
     AvaliacaoCliente,
     CompetenciaResultado,
@@ -79,6 +80,7 @@ ENTIDADES = {
     "quadro": QuadroPessoas,
     "apontamento": Apontamento,
     "avaliacao": AvaliacaoCliente,
+    "edital": EditalPublico,
 }
 
 #: Como achar a linha que já existe, por entidade. É a chave de NEGÓCIO, e não
@@ -93,6 +95,11 @@ CHAVE_DE_NEGOCIO = {
     "quadro": ("centro_custo", "ano", "mes"),
     "apontamento": ("centro_custo", "ano", "mes"),
     "avaliacao": ("contrato", "data"),
+    # O número de controle do PNCP é único no país e estável no tempo — é a
+    # chave de negócio óbvia. Diferente dos outros, aqui ela COINCIDE com a
+    # `chave_externa`: só existe uma fonte para edital público, e por isso não
+    # há duas descrições da mesma linha para a precedência resolver.
+    "edital": ("numero_controle",),
 }
 
 #: Campos de mecânica. Nunca vêm do conector e nunca entram no hash — se

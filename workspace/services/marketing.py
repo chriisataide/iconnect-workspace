@@ -96,6 +96,36 @@ def resumo() -> dict:
     }
 
 
+# ── O radar externo: editais do PNCP ────────────────────────────────
+
+
+def editais_publicos(limite: int = 40) -> list:
+    """Os editais espelhados do PNCP, do que encerra antes para o que vem depois.
+
+    Lista SEPARADA das oportunidades, e não misturada com elas — a razão é a
+    mesma que pôs os editais no espelho em vez de em `Oportunidade`:
+
+      - uma `Oportunidade` é registro NOSSO: alguém cadastrou, alguém decidiu, e
+        o motivo do descarte fica guardado;
+      - um edital é registro do GOVERNO: ele muda por conta dele e some quando a
+        proposta encerra.
+
+    Misturá-los numa lista só faria a próxima carga sobrescrever o texto que
+    alguém escreveu à mão — que é a única coisa que o radar guarda de verdade.
+
+    Sem provedor registrado devolve `[]`, e a tela diz que a fonte não está no
+    ar. Não levanta: o radar tem vida própria sem o PNCP, e derrubá-lo porque
+    uma fonte externa não respondeu seria trocar uma faixa vazia por uma tela
+    de erro.
+    """
+    from workspace.providers import resultados as contrato
+
+    provedor = contrato.obter(contrato.ProvedorEditais)
+    if provedor is None:
+        return []
+    return list(provedor.editais())[:limite]
+
+
 # ── Cadastrar e decidir ─────────────────────────────────────────────
 
 

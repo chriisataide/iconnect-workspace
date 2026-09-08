@@ -237,11 +237,20 @@ def test_o_modo_apresentacao_mostra_os_mesmos_numeros(client, diretoria_com_mass
     assert _totais(normal) == _totais(reuniao)
 
 
-def test_a_tela_de_fontes_lista_as_quatro_e_a_divergencia(client, diretoria_com_massa):
+def test_a_tela_de_fontes_lista_todas_e_a_divergencia(client, diretoria_com_massa):
+    """CINCO desde 08/09/2026 — o PNCP entrou.
+
+    O número sai de `FonteDados`, e não de uma constante: a tela 99 existe para
+    responder "de onde vem cada número", e uma fonte cadastrada que não
+    aparecesse ali seria justamente a que ninguém audita.
+    """
+    from cargas.models import FonteDados
+
     client.force_login(diretoria_com_massa)
 
     resposta = client.get(reverse("workspace:fontes"))
 
-    assert len(resposta.context["fontes"]) == 4
+    assert len(resposta.context["fontes"]) == FonteDados.objects.count()
+    assert len(resposta.context["fontes"]) == 5
     assert resposta.context["divergencias"], "a massa planta uma"
     assert resposta.context["historico"], "as três cargas ficaram registradas"

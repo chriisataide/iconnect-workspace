@@ -254,6 +254,42 @@ class AvaliacaoDTO(ComProcedencia):
 
 
 @dataclass(frozen=True)
+class EditalDTO(ComProcedencia):
+    """Um edital com proposta aberta.
+
+    `termo_casado` vem junto de propósito: a triagem por palavra é nossa, ela
+    vai errar nas primeiras semanas, e a tela é onde o comercial vê o ruído. Sem
+    este campo, "por que este edital de merenda entrou?" não tem resposta e a
+    lista de termos nunca melhora.
+    """
+
+    numero_controle: str = ""
+    objeto: str = ""
+    orgao: str = ""
+    unidade: str = ""
+    uf: str = ""
+    municipio: str = ""
+    modalidade: str = ""
+    valor_estimado: Decimal | None = None
+    encerramento: datetime | None = None
+    termo_casado: str = ""
+    link: str = ""
+
+    @property
+    def dias_para_encerrar(self) -> int | None:
+        """Quantos dias faltam. `None` quando não há prazo declarado.
+
+        É o número que ordena o radar — e o que separa "vale olhar" de "já
+        passou". Negativo quer dizer que encerrou, e a tela filtra isso.
+        """
+        if self.encerramento is None:
+            return None
+        from django.utils import timezone
+
+        return (self.encerramento.date() - timezone.localdate()).days
+
+
+@dataclass(frozen=True)
 class MovimentacaoDTO:
     """Conquistas, renovações e perdas de um período."""
 
@@ -362,6 +398,23 @@ class ProvedorSatisfacao(ABC):
         return []
 
 
+class ProvedorEditais(ABC):
+    """Editais públicos com proposta aberta — o radar externo.
+
+    SEM `escopo`, e é o único assim. Os outros cinco contratos recortam pelo
+    que a pessoa responde: contrato, centro de custo, regional. Um edital ainda
+    não é de ninguém — ele é uma oportunidade que a empresa pode ou não
+    disputar, e recortá-lo por centro de custo esconderia justamente o de outra
+    regional que valeria a pena.
+
+    Quem decide o recorte aqui é a TRIAGEM do conector (`PNCP_TERMOS`), e não
+    o organograma.
+    """
+
+    def editais(self, ate: date | None = None) -> list[EditalDTO]:
+        return []
+
+
 CONTRATOS: tuple[type, ...] = (
     ProvedorResultadoFinanceiro,
     ProvedorCarteira,
@@ -369,6 +422,7 @@ CONTRATOS: tuple[type, ...] = (
     ProvedorPessoas,
     ProvedorJornada,
     ProvedorSatisfacao,
+    ProvedorEditais,
 )
 
 

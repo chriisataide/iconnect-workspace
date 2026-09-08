@@ -322,6 +322,22 @@ CSRF_COOKIE_NAME = "wks_csrf"
 # O destino do tile no launcher e dos cards que levam para fora.
 ICONNECT_URL = _env("ICONNECT_URL", "https://app.icodev.com.br/login/")
 
+# ── PNCP · editais públicos ─────────────────────────────────────────
+#
+# A ÚNICA fonte do produto sem credencial: a Lei 14.133/2021 obriga a
+# publicação e a API de consulta é aberta. Conferido em 08/09/2026 — uma
+# chamada sem cabeçalho nenhum responde 200.
+#
+# `None` nos dois quer dizer "usa o padrão do conector": as 27 UFs e a lista de
+# termos definida pelo comercial. Estão aqui, e não só no código, porque a lista
+# de termos É o produto deste conector — ela vai errar nas primeiras semanas, e
+# ajustá-la não pode exigir um deploy.
+#
+# `EditalPublico.termo_casado` guarda qual termo trouxe cada linha: é com ele
+# que se vê o ruído e se poda a lista.
+PNCP_UFS: list[str] | None = None
+PNCP_TERMOS: list[str] | None = None
+
 # ── O nome do produto ───────────────────────────────────────────────
 #
 # Aqui, e em UM lugar só. O nome já esteve escrito à mão em vinte e um pontos —

@@ -266,3 +266,87 @@ qualquer outra faixa — com carimbo, histórico e "de onde vem esse número".
 - **A decisão de 2026 sobre raspagem continua valendo** para feiras e eventos.
   O que este documento propõe não a contradiz: propõe uma fonte oficial para
   **outro** tipo de oportunidade, que estava na mesma tabela por acidente.
+
+
+---
+
+## 26.6 Implementado — 08/09/2026
+
+O comercial respondeu as duas perguntas do § 26.4 no mesmo dia: **todas as 27
+UFs**, e catorze termos. O conector foi escrito.
+
+### O que entrou
+
+    resultados/models.py          EditalPublico, no ESPELHO
+    cargas/conectores/pncp.py     o conector
+    cargas/carregador.py          a entidade "edital"
+    workspace/providers/…         ProvedorEditais + EditalDTO
+    resultados/providers.py       a implementação
+    workspace/services/marketing  editais_publicos()
+    workspace/templates/…         o bloco no radar
+    deploy/crontab                às 4h
+
+### A decisão de desenho que não era óbvia
+
+**O edital NÃO vira `Oportunidade`.** Ele mora no espelho, em bloco próprio na
+tela, e a razão é o que cada tabela guarda:
+
+- `Oportunidade` é registro **nosso**: alguém cadastrou, alguém decidiu, e o
+  motivo do descarte fica guardado. É o campo mais útil da tabela.
+- `EditalPublico` é registro do **governo**: muda por conta dele, some quando a
+  proposta encerra.
+
+Numa tabela só, a carga da madrugada seguinte sobrescreveria o texto escrito à
+mão — que é a única coisa que o radar guarda de verdade.
+
+Há também a direção da dependência: `cargas` grava no espelho, e o app
+`workspace` nunca é escrito de fora. Espelhar respeita a mesma regra dos outros
+seis modelos e ganha de graça procedência, carimbo de frescor, idempotência e a
+tela 99.
+
+### `termo_casado`, o campo que parece supérfluo
+
+Ele guarda QUAL termo trouxe cada linha, e aparece na tela. Sem ele, "por que
+este edital de merenda entrou?" não tem resposta — e a lista de termos, que vai
+errar nas primeiras semanas, nunca melhora. `PNCP_TERMOS` fica em `settings`
+pela mesma razão: ajustá-la não pode exigir um deploy.
+
+### O agendamento: 4h, e não 5h50
+
+O PNCP é o único que **não alimenta a Apresentação de Resultados**. Nada em
+`avaliar_excecoes` nem em `verificar_planos` depende dele, então ele não precisa
+caber na corrente das 5h30 às 8h30 — e ele é o mais demorado dos cinco (27 UFs,
+pausa de 1,5 s por página, cerca de vinte minutos). Às 4h ele sai da frente da
+carga do Sankhya, que é a que a diretoria abre às 8h.
+
+### O que NÃO foi possível conferir, e é honesto dizer
+
+**A carga ao vivo não rodou.** A API de consulta do PNCP ficou fora do ar no
+meio desta implementação — o portal responde em 0,05 s, e o endpoint de consulta
+esgota o tempo em 25 s. Foram três tentativas, ao longo de mais de uma hora.
+
+O que **está** provado:
+
+- a **normalização**, contra a resposta real capturada mais cedo: 10 itens
+  brutos → 2 registros, e os dois são os contratos de vigilância de Salvador;
+- a **carga inteira**, contra uma resposta falsa: grava no espelho com
+  procedência, e rodar de novo não duplica;
+- o **caminho da falha**, medido na hora e não simulado: `status=falha`,
+  `motivo: "pncp.gov.br não respondeu"`, **zero linhas escritas**. Foi
+  exatamente assim que o conector se comportou durante a indisponibilidade
+  real.
+
+O que **falta** provar é o volume: quantos editais as 27 UFs devolvem, quanto
+tempo a carga leva de ponta a ponta, e qual a taxa de ruído da lista de termos
+fora da amostra da Bahia. Isso a primeira carga real responde — e `termo_casado`
+é o campo com que se lê a resposta.
+
+### O primeiro comando a rodar quando o PNCP voltar
+
+```bash
+python manage.py carregar_fonte pncp            # simulação, não grava
+python manage.py carregar_fonte pncp --aplicar
+```
+
+Depois, abrir `/workspace/marketing/` e olhar a coluna do termo. Se aparecer
+coisa que não é da empresa, a poda é uma linha em `PNCP_TERMOS`.

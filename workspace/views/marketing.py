@@ -54,6 +54,10 @@ def marketing(request: HttpRequest) -> HttpResponse:
         "workspace/marketing.html",
         {
             "oportunidades": list(mkt.radar(situacao)),
+            # Os editais do PNCP, em bloco PRÓPRIO — ver
+            # `mkt.editais_publicos` para por que não são misturados com as
+            # oportunidades cadastradas à mão.
+            "editais": mkt.editais_publicos(),
             "prazos": mkt.com_prazo_estourando(),
             "resumo": mkt.resumo(),
             "situacao_atual": situacao,

@@ -59,6 +59,85 @@
   </section>
 {% endif %}
 
+{% comment %}
+  OS EDITAIS PÚBLICOS, em bloco PRÓPRIO — e não misturados com as oportunidades.
+
+  Uma `Oportunidade` é registro NOSSO: alguém cadastrou, alguém decidiu, e o
+  motivo do descarte fica guardado. Um edital é registro do GOVERNO: ele muda
+  por conta dele e some quando a proposta encerra. Numa lista só, a carga da
+  madrugada seguinte sobrescreveria o texto que alguém escreveu à mão — que é a
+  única coisa que o radar guarda de verdade.
+
+  Vem DEPOIS de "Precisa decidir": o que a empresa já resolveu acompanhar tem
+  precedência sobre o que ainda é só um edital publicado.
+{% endcomment %}
+<section class="au-secao">
+  <div class="au-secao-cabeca">
+    <h2 class="au-secao-titulo">{% trans "Editais públicos com proposta aberta" %}</h2>
+    {% if editais %}<span class="au-secao-contagem">{{ editais|length }}</span>{% endif %}
+  </div>
+
+  {% if editais %}
+    <p class="au-ajuda">
+      {% blocktrans %}Vindos do PNCP, filtrados pelos termos de segurança. Encerram
+      primeiro os de cima. A etiqueta diz qual termo trouxe cada um — se aparecer
+      coisa que não é nossa, é a lista de termos que precisa de poda.{% endblocktrans %}
+    </p>
+    <div class="au-tabela">
+      <table>
+        <thead>
+          <tr>
+            <th>{% trans "Objeto" %}</th>
+            <th>{% trans "Órgão" %}</th>
+            <th class="num">{% trans "Valor estimado" %}</th>
+            <th class="num">{% trans "Encerra" %}</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for e in editais %}
+            <tr>
+              <td>
+                {% if e.link %}
+                  <a href="{{ e.link }}" rel="noopener noreferrer" target="_blank">{{ e.objeto|truncatechars:110 }}</a>
+                {% else %}
+                  {{ e.objeto|truncatechars:110 }}
+                {% endif %}
+                <small class="au-procedencia">{{ e.termo_casado }} · {{ e.procedencia.chave_externa }}</small>
+              </td>
+              <td>
+                {{ e.orgao|default:e.unidade|truncatechars:48 }}
+                <small class="au-procedencia">{{ e.municipio }}{% if e.uf %} · {{ e.uf }}{% endif %}</small>
+              </td>
+              <td class="num">{% if e.valor_estimado %}R$ {{ e.valor_estimado|moeda }}{% else %}—{% endif %}</td>
+              <td class="num">
+                {{ e.encerramento|date:"d/m/Y" }}
+                {% if e.dias_para_encerrar is not None %}
+                  <small class="au-procedencia">
+                    {% blocktrans count n=e.dias_para_encerrar %}{{ n }} dia{% plural %}{{ n }} dias{% endblocktrans %}
+                  </small>
+                {% endif %}
+              </td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  {% else %}
+    {% comment %}
+      Vazio NÃO some, e não mente: ou a carga ainda não rodou, ou nenhum edital
+      aberto casou com os termos. As duas coisas pedem ação diferente, e a tela
+      99 é onde se descobre qual das duas é.
+    {% endcomment %}
+    <div class="au-vazio">
+      <p class="au-vazio-titulo">{% trans "Nenhum edital no espelho." %}</p>
+      <p class="au-vazio-dica">
+        {% blocktrans %}Ou a carga do PNCP ainda não rodou, ou nenhum edital aberto
+        casou com os termos de busca. A tela de Fontes de dados diz qual das duas.{% endblocktrans %}
+      </p>
+    </div>
+  {% endif %}
+</section>
+
 <form class="au-filtros" method="get" action="{% url 'workspace:marketing' %}">
   <div class="au-filtros-chips">
     <a class="au-chip {% if not situacao_atual %}au-chip--ativo{% endif %}"

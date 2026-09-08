@@ -52,6 +52,16 @@ LOG=/var/log/workspace
 30 5 * * *  cd $APP && $VENV manage.py carregar_fonte sankhya           --aplicar >> $LOG/carga.log 2>&1
 40 5 * * *  cd $APP && $VENV manage.py carregar_fonte monday            --aplicar >> $LOG/carga.log 2>&1
 50 5 * * *  cd $APP && $VENV manage.py carregar_fonte iconnect_platform --aplicar >> $LOG/carga.log 2>&1
+# O PNCP é o ÚLTIMO, e às 4h — antes de todos, não depois.
+#
+# Ele é a única carga que não alimenta a Apresentação de Resultados: nada em
+# `avaliar_excecoes` nem em `verificar_planos` depende dele, então ele não
+# precisa caber na corrente das 5h30 às 8h30. E ele é o mais DEMORADO dos
+# cinco: 27 UFs, uma pausa de 1,5 s por página, cerca de vinte minutos.
+#
+# Pô-lo às 4h tira esses vinte minutos da frente da carga do Sankhya, que é a
+# que a diretoria abre às 8h.
+0 4 * * *   cd $APP && $VENV manage.py carregar_fonte pncp              --aplicar >> $LOG/carga.log 2>&1
 
 # ── 06h — os avisos, antes do expediente ─────────────────────────────
 #

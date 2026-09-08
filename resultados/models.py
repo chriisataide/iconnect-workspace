@@ -50,6 +50,11 @@ class Fonte(models.TextChoices):
     PLATFORM = "iconnect_platform", "iConnect Platform"
     CSV = "csv", "Carga por arquivo"
     MANUAL = "manual", "Lançamento manual"
+    #: O PNCP é a única fonte PÚBLICA da lista, e a única que não exige
+    #: credencial: a Lei 14.133/2021 obriga a publicação, e a API de consulta é
+    #: aberta. As outras três descrevem o que a empresa JÁ tem; esta descreve o
+    #: que ela ainda pode buscar.
+    PNCP = "pncp", "PNCP · contratações públicas"
 
 
 class ProcedenciaMixin(models.Model):
@@ -380,3 +385,67 @@ class AvaliacaoCliente(ProcedenciaMixin):
 
     def __str__(self) -> str:
         return f"{self.contrato.codigo} · {self.get_classificacao_display()}"
+
+
+class EditalPublico(ProcedenciaMixin):
+    """Um edital com proposta aberta, espelhado do PNCP.
+
+    ## Por que no espelho, e não direto em `workspace.models.marketing`
+
+    `Oportunidade` é o radar da empresa: alguém cadastra, alguém decide, e o
+    motivo do descarte fica guardado. É um registro NOSSO.
+
+    Um edital não é nosso. Ele é publicado por um órgão, muda por conta dele, e
+    some quando a proposta encerra. Gravá-lo em `Oportunidade` misturaria o que
+    a empresa decidiu com o que o governo publicou — e, na primeira recarga,
+    sobrescreveria o motivo que alguém escreveu à mão.
+
+    Além disso, a direção da dependência não permite: `cargas` grava no espelho,
+    e o app `workspace` nunca é escrito de fora. Espelhar aqui é a mesma regra
+    dos outros seis modelos deste arquivo, com o mesmo carimbo e a mesma
+    procedência.
+
+    ## O elo com o radar
+
+    Quando alguém decide disputar, o edital vira uma `Oportunidade` — copiada
+    UMA vez, e a partir dali com vida própria. É o mesmo desenho do
+    `Oportunidade.solicitacao`: o registro que decide é outro do que registra.
+
+    ## `termo_casado` é o campo que permite ajustar o filtro
+
+    A API do PNCP não filtra por palavra: a triagem é nossa, e ela é a única
+    regra de negócio deste conector. Guardar QUAL termo casou é o que deixa o
+    comercial ver o ruído e podar a lista — sem ele, "por que este edital de
+    merenda entrou?" não tem resposta, e a lista de termos nunca melhora.
+    """
+
+    numero_controle = models.CharField(max_length=60, db_index=True)
+    objeto = models.TextField()
+    orgao = models.CharField(max_length=200, blank=True)
+    unidade = models.CharField(max_length=200, blank=True)
+    uf = models.CharField(max_length=2, db_index=True)
+    municipio = models.CharField(max_length=120, blank=True)
+    modalidade = models.CharField(max_length=80, blank=True)
+    valor_estimado = models.DecimalField(
+        max_digits=16, decimal_places=2, null=True, blank=True
+    )
+    abertura_proposta = models.DateTimeField(null=True, blank=True)
+    #: A RAZÃO DE O RADAR EXISTIR: a data em que a decisão precisa acontecer.
+    #: `db_index` porque toda consulta da tela ordena ou filtra por ela.
+    encerramento_proposta = models.DateTimeField(null=True, blank=True, db_index=True)
+    #: Qual termo da triagem casou. Ver o cabeçalho.
+    termo_casado = models.CharField(max_length=80, blank=True, db_index=True)
+    link = models.URLField(max_length=500, blank=True)
+
+    class Meta:
+        ordering = ["encerramento_proposta"]
+        verbose_name = "edital público"
+        verbose_name_plural = "editais públicos"
+        constraints = [
+            models.UniqueConstraint(
+                fields=["fonte", "chave_externa"], name="res_edital_origem_unica"
+            )
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.numero_controle} · {self.objeto[:40]}"

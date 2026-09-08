@@ -561,3 +561,97 @@ def test_o_prazo_apertado_vira_card_urgente_na_home(cenario, client):
 
     assert card.urgente
     assert card.contagem == 1
+
+
+# ── Os editais públicos no radar ────────────────────────────────────
+#
+# Eles vêm do espelho, e NÃO viram `Oportunidade`. A razão é a que decidiu o
+# desenho inteiro: uma `Oportunidade` é registro NOSSO — alguém cadastrou,
+# alguém decidiu, e o motivo do descarte fica guardado. Um edital é registro do
+# GOVERNO. Numa tabela só, a carga da madrugada seguinte sobrescreveria o texto
+# escrito à mão, que é a única coisa que o radar guarda de verdade.
+
+
+@pytest.fixture
+def edital(db):
+    from datetime import timedelta
+
+    from django.utils import timezone
+    from resultados.models import EditalPublico
+
+    return EditalPublico.objects.create(
+        fonte="pncp",
+        chave_externa="00509968000148-1-004225/2025",
+        numero_controle="00509968000148-1-004225/2025",
+        objeto="Contratação de serviços de vigilância armada",
+        orgao="Ministério da Fazenda",
+        uf="BA",
+        municipio="Salvador",
+        valor_estimado=Decimal("5871050.16"),
+        encerramento_proposta=timezone.now() + timedelta(days=15),
+        termo_casado="vigilancia",
+        link="https://pncp.gov.br/app/editais/00509968000148/2025/4225",
+    )
+
+
+def test_o_radar_mostra_o_edital_espelhado(client, cenario, edital):
+    client.force_login(cenario["mkt"])
+
+    corpo = client.get(reverse("workspace:marketing")).content.decode()
+
+    assert "Editais públicos com proposta aberta" in corpo
+    assert "vigilância armada" in corpo
+    assert "Salvador" in corpo
+
+
+def test_o_edital_mostra_QUAL_termo_o_trouxe(client, cenario, edital):
+    """A triagem por palavra é nossa e vai errar nas primeiras semanas. Sem este
+    campo na tela, "por que este edital de merenda entrou?" não tem resposta e a
+    lista de termos nunca melhora."""
+    client.force_login(cenario["mkt"])
+
+    corpo = client.get(reverse("workspace:marketing")).content.decode()
+
+    assert "vigilancia" in corpo
+    assert edital.chave_externa in corpo, "procedência na tela"
+
+
+def test_edital_encerrado_nao_aparece(client, cenario, db):
+    """A pergunta da tela é "o que ainda dá para disputar". Um edital vencido é
+    ruído — mas a LINHA fica no espelho: apagá-la faria a mesma disputa voltar
+    do zero no ano seguinte."""
+    from datetime import timedelta
+
+    from django.utils import timezone
+    from resultados.models import EditalPublico
+
+    EditalPublico.objects.create(
+        fonte="pncp", chave_externa="x-1/2024", numero_controle="x-1/2024",
+        objeto="Vigilância que já encerrou", uf="BA",
+        encerramento_proposta=timezone.now() - timedelta(days=2),
+        termo_casado="vigilancia",
+    )
+    client.force_login(cenario["mkt"])
+
+    corpo = client.get(reverse("workspace:marketing")).content.decode()
+
+    assert "que já encerrou" not in corpo
+    assert EditalPublico.objects.count() == 1, "a linha fica no espelho"
+
+
+def test_sem_provedor_a_tela_diz_o_que_falta_e_nao_quebra(client, cenario):
+    """O radar tem vida própria sem o PNCP. Derrubar a tela porque uma fonte
+    externa não respondeu seria trocar uma faixa vazia por uma tela de erro."""
+    from workspace.providers import resultados as contrato
+
+    guardados = dict(contrato._provedores)
+    contrato.limpar()
+    try:
+        client.force_login(cenario["mkt"])
+        resposta = client.get(reverse("workspace:marketing"))
+
+        assert resposta.status_code == 200
+        assert "Nenhum edital no espelho" in resposta.content.decode()
+    finally:
+        contrato.limpar()
+        contrato._provedores.update(guardados)

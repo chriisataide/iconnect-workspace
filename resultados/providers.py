@@ -25,6 +25,7 @@ from workspace.providers.resultados import (
     CompetenciaDTO,
     ConsolidadoDTO,
     ContratoDTO,
+    EditalDTO,
     Escopo,
     MarcoDTO,
     MovimentacaoDTO,
@@ -32,6 +33,7 @@ from workspace.providers.resultados import (
     Procedencia,
     ProjetoDTO,
     ProvedorCarteira,
+    ProvedorEditais,
     ProvedorJornada,
     ProvedorPessoas,
     ProvedorProjetos,
@@ -42,6 +44,7 @@ from workspace.providers.resultados import (
 
 from . import services as svc
 from .models import (
+    EditalPublico,
     Apontamento,
     AvaliacaoCliente,
     CompetenciaResultado,
@@ -106,10 +109,11 @@ class EspelhoLocal(
     ProvedorPessoas,
     ProvedorJornada,
     ProvedorSatisfacao,
+    ProvedorEditais,
 ):
-    """Uma classe para os seis contratos.
+    """Uma classe para os sete contratos.
 
-    Seis classes seriam seis arquivos com o mesmo import e o mesmo `_escopo`.
+    Sete classes seriam sete arquivos com o mesmo import e o mesmo `_escopo`.
     O que justifica separar os CONTRATOS — cada um é uma pergunta com dono
     possivelmente diferente — não justifica separar a implementação enquanto o
     dono é o mesmo espelho.
@@ -425,6 +429,47 @@ class EspelhoLocal(
                 tratativa_status=a.tratativa_status,
             )
             for a in consulta.order_by("-data")
+        ]
+
+
+    # ── Editais ─────────────────────────────────────────────────────
+
+    def editais(self, ate=None) -> list[EditalDTO]:
+        """O que está aberto AGORA, do que encerra antes para o que encerra
+        depois.
+
+        SEM `_recortar`, e é o único método assim. Os outros seis recortam pelo
+        que a pessoa responde; um edital ainda não é de ninguém, e filtrá-lo por
+        centro de custo esconderia o da regional vizinha que valeria a pena.
+
+        Encerrado NÃO aparece: um edital cujo prazo passou é ruído numa tela
+        cuja pergunta inteira é "o que ainda dá para disputar". Ele continua no
+        espelho — a linha é histórico, e apagá-la faria a mesma disputa voltar
+        do zero no ano seguinte.
+        """
+        from django.utils import timezone
+
+        consulta = EditalPublico.objects.filter(
+            encerramento_proposta__gte=timezone.now()
+        )
+        if ate is not None:
+            consulta = consulta.filter(encerramento_proposta__date__lte=ate)
+        return [
+            EditalDTO(
+                procedencia=_proc(e),
+                numero_controle=e.numero_controle,
+                objeto=e.objeto,
+                orgao=e.orgao,
+                unidade=e.unidade,
+                uf=e.uf,
+                municipio=e.municipio,
+                modalidade=e.modalidade,
+                valor_estimado=e.valor_estimado,
+                encerramento=e.encerramento_proposta,
+                termo_casado=e.termo_casado,
+                link=e.link,
+            )
+            for e in consulta.order_by("encerramento_proposta")
         ]
 
 
