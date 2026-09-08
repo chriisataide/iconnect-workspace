@@ -99,7 +99,46 @@ def resumo() -> dict:
 # ── O radar externo: editais do PNCP ────────────────────────────────
 
 
-def editais_publicos(limite: int = 40) -> list:
+#: Quantos editais a tela mostra de uma vez.
+#:
+#: Havia um `limite=40` aqui que cortava em silêncio, e ele nasceu quando o
+#: espelho tinha dois registros. A primeira carga real trouxe 466 editais
+#: abertos — e um corte silencioso de 466 para 40 é pior que não ter lista: a
+#: pessoa lê os quarenta, conclui que viu tudo, e os outros 426 não existem para
+#: ela. O corte continua (rolar 466 linhas não é ler), mas agora ele APARECE, e
+#: o caminho para estreitar é o filtro.
+TETO_DA_LISTA = 60
+
+
+class RadarDeEditais:
+    """O bloco de editais inteiro: as linhas, o total e as opções do filtro."""
+
+    def __init__(self, editais, total, no_espelho, ufs, termos, filtros):
+        self.editais = editais
+        self.total = total
+        #: Quantos editais abertos existem, ANTES do filtro. É o que separa as
+        #: duas mensagens de vazio — "a carga não rodou" pede olhar a tela 99,
+        #: "o filtro não achou" pede afrouxar o filtro. Uma frase só para as
+        #: duas mandaria a pessoa conferir a fonte quando o problema era ela ter
+        #: escolhido "RR" e "cftv" juntos.
+        self.no_espelho = no_espelho
+        self.ufs = ufs
+        self.termos = termos
+        self.filtros = filtros
+
+    def __bool__(self) -> bool:
+        return bool(self.editais)
+
+    @property
+    def cortada(self) -> bool:
+        return self.total > len(self.editais)
+
+    @property
+    def filtrando(self) -> bool:
+        return any(self.filtros.values())
+
+
+def editais_publicos(uf: str = "", termo: str = "", busca: str = "") -> RadarDeEditais:
     """Os editais espelhados do PNCP, do que encerra antes para o que vem depois.
 
     Lista SEPARADA das oportunidades, e não misturada com elas — a razão é a
@@ -113,17 +152,73 @@ def editais_publicos(limite: int = 40) -> list:
     Misturá-los numa lista só faria a próxima carga sobrescrever o texto que
     alguém escreveu à mão — que é a única coisa que o radar guarda de verdade.
 
-    Sem provedor registrado devolve `[]`, e a tela diz que a fonte não está no
-    ar. Não levanta: o radar tem vida própria sem o PNCP, e derrubá-lo porque
-    uma fonte externa não respondeu seria trocar uma faixa vazia por uma tela
-    de erro.
+    ## Por que o filtro é aplicado AQUI, e não no provedor
+
+    `ProvedorEditais.editais()` continua sem parâmetro de UF ou de termo. Pôr
+    filtro de tela no contrato faria o `workspace` ditar como a fonte consulta —
+    e a fonte pode ser o espelho local hoje e outra coisa amanhã. São algumas
+    centenas de objetos em memória; o custo é um laço, e o que se compra com ele
+    é a fronteira intacta.
+
+    ## As opções do filtro saem do que EXISTE no espelho
+
+    Oferecer as 27 UFs quando a carga trouxe 16 produz um filtro que devolve
+    vazio e parece quebrado. A lista de UFs e de termos é a do espelho, sempre —
+    e ela encolhe e cresce junto com a carga.
+
+    Sem provedor registrado devolve um radar vazio, e a tela diz que a fonte não
+    está no ar. Não levanta: o radar tem vida própria sem o PNCP, e derrubá-lo
+    porque uma fonte externa não respondeu seria trocar uma faixa vazia por uma
+    tela de erro.
     """
     from workspace.providers import resultados as contrato
 
+    filtros = {
+        "uf": (uf or "").strip().upper()[:2],
+        "termo": (termo or "").strip().lower()[:80],
+        "busca": (busca or "").strip()[:120],
+    }
+
     provedor = contrato.obter(contrato.ProvedorEditais)
     if provedor is None:
-        return []
-    return list(provedor.editais())[:limite]
+        return RadarDeEditais([], 0, 0, [], [], filtros)
+
+    todos = list(provedor.editais())
+    # As opções saem de TODOS, e não do resultado filtrado: senão escolher "BA"
+    # apagaria as outras UFs da caixa e não haveria como voltar.
+    ufs = sorted({e.uf for e in todos if e.uf})
+    termos = sorted({e.termo_casado for e in todos if e.termo_casado})
+
+    casaram = [e for e in todos if _casa(e, filtros)]
+    return RadarDeEditais(
+        casaram[:TETO_DA_LISTA], len(casaram), len(todos), ufs, termos, filtros
+    )
+
+
+def _casa(edital, filtros: dict) -> bool:
+    """Os três filtros são um E, e a busca varre objeto E órgão.
+
+    Varrer os dois porque as duas perguntas aparecem: "o que compram de CFTV" é
+    sobre o objeto, e "o que a Petrobras abriu" é sobre o órgão. Uma caixa só
+    para as duas evita o erro de digitar o órgão no campo do objeto e concluir
+    que não há nada.
+    """
+    if filtros["uf"] and edital.uf != filtros["uf"]:
+        return False
+    if filtros["termo"] and edital.termo_casado != filtros["termo"]:
+        return False
+    if filtros["busca"]:
+        # `indice.normalizar` e não `.lower()`: é o mesmo "ferias encontra
+        # férias" que a busca do portal já faz, e escrever um segundo
+        # normalizador aqui garantiria que os dois divergissem.
+        from workspace.services.indice import normalizar
+
+        alvo = normalizar(
+            f"{edital.objeto} {edital.orgao} {edital.unidade} {edital.municipio}"
+        )
+        if normalizar(filtros["busca"]) not in alvo:
+            return False
+    return True
 
 
 # ── Cadastrar e decidir ─────────────────────────────────────────────

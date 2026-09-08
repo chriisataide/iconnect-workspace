@@ -1,11 +1,11 @@
 {% extends "workspace/_shell_modulo.html" %}
 {% load i18n wks %}
 
-{% block titulo %}{% trans "Oportunidades" %}{% endblock %}
+{% block titulo %}{% trans "Marketing" %}{% endblock %}
 
 {% block rail %}{% include "workspace/_rail_servicos.html" with aba="marketing" %}{% endblock %}
-{% block trilha %}<span>{% trans "Oportunidades" %}</span>{% endblock %}
-{% block pagina_titulo %}{% trans "Oportunidades de marketing" %}{% endblock %}
+{% block trilha %}<span>{% trans "Marketing" %}</span>{% endblock %}
+{% block pagina_titulo %}{% trans "Marketing" %}{% endblock %}
 {% block voltar_url %}{% url 'workspace:home' %}{% endblock %}
 
 {% block pagina_descricao %}
@@ -13,7 +13,15 @@
     {% if resumo.perdidas %}
       <strong>{% blocktrans count n=resumo.perdidas %}{{ n }} prazo de decisão já venceu.{% plural %}{{ n }} prazos de decisão já venceram.{% endblocktrans %}</strong>
     {% else %}
-      {% trans "Feira, congresso, patrocínio e prêmio — e o dia em que é preciso responder." %}
+      {% comment %}
+        A descrição nomeia AS DUAS listas, porque a tela tem duas e elas são de
+        naturezas diferentes: uma é convite que a empresa responde, a outra é
+        licitação que a empresa disputa. Enquanto a tela se chamava
+        "Oportunidades de marketing" e o formulário "Registrar oportunidade", a
+        palavra significava as duas coisas ao mesmo tempo — e quem lia de cima
+        para baixo entendia que marketing cadastrava licitação.
+      {% endcomment %}
+      {% trans "Feira, congresso e patrocínio — e os editais públicos que dá para disputar." %}
     {% endif %}
   </p>
 {% endblock %}
@@ -74,27 +82,99 @@
 <section class="au-secao">
   <div class="au-secao-cabeca">
     <h2 class="au-secao-titulo">{% trans "Editais públicos com proposta aberta" %}</h2>
-    {% if editais %}<span class="au-secao-contagem">{{ editais|length }}</span>{% endif %}
+    {% if editais.no_espelho %}<span class="au-secao-contagem">{{ editais.total }}</span>{% endif %}
   </div>
 
-  {% if editais %}
+  {% if editais.no_espelho %}
     <p class="au-ajuda">
       {% blocktrans %}Vindos do PNCP, filtrados pelos termos de segurança. Encerram
       primeiro os de cima. A etiqueta diz qual termo trouxe cada um — se aparecer
       coisa que não é nossa, é a lista de termos que precisa de poda.{% endblocktrans %}
     </p>
+
+    {% comment %}
+      OS FILTROS DO BLOCO DE EDITAIS.
+
+      `situacao` viaja escondido porque ele é o filtro do OUTRO bloco desta
+      mesma tela. Sem isso, filtrar edital por UF apagaria o recorte do radar
+      logo abaixo — e a pessoa culparia o clique errado.
+
+      As opções saem do que existe no espelho, e não das 27 UFs: oferecer um
+      estado que a carga não trouxe é oferecer um filtro que devolve vazio.
+    {% endcomment %}
+    <form class="au-filtros--resultados" method="get" action="" data-limpar-vazios="1">
+      {% if situacao_atual %}<input type="hidden" name="situacao" value="{{ situacao_atual }}">{% endif %}
+      <div class="au-filtro-grupo">
+        <p class="au-filtro-grupo-titulo">{% trans "Onde" %}</p>
+        <div class="au-filtro-grupo-campos">
+          <div class="au-filtro">
+            <label class="au-filtro-rotulo" for="e-uf">{% trans "UF" %}</label>
+            <select class="au-input au-input--compacto" id="e-uf" name="uf">
+              <option value="">{% trans "Todas" %}</option>
+              {% for sigla in editais.ufs %}
+                <option value="{{ sigla }}"
+                        {% if sigla == editais.filtros.uf %}selected{% endif %}>{{ sigla }}</option>
+              {% endfor %}
+            </select>
+          </div>
+        </div>
+      </div>
+      <div class="au-filtro-grupo">
+        <p class="au-filtro-grupo-titulo">{% trans "O quê" %}</p>
+        <div class="au-filtro-grupo-campos">
+          <div class="au-filtro">
+            <label class="au-filtro-rotulo" for="e-termo">{% trans "Termo que casou" %}</label>
+            <select class="au-input au-input--compacto" id="e-termo" name="termo">
+              <option value="">{% trans "Todos" %}</option>
+              {% for t in editais.termos %}
+                <option value="{{ t }}"
+                        {% if t == editais.filtros.termo %}selected{% endif %}>{{ t }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="au-filtro">
+            <label class="au-filtro-rotulo" for="e-busca">{% trans "Objeto ou órgão" %}</label>
+            <input class="au-input au-input--compacto" id="e-busca" name="busca" type="search"
+                   value="{{ editais.filtros.busca }}"
+                   placeholder="{% trans 'cftv, prefeitura, hospital…' %}">
+          </div>
+        </div>
+      </div>
+      <div class="au-filtro-acoes">
+        <button class="au-btn" type="submit">{% trans "Filtrar" %}</button>
+        {% if editais.filtrando %}
+          <a class="au-btn au-btn--fantasma"
+             href="{% url 'workspace:marketing' %}{% if situacao_atual %}?situacao={{ situacao_atual }}{% endif %}">{% trans "Limpar" %}</a>
+        {% endif %}
+      </div>
+    </form>
+  {% endif %}
+
+  {% if editais %}
+    {% if editais.cortada %}
+      {% comment %}
+        O corte APARECE. Ele existia antes e era mudo — cortava 466 em 40, e
+        quem lia os quarenta concluía que tinha visto tudo.
+      {% endcomment %}
+      <p class="au-ajuda au-ajuda--alerta">
+        {% blocktrans with mostrados=editais.editais|length total=editais.total %}Mostrando os
+        {{ mostrados }} que encerram primeiro, de {{ total }}. Estreite pela UF ou pelo termo
+        para ver o resto.{% endblocktrans %}
+      </p>
+    {% endif %}
     <div class="au-tabela">
       <table>
         <thead>
           <tr>
             <th>{% trans "Objeto" %}</th>
             <th>{% trans "Órgão" %}</th>
+            <th>{% trans "UF" %}</th>
             <th class="num">{% trans "Valor estimado" %}</th>
             <th class="num">{% trans "Encerra" %}</th>
           </tr>
         </thead>
         <tbody>
-          {% for e in editais %}
+          {% for e in editais.editais %}
             <tr>
               <td>
                 {% if e.link %}
@@ -106,8 +186,15 @@
               </td>
               <td>
                 {{ e.orgao|default:e.unidade|truncatechars:48 }}
-                <small class="au-procedencia">{{ e.municipio }}{% if e.uf %} · {{ e.uf }}{% endif %}</small>
+                <small class="au-procedencia">{{ e.municipio }}</small>
               </td>
+              {% comment %}
+                A UF vira COLUNA, e sai de baixo do órgão. O recorte do
+                comercial é por estado — quem cobre a Bahia precisa achar a
+                Bahia varrendo uma coluna, e não lendo a segunda linha de cada
+                célula de órgão.
+              {% endcomment %}
+              <td>{{ e.uf|default:"—" }}</td>
               <td class="num">{% if e.valor_estimado %}R$ {{ e.valor_estimado|moeda }}{% else %}—{% endif %}</td>
               <td class="num">
                 {{ e.encerramento|date:"d/m/Y" }}
@@ -121,6 +208,20 @@
           {% endfor %}
         </tbody>
       </table>
+    </div>
+  {% elif editais.no_espelho %}
+    {% comment %}
+      DUAS mensagens de vazio, e não uma. Aqui o espelho TEM editais e foi o
+      filtro que não achou — mandar essa pessoa conferir a fonte de dados seria
+      mandá-la investigar um servidor porque ela escolheu "RR" e "cftv" juntos.
+    {% endcomment %}
+    <div class="au-vazio">
+      <p class="au-vazio-titulo">{% trans "Nenhum edital com esse recorte." %}</p>
+      <p class="au-vazio-dica">
+        {% blocktrans count n=editais.no_espelho %}Há {{ n }} edital aberto no espelho.
+        Afrouxe a UF ou o termo.{% plural %}Há {{ n }} editais abertos no espelho.
+        Afrouxe a UF ou o termo.{% endblocktrans %}
+      </p>
     </div>
   {% else %}
     {% comment %}
@@ -140,18 +241,23 @@
 
 <form class="au-filtros" method="get" action="{% url 'workspace:marketing' %}">
   <div class="au-filtros-chips">
+    {% comment %}
+      Os chips CARREGAM o recorte de editais junto. São dois filtros na mesma
+      tela, e um que apaga o outro faz a pessoa achar que o portal esquece o
+      que ela escolheu — a mesma queixa que o trilho já rendeu uma vez.
+    {% endcomment %}
     <a class="au-chip {% if not situacao_atual %}au-chip--ativo{% endif %}"
-       href="{% url 'workspace:marketing' %}">{% trans "Em aberto" %}</a>
+       href="{% querystring situacao=None %}">{% trans "Em aberto" %}</a>
     {% for valor, rotulo in situacoes %}
       <a class="au-chip {% if situacao_atual == valor %}au-chip--ativo{% endif %}"
-         href="?situacao={{ valor }}">{{ rotulo }}</a>
+         href="{% querystring situacao=valor %}">{{ rotulo }}</a>
     {% endfor %}
   </div>
 </form>
 
 <section class="au-secao">
   <div class="au-secao-cabeca">
-    <h2 class="au-secao-titulo">{% trans "Radar" %}</h2>
+    <h2 class="au-secao-titulo">{% trans "Eventos e patrocínios" %}</h2>
     {% if oportunidades %}<span class="au-secao-contagem">{{ oportunidades|length }}</span>{% endif %}
   </div>
 
@@ -160,7 +266,7 @@
       <table>
         <thead>
           <tr>
-            <th>{% trans "Oportunidade" %}</th>
+            <th>{% trans "Evento ou convite" %}</th>
             <th>{% trans "Tipo" %}</th>
             <th>{% trans "Quando" %}</th>
             <th>{% trans "Decidir até" %}</th>
@@ -277,7 +383,7 @@
 {% if opera %}
   <section class="au-secao">
     <div class="au-secao-cabeca">
-      <h2 class="au-secao-titulo">{% trans "Registrar oportunidade" %}</h2>
+      <h2 class="au-secao-titulo">{% trans "Registrar evento ou patrocínio" %}</h2>
     </div>
 
     <form class="au-form" method="post" action="{% url 'workspace:oportunidade_nova' %}"
@@ -287,7 +393,7 @@
       <div class="au-colunas au-colunas--duas">
         <div class="au-campo">
           <label class="au-rotulo" for="titulo">
-            {% trans "Oportunidade" %} <span class="au-obrigatorio" aria-hidden="true">*</span>
+            {% trans "Evento ou convite" %} <span class="au-obrigatorio" aria-hidden="true">*</span>
           </label>
           <input class="au-input" id="titulo" name="titulo" type="text" maxlength="200"
                  placeholder="{% trans 'Feira Intersolar 2027' %}">

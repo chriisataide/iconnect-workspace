@@ -232,7 +232,7 @@ TELAS: tuple[Tela, ...] = (
     Tela("16", "Quadro e jornada", "workspace:quadro"),
     Tela("17", "Satisfação do cliente", "workspace:satisfacao"),
     Tela("09", "Relatórios", "workspace:relatorios"),
-    Tela("26.1", "Oportunidades de marketing", "workspace:marketing"),
+    Tela("26.1", "Marketing", "workspace:marketing"),
     Tela("30", "Pessoas e papéis", "workspace:pessoas"),
     Tela("31", "Estoque", "workspace:estoque"),
     Tela("32", "Custódia de equipamentos", "workspace:custodia"),

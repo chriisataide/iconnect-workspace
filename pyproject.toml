@@ -139,4 +139,22 @@ cargas = 97.0      # medido 97.39 · conectores, carregador, transporte
 # 3300 → 3325: os 25 de cruzar, pivotar e detalhar. O que mais protege é o que
 #   compara o total do detalhe com o do agregado — detalhe que não bate destrói
 #   a confiança na tela inteira.
-minimo = 3430
+# 3325 → 3430: as telas irmãs (quadro e satisfação), o trilho que recolhe, os
+#   rótulos legíveis e o conector do PNCP.
+# 3430 → 3436: os 3 do isolamento por UF, mais os 3 que já vieram com o
+#   conector. Os do isolamento nasceram de uma medição, não de uma hipótese: a
+#   API do PNCP alternou 200, 500 e 503 no mesmo minuto, e sem eles nada
+#   impediria alguém de simplificar `coletar` de volta ao laço ingênuo — em que
+#   um estado fora do ar descarta os outros vinte e seis, toda madrugada.
+# 3436 → 3442: os 3 do respiro longo. Um deles confere que a retomada é da
+#   MESMA página e não da UF inteira — a versão ingênua passaria no teste de
+#   "nada se perdeu" e releria as 109 páginas de São Paulo gastando exatamente
+#   a cota que estava em falta.
+# 3442 → 3451: os 9 do filtro de editais. Metade deles é sobre uma tela que
+#   MENTE em silêncio — o corte mudo de 526 para 40, e a frase "a carga não
+#   rodou" mostrada a quem só tinha cruzado dois filtros. Nenhum dos dois
+#   parece defeito para quem olha a tela, e é por isso que precisam de teste.
+# 3451 → 3452: o do vocabulário da tela de marketing. Ele segura o RÓTULO e não
+#   a função — a tela chamava de "oportunidade" tanto o convite de feira quanto
+#   o edital de licitação, e as duas listas ficam uma embaixo da outra.
+minimo = 3452
