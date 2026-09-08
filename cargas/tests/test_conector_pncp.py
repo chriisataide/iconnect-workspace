@@ -27,7 +27,22 @@ from decimal import Decimal
 import pytest
 
 from cargas.conectores.base import Janela
-from cargas.conectores.pncp import ConectorPNCP, sem_acento
+from cargas.conectores.pncp import RESPIROS_POR_UF, ConectorPNCP, sem_acento
+from cargas.transporte import TransporteError
+
+
+@pytest.fixture(autouse=True)
+def sem_espera_de_verdade(monkeypatch):
+    """Nenhum teste deste arquivo dorme de verdade.
+
+    Escrito depois de a suíte travar por seis minutos: três testes faziam
+    `pedir` recusar SEM neutralizar `_respirar`, e cada UF recusada dormia
+    `RESPIROS_POR_UF × 60 s`. Neutralizar aqui o `sleep` do MÓDULO — e não os
+    métodos — mantém `_descansar` e `_respirar` chamáveis e contáveis pelos
+    testes que os observam, e torna impossível um teste futuro esperar de
+    verdade por esquecimento.
+    """
+    monkeypatch.setattr("cargas.conectores.pncp.time.sleep", lambda _: None)
 
 pytestmark = pytest.mark.django_db
 
@@ -345,7 +360,6 @@ def test_a_fonte_fora_do_ar_nao_derruba_nada(monkeypatch, settings, fontes):
     ar, e a carga respondeu exatamente assim — falha limpa, frase para gente,
     zero linhas escritas."""
     from cargas.carregador import carregar
-    from cargas.transporte import TransporteError
     from resultados.models import EditalPublico
 
     settings.PNCP_UFS = ["BA"]
@@ -358,5 +372,170 @@ def test_a_fonte_fora_do_ar_nao_derruba_nada(monkeypatch, settings, fontes):
     resultado = carregar("pncp", aplicar=True)
 
     assert resultado.status == "falha"
-    assert resultado.erro_resumo == "pncp.gov.br não respondeu"
+    assert "BA" in resultado.erro_resumo, "o motivo diz QUAL estado não veio"
     assert EditalPublico.objects.count() == 0
+
+
+# ── A UF que cai, e as outras vinte e seis ──────────────────────────
+
+
+def test_uma_uf_fora_do_ar_nao_leva_as_outras(monkeypatch, settings):
+    """O achado que motivou o isolamento: em 08/09/2026 o PNCP alternou 200,
+    500 e 503 sem cabeçalho de limite nenhum. Numa varredura de 27 estados isso
+    é rotina, e do jeito ingênuo o tropeço no terceiro descartaria os outros."""
+    settings.PNCP_UFS = ["AC", "AL", "AP"]
+    conector = ConectorPNCP()
+    monkeypatch.setattr(ConectorPNCP, "_descansar", lambda self: None)
+
+    def instavel(url, **k):
+        if "uf=AL" in url:
+            raise TransporteError("HTTP 503 em pncp.gov.br")
+        return {"data": [item("Vigilância")["item"]], "totalPaginas": 1}
+
+    monkeypatch.setattr("cargas.conectores.pncp.pedir", instavel)
+
+    colhido, estourou = [], None
+    try:
+        for bruto in conector.coletar(Janela()):
+            colhido.append(bruto)
+    except TransporteError as erro:
+        estourou = erro
+
+    assert len(colhido) == 2, "AC e AP vieram; só AL se perdeu"
+    assert estourou is not None, "a carga NÃO pode se declarar completa"
+    assert "AL" in str(estourou)
+    assert "1 de 3" in str(estourou)
+
+
+def test_uf_que_cai_deixa_a_carga_parcial_e_o_que_veio_fica(
+    monkeypatch, settings, fontes
+):
+    """`parcial` e não `falha`: o que entrou é bom e fica. É a diferença entre
+    o radar mostrar vinte e seis estados com um aviso e não mostrar nada."""
+    from cargas.carregador import carregar
+    from resultados.models import EditalPublico
+
+    settings.PNCP_UFS = ["AC", "AL"]
+    monkeypatch.setattr(ConectorPNCP, "_descansar", lambda self: None)
+
+    def instavel(url, **k):
+        if "uf=AL" in url:
+            raise TransporteError("HTTP 500 em pncp.gov.br")
+        return {"data": [item("Vigilância")["item"]], "totalPaginas": 1}
+
+    monkeypatch.setattr("cargas.conectores.pncp.pedir", instavel)
+
+    resultado = carregar("pncp", aplicar=True)
+
+    assert resultado.status == "parcial"
+    assert EditalPublico.objects.count() == 1, "o edital do AC ficou gravado"
+    assert "AL" in resultado.erro_resumo
+
+
+def test_descansa_entre_as_ufs_tambem(monkeypatch, settings):
+    """A pausa nasceu entre páginas, e a virada de estado é uma requisição como
+    qualquer outra — sem isso, 27 estados emendam 27 chamadas sem respiro."""
+    settings.PNCP_UFS = ["AC", "AL", "AP"]
+    pausas = []
+    monkeypatch.setattr(
+        ConectorPNCP, "_descansar", lambda self: pausas.append(1)
+    )
+    monkeypatch.setattr(
+        "cargas.conectores.pncp.pedir",
+        lambda url, **k: {"data": [], "totalPaginas": 1},
+    )
+
+    list(ConectorPNCP().coletar(Janela()))
+
+    assert len(pausas) == 2, "entre os estados, e não depois do último"
+
+
+# ── O respiro: a janela do limite é de minuto, não de segundo ───────
+
+
+def test_respira_e_retoma_a_MESMA_pagina(monkeypatch, settings):
+    """O recuo do transporte é 1 s + 2 s = três segundos. Medido, a janela do
+    PNCP é de minuto: as mesmas consultas que deram 429 voltaram a 200 alguns
+    minutos depois, sem nada ter mudado do nosso lado.
+
+    E retoma a MESMA página: reler as 109 de São Paulo para chegar onde já
+    estávamos gastaria justamente o que está em falta."""
+    settings.PNCP_UFS = ["SP"]
+    monkeypatch.setattr(ConectorPNCP, "_descansar", lambda self: None)
+    respiros = []
+    monkeypatch.setattr(
+        ConectorPNCP, "_respirar", lambda self: respiros.append(1)
+    )
+
+    paginas, recusou = [], []
+
+    def limitado(url, **k):
+        pag = int(url.split("pagina=")[1].split("&")[0])
+        paginas.append(pag)
+        if pag == 2 and not recusou:
+            recusou.append(1)
+            raise TransporteError("HTTP 429 em pncp.gov.br")
+        return {"data": [item("Vigilância")["item"]], "totalPaginas": 3}
+
+    monkeypatch.setattr("cargas.conectores.pncp.pedir", limitado)
+
+    colhido = list(ConectorPNCP().coletar(Janela()))
+
+    assert len(respiros) == 1
+    assert paginas == [1, 2, 2, 3], "a 2 é refeita; a 1 não é relida"
+    assert len(colhido) == 3, "nada se perdeu"
+
+
+def test_o_respiro_tem_fim(monkeypatch, settings):
+    """Sem teto, uma UF permanentemente bloqueada seguraria a varredura inteira
+    esperando um minuto por vez — e as UFs seguintes nunca começariam."""
+    settings.PNCP_UFS = ["SP", "TO"]
+    monkeypatch.setattr(ConectorPNCP, "_descansar", lambda self: None)
+    respiros = []
+    monkeypatch.setattr(
+        ConectorPNCP, "_respirar", lambda self: respiros.append(1)
+    )
+
+    def so_SP_bloqueada(url, **k):
+        if "uf=SP" in url:
+            raise TransporteError("HTTP 429 em pncp.gov.br")
+        return {"data": [item("Vigilância")["item"]], "totalPaginas": 1}
+
+    monkeypatch.setattr("cargas.conectores.pncp.pedir", so_SP_bloqueada)
+
+    colhido, estourou = [], None
+    try:
+        for bruto in ConectorPNCP().coletar(Janela()):
+            colhido.append(bruto)
+    except TransporteError as erro:
+        estourou = erro
+
+    assert len(respiros) == RESPIROS_POR_UF, "respira e desiste, não para sempre"
+    assert len(colhido) == 1, "TO veio depois de SP desistir"
+    assert "SP" in str(estourou) and "TO" not in str(estourou)
+
+
+def test_o_respiro_e_por_uf_e_nao_da_varredura(monkeypatch, settings):
+    """A cota de respiros zera a cada UF. Compartilhada, a primeira UF ruim
+    gastaria as duas e as vinte e seis seguintes cairiam no primeiro 429."""
+    settings.PNCP_UFS = ["AC", "AL"]
+    monkeypatch.setattr(ConectorPNCP, "_descansar", lambda self: None)
+    respiros = []
+    monkeypatch.setattr(
+        ConectorPNCP, "_respirar", lambda self: respiros.append(1)
+    )
+    vistas = set()
+
+    def tropeca_uma_vez_por_uf(url, **k):
+        uf = url.split("uf=")[1].split("&")[0]
+        if uf not in vistas:
+            vistas.add(uf)
+            raise TransporteError("HTTP 503 em pncp.gov.br")
+        return {"data": [item("Vigilância")["item"]], "totalPaginas": 1}
+
+    monkeypatch.setattr("cargas.conectores.pncp.pedir", tropeca_uma_vez_por_uf)
+
+    colhido = list(ConectorPNCP().coletar(Janela()))
+
+    assert len(respiros) == 2, "um respiro em cada UF"
+    assert len(colhido) == 2, "as duas UFs entregaram"

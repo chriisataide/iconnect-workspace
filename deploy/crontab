@@ -56,11 +56,18 @@ LOG=/var/log/workspace
 #
 # Ele é a única carga que não alimenta a Apresentação de Resultados: nada em
 # `avaliar_excecoes` nem em `verificar_planos` depende dele, então ele não
-# precisa caber na corrente das 5h30 às 8h30. E ele é o mais DEMORADO dos
-# cinco: 27 UFs, uma pausa de 1,5 s por página, cerca de vinte minutos.
+# precisa caber na corrente das 5h30 às 8h30. E ele é, com folga, o mais
+# DEMORADO dos cinco.
 #
-# Pô-lo às 4h tira esses vinte minutos da frente da carga do Sankhya, que é a
-# que a diretoria abre às 8h.
+# MEDIDO em 08/09/2026, e não estimado: as 27 UFs somam 629 páginas e 30.722
+# editais abertos — SP sozinha tem 109 páginas. A 3,5 s por página (a pausa mais
+# a resposta) são ~37 minutos SEM nenhum tropeço; com os respiros de 60 s que o
+# limite do PNCP obriga, conte com uma hora.
+#
+# Por isso 4h: uma hora inteira antes da carga do Sankhya, que é a que a
+# diretoria abre às 8h. A estimativa anterior aqui dizia "vinte minutos" e
+# estava errada por um fator de dois — ela vinha de contar UFs em vez de
+# páginas.
 0 4 * * *   cd $APP && $VENV manage.py carregar_fonte pncp              --aplicar >> $LOG/carga.log 2>&1
 
 # ── 06h — os avisos, antes do expediente ─────────────────────────────

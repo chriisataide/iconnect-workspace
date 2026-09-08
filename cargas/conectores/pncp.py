@@ -32,6 +32,12 @@ por segundo passou em seis de seis. Por isso `PAUSA_ENTRE_PAGINAS`: não é
 gentileza, é a diferença entre uma carga que roda de madrugada inteira e uma que
 é bloqueada na terceira página todo dia.
 
+**E, além do limite, a fonte é instável** — medido no mesmo dia, mais tarde:
+seis chamadas espaçadas de 2 a 5 s em 200, depois um `500` que levou 30 s e um
+`503` imediato, sem nenhum cabeçalho de limite em nenhuma resposta. Não é o
+freio da API: é o serviço oscilando. Numa varredura de 27 estados isso deixa de
+ser azar e vira rotina, e é por isso que `coletar` isola a falha por UF.
+
 ## `dataFinal` é o horizonte, e não a janela da carga
 
 Todo conector recebe `Janela(de, ate)` e a repassa à fonte. Aqui `de` não tem
@@ -75,10 +81,28 @@ TAMANHO_PAGINA = 50
 #: madrugada e ninguém está esperando por ela.
 PAUSA_ENTRE_PAGINAS = 1.5
 
-#: Até quando olhar, quando a janela vem aberta. Seis meses cobre o prazo de
-#: qualquer edital em andamento sem trazer contratação plurianual publicada com
-#: anos de antecedência.
+#: Até quando olhar, quando a janela vem aberta.
+#:
+#: Medido em 08/09/2026, em SP+MG+BA somados: 30 dias trazem 9.887 editais,
+#: 180 trazem 12.168, 365 trazem 13.771. Ou seja — encurtar o horizonte de seis
+#: meses para um mês economiza 19% do volume e custa TODO o aviso antecipado.
+#: Não é a alavanca; a maioria do que está aberto encerra em semanas de qualquer
+#: jeito.
 HORIZONTE_PADRAO_DIAS = 180
+
+#: A espera longa, depois que o recuo curto do transporte (1 s, 2 s) não bastou.
+#:
+#: Medido na primeira varredura real: as 12 ÚLTIMAS UFs caíram em sequência,
+#: quase todas em 429 — e minutos depois as MESMAS consultas responderam 200 sem
+#: nada ter mudado do nosso lado. A janela do limite é de minuto, não de
+#: segundo, e por isso o recuo do transporte não a alcança: três tentativas
+#: somam três segundos.
+PAUSA_APOS_LIMITE = 60.0
+
+#: Quantas esperas longas por UF. Duas: a primeira cobre a janela que acabou de
+#: fechar, a segunda cobre a de quem chegou junto. A terceira só atrasaria as
+#: UFs seguintes — e a UF perdida já não derruba a carga.
+RESPIROS_POR_UF = 2
 
 #: As 27 unidades da federação. A lista fica aqui, e não em `settings`, porque
 #: ela não muda — o que muda é quais delas interessam, e isso é `PNCP_UFS`.
@@ -147,14 +171,48 @@ class ConectorPNCP(ConectorBase):
         return tuple(sem_acento(t) for t in crus if t and t.strip())
 
     def coletar(self, janela: Janela) -> Iterable[dict]:
+        """As 27 UFs, e uma que cai NÃO leva as outras junto.
+
+        Cada UF é uma consulta independente, e o PNCP responde 500 ou 503 de vez
+        em quando sem aviso (medido em 08/09/2026: seis chamadas seguidas em
+        200, depois um 500 que demorou 30 s e um 503 imediato). Numa varredura
+        de 27 estados, a chance de nenhum tropeço é baixa — e do jeito ingênuo,
+        o tropeço no terceiro estado descartaria os outros vinte e quatro.
+
+        Por isso a falha de UF é anotada e a varredura segue. No fim, se houve
+        falha, este método LEVANTA: o carregador já sabe o que fazer com isso —
+        com linhas gravadas a carga fica `parcial`, sem nenhuma fica `falha`, e
+        os dois casos aparecem na tela 99 com o motivo. O que não pode acontecer
+        é a carga se declarar completa tendo pulado sete estados.
+        """
         limite = janela.ate or (
             date.today() + timedelta(days=HORIZONTE_PADRAO_DIAS)
         )
-        for uf in self.ufs:
-            yield from self._paginar(uf, limite)
+        falharam: list[str] = []
+        for indice, uf in enumerate(self.ufs):
+            if indice:
+                self._descansar()
+            try:
+                yield from self._paginar(uf, limite)
+            except TransporteError as erro:
+                logger.warning("pncp: %s não veio (%s)", uf, erro)
+                falharam.append(uf)
+
+        if falharam:
+            raise TransporteError(
+                f"O PNCP não respondeu por {len(falharam)} de "
+                f"{len(self.ufs)} UF(s): {', '.join(falharam)}."
+            )
 
     def _paginar(self, uf: str, limite: date) -> Iterable[dict]:
+        """As páginas de uma UF, com respiro quando o limite fecha a porta.
+
+        O respiro repete a MESMA página, e não a UF inteira: o carregador é
+        idempotente e não duplicaria nada, mas reler 60 páginas de São Paulo
+        para chegar onde já estávamos gastaria justamente o que está em falta.
+        """
         pagina = 1
+        respiros = 0
         while True:
             if pagina > PAGINAS_MAXIMAS:
                 raise TransporteError(
@@ -164,7 +222,18 @@ class ConectorPNCP(ConectorBase):
                 f"{BASE}{CAMINHO}?dataFinal={limite:%Y%m%d}"
                 f"&uf={uf}&pagina={pagina}&tamanhoPagina={TAMANHO_PAGINA}"
             )
-            corpo = pedir(url)
+            try:
+                corpo = pedir(url)
+            except TransporteError as erro:
+                if respiros >= RESPIROS_POR_UF:
+                    raise
+                respiros += 1
+                logger.warning(
+                    "pncp: %s pág. %s → %s; respirando (%s de %s)",
+                    uf, pagina, erro, respiros, RESPIROS_POR_UF,
+                )
+                self._respirar()
+                continue
             itens = corpo.get("data") or []
             for item in itens:
                 # A UF vai junto porque a resposta a traz aninhada em
@@ -181,6 +250,11 @@ class ConectorPNCP(ConectorBase):
     def _descansar(self) -> None:
         """Isolado para o teste não esperar de verdade."""
         time.sleep(PAUSA_ENTRE_PAGINAS)
+
+    def _respirar(self) -> None:
+        """A espera longa. Separada de `_descansar` porque são coisas
+        diferentes: uma é o ritmo normal, a outra é reação a uma recusa."""
+        time.sleep(PAUSA_APOS_LIMITE)
 
     # ── Normalização ────────────────────────────────────────────────
 

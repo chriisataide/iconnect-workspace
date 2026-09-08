@@ -315,8 +315,9 @@ pela mesma razão: ajustá-la não pode exigir um deploy.
 
 O PNCP é o único que **não alimenta a Apresentação de Resultados**. Nada em
 `avaliar_excecoes` nem em `verificar_planos` depende dele, então ele não precisa
-caber na corrente das 5h30 às 8h30 — e ele é o mais demorado dos cinco (27 UFs,
-pausa de 1,5 s por página, cerca de vinte minutos). Às 4h ele sai da frente da
+caber na corrente das 5h30 às 8h30 — e ele é, com folga, o mais demorado dos
+cinco (**629 páginas medidas**, ~37 min sem tropeço e perto de uma hora com os
+respiros). Às 4h ele sai da frente da
 carga do Sankhya, que é a que a diretoria abre às 8h.
 
 ### O que NÃO foi possível conferir, e é honesto dizer
@@ -340,6 +341,50 @@ O que **falta** provar é o volume: quantos editais as 27 UFs devolvem, quanto
 tempo a carga leva de ponta a ponta, e qual a taxa de ruído da lista de termos
 fora da amostra da Bahia. Isso a primeira carga real responde — e `termo_casado`
 é o campo com que se lê a resposta.
+
+### Surpresa 4 — a instabilidade, e a UF que levava as outras junto
+
+Quando a API voltou, no fim do mesmo dia, a primeira simulação parou na segunda
+página com `HTTP 429`. Parecia o limite de requisição da Surpresa 3 — e não era.
+Uma sondagem de oito chamadas mostrou outra coisa:
+
+```
+pausa= 0s  status=200  1.29s  itens=50  totpag=3
+pausa= 2s  status=200  1.18s  itens=50
+pausa= 2s  status=200  1.65s  itens=18
+pausa= 2s  status=200  1.35s  itens=50
+pausa= 5s  status=200  1.88s  itens=50
+pausa= 5s  status=200  1.27s  itens=18
+pausa=10s  status=500  30.06s          ← trinta segundos para falhar
+pausa=10s  status=503   0.12s
+```
+
+Seis chamadas seguidas em 200 com pausas de 2 s **derrubam** a hipótese de
+limite: se fosse o freio, a de 2 s teria sido bloqueada antes da de 10 s. E
+nenhuma resposta — nem as de erro — trouxe `Retry-After`, `RateLimit-*` ou
+qualquer cabeçalho de limite. **É o serviço oscilando**, não a API se defendendo.
+
+Isso não é um detalhe de operação: é um defeito de desenho que só aparece na
+escala real. O `coletar` original era um laço simples sobre as 27 UFs, e o
+transporte propaga `TransporteError` — de modo que **um 503 no terceiro estado
+abortava os outros vinte e quatro**. Com uma fonte que oscila algumas vezes por
+hora, uma varredura limpa de 27 consultas é improvável, e o radar amanheceria
+vazio quase toda madrugada.
+
+**A correção:** cada UF é uma consulta independente, e a falha de uma é anotada
+enquanto a varredura segue. No fim, havendo falha, `coletar` levanta — e o
+carregador faz o resto sozinho, porque isso ele já sabia fazer:
+
+| Situação | Status | O que fica no espelho |
+|---|---|---|
+| 27 UFs respondem | `sucesso` | tudo |
+| algumas caem | `parcial`, com as siglas no motivo | o que veio das outras |
+| nenhuma responde | `falha` | nada |
+
+O que **não** pode acontecer — e é o que o teste segura — é a carga se declarar
+completa tendo pulado sete estados. Silêncio ali seria pior que a falha: o
+comercial olharia um radar sem Pernambuco e concluiria que Pernambuco não tem
+edital.
 
 ### O primeiro comando a rodar quando o PNCP voltar
 
