@@ -117,7 +117,17 @@ def salvar(
     publicacao.tipo = tipo
     publicacao.resumo = (resumo or "").strip()[:300]
     publicacao.corpo = corpo or ""
-    publicacao.prioridade = int(prioridade or 0)
+    # `try` e não `int()` cru: o formulário é `novalidate`, e o valor chega da
+    # requisição sem passar por form do Django. Um `prioridade=normal` — que é o
+    # que um formulário desatualizado em outra aba manda — virava `ValueError`
+    # dentro da view, ou seja, TELA DE ERRO 500 no lugar de uma mensagem.
+    #
+    # A view já se defendia disso ao REEXIBIR o formulário (`_inteiro`), e não
+    # ao gravar. Metade da defesa é a que dá a falsa sensação de que existe.
+    try:
+        publicacao.prioridade = int(prioridade or 0)
+    except (TypeError, ValueError):
+        publicacao.prioridade = 0
     publicacao.fixado = bool(fixado)
     publicacao.publicado = bool(publicar)
     if publicar_em:

@@ -368,6 +368,16 @@ body {
 
 .au-app {
   position: relative;
+  /* `overflow: hidden` por causa de `.au-app-marca`: ela é absoluta, colada em
+     `inset: auto 0 0 0`, e mede 3px de altura. Um `border-radius` de 10px numa
+     faixa de 3px não tem espaço vertical para curvar — o navegador reduz o raio
+     e as PONTAS QUADRADAS sobram para fora da curva do card. Recortar no pai é
+     o que faz a barra seguir exatamente a borda, e não uma aproximação dela.
+
+     Nada aqui transborda de propósito: o selo, o ícone e os textos são todos
+     internos, e a sombra do card é desenhada fora da caixa, onde este recorte
+     não alcança. */
+  overflow: hidden;
   display: flex;
   flex-direction: column;
   gap: var(--au-3);
@@ -1956,8 +1966,17 @@ a.au-notif-titulo:hover { color: var(--au-accent-text); text-decoration: underli
 /* ── Ação na busca ─────────────────────────────────────────────────
    O grupo "Ação" não é mais um link: começa um pedido. O fundo de marca
    é o que separa "vá ler sobre isso" de "resolva isso agora". */
+/* O GRUPO DE AÇÃO era um banho de `--au-accent-bg` na largura inteira, colado
+   embaixo do campo de busca. Buscar "recursos" casa a ação "Reservar um
+   recurso", o bloco aparecia, e a leitura de quem digitou foi "o campo ficou
+   roxo" — não "há uma ação em destaque aqui".
+
+   O destaque continua, pelo mesmo caminho da legenda de leitura dos gráficos:
+   uma barra de acento à esquerda. Ela diz "isto é diferente" sem pintar uma
+   área grande o bastante para ser confundida com o campo. */
 .au-busca-grupo--acao {
-  background: var(--au-accent-bg);
+  background: var(--au-surface);
+  border-left: 3px solid var(--au-accent);
   border-bottom: 1px solid var(--au-border);
 }
 .au-busca-grupo--acao .au-busca-grupo-titulo { color: var(--au-accent-text); }
@@ -2196,7 +2215,10 @@ a.au-notif-titulo:hover { color: var(--au-accent-text); text-decoration: underli
 
 /* ── Escolha do adiantamento ─────────────────────────────────────── */
 
-.au-fieldset { border: none; margin: 0; padding: 0; }
+/* `min-width: 0` porque um `<fieldset>` tem largura mínima automática e não
+   encolhe dentro de um grid — o público-alvo dos comunicados são dois deles
+   lado a lado, e sem isto a segunda coluna transborda. */
+.au-fieldset { border: none; margin: 0; padding: 0; min-width: 0; }
 
 .au-escolhas { display: flex; flex-direction: column; gap: var(--au-2); }
 
@@ -4377,4 +4399,71 @@ tr[data-abre-resumo]:focus-visible {
   height: 20px;
   margin: 0 var(--au-1);
   background: var(--au-border-strong);
+}
+
+/* ── Público-alvo em caixas de marcar ───────────────────────────
+   Era um `<select multiple>`, e desmarcar exigia Ctrl+clique — atalho que
+   ninguém descobre sozinho. Quem clicasse errado não tinha como desfazer, e o
+   comunicado saía para uma unidade só. `<fieldset>` e `<legend>` porque isto é
+   um grupo de controles com um rótulo, e é o que o leitor de tela anuncia. */
+.au-marcadores {
+  list-style: none;
+  margin: var(--au-1) 0 0;
+  padding: var(--au-1);
+  max-height: 168px;
+  overflow-y: auto;
+  border: 1px solid var(--au-border);
+  border-radius: var(--au-r-sm);
+  background: var(--au-surface);
+}
+.au-marcador {
+  display: flex;
+  align-items: center;
+  gap: var(--au-2);
+  padding: var(--au-1) var(--au-2);
+  border-radius: var(--au-r-sm);
+  cursor: pointer;
+}
+.au-marcador:hover { background: var(--au-surface-sunken); }
+/* O foco vai para o `<input>`, que está DENTRO do label: sem isto o teclado
+   percorre a lista sem nada mudar na tela. */
+.au-marcador:focus-within { outline: 2px solid var(--au-accent); outline-offset: -2px; }
+
+/* ── Campo de arquivo ───────────────────────────────────────────
+   O `<input type="file">` levava `class="au-input"` — a classe do campo de
+   TEXTO —, e o resultado era uma borda de campo em volta do botão nativo do
+   navegador: dois controles empilhados onde deveria haver um.
+
+   Aqui o input fica em `.au-sr` (escondido, focável) e o label é o controle. */
+.au-arquivo {
+  display: flex;
+  align-items: center;
+  gap: var(--au-2);
+  margin-top: var(--au-1);
+  padding: var(--au-2) var(--au-3);
+  border: 1px dashed var(--au-border-strong);
+  border-radius: var(--au-r-sm);
+  background: var(--au-surface-sunken);
+  cursor: pointer;
+  transition: border-color var(--au-dur-fast) var(--au-ease);
+}
+.au-arquivo:hover { border-color: var(--au-accent); }
+.au-arquivo > .au-icon { color: var(--au-text-subtle); flex: none; }
+.au-arquivo-acao { font-weight: 600; color: var(--au-accent-text); white-space: nowrap; }
+/* O nome do arquivo pode ser longo. `min-width: 0` + `ellipsis` é o que impede
+   que ele empurre o botão para fora da caixa. */
+.au-arquivo-nome {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--au-text-muted);
+  font-size: var(--au-t-sm);
+}
+/* O foco do input escondido tem de aparecer NO LABEL, senão o teclado percorre
+   o formulário e este campo é o único que não mostra onde está. */
+.au-sr:focus-visible + .au-arquivo,
+.au-arquivo:has(+ .au-sr:focus-visible) {
+  border-color: var(--au-accent);
+  box-shadow: 0 0 0 3px var(--au-accent-bg);
 }

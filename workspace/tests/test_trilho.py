@@ -40,8 +40,13 @@ def _trilho(client, url: str) -> str:
 
 
 def _abertos(corpo: str) -> list[str]:
+    # `[^>]*?` entre a classe e o `open`: o `<details>` ganhou `data-grupo` para
+    # o JS que lembra os grupos abertos, e uma regex que exigia os dois grudados
+    # passou a devolver lista vazia — ou seja, o teste reprovava por causa de si
+    # mesmo, e não do trilho.
     return re.findall(
-        r'<details class="au-rail-secao" open>\s*<summary class="au-rail-grupo">([^<]*)<',
+        r'<details class="au-rail-secao"[^>]*?\bopen\b[^>]*>'
+        r'\s*<summary class="au-rail-grupo">([^<]*)<',
         corpo,
     )
 

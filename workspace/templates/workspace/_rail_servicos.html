@@ -3,7 +3,7 @@
   "Meu dia" é o primeiro item porque é a resposta à pergunta com que a pessoa
   chega. Catálogo e Minhas solicitações são o que ela faz depois de saber.
 {% endcomment %}
-<details class="au-rail-secao" {% if grupo_aberto == "hoje" %}open{% endif %}>
+<details class="au-rail-secao" data-grupo="hoje" {% if grupo_aberto == "hoje" %}open{% endif %}>
   <summary class="au-rail-grupo">{% trans "Hoje" %}</summary>
 <a class="au-rail-item {% if aba == 'meu_dia' %}au-rail-item--ativo{% endif %}"
    href="{% url 'workspace:meu_dia' %}">
@@ -18,7 +18,7 @@
 </a>
 
 </details>
-<details class="au-rail-secao" {% if grupo_aberto == "consultar" %}open{% endif %}>
+<details class="au-rail-secao" data-grupo="consultar" {% if grupo_aberto == "consultar" %}open{% endif %}>
   <summary class="au-rail-grupo">{% trans "Consultar" %}</summary>
 {% comment %}
   METAS em CONSULTAR e para todo mundo que está identificado: `met.ler.proprio`
@@ -101,7 +101,7 @@
 </a>
 
 </details>
-<details class="au-rail-secao" {% if grupo_aberto == "pedir" %}open{% endif %}>
+<details class="au-rail-secao" data-grupo="pedir" {% if grupo_aberto == "pedir" %}open{% endif %}>
   <summary class="au-rail-grupo">{% trans "Pedir" %}</summary>
 <a class="au-rail-item {% if aba == 'catalogo' %}au-rail-item--ativo{% endif %}"
    href="{% url 'workspace:servicos' %}">
@@ -135,7 +135,7 @@
 {% endcomment %}
 </details>
 {% if ve_indicadores or ve_ciclos or ve_excecoes or ve_planos or ve_orcamento or ve_resultados or ve_quadro or ve_satisfacao %}
-  <details class="au-rail-secao" {% if grupo_aberto == "resultados" %}open{% endif %}>
+  <details class="au-rail-secao" data-grupo="resultados" {% if grupo_aberto == "resultados" %}open{% endif %}>
     <summary class="au-rail-grupo">{% trans "Resultados da empresa" %}</summary>
   {% comment %}
     Indicadores aparece para quem tem `ind.ler` — Diretoria, Sócios e R.H. — e
@@ -249,7 +249,7 @@
 {% endif %}
 
 {% if administra_papeis or ve_publicacoes or ve_faq or ve_candidaturas or ve_marketing or ve_documentos %}
-  <details class="au-rail-secao" {% if grupo_aberto == "gestao" %}open{% endif %}>
+  <details class="au-rail-secao" data-grupo="gestao" {% if grupo_aberto == "gestao" %}open{% endif %}>
     <summary class="au-rail-grupo">{% trans "Gestão" %}</summary>
   {% if administra_papeis %}
     <a class="au-rail-item {% if aba == 'pessoas' %}au-rail-item--ativo{% endif %}"
@@ -324,7 +324,7 @@
 
 
 {% if na_fila or ve_estoque or ve_frota %}
-  <details class="au-rail-secao" {% if grupo_aberto == "atender" %}open{% endif %}>
+  <details class="au-rail-secao" data-grupo="atender" {% if grupo_aberto == "atender" %}open{% endif %}>
     <summary class="au-rail-grupo">{% trans "Atender" %}</summary>
   {% if na_fila %}
     <a class="au-rail-item {% if aba == 'fila' %}au-rail-item--ativo{% endif %}"
@@ -373,7 +373,7 @@
   pessoa precisa ler para confiar que não esqueceu ninguém.
 {% endcomment %}
 {% if ve_aprovacoes %}
-  <details class="au-rail-secao" {% if grupo_aberto == "aprovar" %}open{% endif %}>
+  <details class="au-rail-secao" data-grupo="aprovar" {% if grupo_aberto == "aprovar" %}open{% endif %}>
     <summary class="au-rail-grupo">{% trans "Aprovar" %}</summary>
   <a class="au-rail-item {% if aba == 'aprovacoes' %}au-rail-item--ativo{% endif %}"
      href="{% url 'workspace:aprovacoes' %}">

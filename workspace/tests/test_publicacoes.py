@@ -397,6 +397,22 @@ def test_erro_devolve_o_que_a_pessoa_digitou(client, cenario):
     assert 'value="2" selected' in corpo
 
 
+def _marcado(corpo: str, campo: str, pk) -> bool:
+    """A caixa deste `pk` está marcada?
+
+    Confere o CONTROLE e não o valor solto: `value="1"` aparece em qualquer
+    `<option>`, e um teste que só procurasse isso passaria com o campo inteiro
+    quebrado. Era `value="N" selected` enquanto o público-alvo foi
+    `<select multiple>`.
+    """
+    import re
+
+    padrao = (
+        r'type="checkbox" name="%s" value="%s"[^>]*\bchecked\b' % (campo, pk)
+    )
+    return re.search(padrao, corpo) is not None
+
+
 def test_erro_mantem_o_publico_alvo_marcado(client, cenario):
     """Remarcar cinco departamentos porque a data estava errada é o tipo de
     coisa que se faz uma vez e nunca mais."""
@@ -411,7 +427,7 @@ def test_erro_mantem_o_publico_alvo_marcado(client, cenario):
         },
     ).content.decode()
 
-    assert f'value="{cenario["financeiro"].pk}" selected' in corpo
+    assert _marcado(corpo, "departamentos", cenario["financeiro"].pk)
 
 
 def test_o_campo_do_tipo_se_chama_tipo(client, cenario):
@@ -534,7 +550,7 @@ def test_editar_carrega_o_que_ja_esta_gravado(client, cenario):
     ).content.decode()
 
     assert "Texto original" in corpo
-    assert 'value="{}" selected'.format(cenario["financeiro"].pk) in corpo
+    assert _marcado(corpo, "departamentos", cenario["financeiro"].pk)
 
 
 def test_editar_pela_tela_altera_e_nao_duplica(client, cenario):
@@ -601,3 +617,92 @@ def test_acao_sem_permissao_e_recusada(client, cenario):
     assert resposta.status_code == 403
     p.refresh_from_db()
     assert not p.arquivado
+
+
+# ── O público-alvo, e o campo que era inoperável ────────────────────
+#
+# "Comunicados e notícias não estão funcionando" foi o relato, e a gravação
+# funcionava: publicação, imagem, anexo e público, tudo salvo. O que não
+# funcionava era ESCOLHER o público.
+#
+# Era um `<select multiple>`. Clicar seleciona; desmarcar exige Ctrl+clique
+# (Cmd no Mac), que ninguém descobre sozinho. Quem clicasse na unidade errada
+# não tinha como desfazer, o comunicado saía só para ela, e a leitura de quem
+# escreveu foi que a tela estava quebrada. Estava — só não onde parecia.
+
+
+def test_o_publico_alvo_e_caixa_de_marcar_e_nao_select(client, cenario):
+    """Caixa de marcar desmarca com um clique. `<select multiple>` não."""
+    client.force_login(cenario["editor"])
+
+    corpo = client.get(reverse("workspace:publicacao_nova")).content.decode()
+
+    assert 'type="checkbox" name="unidades"' in corpo
+    assert 'type="checkbox" name="departamentos"' in corpo
+    assert "multiple" not in corpo, "voltou o select que não desmarca"
+
+
+def test_desmarcar_o_publico_volta_a_alcancar_todo_mundo(client, cenario):
+    """O caminho inteiro do defeito: marcar uma unidade, e depois DESMARCAR.
+
+    Com o `<select multiple>` a segunda metade era impossível na tela. O teste
+    guarda o que a pessoa precisa conseguir fazer, e não o controle que estava
+    ali — se alguém trocar o controle de novo, este teste continua valendo.
+    """
+    client.force_login(cenario["editor"])
+    unidade = cenario["unidade"]
+
+    client.post(
+        reverse("workspace:publicacao_nova"),
+        {
+            "titulo": "Só para uma base", "tipo": TipoPublicacao.COMUNICADO,
+            "acao": "publicar", "unidades": [str(unidade.pk)],
+        },
+    )
+    publicacao = Publicacao.objects.get()
+    assert list(publicacao.unidades.all()) == [unidade]
+
+    # Agora sem nenhuma marcada — que é o que o formulário manda quando a pessoa
+    # desmarca a última caixa.
+    client.post(
+        reverse("workspace:publicacao_editar", args=(publicacao.pk,)),
+        {"titulo": "Só para uma base", "tipo": TipoPublicacao.COMUNICADO,
+         "acao": "publicar"},
+    )
+    publicacao.refresh_from_db()
+
+    assert list(publicacao.unidades.all()) == [], "não deu para voltar a alcançar todos"
+
+
+def test_prioridade_invalida_nao_derruba_a_tela(client, cenario):
+    """`int("normal")` era `ValueError` DENTRO da view — tela de erro 500.
+
+    A view já se defendia disso ao REEXIBIR o formulário, e não ao gravar.
+    Metade da defesa é a que dá a falsa sensação de que existe. Chega assim de
+    um formulário aberto noutra aba antes de o campo mudar de formato.
+    """
+    client.force_login(cenario["editor"])
+
+    resposta = client.post(
+        reverse("workspace:publicacao_nova"),
+        {"titulo": "Aviso", "tipo": TipoPublicacao.COMUNICADO, "acao": "publicar",
+         "prioridade": "normal"},
+    )
+
+    assert resposta.status_code in (200, 302), "prioridade inválida virou 500"
+    assert Publicacao.objects.get().prioridade == 0
+
+
+def test_o_campo_de_arquivo_nao_usa_a_classe_de_campo_de_texto(client, cenario):
+    """`class="au-input"` num `<input type="file">` desenha a borda de um campo
+    de texto em volta do botão nativo do navegador: dois controles empilhados
+    onde deveria haver um."""
+    client.force_login(cenario["editor"])
+
+    corpo = client.get(reverse("workspace:publicacao_nova")).content.decode()
+
+    assert corpo.count('class="au-arquivo"') == 2, "imagem e anexo"
+    assert 'class="au-input" id="imagem"' not in corpo
+    assert 'class="au-input" id="anexo"' not in corpo
+    # O input continua existindo e enviável: o label é a casca, não o controle.
+    assert 'id="imagem" name="imagem" type="file"' in corpo
