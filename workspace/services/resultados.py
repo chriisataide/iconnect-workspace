@@ -1915,7 +1915,10 @@ def _grafico_da_carteira(conteudo: dict):
         chave="carteira",
         titulo="Receita mensal × margem, por contrato",
         rotulo_x="Receita mensal",
-        rotulo_y="Margem %",
+        # SEM o "%" aqui: quem acrescenta a unidade ao nome do eixo é
+        # `series.dispersao`, e escrevê-la nos dois lugares produzia
+        # "Margem % (%)" na tela.
+        rotulo_y="Margem",
         limiar_y=MARGEM_MINIMA,
     )
 

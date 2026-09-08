@@ -247,3 +247,53 @@ def test_o_apple_touch_nao_tem_transparencia():
     )
 
     assert Image.open(caminho).mode == "RGB", "o apple-touch precisa ser opaco"
+
+
+# ── Duas portas com o mesmo nome ────────────────────────────────────
+#
+# `/workspace/m/marketing/` mostra a fatia do catálogo — UM item — e
+# `/workspace/marketing/` mostra o radar de oportunidades, que é o que a palavra
+# significa para quem trabalha nela. O tile da home levava à quase vazia, e
+# nenhuma das duas apontava para a outra.
+#
+# Elas continuam separadas de propósito: o radar diz o que EXISTE e até quando
+# responder; o catálogo é por onde se GASTA o dinheiro depois. O que faltava era
+# o elo.
+
+
+def test_modulo_com_tela_propria_aponta_para_ela(client):
+    from workspace.modulos import MODULOS
+
+    com_tela = [m for m in MODULOS if m.tela_propria]
+    assert com_tela, "nenhum módulo declara tela própria — o elo sumiu"
+
+    for modulo in com_tela:
+        corpo = client.get(
+            reverse("workspace:modulo", args=(modulo.chave,))
+        ).content.decode()
+        assert reverse(modulo.tela_propria) in corpo, (
+            f"{modulo.chave} não aponta para a própria tela de trabalho"
+        )
+        assert modulo.tela_propria_rotulo in corpo
+
+
+def test_a_tela_propria_nao_engole_o_catalogo(client):
+    """As duas continuam existindo. Fundi-las perderia uma das perguntas."""
+    from workspace.modulos import MODULOS
+
+    marketing = next(m for m in MODULOS if m.chave == "marketing")
+
+    assert marketing.dominios, "o módulo perdeu a fatia do catálogo"
+    assert marketing.tem_catalogo
+    # `rota` SUBSTITUI o catálogo; `tela_propria` CONVIVE com ele. Confundir os
+    # dois faria o item "Evento ou patrocínio" perder a porta do departamento.
+    assert not marketing.rota
+
+
+def test_todo_modulo_com_tela_propria_tem_rotulo():
+    """Um elo sem rótulo é uma seta para lugar nenhum."""
+    from workspace.modulos import MODULOS
+
+    for modulo in MODULOS:
+        if modulo.tela_propria:
+            assert modulo.tela_propria_rotulo, f"{modulo.chave} tem elo sem rótulo"

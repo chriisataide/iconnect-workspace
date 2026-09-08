@@ -219,7 +219,18 @@ def _rotulo(
         "formatter": f"{{@{dimensao}}}",
         "rotate": 90,
         "position": "insideBottom" if dentro else "top",
-        "align": "left" if dentro else "center",
+        # `align: "left"` NOS DOIS CASOS, e isto é a correção de um defeito real.
+        #
+        # Com `rotate: 90`, `align` decide para que lado o texto cresce a partir
+        # do ponto de ancoragem. `"left"` faz ele subir; `"center"` faz ele ficar
+        # CENTRADO na âncora — ou seja, metade acima e metade ABAIXO dela.
+        #
+        # Fora da barra a âncora fica na borda de cima, então `"center"` jogava
+        # metade do número por cima da barra. Numa barra navy escura com texto
+        # navy escuro, essa metade sumia. Foi relatado três vezes como "o valor
+        # está preto", e a cor estava certa desde a primeira: o que estava errado
+        # era o alinhamento.
+        "align": "left",
         "verticalAlign": "middle",
         "distance": 6,
         "fontSize": 11,
@@ -1213,6 +1224,14 @@ def dispersao(
     def abaixo(y: Decimal) -> bool:
         return limiar_y is not None and y < limiar_y
 
+    # Os limites da área do quadrante. "Muito" é a METADE do maior faturamento,
+    # e não um valor fixo: uma carteira de contratos de 30 mil e outra de 3
+    # milhões têm o mesmo desenho, e um corte absoluto serviria a uma só.
+    receitas = [float(x) for _, x, _, _ in pontos]
+    meia_receita = max(receitas) / 2 if receitas else 0.0
+    margens = [float(y) for _, _, y, _ in pontos]
+    piso_y = min(margens + [float(limiar_y) if limiar_y is not None else 0.0])
+
     option = _base(altura)
     option.update(
         {
@@ -1220,19 +1239,28 @@ def dispersao(
             # `formatter` em JS com `Intl` colocaria a regra de pt-BR num
             # segundo lugar, e o segundo diverge do primeiro.
             "tooltip": {"trigger": "item", "confine": True, "formatter": "{@detalhe}"},
+            # A UNIDADE NO NOME DO EIXO. Sem ela, "25" no eixo vertical e
+            # "30,000" no horizontal são dois números sem grandeza, e a pessoa
+            # tem de deduzir qual é qual. Foi a primeira coisa que faltou quando
+            # alguém disse "não entendi como ler".
             "xAxis": {
                 **_eixo_de_valor(),
-                "name": rotulo_x,
+                "name": f"{rotulo_x} (R$)",
                 "nameLocation": "middle",
                 "nameGap": 28,
                 "nameTextStyle": {"color": COR_TEXTO, "fontSize": 11},
             },
             "yAxis": {
                 **_eixo_de_valor(),
-                "name": rotulo_y,
+                "name": f"{rotulo_y} (%)",
                 "nameLocation": "middle",
                 "nameGap": 40,
                 "nameTextStyle": {"color": COR_TEXTO, "fontSize": 11},
+                # String e não função: `{value}` é template do ECharts, e um
+                # `Intl` em JS poria a regra de formato num segundo lugar.
+                "axisLabel": {
+                    **_eixo_de_valor()["axisLabel"], "formatter": "{value}%"
+                },
             },
             "series": [
                 {
@@ -1255,6 +1283,7 @@ def dispersao(
                             "itemStyle": {
                                 "color": COR_NEGATIVO if abaixo(y) else COR_PRINCIPAL
                             },
+                            "label": {"show": bool(abaixo(y))},
                             "detalhe": (
                                 f"{rotulo}<br>{rotulo_x}: {formatar_x_exato(x)}"
                                 f"<br>{rotulo_y}: {formatar_y(y)}"
@@ -1263,13 +1292,18 @@ def dispersao(
                         }
                         for rotulo, x, y, t in pontos
                     ],
+                    # O RÓTULO SÓ NOS QUE ESTÃO ABAIXO DO LIMIAR — ver o
+                    # `label: {show: False}` por item, acima.
+                    #
+                    # Nomear todos os contratos enche o gráfico, o `hideOverlap`
+                    # apaga a maioria, e o que sobra é aleatório: os que
+                    # aparecem são os que couberam, não os que importam. Nomear
+                    # só os vermelhos deixa a leitura em uma frase — "estes
+                    # quatro estão abaixo da margem, e este é grande".
                     "label": {
                         "show": True, "formatter": "{@rotulo}",
-                        # 10px e não 11: aqui são dezenas de pontos próximos, e
-                        # o `hideOverlap` já esconde metade deles. Ganhar meio
-                        # ponto de tamanho custaria esconder mais alguns.
                         "position": "top", "fontSize": 10,
-                        "fontWeight": "bold", "color": COR_ROTULO_ESCURO,
+                        "fontWeight": "bold", "color": COR_NEGATIVO,
                     },
                     "labelLayout": {"hideOverlap": True},
                     "markLine": (
@@ -1283,6 +1317,38 @@ def dispersao(
                                 "fontSize": 10,
                             },
                             "data": [{"yAxis": float(limiar_y)}],
+                        }
+                        if limiar_y is not None
+                        else {"data": []}
+                    ),
+                    # O QUADRANTE, NOMEADO DENTRO DO GRÁFICO.
+                    #
+                    # A linha tracejada dizia onde a margem mínima passa, e o
+                    # vermelho dizia quem está abaixo dela. Nenhum dos dois
+                    # dizia POR QUE olhar para lá — e "por que olhar" é a única
+                    # pergunta que este gráfico existe para responder.
+                    #
+                    # A área vai da metade direita do eixo X para baixo do
+                    # limiar: é onde mora o contrato que fatura muito e rende
+                    # pouco, que é o caro de descobrir tarde. `silent` para não
+                    # roubar o clique nem o tooltip dos pontos que estão dentro
+                    # dela.
+                    "markArea": (
+                        {
+                            "silent": True,
+                            "itemStyle": {"color": COR_NEGATIVO, "opacity": 0.06},
+                            "label": {
+                                "show": True,
+                                "position": "insideBottomRight",
+                                "formatter": "fatura muito, rende pouco",
+                                "color": COR_NEGATIVO,
+                                "fontSize": 10,
+                                "fontWeight": "bold",
+                            },
+                            "data": [[
+                                {"xAxis": float(meia_receita), "yAxis": float(piso_y)},
+                                {"xAxis": "max", "yAxis": float(limiar_y)},
+                            ]],
                         }
                         if limiar_y is not None
                         else {"data": []}

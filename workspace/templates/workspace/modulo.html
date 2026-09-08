@@ -13,6 +13,30 @@
 {% endblock %}
 
 {% block corpo %}
+  {% comment %}
+    A TELA DE VERDADE DO DEPARTAMENTO, quando ela existe — e ANTES do catálogo.
+
+    Marketing revelou o problema: `/workspace/m/marketing/` mostra a fatia do
+    catálogo (UM item) e `/workspace/marketing/` mostra o radar de
+    oportunidades, que é o que a palavra significa para quem trabalha nela. Duas
+    portas com o mesmo nome, nenhuma apontando para a outra — e o tile da home
+    levava à quase vazia.
+
+    Não fundimos as duas: o radar diz o que existe e até quando responder, o
+    catálogo é por onde se gasta o dinheiro depois. São perguntas diferentes. O
+    que faltava era o elo, e ele vem em cima porque é o destino mais provável de
+    quem clicou no nome do departamento.
+  {% endcomment %}
+  {% if modulo.tela_propria %}
+    <a class="au-atalho-tela" href="{% url modulo.tela_propria %}">
+      <span class="au-atalho-tela-texto">
+        <b>{{ modulo.tela_propria_rotulo }}</b>
+        <span>{% blocktrans with d=modulo.nome %}A tela de trabalho de {{ d }}.{% endblocktrans %}</span>
+      </span>
+      <svg class="au-icon" aria-hidden="true"><use href="#i-seta"></use></svg>
+    </a>
+  {% endif %}
+
   <section class="au-secao">
     <div class="au-secao-cabeca">
       <h2 class="au-secao-titulo">{% trans "O que você pode pedir aqui" %}</h2>

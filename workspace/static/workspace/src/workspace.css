@@ -4467,3 +4467,29 @@ tr[data-abre-resumo]:focus-visible {
   border-color: var(--au-accent);
   box-shadow: 0 0 0 3px var(--au-accent-bg);
 }
+
+/* ── Atalho para a tela de trabalho do departamento ─────────────
+   Um módulo pode ter DUAS portas com o mesmo nome: a vista de catálogo
+   (`/workspace/m/marketing/`) e a tela de verdade (`/workspace/marketing/`).
+   Elas respondem perguntas diferentes e por isso continuam separadas — o que
+   faltava era o elo, e ele vai no topo porque é o destino mais provável de
+   quem clicou no nome do departamento. */
+.au-atalho-tela {
+  display: flex;
+  align-items: center;
+  gap: var(--au-3);
+  margin-bottom: var(--au-5);
+  padding: var(--au-3) var(--au-4);
+  border: 1px solid var(--au-border);
+  border-left: 3px solid var(--au-accent);
+  border-radius: var(--au-r-md);
+  background: var(--au-surface);
+  text-decoration: none;
+  color: inherit;
+  transition: border-color var(--au-dur-fast) var(--au-ease);
+}
+.au-atalho-tela:hover { border-color: var(--au-accent); background: var(--au-surface-sunken); }
+.au-atalho-tela-texto { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.au-atalho-tela-texto b { color: var(--au-accent-text); }
+.au-atalho-tela-texto span { font-size: var(--au-t-sm); color: var(--au-text-muted); }
+.au-atalho-tela > .au-icon { margin-left: auto; flex: none; color: var(--au-text-subtle); }
