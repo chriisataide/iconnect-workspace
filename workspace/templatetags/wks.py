@@ -132,6 +132,21 @@ def codigo_da_tela(context) -> str:
     return tela.codigo if tela else ""
 
 
+@register.filter
+def numero(valor, casas: int = 0) -> str:
+    """`6338` → `6.338`. O milhar com ponto, como no resto do produto.
+
+    `floatformat:"0"` do Django NÃO põe separador sem `USE_THOUSAND_SEPARATOR`,
+    e ligar essa flag globalmente mudaria todo número do produto — inclusive os
+    que já saem formatados do Python. A tabela de horas mostrava `6338`, e
+    quatro dígitos sem separador ao lado de `1.124` na coluna vizinha é o tipo
+    de inconsistência que faz alguém ler o número errado numa reunião.
+    """
+    from workspace.graficos import formato as fmt
+
+    return fmt.numero(valor, casas)
+
+
 @register.simple_tag
 def produto() -> str:
     """O nome do produto, de `settings.PRODUTO_NOME`.

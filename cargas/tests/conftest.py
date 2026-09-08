@@ -31,11 +31,15 @@ class ConectorFalso(ConectorBase):
 
     def __init__(
         self, chave: str, registros, *, quebra_em=None,
-        quebra_normalizando=None, disponivel=True,
+        quebra_normalizando=None, disponivel=True, erro=None,
     ):
         self.chave = chave
         self._registros = list(registros)
         self._quebra_em = quebra_em
+        # QUAL exceção a fonte levanta. O padrão é um `RuntimeError` genérico,
+        # que é o caso comum; passar uma específica serve para os testes que
+        # conferem COMO cada classe de erro é traduzida para a tela.
+        self._erro = erro
         self._quebra_normalizando = quebra_normalizando
         self._disponivel = disponivel
         self.janelas = []
@@ -47,7 +51,7 @@ class ConectorFalso(ConectorBase):
         self.janelas.append(janela)
         for i, registro in enumerate(self._registros):
             if self._quebra_em is not None and i == self._quebra_em:
-                raise RuntimeError("a fonte caiu no meio da coleta")
+                raise self._erro or RuntimeError("a fonte caiu no meio da coleta")
             yield {"_i": i, "registro": registro}
 
     def normalizar(self, bruto):

@@ -138,6 +138,8 @@ MODULOS: tuple[Modulo, ...] = (
         # que a empresa usa muda; a chave interna não precisa mudar junto, e
         # amarrar as duas é como um rename vira incidente.
         dominios=("log.",),
+        tela_propria="workspace:estoque",
+        tela_propria_rotulo="Estoque e movimentações",
         ordem=60,
     ),
     Modulo(

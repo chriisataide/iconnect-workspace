@@ -245,6 +245,7 @@ justificativa no PR.
 | [EXEC 22](docs/EXEC_22_ORCAMENTO.md) | Orçamento anual e revisão: a onda que começou decidindo a posse, com os ADRs 036–037 |
 | [EXEC 23](docs/EXEC_23_PUBLICOS.md) | Segmentação de público: um ADR e um tile, não um módulo, com os ADRs 038–039 |
 | [EXEC 24](docs/EXEC_24_LIGAR_AS_FONTES.md) | O roteiro de ligar as três fontes e instalar o agendamento — o que falta é acesso, não código |
+| [EXEC 26](docs/EXEC_26_RADAR_EXTERNO.md) | Levantamento: trazer oportunidades de fora. Raspagem não; **edital público por API oficial, sim** — e o que precisa ser decidido antes do código |
 | [EXEC 25](docs/EXEC_25_GRAFICOS.md) | Gráficos com biblioteca: a CSP que abriu, o ECharts e o PDF sem gráfico, com os ADRs 040–041 |
 
 ---

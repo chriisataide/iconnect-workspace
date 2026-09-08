@@ -826,13 +826,23 @@ def satisfacao(escopo: contrato.Escopo, filtros: Filtros) -> Faixa:
             por_classe[a.classificacao] += 1
     total = len(avaliacoes)
 
+    percentuais = {
+        classe: _sobre(Decimal(quantidade), Decimal(total))
+        for classe, quantidade in por_classe.items()
+    }
     faixa.conteudo = {
         "total": total,
         "contagem": por_classe,
-        "percentuais": {
-            classe: _sobre(Decimal(quantidade), Decimal(total))
-            for classe, quantidade in por_classe.items()
-        },
+        "percentuais": percentuais,
+        # O NPS — e ele NÃO estava em lugar nenhum desta tela.
+        #
+        # A tela mostrava a distribuição três vezes (a barra, a tabela irmã e
+        # uma linha de três indicadores) e nunca o número que dá nome a ela.
+        # Promotores menos detratores, em pontos percentuais: é assim que o
+        # índice é definido, e é o que alguém pergunta primeiro.
+        "nps": (percentuais["promotor"] - percentuais["detrator"]).quantize(
+            Decimal("0.1")
+        ),
         "detratores": [a for a in avaliacoes if a.classificacao == "detrator"],
         "sem_tratativa": [a for a in avaliacoes if a.detrator_sem_tratativa],
     }
@@ -1093,7 +1103,7 @@ def _cartoes_de_pessoas(faixa: Faixa | None) -> list[Destaque]:
                 Destaque(
                     chave="he-ineficiencia",
                     titulo="Hora extra de ineficiência",
-                    valor=f"{pct}%",
+                    valor=fmt.percentual(pct),
                     detalhe="Cobertura de ausência e escala — não é serviço extra.",
                     fonte=faixa.fonte,
                     ancora="pessoas",
@@ -1127,7 +1137,7 @@ def _cartoes_de_pessoas(faixa: Faixa | None) -> list[Destaque]:
             Destaque(
                 chave="turnover",
                 titulo="Turnover acima do aceitável",
-                valor=f"{pior.turnover_pct}%",
+                valor=fmt.percentual(pior.turnover_pct),
                 detalhe=(
                     f"Centro de custo {pior.centro_custo}"
                     + (f" e mais {len(acima) - 1}." if len(acima) > 1 else ".")

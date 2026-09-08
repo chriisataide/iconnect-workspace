@@ -8,27 +8,32 @@
   {% grafico faixa.conteudo.grafico %}
 {% endif %}
 
+{% comment %}
+  O NPS VEM ANTES DA BARRA, e ele é a mudança desta revisão.
+
+  A tela mostrava a distribuição TRÊS vezes — a barra, a tabela irmã dela e uma
+  linha com promotores/neutros/detratores repetindo os mesmos três números — e
+  não mostrava em lugar nenhum o índice que dá nome à tela.
+
+  Os três indicadores repetidos saíram; a tabela irmã fica, porque ela é o que
+  faz o gráfico existir sem JavaScript. No lugar deles, as duas coisas que a
+  barra NÃO diz: o índice e sobre quantas respostas ele foi calculado.
+{% endcomment %}
 <div class="au-kpi-linha">
-  <div class="au-kpi">
-    <span class="au-kpi-rotulo">{% trans "promotores" %}</span>
-    <span class="au-kpi-valor">
-      {{ faixa.conteudo.contagem.promotor }}
-      <small class="au-kpi-sufixo">{{ faixa.conteudo.percentuais.promotor }}%</small>
+  <div class="au-kpi au-kpi--destaque">
+    <span class="au-kpi-rotulo">
+      {% trans "NPS" %}
+      <span class="au-kpi-nota">{% trans "promotores − detratores" %}</span>
     </span>
+    <span class="au-kpi-valor">{{ faixa.conteudo.nps }}</span>
   </div>
   <div class="au-kpi">
-    <span class="au-kpi-rotulo">{% trans "neutros" %}</span>
-    <span class="au-kpi-valor">
-      {{ faixa.conteudo.contagem.neutro }}
-      <small class="au-kpi-sufixo">{{ faixa.conteudo.percentuais.neutro }}%</small>
-    </span>
+    <span class="au-kpi-rotulo">{% trans "respostas no período" %}</span>
+    <span class="au-kpi-valor">{{ faixa.conteudo.total }}</span>
   </div>
-  <div class="au-kpi {% if faixa.conteudo.contagem.detrator %}au-kpi--alerta{% endif %}">
-    <span class="au-kpi-rotulo">{% trans "detratores" %}</span>
-    <span class="au-kpi-valor">
-      {{ faixa.conteudo.contagem.detrator }}
-      <small class="au-kpi-sufixo">{{ faixa.conteudo.percentuais.detrator }}%</small>
-    </span>
+  <div class="au-kpi {% if faixa.conteudo.sem_tratativa %}au-kpi--alerta{% endif %}">
+    <span class="au-kpi-rotulo">{% trans "detratores sem tratativa" %}</span>
+    <span class="au-kpi-valor">{{ faixa.conteudo.sem_tratativa|length }}</span>
   </div>
 </div>
 

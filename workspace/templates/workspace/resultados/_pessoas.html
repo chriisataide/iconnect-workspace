@@ -85,7 +85,7 @@
         {% for hora in faixa.conteudo.horas %}
           <tr>
             <td>{{ hora.rotulo }}</td>
-            <td class="num">{{ hora.horas|floatformat:"0" }}</td>
+            <td class="num">{{ hora.horas|numero }}</td>
             <td class="num">{% if hora.percentual is None %}—{% else %}{{ hora.percentual }}%{% endif %}</td>
           </tr>
         {% endfor %}

@@ -4493,3 +4493,20 @@ tr[data-abre-resumo]:focus-visible {
 .au-atalho-tela-texto b { color: var(--au-accent-text); }
 .au-atalho-tela-texto span { font-size: var(--au-t-sm); color: var(--au-text-muted); }
 .au-atalho-tela > .au-icon { margin-left: auto; flex: none; color: var(--au-text-subtle); }
+
+/* ── O indicador principal de uma faixa ─────────────────────────
+   O NPS na tela de satisfação. Ele não é mais um número da linha: é o que dá
+   nome à tela, e ficava ausente enquanto a distribuição aparecia três vezes. */
+.au-kpi--destaque { border-color: var(--au-accent); }
+.au-kpi--destaque .au-kpi-valor { font-size: var(--au-t-2xl); color: var(--au-accent-text); }
+/* A definição ao lado do rótulo. "NPS" sozinho é sigla; com "promotores −
+   detratores" ao lado, quem nunca viu a conta não precisa procurar. */
+.au-kpi-nota {
+  display: block;
+  margin-top: 1px;
+  font-size: var(--au-t-2xs);
+  font-weight: 400;
+  letter-spacing: 0;
+  text-transform: none;
+  color: var(--au-text-subtle);
+}
