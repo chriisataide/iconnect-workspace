@@ -287,3 +287,50 @@ def test_no_nivel_do_centro_de_custo_o_rateio_sem_contrato_continua_dentro(db):
     assert sorted(linha.receita_bruta for linha in serie) == [
         Decimal("50"), Decimal("100")
     ]
+
+
+# ── O serviço: como se contrata, e não o que se entrega ─────────────
+
+
+def test_os_cinco_servicos_sao_formas_de_CONTRATAR():
+    """A lista antiga misturava duas perguntas.
+
+    `cftv` e `alarme` diziam O QUE está instalado — e o mesmo cliente pode ter
+    os dois sob um contrato de manutenção, de locação ou de projeto. Como tipo
+    de serviço eles respondiam à pergunta errada, e por isso o filtro não
+    separava nada que a diretoria quisesse comparar.
+    """
+    from resultados.models import ServicoContrato
+
+    assert set(ServicoContrato.values) == {
+        "projeto", "monitoramento", "manutencao", "locacao", "projeto_turnkey"
+    }
+    # Nenhum equipamento sobrou.
+    assert not {"cftv", "alarme", "instalacao"} & set(ServicoContrato.values)
+
+
+def test_o_mapeamento_da_migration_esta_declarado_e_e_reversivel():
+    """A migration é o ÚNICO lugar onde a tradução existe, e ela é aproximada.
+
+    O que a autoriza é uma resposta do dono do produto — "não há contrato real
+    ainda" —, e não uma equivalência entre os valores. Este teste guarda o
+    mapeamento por escrito para que a próxima pessoa não o refaça de cabeça
+    supondo que exista uma tradução certa.
+
+    A volta é declaradamente uma APROXIMAÇÃO: `projeto`, `locacao` e
+    `projeto_turnkey` não existiam antes e voltam todos como `instalacao`.
+    Descer e subir não devolve o estado original — e é melhor isso do que a
+    migration não ter volta, que prenderia o banco de desenvolvimento nesta
+    versão.
+    """
+    from importlib import import_module
+
+    m = import_module("resultados.migrations.0004_servico_como_se_contrata")
+
+    assert m.PARA_NOVO == {
+        "instalacao": "projeto",
+        "cftv": "monitoramento",
+        "alarme": "monitoramento",
+    }
+    assert set(m.PARA_ANTIGO) == {"projeto", "locacao", "projeto_turnkey"}
+    assert set(m.PARA_ANTIGO.values()) == {"instalacao"}

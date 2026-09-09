@@ -169,4 +169,18 @@ cargas = 97.0      # medido 97.39 · conectores, carregador, transporte
 #     de gráfico entrar no catálogo sem entrar na varredura;
 #   · o que exige 3,0:1 entre Realizado e Orçado — a paleta pedida na revisão
 #     dava 1,33:1, e em escala de cinza as duas barras viravam uma só.
-minimo = 3524
+# 3524 → 3566: o bloco D (plano de contas, tabela contábil, razão na massa) e
+#   os cinco serviços do A4. Os que mais protegem:
+#   · o que confere a reconciliação em TODA competência, e não numa amostra —
+#     o erro de arredondamento da decomposição não aparece em todo mês, e uma
+#     amostra o acharia numa execução e não na seguinte;
+#   · o que exige que a soma das contas seja o grupo: expandir mostrando um
+#     número diferente do que estava fechado é a pior surpresa possível;
+#   · os dois de idempotência do seeder, mesmo dia e DIA SEGUINTE. O segundo é
+#     o caso que um defeito real produzia — a avaliação com data derivada de
+#     `hoje` e chave fixa —, e ele ficou escondido justamente porque a suíte
+#     semeava uma vez, num dia só;
+#   · o que reprova se alguma linha do razão cair em "conta não cadastrada":
+#     esse caminho existe para o dia em que a fonte real mandar código novo, e
+#     não para a massa se enganar sozinha (431 linhas já nasceram assim).
+minimo = 3566

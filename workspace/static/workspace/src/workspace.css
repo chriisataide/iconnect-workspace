@@ -4563,3 +4563,58 @@ tr[data-abre-resumo]:focus-visible {
 .au-comparacao-variacao { font-weight: 650; font-size: var(--au-t-md); }
 .au-comparacao--subiu .au-comparacao-variacao { color: var(--au-success-text); }
 .au-comparacao--caiu  .au-comparacao-variacao { color: var(--au-danger-text); }
+
+/* A TABELA CONTÁBIL — bloco D.
+ *
+ * Ela tem cento e quarenta e nove contas possíveis em dois níveis, e a leitura
+ * depende de o olho distinguir o grupo da analítica sem contar colunas. Três
+ * recursos fazem isso, e nenhum deles é cor sozinha: peso da fonte, recuo, e o
+ * código monoespaçado alinhando os dígitos em coluna.
+ */
+.au-tabela--contabil table { font-variant-numeric: tabular-nums; }
+
+.au-contabil-grupo > th { font-weight: 650; }
+.au-contabil-grupo--alerta > th { color: var(--au-warning-text); }
+
+/* O "+" é um LINK, e precisa parecer um. Sem sublinhado porque a linha inteira
+ * é clicável e um sublinhado por linha viraria ruído em vinte e oito grupos. */
+.au-contabil-abrir {
+  display: inline-flex;
+  align-items: baseline;
+  gap: var(--au-2);
+  color: inherit;
+  text-decoration: none;
+}
+.au-contabil-abrir:hover { text-decoration: underline; }
+
+/* Largura fixa para o "+" e o "−" ocuparem o mesmo espaço: sem isso o nome do
+ * grupo desloca um pixel a cada clique, e a lista inteira parece tremer. */
+.au-contabil-sinal {
+  display: inline-block;
+  width: 1em;
+  text-align: center;
+  font-weight: 700;
+  color: var(--au-accent);
+}
+
+.au-contabil-codigo {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: var(--au-t-xs);
+  color: var(--au-text-muted);
+  margin-right: var(--au-2);
+}
+
+/* O RECUO é o que diz "esta linha pertence à de cima". Em `padding-inline-start`
+ * e não em `margin`: a célula é um `th`, e a borda dela precisa continuar
+ * alinhada com a do grupo. */
+.au-contabil-conta > th {
+  padding-inline-start: var(--au-6);
+  font-weight: 400;
+  color: var(--au-text-muted);
+}
+
+.au-contabil-total > th,
+.au-contabil-total > td {
+  font-weight: 700;
+  border-top: 2px solid var(--au-border);
+}

@@ -158,6 +158,39 @@ class ContratoDTO(ComProcedencia):
 
 
 @dataclass(frozen=True)
+class ContaDTO(ComProcedencia):
+    """Uma conta, num mês, de um contrato — a linha do bloco D.
+
+    Traz o GRUPO junto (`grupo_codigo`, `grupo_nome`) em vez de deixar a tela
+    consultar o pai: a tabela agrupa por grupo, e uma consulta por linha seria
+    um N+1 de cento e quarenta e nove contas.
+    """
+
+    codigo: str = ""
+    nome: str = ""
+    grupo_codigo: str = ""
+    grupo_nome: str = ""
+    degrau: str = ""
+    natureza: str = ""
+    contrato: str = ""
+    centro_custo: str = ""
+    ano: int = 0
+    mes: int = 0
+    realizado: Decimal = Decimal("0")
+    ajustes: Decimal = Decimal("0")
+    #: `None` e não zero — sem orçado é diferente de orçado zero.
+    orcado: Decimal | None = None
+    #: `True` quando a fonte mandou um código que o plano não conhece. A linha
+    #: entra no total assim mesmo: despesa que some porque o plano está
+    #: desatualizado é o defeito que ninguém procura no lugar certo.
+    desconhecida: bool = False
+
+    @property
+    def realizado_ajustado(self) -> Decimal:
+        return self.realizado + self.ajustes
+
+
+@dataclass(frozen=True)
 class ProjetoDTO(ComProcedencia):
     codigo: str = ""
     nome: str = ""
@@ -372,6 +405,20 @@ class ProvedorResultadoFinanceiro(ABC):
 
     def consolidado(self, escopo, competencia: date) -> ConsolidadoDTO | None:
         return None
+
+    def por_conta(self, escopo, de: date, ate: date) -> list[ContaDTO]:
+        """O razão por conta contábil — o bloco D.
+
+        No MESMO contrato que a série, e não num provedor novo: quem responde
+        "quanto entrou" é quem responde "com o que foi gasto", e separá-los
+        permitiria que as duas respostas viessem de fontes diferentes e não
+        fechassem. Há teste conferindo que a soma daqui bate com o agregado.
+
+        Devolve `[]` por padrão: uma fonte que não expõe razão não deve ser
+        obrigada a fingir que expõe, e a tela diz o que falta em vez de mostrar
+        uma tabela vazia sem explicação.
+        """
+        return []
 
 
 class ProvedorCarteira(ABC):

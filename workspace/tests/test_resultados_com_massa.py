@@ -15,6 +15,7 @@ from django.core.management import call_command
 from django.urls import reverse
 
 from identidade.tests import fabricas as f
+from workspace.services import resultados as svc
 
 pytestmark = pytest.mark.django_db
 
@@ -22,6 +23,10 @@ pytestmark = pytest.mark.django_db
 @pytest.fixture
 def diretoria_com_massa(db):
     call_command("semear_fontes", "--aplicar", verbosity=0)
+    # O PLANO DE CONTAS antes da massa. Sem ele o razão por conta não é gerado
+    # — o seeder avisa e segue —, e a faixa contábil diria "sem lançamento"
+    # num teste cuja afirmação é justamente que NENHUMA faixa fica sem dado.
+    call_command("semear_plano_de_contas", "--aplicar", verbosity=0)
     call_command("semear_resultados", "--aplicar", verbosity=0)
     pessoa = f.pessoa("diretoria", nome="Diretoria")
     f.lotar(pessoa)
@@ -61,12 +66,17 @@ def tela_da_satisfacao(client, diretoria_com_massa):
     return client.get(reverse("workspace:satisfacao"))
 
 
-def test_as_seis_faixas_abrem_com_dado(tela, tela_do_quadro, tela_da_satisfacao):
+def test_todas_as_faixas_abrem_com_dado(tela, tela_do_quadro, tela_da_satisfacao):
     """Nenhuma diz "sem fonte conectada" e nenhuma some.
 
-    Continuam sendo SEIS — quatro na tela 10 e uma em cada irmã. O teste passou
-    a somar as três telas de propósito: se ele olhasse só a 10, a separação teria
+    Eram SEIS e passaram a SETE em 09/09/2026, com a tabela contábil (bloco D):
+    cinco na tela 10 e uma em cada irmã. O teste soma as três telas de
+    propósito — se olhasse só a 10, a separação das telas irmãs teria
     "consertado" a cobertura fazendo duas faixas deixarem de ser conferidas.
+
+    A contagem sai de `MONTADORES` e não de um número escrito: faixa nova que
+    nasça sem massa reprova aqui, que é onde se descobre que a semeadora não a
+    acompanhou.
     """
     indisponiveis = {
         faixa.chave: faixa.motivo
@@ -82,9 +92,10 @@ def test_as_seis_faixas_abrem_com_dado(tela, tela_do_quadro, tela_da_satisfacao)
         for resposta in (tela, tela_do_quadro, tela_da_satisfacao)
         for faixa in resposta.context["faixas"]
     }
-    assert vistas == {
-        "dinheiro", "contratos", "vencimentos", "projetos", "pessoas", "satisfacao",
-    }
+    esperadas = {chave for chave, _ in svc.MONTADORES}
+    esperadas |= {chave for chave, _ in svc.MONTADORES_PESSOAS}
+    esperadas |= {chave for chave, _ in svc.MONTADORES_SATISFACAO}
+    assert vistas == esperadas
 
 
 def test_cada_faixa_carimba_a_SUA_fonte(tela, tela_da_satisfacao):

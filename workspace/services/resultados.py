@@ -220,6 +220,9 @@ class Filtros:
     #: contra o ano passado" são duas perguntas, e um seletor só para as duas
     #: obrigaria a escolher entre elas.
     comparar: str = ""
+    #: Os grupos abertos na tabela contábil — D1. Na URL para o link chegar
+    #: aberto no ponto certo do outro lado.
+    expandidos: tuple[str, ...] = ()
     #: Por qual dimensão o bloco de perfuração agrupa. Vazio = a do nível
     #: seguinte na hierarquia, que é o que quem não escolheu nada quer.
     dimensao: str = ""
@@ -347,6 +350,7 @@ def ler_filtros(parametros, hoje: date | None = None) -> Filtros:
         deficitario=parametros.get("deficitario") in ("1", "true", "sim"),
         periodo=_periodo(parametros),
         comparar=_comparacao(parametros),
+        expandidos=_expandidos(parametros),
         dimensao=(parametros.get("dim") or "").strip()[:20],
     )
 
@@ -486,6 +490,7 @@ class Faixa:
 DEFINICOES: dict[str, tuple[str, str]] = {
     "destaques": ("Destaques e pontos de atenção", NATIVO),
     "dinheiro": ("O dinheiro", "sankhya"),
+    "contabil": ("Com o que foi gasto", "sankhya"),
     "contratos": ("Os contratos", "iconnect_platform"),
     "vencimentos": ("O que está prestes a vencer", "iconnect_platform"),
     "projetos": ("Os projetos", "monday"),
@@ -852,6 +857,285 @@ def _sobre(valor: Decimal, base: Decimal) -> Decimal | None:
     if base <= 0:
         return None
     return (valor / base * 100).quantize(Decimal("0.1"))
+
+
+# ── O bloco D · a tabela contábil ───────────────────────────────────
+
+
+#: Quantos grupos podem estar abertos ao mesmo tempo. Não é limite técnico: é o
+#: que cabe numa tela sem a linha de total sair de vista, e a linha de total é o
+#: que faz a tabela ser conferível.
+MAXIMO_EXPANDIDO = 8
+
+
+def _expandidos(parametros) -> tuple[str, ...]:
+    """Os grupos abertos, de `?expandir=41101,41106`.
+
+    Na URL e não em `sessionStorage`: mandar o link **já aberto no ponto certo**
+    é o que faz a reunião andar. Guardado no navegador, o link chegaria fechado
+    do outro lado e a pessoa teria de procurar de novo o que já foi mostrado.
+    """
+    bruto = (parametros.get("expandir") or "").strip()
+    if not bruto:
+        return ()
+    vistos: list[str] = []
+    for codigo in bruto.split(","):
+        limpo = codigo.strip()[:20]
+        if limpo and limpo not in vistos:
+            vistos.append(limpo)
+    return tuple(vistos[:MAXIMO_EXPANDIDO])
+
+
+def contabil(escopo: contrato.Escopo, filtros: Filtros) -> Faixa:
+    """"Sei que meu contrato vale 30 milhões, mas preciso saber com o que
+    gastei."
+
+    ## A tabela é do MÊS, e não do período
+
+    O período move os gráficos; esta tabela responde "onde foi o dinheiro DESTE
+    mês". Somar doze meses por conta produziria um número que não bate com
+    nenhum fechamento contábil, e é contra o fechamento que alguém confere.
+
+    ## Os totais saem das MESMAS linhas que a tabela mostra
+
+    Um total calculado à parte pode discordar da soma visível — e detalhe que
+    não bate com o total destrói a confiança na tela inteira. É a mesma regra
+    que a perfuração já segue.
+    """
+    faixa = _faixa("contabil", filtros.competencia)
+    provedor = contrato.obter(contrato.ProvedorResultadoFinanceiro)
+    if provedor is None:
+        return _sem_fonte(faixa, "Sankhya")
+
+    inicio = date(filtros.competencia.year, filtros.competencia.month, 1)
+    linhas = provedor.por_conta(escopo, inicio, filtros.ate)
+    if not linhas:
+        return _sem_dado(faixa, "lançamento por conta contábil")
+
+    receita_liquida = _receita_liquida(linhas)
+    faixa.conteudo = {
+        "grupos": _agrupar_por_conta(linhas, receita_liquida, filtros),
+        "totais": _totais_contabeis(linhas, receita_liquida),
+        "receita_liquida": receita_liquida,
+        "expandidos": filtros.expandidos,
+        # Quantas linhas a fonte mandou com código fora do plano. Zero é o
+        # normal; qualquer outra coisa é um aviso na tela, e não um silêncio.
+        "desconhecidas": sum(1 for linha in linhas if linha.desconhecida),
+    }
+    return faixa
+
+
+#: As naturezas que SAEM do caixa. Elas entram na tabela com sinal negativo.
+NATUREZAS_NEGATIVAS = frozenset({"imposto", "custo", "indireto"})
+
+
+def _sinal(natureza: str) -> int:
+    """`+1` para o que entra, `-1` para o que sai.
+
+    O SINAL e não só a cor. Duas razões, e a segunda é a que decide:
+
+    A regra do produto é "cor nunca sozinha" — e aqui ela seria pior que o
+    normal, porque a tabela tem linha de receita e linha de despesa: vermelho
+    sobre um número que já é negativo diria a mesma coisa duas vezes enquanto
+    deixa o positivo mudo.
+
+    E sem sinal o TOTAL não significa nada. Somando receita, imposto e custo
+    como números positivos, a última linha da tabela dá dois milhões e duzentos
+    mil de coisa nenhuma. Com sinal, ela é o resultado — que é justamente o
+    número contra o qual alguém confere a tabela inteira.
+    """
+    return -1 if natureza in NATUREZAS_NEGATIVAS else 1
+
+
+def _receita_liquida(linhas) -> Decimal:
+    """Receita bruta menos impostos — o denominador de toda coluna de `%`.
+
+    Calculada uma vez e passada adiante, e não recalculada em cada grupo: com
+    vinte e oito grupos seriam vinte e oito somas da mesma coisa, e a primeira
+    que divergisse faria dois percentuais da mesma tabela não fecharem.
+    """
+    receita = sum(
+        (linha.realizado_ajustado for linha in linhas if linha.natureza == "receita"),
+        Decimal("0"),
+    )
+    impostos = sum(
+        (linha.realizado_ajustado for linha in linhas if linha.natureza == "imposto"),
+        Decimal("0"),
+    )
+    return receita - impostos
+
+
+def _agrupar_por_conta(
+    linhas, receita_liquida: Decimal, filtros: Filtros | None = None
+) -> list[dict]:
+    """Os dois primeiros níveis: grupo sintético e conta analítica.
+
+    O terceiro — rateio por contrato — sai de `contas_do_contrato`, e só quando
+    alguém expande a conta. Montá-lo aqui produziria centenas de linhas que
+    ninguém pediu, e a tela ficaria pesada para responder a pergunta de sempre,
+    que é a do nível 1.
+    """
+    grupos: dict[str, dict] = {}
+    for linha in linhas:
+        grupo = grupos.setdefault(
+            linha.grupo_codigo,
+            {
+                "codigo": linha.grupo_codigo,
+                "nome": linha.grupo_nome,
+                "degrau": linha.degrau,
+                "natureza": linha.natureza,
+                "desconhecida": linha.desconhecida,
+                "contas": {},
+                "realizado": Decimal("0"),
+                "ajustes": Decimal("0"),
+                "orcado": None,
+            },
+        )
+        conta = grupo["contas"].setdefault(
+            linha.codigo,
+            {
+                "codigo": linha.codigo,
+                "nome": linha.nome,
+                "realizado": Decimal("0"),
+                "ajustes": Decimal("0"),
+                "orcado": None,
+            },
+        )
+        sinal = _sinal(linha.natureza)
+        for alvo in (grupo, conta):
+            alvo["realizado"] += linha.realizado * sinal
+            alvo["ajustes"] += linha.ajustes * sinal
+            if linha.orcado is not None:
+                alvo["orcado"] = (
+                    (alvo["orcado"] or Decimal("0")) + linha.orcado * sinal
+                )
+
+    montados = []
+    for grupo in grupos.values():
+        grupo["contas"] = [
+            _com_derivadas(conta, receita_liquida)
+            for conta in sorted(grupo["contas"].values(), key=lambda c: c["codigo"])
+        ]
+        _com_expansao(grupo, filtros)
+        montados.append(_com_derivadas(grupo, receita_liquida))
+    return sorted(montados, key=lambda g: g["codigo"])
+
+
+def _com_expansao(grupo: dict, filtros: Filtros | None) -> None:
+    """`aberto` e a URL que alterna — montada em PYTHON.
+
+    A URL sai daqui pela mesma razão da perfuração: só o servidor sabe quais
+    filtros preservar ao mudar um deles. Montá-la em JavaScript replicaria essa
+    regra num segundo lugar, e ela mudaria sozinha na primeira dimensão nova.
+    """
+    if filtros is None:
+        grupo["aberto"] = False
+        grupo["url_alternar"] = ""
+        return
+
+    from django.urls import reverse
+
+    codigo = grupo["codigo"]
+    abertos = filtros.expandidos
+    grupo["aberto"] = codigo in abertos
+    # Fechar TIRA o próprio; abrir ACRESCENTA no fim. Acrescentar no começo
+    # faria a ordem da URL mudar a cada clique, e dois links do mesmo estado
+    # ficariam com textos diferentes.
+    novos = (
+        tuple(c for c in abertos if c != codigo)
+        if grupo["aberto"]
+        else (*abertos, codigo)
+    )
+    grupo["url_alternar"] = _url_com(
+        reverse("workspace:resultados"), filtros, expandir=",".join(novos)
+    )
+
+
+def _com_derivadas(linha: dict, receita_liquida: Decimal) -> dict:
+    """As colunas que se calculam — D3.
+
+    Elas ficam no SERVIÇO e não no template, porque `% da receita` é regra de
+    negócio: o dia em que a base mudar de receita líquida para bruta, ela muda
+    num lugar. Num filtro de template, mudaria em cada tela que o usasse.
+    """
+    realizado = linha["realizado"]
+    ajustado = realizado + linha["ajustes"]
+    orcado = linha["orcado"]
+    linha["realizado_ajustado"] = ajustado
+    linha["pct_re_or"] = _percentual(ajustado, orcado)
+    # `orçado − realizado`, e não o contrário: positivo é FOLGA. Invertido, um
+    # número positivo significaria estouro, e a leitura de relance seria o
+    # oposto do que a cor sugere.
+    linha["dif_or_re"] = (orcado - ajustado) if orcado is not None else None
+    # O PERCENTUAL usa o valor ABSOLUTO, e o número ao lado carrega o sinal.
+    #
+    # "Pessoal: −207.412, 18,9% da receita líquida" é como se lê em voz alta.
+    # Com o percentual negativo junto, a mesma linha diria a direção duas vezes
+    # e a coluna deixaria de somar 100% entre as despesas.
+    linha["pct_da_receita"] = _sobre(abs(ajustado), receita_liquida)
+    return linha
+
+
+def _totais_contabeis(linhas, receita_liquida: Decimal) -> dict:
+    total = {
+        "realizado": sum(
+            (linha.realizado * _sinal(linha.natureza) for linha in linhas),
+            Decimal("0"),
+        ),
+        "ajustes": sum(
+            (linha.ajustes * _sinal(linha.natureza) for linha in linhas),
+            Decimal("0"),
+        ),
+        "orcado": None,
+    }
+    orcados = [
+        linha.orcado * _sinal(linha.natureza)
+        for linha in linhas
+        if linha.orcado is not None
+    ]
+    if orcados:
+        total["orcado"] = sum(orcados, Decimal("0"))
+    return _com_derivadas(total, receita_liquida)
+
+
+def contas_do_contrato(
+    escopo: contrato.Escopo, filtros: Filtros, conta: str
+) -> list[dict]:
+    """O NÍVEL 3 — o rateio de uma conta por contrato.
+
+    Só existe porque o Sankhya traz o contrato na linha do razão. Sem isso a
+    coluna ficaria sempre vazia, e coluna sempre vazia é pior que a ausência
+    dela: ela promete um detalhe que não vem.
+    """
+    provedor = contrato.obter(contrato.ProvedorResultadoFinanceiro)
+    if provedor is None:
+        return []
+
+    inicio = date(filtros.competencia.year, filtros.competencia.month, 1)
+    por_contrato: dict[str, dict] = {}
+    for linha in provedor.por_conta(escopo, inicio, filtros.ate):
+        if linha.codigo != conta:
+            continue
+        chave = linha.contrato or ""
+        alvo = por_contrato.setdefault(
+            chave,
+            {
+                "contrato": chave,
+                # Sem contrato é o RATEIO do centro de custo, e ele precisa
+                # aparecer nomeado — some da lista, o nível 3 não fecha com o
+                # nível 2 logo acima.
+                "rotulo": chave or f"Rateio do CC {linha.centro_custo}",
+                "realizado": Decimal("0"),
+                "ajustes": Decimal("0"),
+                "orcado": None,
+            },
+        )
+        alvo["realizado"] += linha.realizado
+        alvo["ajustes"] += linha.ajustes
+        if linha.orcado is not None:
+            alvo["orcado"] = (alvo["orcado"] or Decimal("0")) + linha.orcado
+
+    return sorted(por_contrato.values(), key=lambda c: -c["realizado"])
 
 
 # ── Faixa 3 · Os contratos ──────────────────────────────────────────
@@ -1425,6 +1709,13 @@ def _cartoes_de_pessoas(faixa: Faixa | None) -> list[Destaque]:
 #: nenhuma das duas é lida por quem lê as outras quatro.
 MONTADORES = (
     ("dinheiro", dinheiro),
+    # A TABELA CONTÁBIL vem logo depois do dinheiro, e antes dos contratos.
+    #
+    # A ordem é a da pergunta: o bloco do dinheiro responde "quanto entrou e
+    # quanto sobrou"; este responde "com o que foi gasto". Quem lê o segundo
+    # sem o primeiro não tem denominador, e quem lê os contratos antes de saber
+    # onde o dinheiro foi já perdeu a pergunta.
+    ("contabil", contabil),
     ("contratos", contratos),
     ("vencimentos", vencimentos),
     ("projetos", projetos),
@@ -1676,6 +1967,7 @@ def _url_com(base: str, filtros: Filtros, **mudancas) -> str:
         "layer": filtros.layer,
         "periodo": filtros.periodo or PERIODO_PADRAO,
         "comparar": filtros.comparar,
+        "expandir": ",".join(filtros.expandidos),
         "dim": filtros.dimensao,
     }
     if filtros.deficitario:

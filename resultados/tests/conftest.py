@@ -18,7 +18,7 @@ def contrato(db):
             chave_externa=campos.pop("chave_externa", f"ext-{codigo}"),
             codigo=codigo,
             nome_cliente=campos.pop("nome_cliente", "Cliente Fictício"),
-            servico=campos.pop("servico", "cftv"),
+            servico=campos.pop("servico", "monitoramento"),
             centro_custo=campos.pop("centro_custo", "1042"),
             regional=campos.pop("regional", "Sudeste"),
             **campos,

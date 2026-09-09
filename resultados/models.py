@@ -35,6 +35,8 @@ Ver `resultados/services.py::layer_de`.
 
 from __future__ import annotations
 
+from decimal import Decimal
+
 from django.db import models
 
 
@@ -163,12 +165,212 @@ class Area(models.Model):
         return f"{self.nome} · {self.descricao}" if self.descricao else self.nome
 
 
+class NaturezaConta(models.TextChoices):
+    """O que a conta faz com o dinheiro. Decide o SINAL e o degrau da DRE."""
+
+    RECEITA = "receita", "Receita"
+    IMPOSTO = "imposto", "Imposto sobre faturamento"
+    CUSTO = "custo", "Custo direto"
+    INDIRETO = "indireto", "Custo indireto"
+    FINANCEIRO = "financeiro", "Resultado financeiro"
+    NAO_OPERACIONAL = "nao_operacional", "Não operacional"
+
+
+class DegrauDRE(models.TextChoices):
+    """O degrau da cascata a que o grupo pertence — C6.
+
+    A ordem aqui É a ordem da cascata, e é por ela que o gráfico é montado.
+    Guardá-la no banco em vez de numa lista no serviço tem um motivo: quando o
+    plano de contas ganhar um grupo novo, ele precisa cair num degrau — e um
+    grupo sem degrau tem de APARECER, não sumir da DRE em silêncio.
+    """
+
+    RECEITA_BRUTA = "receita_bruta", "Receita Bruta"
+    IMPOSTOS = "impostos", "Impostos"
+    PESSOAL = "pessoal", "Pessoal"
+    ENCARGOS = "encargos", "Encargos e Provisões"
+    BENEFICIOS = "beneficios", "Benefícios"
+    MATERIAIS = "materiais", "Materiais e Insumos"
+    SERVICOS_PJ = "servicos_pj", "Serviços PJ"
+    TRANSPORTES = "transportes", "Transportes"
+    DEMAIS = "demais", "Demais"
+    INDIRETO = "indireto", "Indireto"
+
+
+class ContaContabil(models.Model):
+    """O plano de contas — dois níveis, e o pai é o grupo sintético.
+
+    ## Cadastro, e não espelho
+
+    Como `Area`, não herda `ProcedenciaMixin`: o plano é estrutura, não
+    movimento. Ele muda por decisão da contabilidade, algumas vezes por ano, e
+    não por carga noturna.
+
+    Isso tem uma consequência que decide o desenho do bloco D: quando o razão do
+    Sankhya trouxer um código que não existe aqui, a linha **não pode ser
+    descartada**. Uma despesa que some porque a conta é nova faria o total do
+    contrato ficar menor que a soma dos lançamentos dele — e ninguém procuraria
+    o erro no plano de contas. Ver `ResultadoPorConta.conta`, que é opcional
+    justamente por isso.
+
+    ## Dois níveis, com o pai apontando para si mesmo
+
+    `41101 PESSOAL` é grupo; `41101001 SALÁRIOS` é conta analítica e aponta para
+    ele. Uma tabela só, com auto-relação, em vez de duas: os dois têm código,
+    nome e ordem, e duas tabelas fariam toda consulta virar união.
+
+    O `degrau_dre` fica no GRUPO. A analítica herda — repetir o degrau em cada
+    uma das vinte contas de pessoal seria vinte lugares para divergir.
+    """
+
+    codigo = models.CharField(max_length=20, unique=True)
+    nome = models.CharField(max_length=120)
+    #: `null` no grupo sintético. A analítica aponta para o grupo dela.
+    pai = models.ForeignKey(
+        "self", null=True, blank=True,
+        on_delete=models.PROTECT, related_name="filhas",
+    )
+    natureza = models.CharField(
+        max_length=20, choices=NaturezaConta.choices, db_index=True
+    )
+    #: Só no grupo. A analítica lê o do pai — ver `degrau`.
+    degrau_dre = models.CharField(
+        max_length=20, choices=DegrauDRE.choices, blank=True, db_index=True
+    )
+    ordem = models.PositiveSmallIntegerField(default=0)
+    ativa = models.BooleanField(default=True)
+
+    class Meta:
+        ordering = ["codigo"]
+        verbose_name = "conta contábil"
+        verbose_name_plural = "contas contábeis"
+        indexes = [
+            models.Index(fields=["pai", "ordem"], name="res_conta_grupo_idx"),
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.codigo} · {self.nome}"
+
+    @property
+    def sintetica(self) -> bool:
+        """Grupo, e não conta analítica. É o nível 1 da tabela do bloco D."""
+        return self.pai_id is None
+
+    @property
+    def degrau(self) -> str:
+        """O degrau da DRE, herdado do grupo quando esta é analítica."""
+        if self.degrau_dre:
+            return self.degrau_dre
+        return self.pai.degrau_dre if self.pai_id else ""
+
+
+class ResultadoPorConta(ProcedenciaMixin):
+    """O razão por conta, mês e contrato — o que responde "com o que gastei".
+
+    ## Por que não é uma coluna a mais em `CompetenciaResultado`
+
+    Porque a cardinalidade é outra. `CompetenciaResultado` é UMA linha por
+    contrato e mês, com seis totais; aqui são dezenas de linhas para o mesmo
+    contrato e mês, uma por conta. Empilhar as duas coisas na mesma tabela faria
+    toda consulta de agregado ter de saber distinguir "a linha do total" da "a
+    linha da conta" — e a primeira soma errada apareceria como receita dobrada.
+
+    As duas convivem, e `CompetenciaResultado` continua sendo a verdade do
+    agregado. Há teste conferindo que a soma daqui bate com ela: detalhe que não
+    fecha com o total destrói a confiança na tela inteira, e é a única coisa que
+    o bloco D não pode errar.
+
+    ## `contrato` é opcional, e `conta` também — por razões diferentes
+
+    Sem CONTRATO é o rateio de centro de custo, que não pertence a cliente
+    nenhum. É a mesma linha que `CompetenciaResultado` já guarda assim.
+
+    Sem CONTA é o código que o Sankhya mandou e o plano não conhece. Descartar a
+    linha faria a despesa sumir do total sem deixar rastro; guardá-la com
+    `codigo_origem` preenchido põe o problema na tela, onde alguém conserta o
+    plano de contas.
+    """
+
+    #: `null` = rateio do centro de custo, sem cliente.
+    contrato = models.ForeignKey(
+        "resultados.Contrato", null=True, blank=True,
+        on_delete=models.CASCADE, related_name="contas",
+    )
+    centro_custo = models.CharField(max_length=20, db_index=True)
+    ano = models.PositiveSmallIntegerField(db_index=True)
+    mes = models.PositiveSmallIntegerField(db_index=True)
+
+    #: `null` = conta desconhecida. Ver `codigo_origem`.
+    conta = models.ForeignKey(
+        ContaContabil, null=True, blank=True,
+        on_delete=models.PROTECT, related_name="lancamentos",
+    )
+    #: O código que a FONTE mandou, sempre — inclusive quando `conta` resolveu.
+    #: Guardado mesmo no caso feliz porque é ele que prova de onde a linha veio
+    #: no dia em que o plano de contas for reorganizado.
+    codigo_origem = models.CharField(max_length=20, db_index=True)
+
+    valor_realizado = models.DecimalField(max_digits=16, decimal_places=2, default=0)
+    #: A COLUNA DO MEIO — o que a operação declara que já aconteceu e ainda não
+    #: bateu na contabilidade. Sem ela a reunião vira briga sobre o número em vez
+    #: de decisão sobre o que fazer. É a mesma que a faixa do dinheiro já tem.
+    ajustes = models.DecimalField(max_digits=16, decimal_places=2, default=0)
+    #: `None` e não zero: sem orçado é diferente de orçado zero, e a diferença
+    #: aparece na tela como "sem orçado" em vez de uma variação de 100%.
+    valor_orcado = models.DecimalField(
+        max_digits=16, decimal_places=2, null=True, blank=True
+    )
+
+    class Meta:
+        ordering = ["ano", "mes", "codigo_origem"]
+        verbose_name = "resultado por conta"
+        verbose_name_plural = "resultados por conta"
+        constraints = [
+            models.UniqueConstraint(
+                fields=["fonte", "chave_externa"], name="res_conta_origem_unica"
+            )
+        ]
+        indexes = [
+            models.Index(
+                fields=["ano", "mes", "centro_custo"], name="res_conta_comp_idx"
+            ),
+            models.Index(fields=["contrato", "ano", "mes"], name="res_conta_ctr_idx"),
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.codigo_origem} · {self.mes:02d}/{self.ano}"
+
+    @property
+    def realizado_ajustado(self) -> Decimal:
+        """`VL REALIZADO + AJUSTES` — a terceira coluna da tabela do bloco D."""
+        return (self.valor_realizado or Decimal("0")) + (self.ajustes or Decimal("0"))
+
+
 class ServicoContrato(models.TextChoices):
-    CFTV = "cftv", "CFTV"
-    ALARME = "alarme", "Alarme"
+    """COMO o contrato foi vendido, e não O QUE ele entrega.
+
+    Até 09/09/2026 esta lista era `cftv · alarme · monitoramento · instalacao ·
+    manutencao` — uma mistura de duas perguntas. "CFTV" e "alarme" são
+    EQUIPAMENTO: dizem o que está instalado, e o mesmo cliente pode ter os dois
+    sob um contrato de manutenção, de locação ou de projeto. Como tipo de
+    serviço eles respondiam à pergunta errada, e por isso o filtro por serviço
+    não separava nada que a diretoria quisesse comparar.
+
+    O equipamento passou a ser ESCOPO do contrato. O que fica aqui é a forma de
+    contratação, que é o que muda o peso das contas: monitoramento pesa em
+    pessoal e comunicações; manutenção, em transportes e equipamento; locação,
+    em depreciação; turnkey, em equipamento e serviços de terceiro.
+
+    O `projeto_turnkey` é separado de `projeto` porque a diferença é de risco:
+    no turnkey a empresa responde pelo resultado inteiro, e o estouro de
+    equipamento é dela.
+    """
+
+    PROJETO = "projeto", "Projeto"
     MONITORAMENTO = "monitoramento", "Monitoramento"
-    INSTALACAO = "instalacao", "Instalação"
     MANUTENCAO = "manutencao", "Manutenção"
+    LOCACAO = "locacao", "Locação"
+    PROJETO_TURNKEY = "projeto_turnkey", "Projeto turnkey"
 
 
 class StatusContrato(models.TextChoices):

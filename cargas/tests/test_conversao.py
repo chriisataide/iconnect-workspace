@@ -147,7 +147,7 @@ def test_platform_avaliacao_liga_no_contrato_que_existe(db, settings):
     settings.WORKSPACE_SHARED_SECRET = "s"
     contrato = Contrato.objects.create(
         fonte=Fonte.PLATFORM, chave_externa="c1", codigo="C-1",
-        nome_cliente="Cliente Fictício", servico="cftv", centro_custo="1042",
+        nome_cliente="Cliente Fictício", servico="monitoramento", centro_custo="1042",
     )
     item = {
         "_entidade": "avaliacao", "id": "av-1", "contrato": "C-1",

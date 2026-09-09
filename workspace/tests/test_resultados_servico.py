@@ -202,9 +202,9 @@ class _Falso:
 
 def test_a_carteira_filtra_por_servico_status_e_deficitario():
     carteira = [
-        _Falso(codigo="A", servico="cftv", status="ativo", deficitario=False),
-        _Falso(codigo="B", servico="alarme", status="ativo", deficitario=True),
-        _Falso(codigo="C", servico="cftv", status="encerrado", deficitario=False),
+        _Falso(codigo="A", servico="monitoramento", status="ativo", deficitario=False),
+        _Falso(codigo="B", servico="manutencao", status="ativo", deficitario=True),
+        _Falso(codigo="C", servico="monitoramento", status="encerrado", deficitario=False),
     ]
     base = svc.Filtros(competencia=COMPETENCIA)
 
@@ -222,7 +222,7 @@ def test_a_carteira_filtra_por_servico_status_e_deficitario():
     # Que o serviço continua recortando TODAS as faixas está provado ponta a
     # ponta, contra o espelho de verdade, em
     # `resultados/tests/test_area.py::test_o_servico_tambem_recorta_todas_as_faixas`.
-    assert _codigos(servico=("cftv",)) == ["A", "B", "C"], (
+    assert _codigos(servico=("monitoramento",)) == ["A", "B", "C"], (
         "o serviço não filtra mais AQUI — filtra no banco"
     )
     assert _codigos(status="encerrado") == ["C"]

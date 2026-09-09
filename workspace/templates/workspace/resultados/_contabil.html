@@ -1,0 +1,119 @@
+{% load i18n wks %}
+{% comment %}
+  A TABELA CONTÁBIL — bloco D.
+
+  "Sei que meu contrato vale 30 milhões, mas preciso saber com o que gastei."
+
+  ## O "+" é um LINK, e não um botão de JavaScript
+
+  O estado da expansão vive na query string (`?expandir=41101,41106`), e cada
+  "+" é um `<a>` que leva à mesma tela com o grupo a mais na lista. Isso custa
+  uma volta ao servidor e paga três coisas:
+
+    · o link chega ao destinatário JÁ ABERTO no ponto certo — que é o que faz a
+      reunião andar, em vez de "abre lá o grupo de pessoal";
+    · funciona sem JavaScript, como toda tabela deste produto;
+    · não há segundo lugar guardando "o que está aberto", então a tela não
+      discorda de si mesma depois de um voltar do navegador.
+
+  Um `<details>` daria a expansão de graça e perderia as três.
+
+  ## A despesa aparece com SINAL, e não só em vermelho
+
+  Cor nunca sozinha. E aqui a cor sozinha seria pior que o normal: a tabela tem
+  linha de receita e linha de despesa, e vermelho em cima de um número que já é
+  negativo diria a mesma coisa duas vezes enquanto deixa o positivo mudo.
+{% endcomment %}
+
+{% if faixa.conteudo.desconhecidas %}
+  {% comment %}
+    O AVISO DA CONTA NÃO CADASTRADA.
+
+    A linha entra no total de qualquer jeito — despesa que some porque o plano
+    está desatualizado é o defeito que ninguém procura no lugar certo. O que
+    este aviso faz é pôr o problema na tela, onde alguém conserta.
+  {% endcomment %}
+  <p class="au-ajuda au-ajuda--alerta">
+    {% blocktrans count n=faixa.conteudo.desconhecidas %}{{ n }} lançamento veio com um código que não está no plano de contas. Ele está somado no total, na linha "Conta não cadastrada".{% plural %}{{ n }} lançamentos vieram com códigos que não estão no plano de contas. Eles estão somados no total, na linha "Conta não cadastrada".{% endblocktrans %}
+  </p>
+{% endif %}
+
+<div class="au-tabela au-tabela--contabil">
+  <table>
+    <caption class="au-sr">
+      {% blocktrans with mes=faixa.competencia|date:"m/Y" %}Resultado por conta contábil em {{ mes }}{% endblocktrans %}
+    </caption>
+    <thead>
+      <tr>
+        <th scope="col">{% trans "Conta" %}</th>
+        <th scope="col" class="num">{% trans "Realizado" %}</th>
+        <th scope="col" class="num">{% trans "Ajustes" %}</th>
+        <th scope="col" class="num">{% trans "RE ajustado" %}</th>
+        <th scope="col" class="num">{% trans "Orçado" %}</th>
+        <th scope="col" class="num">{% trans "% do orçado" %}</th>
+        <th scope="col" class="num">{% trans "Folga" %}</th>
+        <th scope="col" class="num">{% trans "% da receita líquida" %}</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for grupo in faixa.conteudo.grupos %}
+        <tr class="au-contabil-grupo {% if grupo.desconhecida %}au-contabil-grupo--alerta{% endif %}">
+          <th scope="row">
+            <a class="au-contabil-abrir" href="{{ grupo.url_alternar }}"
+               aria-expanded="{% if grupo.aberto %}true{% else %}false{% endif %}">
+              <span class="au-contabil-sinal" aria-hidden="true">{% if grupo.aberto %}−{% else %}+{% endif %}</span>
+              <span class="au-contabil-codigo">{{ grupo.codigo }}</span>
+              {{ grupo.nome }}
+            </a>
+          </th>
+          <td class="num">{{ grupo.realizado|moeda }}</td>
+          <td class="num">{% if grupo.ajustes %}{{ grupo.ajustes|moeda }}{% else %}—{% endif %}</td>
+          <td class="num">{{ grupo.realizado_ajustado|moeda }}</td>
+          <td class="num">{% if grupo.orcado is not None %}{{ grupo.orcado|moeda }}{% else %}—{% endif %}</td>
+          <td class="num">{% if grupo.pct_re_or is not None %}{{ grupo.pct_re_or|numero:1 }}%{% else %}—{% endif %}</td>
+          <td class="num">{% if grupo.dif_or_re is not None %}{{ grupo.dif_or_re|moeda }}{% else %}—{% endif %}</td>
+          <td class="num">{% if grupo.pct_da_receita is not None %}{{ grupo.pct_da_receita|numero:1 }}%{% else %}—{% endif %}</td>
+        </tr>
+
+        {% if grupo.aberto %}
+          {% for conta in grupo.contas %}
+            <tr class="au-contabil-conta">
+              <th scope="row">
+                <span class="au-contabil-codigo">{{ conta.codigo }}</span>
+                {{ conta.nome }}
+              </th>
+              <td class="num">{{ conta.realizado|moeda }}</td>
+              <td class="num">{% if conta.ajustes %}{{ conta.ajustes|moeda }}{% else %}—{% endif %}</td>
+              <td class="num">{{ conta.realizado_ajustado|moeda }}</td>
+              <td class="num">{% if conta.orcado is not None %}{{ conta.orcado|moeda }}{% else %}—{% endif %}</td>
+              <td class="num">{% if conta.pct_re_or is not None %}{{ conta.pct_re_or|numero:1 }}%{% else %}—{% endif %}</td>
+              <td class="num">{% if conta.dif_or_re is not None %}{{ conta.dif_or_re|moeda }}{% else %}—{% endif %}</td>
+              <td class="num">{% if conta.pct_da_receita is not None %}{{ conta.pct_da_receita|numero:1 }}%{% else %}—{% endif %}</td>
+            </tr>
+          {% endfor %}
+        {% endif %}
+      {% endfor %}
+    </tbody>
+    {% comment %}
+      O TOTAL num `<tfoot>`, e não numa linha do corpo: leitor de tela anuncia
+      o rodapé como resumo, e o CSS pode grudá-lo ao rolar sem que ele vire
+      mais uma linha de conta no meio da lista.
+    {% endcomment %}
+    <tfoot>
+      <tr class="au-contabil-total">
+        <th scope="row">{% trans "Total" %}</th>
+        <td class="num">{{ faixa.conteudo.totais.realizado|moeda }}</td>
+        <td class="num">{% if faixa.conteudo.totais.ajustes %}{{ faixa.conteudo.totais.ajustes|moeda }}{% else %}—{% endif %}</td>
+        <td class="num">{{ faixa.conteudo.totais.realizado_ajustado|moeda }}</td>
+        <td class="num">{% if faixa.conteudo.totais.orcado is not None %}{{ faixa.conteudo.totais.orcado|moeda }}{% else %}—{% endif %}</td>
+        <td class="num">{% if faixa.conteudo.totais.pct_re_or is not None %}{{ faixa.conteudo.totais.pct_re_or|numero:1 }}%{% else %}—{% endif %}</td>
+        <td class="num">{% if faixa.conteudo.totais.dif_or_re is not None %}{{ faixa.conteudo.totais.dif_or_re|moeda }}{% else %}—{% endif %}</td>
+        <td class="num">—</td>
+      </tr>
+    </tfoot>
+  </table>
+</div>
+
+<p class="au-ajuda">
+  {% blocktrans with rl=faixa.conteudo.receita_liquida|moeda %}A coluna "% da receita líquida" usa {{ rl }} como base — receita bruta menos impostos, do mês.{% endblocktrans %}
+</p>

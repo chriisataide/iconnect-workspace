@@ -46,7 +46,7 @@ logger = logging.getLogger("cargas")
 
 ENTIDADES = (
     "contrato", "competencia", "projeto", "marco",
-    "quadro", "apontamento", "avaliacao",
+    "quadro", "apontamento", "avaliacao", "conta",
 )
 
 #: Campos que precisam virar outro tipo. O CSV é todo string; gravar "1200.50"
@@ -60,6 +60,7 @@ DECIMAIS = frozenset({
     "horas_normais", "he_total", "he_ineficiencia", "he_servico_extra",
     "he_sem_classificacao", "hora_escala", "hora_abono", "hora_desconto",
     "hora_noturna", "banco_horas_saldo",
+    "valor_realizado", "ajustes", "valor_orcado",
 })
 INTEIROS = frozenset({
     "ano", "mes", "nota", "percentual_concluido", "efetivo_ativo", "admissoes",
@@ -75,7 +76,10 @@ BOOLEANOS = frozenset({"bloqueado", "tratativa_aberta"})
 #: Campos que apontam para outro registro do espelho. O CSV traz o CÓDIGO, e o
 #: carregador precisa da instância — resolver aqui mantém o carregador ignorante
 #: de que existe um formato de arquivo.
-REFERENCIAS = {"contrato": "codigo", "projeto": "codigo"}
+#: `conta` aponta para `ContaContabil` pelo CÓDIGO contábil, e não por `codigo`
+#: como as outras duas — o campo se chama `codigo` lá também, mas a coluna do
+#: CSV é `conta` e o valor é o código de nove dígitos.
+REFERENCIAS = {"contrato": "codigo", "projeto": "codigo", "conta": "codigo"}
 
 VERDADEIROS = frozenset({"1", "true", "sim", "s", "y", "yes", "verdadeiro"})
 
@@ -192,9 +196,16 @@ def _resolver_referencia(coluna: str, codigo: str):
     caso normal quando os arquivos vêm em ordem qualquer. O carregador recusa
     depois, se a chave de negócio exigir — e aí a rejeição diz o que falta.
     """
-    from resultados.models import Contrato, Projeto
+    from resultados.models import ContaContabil, Contrato, Projeto
 
-    modelo = {"contrato": Contrato, "projeto": Projeto}[coluna]
+    modelo = {
+        "contrato": Contrato, "projeto": Projeto, "conta": ContaContabil,
+    }[coluna]
+    # `None` quando não existe, e a linha entra assim mesmo. Para `conta` isso
+    # é o comportamento CERTO e não uma tolerância: código fora do plano vira
+    # uma linha com `conta` nula e `codigo_origem` preenchido, que aparece na
+    # tela como "Conta não cadastrada" — descartar faria a despesa sumir do
+    # total sem deixar rastro.
     return modelo.objects.filter(codigo=codigo).first()
 
 

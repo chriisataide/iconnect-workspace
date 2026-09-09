@@ -74,7 +74,7 @@ def test_csv_le_e_tipa(diretorio_csv):
     caminho = diretorio_csv(
         "contrato",
         "chave_externa,codigo,nome_cliente,servico,centro_custo,valor_mensal,fim_vigencia",
-        "ext-1,C-100,Cliente Fictício,cftv,1042,12000.50,2026-12-31",
+        "ext-1,C-100,Cliente Fictício,monitoramento,1042,12000.50,2026-12-31",
     )
     conector = ConectorCSV(caminho)
 

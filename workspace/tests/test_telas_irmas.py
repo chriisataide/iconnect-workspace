@@ -181,8 +181,10 @@ def test_a_tela_dez_perdeu_as_duas_faixas(client, so_dinheiro):
     apareceria em dois lugares que podem divergir."""
     client.force_login(so_dinheiro)
 
+    # `contabil` entrou em 09/09/2026, entre o dinheiro e os contratos: a ordem
+    # é a da pergunta — quanto entrou, com o que foi gasto, quais contratos.
     chaves = [c for c, _ in svc.MONTADORES]
-    assert chaves == ["dinheiro", "contratos", "vencimentos", "projetos"]
+    assert chaves == ["dinheiro", "contabil", "contratos", "vencimentos", "projetos"]
 
     corpo = client.get(reverse("workspace:resultados")).content.decode()
     faixas = re.findall(r'aria-labelledby="([a-z]+)"', corpo)

@@ -63,7 +63,10 @@ def espelho(db):
             valor_mensal=Decimal("100000"),
         )
 
-    contratos = [_contrato("C-CFTV", "cftv"), _contrato("C-ALAR", "alarme")]
+    contratos = [
+        _contrato("C-MON", "monitoramento"),
+        _contrato("C-MAN", "manutencao"),
+    ]
 
     # Treze meses, para a janela ter o que estreitar.
     for atras in range(13):
@@ -660,7 +663,7 @@ def test_o_filtro_de_servico_move_o_grafico_do_dinheiro(client, espelho, diretor
         return sum(p[1] or 0 for p in fonte)
 
     inteiro = total("")
-    recortado = total("?servico=cftv")
+    recortado = total("?servico=monitoramento")
 
     assert inteiro > 0
     assert recortado < inteiro, "o filtro não chegou ao gráfico"

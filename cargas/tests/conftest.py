@@ -92,7 +92,7 @@ def contrato_bruto():
         dados = {
             "codigo": codigo,
             "nome_cliente": "Cliente Fictício",
-            "servico": "cftv",
+            "servico": "monitoramento",
             "centro_custo": "1042",
             "regional": "Sudeste",
             "inicio_vigencia": date(2026, 1, 1),

@@ -62,6 +62,7 @@ from resultados.models import (
     MarcoProjeto,
     Projeto,
     QuadroPessoas,
+    ResultadoPorConta,
 )
 
 from .conectores import Janela, Registro, conector_de
@@ -81,6 +82,7 @@ ENTIDADES = {
     "apontamento": Apontamento,
     "avaliacao": AvaliacaoCliente,
     "edital": EditalPublico,
+    "conta": ResultadoPorConta,
 }
 
 #: Como achar a linha que já existe, por entidade. É a chave de NEGÓCIO, e não
@@ -100,6 +102,11 @@ CHAVE_DE_NEGOCIO = {
     # `chave_externa`: só existe uma fonte para edital público, e por isso não
     # há duas descrições da mesma linha para a precedência resolver.
     "edital": ("numero_controle",),
+    # A linha do razão é única por contrato, mês e conta. `codigo_origem` e não
+    # `conta`: o código vem da fonte SEMPRE, e a FK pode estar nula quando o
+    # plano não conhece o código — duas linhas de contas desconhecidas
+    # diferentes colidiriam numa chave que usasse a FK.
+    "conta": ("contrato", "centro_custo", "ano", "mes", "codigo_origem"),
 }
 
 #: Campos de mecânica. Nunca vêm do conector e nunca entram no hash — se
@@ -376,15 +383,25 @@ def _regras_de(entidade: str) -> dict[str, str]:
     }
 
 
+#: Entidades em que `contrato` faz parte da chave e pode vir VAZIO.
+#:
+#: A linha de rateio de centro de custo não pertence a cliente nenhum, e exigir
+#: contrato deixaria o rateio fora do espelho — fazendo o total do centro de
+#: custo ficar menor que a soma dos contratos dele.
+#:
+#: Conjunto e não um `if` por entidade: era um caso especial para `competencia`,
+#: e quando `conta` chegou com o mesmo formato o `if` a rejeitou em silêncio —
+#: 258 linhas de rateio recusadas com "faltam campos da chave de negócio", numa
+#: carga que continuou verde porque rejeição não é falha.
+CONTRATO_OPCIONAL = frozenset({"competencia", "conta"})
+
+
 def _filtro_de_negocio(entidade: str, dados: dict) -> dict | None:
     campos = CHAVE_DE_NEGOCIO.get(entidade, ())
     filtro = {}
     for campo in campos:
         if campo not in dados:
-            # `contrato` é opcional em `competencia` — a linha de centro de
-            # custo não tem contrato nenhum, e exigi-lo deixaria o rateio de
-            # fora do espelho.
-            if entidade == "competencia" and campo == "contrato":
+            if campo == "contrato" and entidade in CONTRATO_OPCIONAL:
                 filtro["contrato"] = None
                 continue
             return None

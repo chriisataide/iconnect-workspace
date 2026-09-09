@@ -44,7 +44,7 @@ def espelho(db):
     def _contrato(codigo, regional, cc, valor="100000", **campos):
         return Contrato.objects.create(
             fonte=Fonte.PLATFORM, chave_externa=f"plt-{codigo}", codigo=codigo,
-            nome_cliente=f"Cliente {codigo}", servico="cftv",
+            nome_cliente=f"Cliente {codigo}", servico="monitoramento",
             centro_custo=cc, regional=regional,
             inicio_vigencia=HOJE - timedelta(days=400),
             fim_vigencia=HOJE + timedelta(days=300),
@@ -309,7 +309,7 @@ def test_contrato_de_um_mes_nao_recebe_layer_nem_entra_na_regra_dos_dez(
     tem o que explicar."""
     novo = Contrato.objects.create(
         fonte=Fonte.PLATFORM, chave_externa="plt-novo", codigo="C-NOVO",
-        nome_cliente="Cliente Novo", servico="alarme", centro_custo="1042",
+        nome_cliente="Cliente Novo", servico="manutencao", centro_custo="1042",
         regional="Sudeste", valor_mensal=Decimal("90000"),
     )
     CompetenciaResultado.objects.create(

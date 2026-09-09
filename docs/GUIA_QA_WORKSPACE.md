@@ -140,12 +140,24 @@ python manage.py semear_cursos --aplicar              # NRs e treinamentos
 python manage.py semear_faq --aplicar                 # a base do assistente
 python manage.py semear_orcamento --aplicar           # o teto por centro de custo vira orçamento anual
 
-# As telas 10 a 15 (§ 3.18 a 3.24) NÃO EXISTEM sem estas cinco linhas.
-# `semear_fontes` vem antes de `semear_resultados` por regra do produto: o
-# carregador RECUSA começar sem registro de fonte — carga sem procedência é
-# boato com aparência de relatório.
+# As telas 10 a 15 (§ 3.18 a 3.24) NÃO EXISTEM sem estas linhas.
+#
+# A ORDEM importa, e cada passo tem uma razão:
+#
+#   semear_fontes            o carregador RECUSA começar sem registro de fonte —
+#                            carga sem procedência é boato com aparência de
+#                            relatório.
+#   semear_areas             as cinco áreas comerciais. Sem elas o filtro por
+#                            área da tela 10 fica vazio, e todo contrato cai em
+#                            "Sem área".
+#   semear_plano_de_contas   as 149 contas. Sem elas o razão por conta NÃO é
+#                            gerado — o seeder avisa e segue —, e a tabela
+#                            contábil (bloco D) diz que falta lançamento.
+#   semear_resultados        o espelho: 24 meses de competência e 6 de razão.
 python manage.py semear_fontes --aplicar              # as 4 fontes e a precedência entre elas
-python manage.py semear_resultados --aplicar          # o espelho: 13 meses, por 3 fontes
+python manage.py semear_areas --aplicar               # as 5 áreas comerciais
+python manage.py semear_plano_de_contas --aplicar     # as 149 contas contábeis
+python manage.py semear_resultados --aplicar          # o espelho, pelas 3 fontes
 python manage.py semear_regras_excecao --aplicar      # as 18 regras + as 5 desligadas
 python manage.py semear_ciclos --aplicar              # a pauta mensal (12 etapas)
 python manage.py semear_ciclo_metas --aplicar         # o ciclo de metas do ano corrente
@@ -1590,8 +1602,14 @@ ver [EXEC 16 § 16.7](EXEC_16_INGESTAO.md).
 
 ### 3.18 Apresentação de Resultados — `/workspace/resultados/` (código 10)
 
-**Para que serve.** É a tela que a diretoria pediu: o dinheiro, os contratos, o
-que vence e os projetos — **quatro** faixas, na competência escolhida.
+**Para que serve.** É a tela que a diretoria pediu: o dinheiro, **com o que foi
+gasto**, os contratos, o que vence e os projetos — **cinco** faixas, no mês
+escolhido.
+
+> **A tabela contábil entrou em 09/09/2026** (§ 3.18.4). Ela responde a pergunta
+> que faltava — *"sei que meu contrato vale 30 milhões, mas com o que gastei?"*
+> — e fica logo abaixo do dinheiro, porque quem lê "com o que foi gasto" sem
+> "quanto entrou" não tem denominador.
 
 > **Eram sete até 04/09/2026.** Quadro/jornada e avaliação do cliente saíram
 > para as telas **16** e **17** (§ 3.18.2 e § 3.18.3): eram perguntas de outra
@@ -1835,6 +1853,51 @@ Se o T.I. enxergar a margem dos contratos, **abra bug**: ligar alguém no suport
 
 **O mapa faixa → fonte** no meio da tela não depende de carga nenhuma: ele
 aparece mesmo num ambiente onde nada foi configurado.
+
+---
+
+### 3.18.4 Com o que foi gasto — a tabela contábil (bloco D)
+
+**Para que serve.** Responde a pergunta que faltava: *"sei que meu contrato vale
+30 milhões, mas preciso saber com o que gastei."* Ela fica dentro da tela 10,
+logo abaixo do dinheiro.
+
+**Antes de testar:** `semear_plano_de_contas --aplicar` **antes** de
+`semear_resultados --aplicar`. Sem o plano, o razão não é gerado — o seeder
+avisa em amarelo — e esta faixa diz que falta lançamento. Isso é o
+comportamento certo, e não um bug.
+
+**O que conferir:**
+
+- **A última linha é o RESULTADO, e ela fecha.** Some receita, subtraia
+  impostos e custos: tem de dar exatamente o total. Se não der, pare e abra um
+  chamado — é a única coisa que este bloco não pode errar.
+- **Despesa aparece com SINAL**, e não só em vermelho. Um número positivo numa
+  linha de custo é bug.
+- **O "+" abre o grupo e a URL MUDA** (`?expandir=41101`). Copie a URL aberta,
+  cole noutra aba: tem de chegar **já aberta no mesmo grupo**. É o que faz a
+  reunião andar.
+- **Abrir um grupo não perde o recorte.** Com `?area=area-01&periodo=6m`
+  ativos, clique no "+": os dois têm de continuar na URL.
+- **A soma das contas é o grupo.** Expanda "PESSOAL" e some as analíticas — tem
+  de bater com a linha fechada.
+- **A tabela é do MÊS, não do período.** Troque o período de 12m para 3m: os
+  gráficos mudam, esta tabela não.
+- **Mês antigo diz o que falta.** A massa gera seis meses de razão. Abra
+  `?mes=` num mês anterior a isso: a faixa tem de dizer "sem lançamento por
+  conta contábil", com os gráficos acima mostrando números normalmente.
+- **`% da receita líquida` é positivo mesmo na despesa.** O sinal está no valor
+  ao lado; repeti-lo no percentual faria a coluna deixar de somar 100%.
+- **Conta fora do plano NÃO some.** Se aparecer o aviso amarelo "vieram com
+  códigos que não estão no plano de contas", a linha correspondente tem de
+  estar na tabela, nomeada como "Conta não cadastrada", e **somada no total**.
+
+**Os dois defeitos plantados para você achar aqui:**
+
+| Contrato | O que procurar |
+|---|---|
+| **CT-101** (turnkey) | estouro em `41504` EQUIPAMENTOS — o contrato fecha no total e essa conta sozinha explica o buraco |
+| **CT-107** (manutenção) | `41505` GARANTIA E RETRABALHO acima do normal — é o contrato que **parece rentável e não é** |
 
 ---
 

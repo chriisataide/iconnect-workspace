@@ -24,6 +24,7 @@ from workspace.providers.resultados import (
     AvaliacaoDTO,
     CompetenciaDTO,
     ConsolidadoDTO,
+    ContaDTO,
     ContratoDTO,
     EditalDTO,
     Escopo,
@@ -52,6 +53,7 @@ from .models import (
     MarcoProjeto,
     Projeto,
     QuadroPessoas,
+    ResultadoPorConta,
     SEM_AREA,
     StatusContrato,
 )
@@ -181,6 +183,51 @@ class EspelhoLocal(
         # de fora do recorte regional, e é o certo — ela é da empresa.
         consulta = self._competencias_no_escopo(consulta, escopo)
         return [self._competencia_dto(linha) for linha in consulta.order_by("ano", "mes")]
+
+    def por_conta(self, escopo, de: date, ate: date) -> list[ContaDTO]:
+        """O razão por conta — o bloco D.
+
+        `select_related("conta__pai", "contrato")` e não uma consulta por linha:
+        são cento e quarenta e nove contas no plano, e um `N+1` aqui seria
+        centenas de consultas para montar uma tabela.
+
+        O recorte usa `_competencias_no_escopo` — o MESMO da série agregada — e
+        não o `_recortar`. É deliberado: esta tabela também tem linha de centro
+        de custo sem contrato, e as duas precisam recortar igual, senão o
+        detalhe não fecha com o total logo acima dele na tela.
+        """
+        consulta = ResultadoPorConta.objects.select_related(
+            "conta", "conta__pai", "contrato"
+        ).filter(
+            Q(ano__gt=de.year) | Q(ano=de.year, mes__gte=de.month),
+            Q(ano__lt=ate.year) | Q(ano=ate.year, mes__lte=ate.month),
+        )
+        consulta = self._competencias_no_escopo(consulta, escopo)
+        return [self._conta_dto(linha) for linha in consulta]
+
+    def _conta_dto(self, linha) -> ContaDTO:
+        conta = linha.conta
+        grupo = conta.pai if (conta and conta.pai_id) else conta
+        return ContaDTO(
+            procedencia=_proc(linha),
+            # Sem conta no plano, o CÓDIGO da origem é o que a tela mostra —
+            # com o nome dizendo que ele não foi reconhecido. A linha nunca
+            # desaparece do total.
+            codigo=conta.codigo if conta else linha.codigo_origem,
+            nome=conta.nome if conta else "Conta não cadastrada",
+            grupo_codigo=grupo.codigo if grupo else linha.codigo_origem,
+            grupo_nome=grupo.nome if grupo else "Conta não cadastrada",
+            degrau=conta.degrau if conta else "",
+            natureza=conta.natureza if conta else "",
+            contrato=linha.contrato.codigo if linha.contrato_id else "",
+            centro_custo=linha.centro_custo,
+            ano=linha.ano,
+            mes=linha.mes,
+            realizado=linha.valor_realizado,
+            ajustes=linha.ajustes,
+            orcado=linha.valor_orcado,
+            desconhecida=conta is None,
+        )
 
     def consolidado(self, escopo, competencia: date) -> ConsolidadoDTO | None:
         consulta = self._competencias_no_escopo(
