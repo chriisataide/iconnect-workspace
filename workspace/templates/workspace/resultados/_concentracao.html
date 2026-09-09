@@ -1,0 +1,175 @@
+{% load i18n wks %}
+{% comment %}
+  A CONCENTRAÇÃO — §E1, a terceira categoria da faixa.
+
+  ## Por que ela é visualmente separada dos cartões
+
+  Destaque e ponto de atenção são DERIVADOS: a regra disparou, e ninguém os
+  edita. A concentração é o contrário — alguém escreveu, alguém assumiu o prazo.
+
+  Misturá-las na mesma lista de cartões faria as três parecerem a mesma coisa, e
+  a pergunta que a terceira responde é outra: não "o que está ruim" — isso a
+  regra já diz —, mas "o que decidimos atacar". Um contrato pode estar
+  deficitário há seis meses e não ser foco; outro pode estar bem e ser foco
+  porque vai renovar.
+
+  ## O histórico fica num `<details>`, e fechado
+
+  Ele é o que responde "a empresa resolve o que decide olhar?" — pergunta de
+  quem está avaliando o método, não de quem está na reunião de hoje. Aberto,
+  empurraria a lista viva para baixo da dobra toda vez.
+
+  `<details>` e não JavaScript: sem script ele continua abrindo.
+{% endcomment %}
+<div class="au-concentracoes">
+  <div class="au-secao-cabeca">
+    <h3 class="au-mini-titulo">{% trans "Onde estamos concentrados" %}</h3>
+    {% if concentracoes %}<span class="au-secao-contagem">{{ concentracoes|length }}</span>{% endif %}
+  </div>
+
+  {% if concentracoes %}
+    <ul class="au-concentracao-lista">
+      {% for foco in concentracoes %}
+        <li class="au-concentracao {% if foco.atrasada %}au-concentracao--atrasada{% endif %}">
+          <p class="au-concentracao-titulo">
+            <span class="au-etiqueta">{{ foco.get_origem_tipo_display }}</span>
+            {{ foco.origem_ref }} · {{ foco.titulo }}
+          </p>
+          <p class="au-concentracao-motivo">{{ foco.motivo }}</p>
+          <p class="au-concentracao-meta">
+            {% blocktrans with quem=foco.responsavel.nome|default:foco.responsavel.email %}Responsável: {{ quem }}{% endblocktrans %}
+            {% if foco.prazo %}
+              ·
+              {% comment %}
+                O prazo com a CONTAGEM ao lado, e a palavra junto do número: uma
+                data sozinha obriga cada pessoa a fazer a conta de cabeça, e
+                metade faz errado.
+              {% endcomment %}
+              {% if foco.atrasada %}
+                <strong>{% blocktrans count n=foco.dias_de_atraso %}venceu há {{ n }} dia{% plural %}venceu há {{ n }} dias{% endblocktrans %}</strong>
+              {% else %}
+                {% blocktrans count n=foco.dias_para_o_prazo %}faltam {{ n }} dia{% plural %}faltam {{ n }} dias{% endblocktrans %}
+              {% endif %}
+              ({{ foco.prazo|date:"d/m/Y" }})
+            {% else %}
+              · {% trans "sem prazo definido" %}
+            {% endif %}
+          </p>
+
+          {% if pode_concentrar %}
+            {% comment %}
+              O RESULTADO é obrigatório para encerrar, e o campo vem junto do
+              botão. Num segundo passo, alguém encerraria e escreveria "ok" para
+              se livrar do formulário — e o histórico viraria uma lista de datas.
+            {% endcomment %}
+            <form class="au-concentracao-encerrar" method="post"
+                  action="{% url 'workspace:concentracao_encerrar' foco.pk %}">
+              {% csrf_token %}
+              <label class="au-sr" for="resultado-{{ foco.pk }}">{% trans "O que aconteceu" %}</label>
+              <input class="au-input au-input--compacto" id="resultado-{{ foco.pk }}"
+                     name="resultado" type="text" maxlength="500"
+                     placeholder="{% trans 'O que aconteceu?' %}">
+              <button class="au-btn au-btn--fantasma" type="submit">{% trans "Encerrar" %}</button>
+            </form>
+          {% endif %}
+        </li>
+      {% endfor %}
+    </ul>
+  {% else %}
+    {% comment %}
+      Vazio NÃO some, e é a única categoria em que vazio é uma pergunta e não uma
+      boa notícia: nenhum cartão disparando quer dizer que o mês está calmo;
+      nenhuma concentração quer dizer que ninguém decidiu onde olhar.
+    {% endcomment %}
+    <p class="au-ajuda">
+      {% if pode_concentrar %}
+        {% trans "Nenhum foco marcado para o período. Marque o que a empresa decidiu atacar — não o que a regra já apontou." %}
+      {% else %}
+        {% trans "Nenhum foco marcado para o período." %}
+      {% endif %}
+    </p>
+  {% endif %}
+
+  {% if pode_concentrar %}
+    <details class="au-concentracao-nova">
+      <summary>{% trans "Marcar uma concentração" %}</summary>
+      <form class="au-form" method="post"
+            action="{% url 'workspace:concentracao_abrir' %}" novalidate>
+        {% csrf_token %}
+        <div class="au-colunas au-colunas--duas">
+          <div class="au-campo">
+            <label class="au-rotulo" for="c-tipo">{% trans "Sobre o quê" %}</label>
+            <select class="au-input" id="c-tipo" name="origem_tipo">
+              {% for valor, rotulo in origens_de_concentracao %}
+                <option value="{{ valor }}">{{ rotulo }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="au-campo">
+            <label class="au-rotulo" for="c-ref">
+              {% trans "Qual" %} <span class="au-obrigatorio" aria-hidden="true">*</span>
+            </label>
+            <input class="au-input" id="c-ref" name="origem_ref" type="text"
+                   maxlength="60" placeholder="{% trans 'CT-107, area-03…' %}">
+          </div>
+        </div>
+        <div class="au-campo">
+          <label class="au-rotulo" for="c-titulo">
+            {% trans "Título" %} <span class="au-obrigatorio" aria-hidden="true">*</span>
+          </label>
+          <input class="au-input" id="c-titulo" name="titulo" type="text" maxlength="200">
+        </div>
+        <div class="au-campo">
+          <label class="au-rotulo" for="c-motivo">
+            {% trans "Por que isto é foco" %} <span class="au-obrigatorio" aria-hidden="true">*</span>
+          </label>
+          {% comment %}
+            Obrigatório de propósito, e a ajuda diz a razão: em três meses
+            ninguém lembra por que aquilo entrou na lista.
+          {% endcomment %}
+          <textarea class="au-input" id="c-motivo" name="motivo" rows="3"></textarea>
+          <p class="au-ajuda">{% trans "Em três meses ninguém lembra por que isto entrou. Escreva agora." %}</p>
+        </div>
+        <div class="au-colunas au-colunas--duas">
+          <div class="au-campo">
+            <label class="au-rotulo" for="c-resp">
+              {% trans "Responsável" %} <span class="au-obrigatorio" aria-hidden="true">*</span>
+            </label>
+            <select class="au-input" id="c-resp" name="responsavel">
+              {% for p in pessoas %}
+                <option value="{{ p.pk }}">{{ p.nome|default:p.email }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="au-campo">
+            <label class="au-rotulo" for="c-prazo">{% trans "Prazo" %}</label>
+            <input class="au-input" id="c-prazo" name="prazo" type="date">
+            <p class="au-ajuda">{% trans "Opcional. Sem prazo, a tela não cobra." %}</p>
+          </div>
+        </div>
+        <div class="au-form-acoes">
+          <button class="au-btn" type="submit">{% trans "Marcar" %}</button>
+        </div>
+      </form>
+    </details>
+  {% endif %}
+
+  {% if concentracoes_encerradas %}
+    <details class="au-concentracao-historico">
+      <summary>
+        {% blocktrans count n=concentracoes_encerradas|length %}{{ n }} concentração encerrada{% plural %}{{ n }} concentrações encerradas{% endblocktrans %}
+      </summary>
+      <ul class="au-concentracao-lista">
+        {% for foco in concentracoes_encerradas %}
+          <li class="au-concentracao au-concentracao--encerrada">
+            <p class="au-concentracao-titulo">{{ foco.origem_ref }} · {{ foco.titulo }}</p>
+            <p class="au-concentracao-motivo">{{ foco.resultado }}</p>
+            <p class="au-concentracao-meta">
+              {% blocktrans with data=foco.encerrada_em|date:"d/m/Y" %}encerrada em {{ data }}{% endblocktrans %}
+            </p>
+          </li>
+        {% endfor %}
+      </ul>
+    </details>
+  {% endif %}
+</div>

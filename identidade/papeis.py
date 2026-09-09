@@ -137,6 +137,15 @@ PAPEIS_V1 = [
             # ele existe: volume por área, tempo até resolver, onde trava.
             "ind.ler.global",
             "eco.ler.global",
+            # MARCAR CONCENTRAÇÃO — permissão própria, e não `eco.ler`.
+            #
+            # Ler o resultado é uma coisa; declarar onde a empresa vai se
+            # concentrar é outra, e a segunda é de quem responde pelo
+            # período. Com `eco.ler`, R.H. e Financeiro — que leem o
+            # resultado por razões próprias — editariam a lista de foco da
+            # diretoria, e uma lista de foco que qualquer um edita deixa de
+            # ser foco.
+            "eco.concentrar.global",
             # AS DUAS TELAS IRMÃS DA 10, e por que são permissões próprias.
             #
             # Quadro e jornada (16) e Satisfação do cliente (17) saíram de
@@ -208,6 +217,15 @@ PAPEIS_V1 = [
             "ops.ler.global",
             "ind.ler.global",
             "eco.ler.global",
+            # MARCAR CONCENTRAÇÃO — permissão própria, e não `eco.ler`.
+            #
+            # Ler o resultado é uma coisa; declarar onde a empresa vai se
+            # concentrar é outra, e a segunda é de quem responde pelo
+            # período. Com `eco.ler`, R.H. e Financeiro — que leem o
+            # resultado por razões próprias — editariam a lista de foco da
+            # diretoria, e uma lista de foco que qualquer um edita deixa de
+            # ser foco.
+            "eco.concentrar.global",
             "eco.pessoas.global",
             "eco.satisfacao.global",
             "exc.ler.global",

@@ -42,6 +42,7 @@ from identidade.services.autorizacao import (
 from workspace.providers import resultados as contrato
 from workspace.providers.frescor import NATIVO
 from workspace.graficos import formato as fmt
+from workspace.models.concentracao import OrigemConcentracao
 from workspace.services import frescor as frs
 
 logger = logging.getLogger("workspace")
@@ -1929,6 +1930,12 @@ class Destaque:
     #:
     #: Todos os cartões nasciam `atencao`, e um campo que sempre tem o mesmo
     #: valor não diferencia nada.
+    #:
+    #: `bom` entrou em 09/09/2026 com a terceira categoria (§E1). Até então TODO
+    #: cartão era um problema, e a faixa se chamava "Destaques e pontos de
+    #: atenção" mostrando só a segunda metade do nome. Um painel em que nada
+    #: nunca dá certo ensina que a tela é lugar de má notícia — e aí ela é
+    #: aberta quando alguém cobra, e não quando alguém decide.
     severidade: str = "atencao"
     fonte: str = ""
     ancora: str = ""
@@ -1957,6 +1964,7 @@ def destaques(faixas: dict[str, Faixa], filtros: Filtros) -> Faixa:
     cartoes += _cartoes_de_satisfacao(faixas.get("satisfacao"))
     cartoes += _cartoes_de_dinheiro(faixas.get("dinheiro"))
     cartoes += _cartoes_de_pessoas(faixas.get("pessoas"))
+    cartoes += _cartoes_do_que_foi_bem(faixas)
 
     faixa.conteudo = {"cartoes": cartoes}
     if not cartoes:
@@ -1969,6 +1977,88 @@ def destaques(faixas: dict[str, Faixa], filtros: Filtros) -> Faixa:
             "continuam com os números."
         )
     return faixa
+
+
+#: Quanto o realizado precisa passar do orçado para virar destaque.
+#:
+#: Cinco por cento. Abaixo disso é ruído de arredondamento e de sazonalidade, e
+#: um "destaque" que aparece todo mês por 0,4% ensina a ignorar a categoria
+#: inteira.
+FOLGA_PARA_DESTAQUE = Decimal("105")
+
+#: A partir de quantos pontos acima da margem mínima a carteira vira destaque.
+MARGEM_DE_DESTAQUE = MARGEM_MINIMA * 2
+
+
+def _cartoes_do_que_foi_bem(faixas: dict[str, Faixa]) -> list[Destaque]:
+    """A categoria QUE FALTAVA — §E1.
+
+    Até 09/09/2026 todo cartão desta faixa era um problema, e a faixa se
+    chamava "Destaques e pontos de atenção" mostrando só a segunda metade do
+    nome. Um painel em que nada nunca dá certo ensina que aquela tela é lugar de
+    má notícia — e aí ela é aberta quando alguém cobra, e não quando alguém
+    decide.
+
+    Duas regras, e não seis: destaque barato desvaloriza destaque. Elas só
+    disparam quando o número está claramente acima do combinado, e ficam
+    caladas no resto do tempo — que é a maior parte dele.
+    """
+    cartoes: list[Destaque] = []
+
+    dinheiro = faixas.get("dinheiro")
+    conteudo = getattr(dinheiro, "conteudo", None) or {}
+    totais = conteudo.get("totais") or {}
+    receita = totais.get("receita_bruta") or Decimal("0")
+    orcada = sum(
+        (
+            linha.receita_orcada
+            for linha in conteudo.get("serie") or []
+            if linha.receita_orcada is not None
+            and _no_mes(linha, dinheiro.competencia if dinheiro else None)
+        ),
+        Decimal("0"),
+    )
+    if orcada and receita:
+        pct = (receita / orcada * 100).quantize(Decimal("0.1"))
+        if pct >= FOLGA_PARA_DESTAQUE:
+            cartoes.append(
+                Destaque(
+                    chave="receita_acima",
+                    titulo="Receita acima do orçado",
+                    valor=fmt.percentual(pct),
+                    detalhe=f"{fmt.moeda(receita - orcada)} a mais que o previsto",
+                    severidade="bom",
+                    fonte="sankhya",
+                    ancora="dinheiro",
+                    explicacao="Realizado sobre orçado no mês.",
+                )
+            )
+
+    carteira = (getattr(faixas.get("contratos"), "conteudo", None) or {}).get(
+        "carteira", []
+    )
+    saudaveis = [
+        c for c in carteira
+        if c.margem_contribuicao_pct is not None
+        and c.margem_contribuicao_pct >= MARGEM_DE_DESTAQUE
+    ]
+    # Só quando são a MAIORIA: três contratos bons numa carteira de trinta não
+    # são um destaque da empresa, são três contratos bons.
+    com_margem = [c for c in carteira if c.margem_contribuicao_pct is not None]
+    if com_margem and len(saudaveis) > len(com_margem) / 2:
+        cartoes.append(
+            Destaque(
+                chave="carteira_saudavel",
+                titulo="Contratos acima do dobro da margem mínima",
+                valor=f"{len(saudaveis)} de {len(com_margem)}",
+                detalhe=f"acima de {fmt.percentual(MARGEM_DE_DESTAQUE)}",
+                severidade="bom",
+                fonte="iconnect_platform",
+                ancora="contratos",
+                explicacao="Contratos com margem confortável na competência.",
+            )
+        )
+    return cartoes
 
 
 def _cartoes_de_fonte(faixas: dict[str, Faixa]) -> list[Destaque]:
@@ -2281,6 +2371,11 @@ def _painel(
         "escopo": recorte,
         "escopo_total": escopo.tudo,
         "destaques": destaques(faixas, filtros),
+        # AS CONCENTRAÇÕES — a terceira categoria (§E1), e a única que uma
+        # pessoa escreve. Vêm num contexto próprio e não dentro de `destaques`:
+        # aquelas são derivadas de regra e não se editam, e misturar as duas
+        # listas faria a tela deixar de refletir o espelho.
+        **_concentracoes(pessoa, cache=cache),
         "faixas": [faixas[chave] for chave, _ in montadores],
         "por_chave": faixas,
         "competencias": _competencias_oferecidas(filtros.competencia),
@@ -2906,6 +3001,42 @@ def _estreitar_por_atributo(recorte: contrato.Escopo, filtros: Filtros):
         contratos=codigos,
         areas=recorte.areas,
         servicos=recorte.servicos,
+    )
+
+
+def _concentracoes(pessoa, cache: dict | None = None) -> dict:
+    """O que a empresa decidiu olhar, e quem pode mexer nisso.
+
+    Import local pelo motivo de sempre neste módulo: `concentracao` importa
+    `identidade`, e no topo criaria um ciclo com o que já é importado ali.
+    """
+    from workspace.services import concentracao as svc_conc
+
+    marca = svc_conc.pode_concentrar(pessoa, cache=cache)
+    return {
+        "concentracoes": svc_conc.abertas(),
+        "concentracoes_encerradas": svc_conc.encerradas(),
+        "pode_concentrar": marca,
+        "origens_de_concentracao": OrigemConcentracao.choices,
+        # A lista de responsáveis só é consultada por quem PODE marcar. Para o
+        # resto ela seria uma consulta a cada abertura da tela para preencher um
+        # `<select>` que nunca é renderizado.
+        "pessoas": _pessoas_lotadas() if marca else (),
+    }
+
+
+def _pessoas_lotadas():
+    """Quem pode ser responsável por uma concentração.
+
+    Só quem tem lotação: responsável sem centro de custo é responsável que
+    ninguém sabe cobrar, e o organograma é onde essa resposta mora.
+    """
+    from django.contrib.auth import get_user_model
+
+    return (
+        get_user_model()
+        .objects.filter(lotacao__isnull=False)
+        .order_by("nome", "email")
     )
 
 

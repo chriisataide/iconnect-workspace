@@ -25,7 +25,9 @@ from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.core.exceptions import PermissionDenied
 from django.http import HttpRequest, HttpResponse, JsonResponse
-from django.shortcuts import redirect, render
+from django.shortcuts import get_object_or_404, redirect, render
+from django.urls import reverse
+from django.utils.dateparse import parse_date
 from django.views.decorators.http import require_POST
 
 from workspace.providers import frescor as contrato_frescor
@@ -59,6 +61,65 @@ def resultados(request: HttpRequest) -> HttpResponse:
             "apresentacao": apresentacao,
             "pode_ver_fontes": svc.pode_ver_fontes(request.user, cache=_cache(request)),
         },
+    )
+
+
+@login_required
+@require_POST
+def concentracao_abrir(request: HttpRequest) -> HttpResponse:
+    """Marca um foco do período — §E1.
+
+    `POST` e volta para a tela, como todo caminho de escrita deste produto:
+    `GET` faria um *prefetch* do navegador abrir uma concentração sozinho.
+    """
+    from workspace.services import concentracao as svc_conc
+
+    try:
+        svc_conc.abrir(
+            request.user,
+            origem_tipo=request.POST.get("origem_tipo", ""),
+            origem_ref=request.POST.get("origem_ref", ""),
+            titulo=request.POST.get("titulo", ""),
+            motivo=request.POST.get("motivo", ""),
+            responsavel=_pessoa(request.POST.get("responsavel")),
+            prazo=parse_date(request.POST.get("prazo") or "") or None,
+            cache=_cache(request),
+        )
+    except svc_conc.ConcentracaoError as erro:
+        messages.error(request, str(erro))
+    else:
+        messages.success(request, "Concentração aberta.")
+    return redirect(f"{reverse('workspace:resultados')}#destaques")
+
+
+@login_required
+@require_POST
+def concentracao_encerrar(request: HttpRequest, pk: int) -> HttpResponse:
+    """Fecha, com o resultado escrito. Não há caminho de exclusão — encerrar é
+    o fim da vida de uma concentração, e o histórico é o produto."""
+    from workspace.models.concentracao import Concentracao
+    from workspace.services import concentracao as svc_conc
+
+    alvo = get_object_or_404(Concentracao, pk=pk)
+    try:
+        svc_conc.encerrar(
+            alvo, request.user, request.POST.get("resultado", ""),
+            cache=_cache(request),
+        )
+    except svc_conc.ConcentracaoError as erro:
+        messages.error(request, str(erro))
+    else:
+        messages.success(request, f"{alvo.titulo} — encerrada.")
+    return redirect(f"{reverse('workspace:resultados')}#destaques")
+
+
+def _pessoa(bruto):
+    from django.contrib.auth import get_user_model
+
+    return (
+        get_user_model().objects.filter(pk=int(bruto)).first()
+        if bruto and str(bruto).isdigit()
+        else None
     )
 
 

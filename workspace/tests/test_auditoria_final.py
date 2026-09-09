@@ -153,6 +153,10 @@ def test_todo_modelo_tem_porta_ou_e_derivado():
         # Têm tela própria no produto.
         "Custodia", "Veiculo", "Oportunidade", "PerguntaFrequente", "Relatorio",
         "Matricula",
+        # A concentração se marca e se encerra DENTRO da tela 10, na faixa de
+        # destaques. No admin ela seria editável fora do contexto do número que
+        # a motivou — e o motivo, que é o campo que importa, viraria texto solto.
+        "Concentracao",
     }
 
     registrados = {model.__name__ for model in admin.site._registry}

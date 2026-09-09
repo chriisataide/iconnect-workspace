@@ -199,6 +199,12 @@ urlpatterns = [
     # público — e uma URL aninhada diria o contrário a quem lê o endereço.
     path("quadro/", views.quadro, name="quadro"),
     path("satisfacao/", views.satisfacao, name="satisfacao"),
+    # A CONCENTRAÇÃO — §E1. `POST` nas duas: `GET` faria um prefetch do
+    # navegador abrir ou encerrar um foco sozinho.
+    path("resultados/concentracao/", views.concentracao_abrir,
+         name="concentracao_abrir"),
+    path("resultados/concentracao/<int:pk>/encerrar/",
+         views.concentracao_encerrar, name="concentracao_encerrar"),
     path("resultados/fontes/", views.fontes, name="fontes"),
     path("resultados/fontes/<slug:chave>/recarregar/", views.recarregar_fonte,
          name="recarregar_fonte"),

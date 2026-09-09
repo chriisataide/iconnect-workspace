@@ -4670,3 +4670,55 @@ tr[data-abre-resumo]:focus-visible {
   font-weight: 550;
   color: var(--au-text-muted);
 }
+
+/* A CONCENTRAÇÃO — §E1, a terceira categoria da faixa de destaques.
+ *
+ * Visualmente SEPARADA dos cartões, e não é decoração: destaque e ponto de
+ * atenção são derivados de regra e ninguém os edita; a concentração é decisão
+ * humana. Na mesma lista, as três pareceriam a mesma coisa.
+ *
+ * O bloco tem borda e fundo próprios pela mesma razão que a frase de leitura
+ * tem borda à esquerda: ele é COMENTÁRIO sobre a tela, e não mais um dado dela.
+ */
+.au-concentracoes {
+  margin-top: var(--au-4);
+  padding: var(--au-3) var(--au-4);
+  background: var(--au-surface-sunken);
+  border: 1px solid var(--au-border);
+  border-radius: var(--au-r-md);
+}
+.au-concentracao-lista { list-style: none; margin: 0; padding: 0; }
+
+.au-concentracao {
+  padding: var(--au-3) 0;
+  border-bottom: 1px solid var(--au-border);
+}
+.au-concentracao:last-child { border-bottom: 0; }
+
+/* O ATRASO com barra à esquerda E o texto "venceu há N dias" no corpo — cor
+ * nunca sozinha. A barra chama o olho; a frase diz o que houve. */
+.au-concentracao--atrasada { border-left: 3px solid var(--au-danger); padding-left: var(--au-3); }
+.au-concentracao--encerrada { opacity: .75; }
+
+.au-concentracao-titulo { margin: 0 0 var(--au-1); font-weight: 600; }
+.au-concentracao-motivo { margin: 0 0 var(--au-1); color: var(--au-text-muted); font-size: var(--au-t-sm); }
+.au-concentracao-meta { margin: 0; color: var(--au-text-subtle); font-size: var(--au-t-xs); }
+
+/* O campo de resultado ao LADO do botão de encerrar, e não num segundo passo:
+ * separados, alguém encerraria e escreveria "ok" para se livrar do formulário —
+ * e o histórico viraria uma lista de datas. */
+.au-concentracao-encerrar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--au-2);
+  margin-top: var(--au-2);
+}
+.au-concentracao-encerrar .au-input { flex: 1 1 18rem; }
+
+.au-concentracao-nova > summary,
+.au-concentracao-historico > summary {
+  cursor: pointer;
+  margin-top: var(--au-3);
+  font-size: var(--au-t-sm);
+  color: var(--au-accent-text);
+}

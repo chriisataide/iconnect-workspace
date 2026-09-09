@@ -196,4 +196,9 @@ cargas = 97.0      # medido 97.39 · conectores, carregador, transporte
 #   falar —, que é o caso difícil e o único que mantém a frase honesta. E um
 #   deles pegou uma falha real do meu limiar: com dois contratos caindo igual,
 #   cada um pesava 50% e a frase nomearia um dos dois arbitrariamente.
-minimo = 3603
+# 3603 → 3624: a concentração (E1) e a categoria positiva de destaque. Os que
+#   mais protegem: o que afirma que `eco.ler` NÃO dá direito de marcar — uma
+#   lista de foco que qualquer um edita deixa de ser foco —, e o que exige
+#   motivo ao abrir e resultado ao encerrar, que são os dois campos sem os
+#   quais o histórico vira uma lista de datas.
+minimo = 3624
