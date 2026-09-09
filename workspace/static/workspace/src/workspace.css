@@ -4242,6 +4242,20 @@ tr[data-abre-resumo]:focus-visible {
    Elas aparecem SEMPRE, inclusive em apresentação, onde os controles somem.
    Filtro invisível é a principal fonte de "esse número está errado". */
 
+/* A FRASE do recorte ativo — A6.
+ *
+ * Fora da barra de filtros e acima das tarjas: ela é LEITURA, e a barra é
+ * controle. Dentro da barra ela competiria com os campos pelo mesmo olhar.
+ *
+ * Sem truncamento, de propósito. Se a frase não couber, o recorte já está
+ * complexo demais e a pessoa já se perdeu — o sinal é para ela, não para o CSS.
+ */
+.au-recorte {
+  margin: 0 0 var(--au-2);
+  color: var(--au-text-muted);
+  font-size: var(--au-t-sm);
+}
+
 .au-tarjas {
   display: flex;
   flex-wrap: wrap;
@@ -4356,6 +4370,23 @@ tr[data-abre-resumo]:focus-visible {
   background: var(--au-surface-sunken);
   border: 1px solid var(--au-border);
   border-radius: var(--au-r-md);
+
+  /* A BARRA ACOMPANHA A ROLAGEM — A6.
+   *
+   * A tela tem nove blocos; quem chega ao de vencimentos e quer estreitar o
+   * período rolava até o topo, escolhia, e a página voltava para o topo — três
+   * gestos para um filtro. Foi a mesma queixa que o trilho já rendeu ("não
+   * fique subindo para o topo toda vez").
+   *
+   * `z-index` acima do conteúdo e abaixo do cabeçalho: a barra tem de cobrir
+   * gráfico, e nunca a navegação.
+   *
+   * `background` opaco é obrigatório num elemento grudento — sem ele o gráfico
+   * passa por baixo e o texto do filtro fica ilegível sobre as barras.
+   */
+  position: sticky;
+  top: 0;
+  z-index: 20;
 }
 
 .au-filtro-grupo { display: flex; flex-direction: column; gap: var(--au-2); }
@@ -4510,3 +4541,25 @@ tr[data-abre-resumo]:focus-visible {
   text-transform: none;
   color: var(--au-text-subtle);
 }
+
+/* A COMPARAÇÃO COM O PERÍODO ANTERIOR — F1.
+ *
+ * Fica ACIMA dos gráficos: ela é a resposta ("melhoramos ou pioramos"), e o
+ * gráfico é a evidência. Abaixo, ela viraria uma legenda do que já passou.
+ *
+ * A cor acompanha a seta e a palavra, e nunca as substitui — subir não é bom
+ * em toda linha (custo que sobe é ruim), e por isso o verde e o vermelho aqui
+ * dizem só a DIREÇÃO. O juízo fica com quem lê.
+ */
+.au-comparacao {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--au-2);
+  margin: 0 0 var(--au-3);
+  font-size: var(--au-t-sm);
+  color: var(--au-text-muted);
+}
+.au-comparacao-variacao { font-weight: 650; font-size: var(--au-t-md); }
+.au-comparacao--subiu .au-comparacao-variacao { color: var(--au-success-text); }
+.au-comparacao--caiu  .au-comparacao-variacao { color: var(--au-danger-text); }

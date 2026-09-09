@@ -184,23 +184,42 @@ class Filtros:
     """
 
     competencia: date
+    #: A UNIDADE do organograma. NÃO é campo de formulário: ela é a ponte entre
+    #: a permissão e o espelho (`Escopo.regionais` vem de `lotacao.unidade.nome`),
+    #: e continua existindo como nível da perfuração. Quem quer recortar a
+    #: carteira usa `area` — ver `resultados.models.Area`.
     regional: str = ""
     centro_custo: str = ""
     contrato: str = ""
-    servico: str = ""
+    #: ÁREA e SERVIÇO aceitam vários valores; os três acima, um só.
+    #:
+    #: A diferença não é de gosto: os três acima são uma hierarquia, e "desça
+    #: para dois lugares ao mesmo tempo" não é uma pergunta. Área e serviço são
+    #: atributos — comparar a Área 01 com a 03 é exatamente o que se quer.
+    area: tuple[str, ...] = ()
+    servico: tuple[str, ...] = ()
     status: str = ""
     #: `"1"`, `"2"`, `"3"` — o porte do contrato. String e não inteiro porque
     #: `sem_amostra` é uma resposta legítima do espelho, e não um número.
     layer: str = ""
     deficitario: bool = False
-    #: Quantos meses a série mostra. É filtro de LEITURA e não de dado: treze
-    #: meses num gráfico com rótulo por ponto é o limite do que cabe, e seis é
-    #: o que se olha numa reunião mensal.
+    #: O período da leitura: `mes`, `3m`, `6m`, `9m` ou `12m`.
     #:
-    #: Nasceu de uma reclamação concreta — "os números ficam um em cima do
-    #: outro". Girar o rótulo resolveu metade; poder estreitar a janela é a
-    #: outra metade, e é a que a pessoa controla.
-    janela: int = MESES_DA_SERIE
+    #: Filtro de LEITURA e não de dado. Nasceu de uma reclamação concreta — "os
+    #: números ficam um em cima do outro". Girar o rótulo resolveu metade; poder
+    #: estreitar o período é a outra metade, e é a que a pessoa controla.
+    #:
+    #: Era `janela: int` até 08/09/2026, com o número de meses direto na URL.
+    #: Virou nome por dois motivos: `?janela=9` não diz o que significa a quem
+    #: lê o link, e o inteiro livre aceitava `?janela=7`, um recorte que a tela
+    #: oferece sem oferecer — e que ninguém sabe interpretar.
+    periodo: str = ""
+    #: COM QUE COMPARAR — F1. Vazio é "com nada", e é o padrão.
+    #:
+    #: Separado do período de propósito: "quero ver seis meses" e "quero ver
+    #: contra o ano passado" são duas perguntas, e um seletor só para as duas
+    #: obrigaria a escolher entre elas.
+    comparar: str = ""
     #: Por qual dimensão o bloco de perfuração agrupa. Vazio = a do nível
     #: seguinte na hierarquia, que é o que quem não escolheu nada quer.
     dimensao: str = ""
@@ -214,30 +233,89 @@ class Filtros:
 
     @property
     def meses(self) -> int:
-        """A janela, presa entre 3 e o teto da série.
+        """Quantos meses a série cobre, do período escolhido.
 
-        Três é o mínimo em que uma tendência existe; abaixo disso o gráfico é
-        uma comparação, e comparação se lê melhor em tabela.
+        Preso ao teto da série. O PISO deixou de ser três em 08/09/2026, com a
+        entrada de "Mês atual" — ver `PERIODOS` para o que isso custa e por que
+        vale.
         """
-        return max(3, min(int(self.janela or MESES_DA_SERIE), MESES_DA_SERIE))
+        return max(1, min(MESES_POR_PERIODO.get(self.periodo, PERIODO_PADRAO_MESES),
+                          MESES_DA_SERIE))
+
+    @property
+    def so_o_mes(self) -> bool:
+        """"Mês atual" — o único período em que NÃO há série para desenhar.
+
+        A tela usa isto para trocar o gráfico pela tabela do mês em vez de
+        desenhar uma barra sozinha. Uma barra sem vizinha não mostra tendência
+        nenhuma e ocupa o espaço de quem mostraria.
+        """
+        return self.meses == 1
+
+    @property
+    def rotulo_do_periodo(self) -> str:
+        """"últimos 12 meses" — o texto que entra no título de cada gráfico.
+
+        No título e não só na barra de filtros: o gráfico é o que a pessoa
+        fotografa e cola numa mensagem, e fora da tela ele perde o recorte.
+        """
+        return ROTULO_DO_PERIODO.get(self.periodo, "")
 
     @property
     def ate(self) -> date:
         ultimo = calendar.monthrange(self.competencia.year, self.competencia.month)[1]
         return date(self.competencia.year, self.competencia.month, ultimo)
 
+    @property
+    def meses_atras(self) -> int:
+        """Quantos meses a comparação recua. `0` = não há comparação."""
+        return MESES_DA_COMPARACAO.get(self.comparar, 0)
+
+    @property
+    def de_comparado(self) -> date | None:
+        """O início da janela comparada, ou `None`.
+
+        Recua a janela INTEIRA, e não só o mês: comparar seis meses de 2026 com
+        um mês de 2025 seria comparar coisas diferentes com a mesma altura na
+        tela — o erro que mais gera decisão errada em reunião.
+        """
+        return _recuar(self.de, self.meses_atras) if self.meses_atras else None
+
+    @property
+    def ate_comparado(self) -> date | None:
+        if not self.meses_atras:
+            return None
+        fim = _recuar(self.competencia, self.meses_atras)
+        ultimo = calendar.monthrange(fim.year, fim.month)[1]
+        return date(fim.year, fim.month, ultimo)
+
+    @property
+    def rotulo_do_comparado(self) -> str:
+        return ROTULO_DA_COMPARACAO.get(self.comparar, "")
+
     def aplicar(self, escopo: contrato.Escopo) -> contrato.Escopo:
         """O filtro ESTREITA o escopo; nunca o alarga.
 
-        Um gerente que digitasse `?regional=Sul` na URL continua vendo só o
-        dela — o filtro entra por interseção, e o que ele não pode ver não volta
-        por uma query string.
+        Um gerente que digitasse `?cc=1055` na URL continua vendo só o dele — o
+        filtro entra por INTERSEÇÃO, e o que ele não pode ver não volta por uma
+        query string.
+
+        **Área e serviço não passam por `_estreitar`, e a razão importa:**
+        `_estreitar` existe para o caso em que a permissão já limitou o
+        conjunto. Ninguém é lotado numa área comercial nem num tipo de serviço —
+        a permissão nunca preenche esses dois. Eles só podem ESTREITAR, porque
+        entram com **E** contra o nível no `_recortar` do espelho: pedir uma
+        área que a pessoa não alcança devolve vazio, e não a área.
         """
         regionais = _estreitar(escopo.regionais, self.regional)
         centros = _estreitar(escopo.centros_custo, self.centro_custo)
         contratos = _estreitar(escopo.contratos, self.contrato)
         return contrato.Escopo(
-            regionais=regionais, centros_custo=centros, contratos=contratos
+            regionais=regionais,
+            centros_custo=centros,
+            contratos=contratos,
+            areas=self.area,
+            servicos=self.servico,
         )
 
 
@@ -258,17 +336,103 @@ def ler_filtros(parametros, hoje: date | None = None) -> Filtros:
     """
     hoje = hoje or timezone.localdate()
     return Filtros(
-        competencia=_competencia(parametros.get("competencia"), hoje),
+        competencia=_competencia(_mes_pedido(parametros), hoje),
         regional=(parametros.get("regional") or "").strip()[:60],
         centro_custo=(parametros.get("cc") or "").strip()[:20],
         contrato=(parametros.get("contrato") or "").strip()[:40],
-        servico=(parametros.get("servico") or "").strip()[:20],
+        area=_lista(parametros, "area", 20),
+        servico=_lista(parametros, "servico", 20),
         status=(parametros.get("status") or "").strip()[:20],
         layer=(parametros.get("layer") or "").strip()[:12],
         deficitario=parametros.get("deficitario") in ("1", "true", "sim"),
-        janela=_inteiro(parametros.get("janela"), MESES_DA_SERIE),
+        periodo=_periodo(parametros),
+        comparar=_comparacao(parametros),
         dimensao=(parametros.get("dim") or "").strip()[:20],
     )
+
+
+#: Quantos valores um filtro multi aceita. Doze é mais que as cinco áreas e os
+#: cinco serviços somados — o teto existe para uma URL forjada com duzentos
+#: valores não virar um `IN` de duzentos itens no banco.
+MAXIMO_MULTI = 12
+
+
+def _lista(parametros, nome: str, tamanho: int) -> tuple[str, ...]:
+    """Os valores de um filtro multi, sem repetição e na ordem em que vieram.
+
+    `getlist` quando existe (é um `QueryDict`) e `get` quando não (é um dict
+    comum, como os testes passam). Sem esse cuidado, a mesma função devolveria
+    coisas diferentes conforme quem chama — e o teste passaria enquanto a tela
+    não funcionaria.
+
+    Ordem preservada porque ela aparece na frase do recorte: "Área 01 e Área 03"
+    tem de sair na ordem em que a pessoa marcou, senão o texto muda sozinho a
+    cada recarga.
+    """
+    if hasattr(parametros, "getlist"):
+        crus = parametros.getlist(nome)
+    else:
+        bruto = parametros.get(nome)
+        crus = bruto if isinstance(bruto, (list, tuple)) else [bruto]
+
+    vistos: list[str] = []
+    for valor in crus:
+        limpo = (str(valor) if valor is not None else "").strip()[:tamanho]
+        if limpo and limpo not in vistos:
+            vistos.append(limpo)
+    return tuple(vistos[:MAXIMO_MULTI])
+
+
+def _mes_pedido(parametros) -> str | None:
+    """`?mes=` é o nome; `?competencia=` continua sendo lido — A1.
+
+    O nome mudou porque "competência" é palavra de contabilidade e a barra é
+    lida por quem não é do financeiro. O antigo continua valendo por uma versão
+    porque links já foram compartilhados: quebrá-los faria alguém abrir a tela
+    no mês errado sem perceber, que é pior que o nome ruim.
+
+    O NOVO tem precedência quando os dois vêm — se alguém montar a URL com os
+    dois, quis o que digitou por último, e o que digitou por último é `mes`.
+
+    Remover em: qualquer momento depois de 03/2027, quando os links de 2026
+    tiverem envelhecido.
+    """
+    return parametros.get("mes") or parametros.get("competencia")
+
+
+def _recuar(momento: date, meses: int) -> date:
+    """`date` deslocada `meses` para trás, no dia 1º."""
+    total = momento.year * 12 + (momento.month - 1) - meses
+    return date(total // 12, total % 12 + 1, 1)
+
+
+def _comparacao(parametros) -> str:
+    """`?comparar=` — valor fora da lista vira "nenhum", e não erro."""
+    pedido = (parametros.get("comparar") or "").strip().lower()
+    return pedido if pedido in MESES_DA_COMPARACAO else ""
+
+
+def _periodo(parametros) -> str:
+    """O período pedido, ou o padrão. Valor fora da lista NÃO é erro.
+
+    `?periodo=abacaxi` é uma URL digitada errada, e responder 500 a ela
+    ensinaria a não brincar com a barra de endereço — que é justamente o que a
+    tela quer que as pessoas façam.
+
+    Lê `?janela=` também, pelo mesmo motivo de `_mes_pedido`: `?janela=6` já
+    circulou em links, e o número traduz direto para o período equivalente.
+    """
+    pedido = (parametros.get("periodo") or "").strip().lower()
+    if pedido in MESES_POR_PERIODO:
+        return pedido
+
+    antigo = _inteiro(parametros.get("janela"), 0)
+    if antigo:
+        # O período cujo tamanho mais se aproxima, sem passar do teto.
+        cabe = [v for v, _, m in PERIODOS if m <= antigo]
+        if cabe:
+            return cabe[-1]
+    return PERIODO_PADRAO
 
 
 def _inteiro(texto, padrao: int) -> int:
@@ -372,8 +536,19 @@ def dinheiro(escopo: contrato.Escopo, filtros: Filtros) -> Faixa:
 
     do_mes = [linha for linha in serie if _no_mes(linha, filtros.competencia)]
 
+    # A JANELA COMPARADA — F1. Segunda consulta e não um recorte da primeira:
+    # ela está fora do intervalo que a primeira pediu, e reaproveitar seria
+    # buscar treze meses para mostrar doze, que foi exatamente o que o período
+    # nomeado veio desfazer.
+    comparada = []
+    if filtros.de_comparado is not None:
+        comparada = provedor.serie_competencia(
+            escopo, filtros.de_comparado, filtros.ate_comparado
+        )
+
     faixa.conteudo = {
         "serie": serie,
+        "comparacao": _comparacao_em_texto(serie, comparada, filtros),
         "linhas": [_linha_de_dinamica(linha) for linha in do_mes],
         "totais": _totais(do_mes),
         "consolidado": provedor.consolidado(escopo, filtros.competencia),
@@ -386,13 +561,15 @@ def dinheiro(escopo: contrato.Escopo, filtros: Filtros) -> Faixa:
         # fechou onde deveria" numa olhada, e a razão de a linha existir.
         "grafico_receita": _bloco_comparado(
             serie, "receita_bruta", "receita_orcada", "receita",
-            f"Receita bruta, {filtros.meses} meses",
+            _titulo("Receita bruta", filtros),
+            comparada=comparada,
+            rotulo_comparado=filtros.rotulo_do_comparado,
         ),
         # EBITDA fica SEM par: o espelho não traz EBITDA orçado. Inventar um
         # denominador para ter a linha seria a pior forma de completar um
         # gráfico — o bloco diz o que tem, e a razão fica de fora.
         "grafico_ebitda": _bloco_mensal(
-            serie, "ebitda", "ebitda", f"EBITDA, {filtros.meses} meses"
+            serie, "ebitda", "ebitda", _titulo("EBITDA", filtros)
         ),
     }
     return faixa
@@ -499,7 +676,87 @@ def _bloco_mensal(linhas, campo: str, chave: str, titulo: str):
     )
 
 
-def _bloco_comparado(linhas, campo_re: str, campo_or: str, chave: str, titulo: str):
+def _titulo(assunto: str, filtros: Filtros) -> str:
+    """"Receita bruta — últimos 12 meses" — A2.
+
+    O recorte vai no TÍTULO, e não só na barra de filtros: o gráfico é o que a
+    pessoa fotografa e cola numa mensagem, e fora da tela ele perde o recorte.
+    Um gráfico de seis meses lido como se fosse de doze é o tipo de erro que
+    ninguém percebe porque nada parece errado.
+    """
+    recorte = filtros.rotulo_do_periodo
+    return f"{assunto} — {recorte}" if recorte else assunto
+
+
+def _comparacao_em_texto(serie, comparada, filtros: Filtros) -> dict | None:
+    """Período atual, período comparado e a VARIAÇÃO — F1.
+
+    "Nunca deixar a comparação implícita": o gráfico mostra duas curvas, e duas
+    curvas não dizem de quanto foi a diferença. Sem o número escrito, cada
+    pessoa na reunião estima uma coisa olhando a mesma tela.
+
+    Devolve `None` quando não há comparação pedida OU quando o período anterior
+    não tem dado. A segunda é importante: uma variação contra zero é sempre
+    "+∞%", e mostrá-la seria pior que não mostrar nada.
+    """
+    if not comparada:
+        return None
+
+    atual = sum((linha.receita_bruta or Decimal("0")) for linha in serie)
+    antes = sum((linha.receita_bruta or Decimal("0")) for linha in comparada)
+    if not antes:
+        return None
+
+    variacao = ((atual - antes) / antes * Decimal("100")).quantize(Decimal("0.1"))
+    return {
+        "rotulo": filtros.rotulo_do_comparado,
+        "atual": atual,
+        "anterior": antes,
+        "variacao": variacao,
+        # FORMATADO AQUI, e não no template. A regra de pt-BR mora num lugar
+        # só; um filtro novo para isto seria o segundo, e o dia em que os dois
+        # arredondassem diferente ninguém saberia qual está certo.
+        #
+        # `com_sinal` porque em variação a DIREÇÃO é a informação — é o que
+        # separa "+2,3%" de "2,3%", que sozinho não diz nada.
+        "variacao_texto": fmt.percentual(variacao, com_sinal=True),
+        "atual_texto": fmt.moeda(atual),
+        "anterior_texto": fmt.moeda(antes),
+        "de": filtros.de_comparado,
+        "ate": filtros.ate_comparado,
+        # `subiu` e não só o sinal: a tela precisa escolher a palavra e a cor, e
+        # `variacao > 0` espalhado por template é a regra em dois lugares.
+        "subiu": variacao > 0,
+    }
+
+
+def _alinhar_por_posicao(serie, comparada, campo: str) -> list:
+    """A série comparada, na ordem dos meses da série atual.
+
+    Por POSIÇÃO e não por rótulo: os meses têm nomes diferentes — 09/25 contra
+    09/26 —, e casar por nome não casaria nada. A posição é o que faz "o
+    primeiro mês da janela" encontrar "o primeiro mês da janela anterior".
+
+    Sobra vira `None` em vez de erro: janelas de tamanhos diferentes acontecem
+    quando o espelho não tem todos os meses do período anterior, e um mês sem
+    par é um ponto ausente na linha — não uma tela quebrada.
+    """
+    _, atual = _por_mes(serie, campo)
+    ordem_antes, antes = _por_mes(comparada, campo)
+    valores = [antes[rotulo] for rotulo in ordem_antes]
+    faltam = len(atual) - len(valores)
+    return valores + [None] * faltam if faltam > 0 else valores[: len(atual)]
+
+
+def _bloco_comparado(
+    linhas,
+    campo_re: str,
+    campo_or: str,
+    chave: str,
+    titulo: str,
+    comparada=(),
+    rotulo_comparado: str = "",
+):
     """Realizado × orçado, com o `% do orçado` na linha do eixo direito.
 
     A linha é o que a faixa existe para mostrar: dois números lado a lado dizem
@@ -527,6 +784,10 @@ def _bloco_comparado(linhas, campo_re: str, campo_or: str, chave: str, titulo: s
         pontos,
         chave=chave,
         titulo=titulo,
+        comparado=(
+            _alinhar_por_posicao(linhas, comparada, campo_re) if comparada else None
+        ),
+        rotulo_comparado=rotulo_comparado,
         rotulo_a="Realizado",
         rotulo_b="Orçado",
         # "%RExOR" era a sigla do benchmark, e ela ia para a LEGENDA — onde o
@@ -642,8 +903,10 @@ def contratos(escopo: contrato.Escopo, filtros: Filtros) -> Faixa:
 
 
 def _filtrar_carteira(carteira, filtros: Filtros):
-    if filtros.servico:
-        carteira = [c for c in carteira if c.servico == filtros.servico]
+    # Área e serviço NÃO aparecem aqui: eles já foram filtrados em SQL, no
+    # `_recortar` do espelho. Repetir o filtro em Python seria um segundo lugar
+    # com a mesma regra — e o dia em que os dois discordassem, a carteira e o
+    # gráfico do dinheiro mostrariam contratos diferentes sem ninguém saber.
     if filtros.status:
         carteira = [c for c in carteira if c.status == filtros.status]
     if filtros.layer:
@@ -1207,6 +1470,8 @@ def _painel(
         _com_perfuracao(faixas["dinheiro"], recorte, filtros)
     _com_graficos(faixas)
 
+    opcoes = _opcoes_de_atributo(escopo)
+
     return {
         "filtros": filtros,
         "escopo": recorte,
@@ -1215,10 +1480,12 @@ def _painel(
         "faixas": [faixas[chave] for chave, _ in montadores],
         "por_chave": faixas,
         "competencias": _competencias_oferecidas(filtros.competencia),
-        # Os serviços que EXISTEM no espelho, e não uma lista escrita à mão:
-        # uma opção que não devolve linha nenhuma é pior que a ausência dela.
-        "servicos": _servicos_oferecidos(faixas),
-        "janelas": JANELAS,
+        # As OPÇÕES saem do que a pessoa ALCANÇA, e não do que ela já filtrou —
+        # ver `_opcoes_de_atributo`.
+        **opcoes,
+        "periodos": PERIODOS,
+        "comparacoes": COMPARACOES,
+        "recorte_em_texto": recorte_em_texto(filtros, opcoes["areas"]),
         # As TARJAS. Sempre no contexto — inclusive em apresentação, onde os
         # controles somem e elas ficam. Filtro invisível é a principal fonte de
         # "esse número está errado" que não está.
@@ -1267,9 +1534,62 @@ def painel_de_satisfacao(pessoa, parametros, cache: dict | None = None) -> dict:
     )
 
 
-#: As janelas oferecidas. Três é o mínimo em que uma tendência existe; treze é
-#: o teto do que cabe com rótulo por ponto.
-JANELAS: tuple[int, ...] = (3, 6, 12, MESES_DA_SERIE)
+#: OS PERÍODOS OFERECIDOS — `(valor, rótulo, meses)`.
+#:
+#: Nomeados e fechados, em vez de um inteiro livre. `?janela=9` não dizia o que
+#: significava a quem lia o link, e aceitava `?janela=7` — um recorte que a tela
+#: oferecia sem oferecer, e que ninguém sabe interpretar.
+#:
+#: **"Mês atual" quebra o piso de três meses, de propósito.** A regra antiga
+#: dizia: "três é o mínimo em que uma tendência existe; abaixo disso o gráfico é
+#: uma comparação, e comparação se lê melhor em tabela." A regra continua certa,
+#: e é por isso que `so_o_mes` existe — nesse período a tela mostra a TABELA do
+#: mês em vez de desenhar uma barra sozinha. O período entrou porque "como
+#: fechou este mês" é a pergunta mais frequente da reunião mensal; a resposta
+#: foi atendê-la sem fingir que uma barra é uma série.
+PERIODOS: tuple[tuple[str, str, int], ...] = (
+    ("mes", "Mês atual", 1),
+    ("3m", "3 meses", 3),
+    ("6m", "6 meses", 6),
+    ("9m", "9 meses", 9),
+    ("12m", "12 meses", 12),
+)
+
+#: Doze e não treze. Os treze existiam para o mesmo mês do ano anterior caber na
+#: série; a comparação com o ano anterior passou a ser explícita (bloco F), e a
+#: série volta a ter o tamanho que a pessoa pediu.
+PERIODO_PADRAO = "12m"
+PERIODO_PADRAO_MESES = 12
+
+#: COM QUE COMPARAR — `(valor, rótulo, meses de recuo)`. F1.
+#:
+#: "Nenhum" é uma opção EXPLÍCITA e é a primeira. Sem ela o seletor não teria
+#: como desligar a comparação, e uma comparação que não se desliga acaba
+#: ficando ligada sem ninguém lembrar de a ter pedido.
+#:
+#: O trimestre do ano anterior recua doze meses como o ano — o que muda é o
+#: RECORTE que a pessoa escolhe no período, não o salto no tempo. Ele existe
+#: separado porque nomeia a pergunta que a diretoria faz ("como foi o mesmo
+#: trimestre?"), e um seletor que obriga a traduzir a pergunta para "12 meses
+#: com período de 3" é um seletor que ninguém usa.
+COMPARACOES: tuple[tuple[str, str, int], ...] = (
+    ("", "Nenhum", 0),
+    ("ano_anterior", "Ano anterior", 12),
+    ("trimestre_ano_anterior", "Mesmo trimestre do ano anterior", 12),
+    ("dois_anos", "Dois anos atrás", 24),
+)
+
+MESES_DA_COMPARACAO: dict[str, int] = {v: m for v, _, m in COMPARACOES if m}
+ROTULO_DA_COMPARACAO: dict[str, str] = {v: r for v, r, m in COMPARACOES if m}
+
+MESES_POR_PERIODO: dict[str, int] = {v: m for v, _, m in PERIODOS}
+ROTULO_DO_PERIODO: dict[str, str] = {
+    "mes": "no mês",
+    "3m": "últimos 3 meses",
+    "6m": "últimos 6 meses",
+    "9m": "últimos 9 meses",
+    "12m": "últimos 12 meses",
+}
 
 
 # ── Perfuração — Onda 11, mecanismo 1 ───────────────────────────────
@@ -1299,7 +1619,11 @@ JANELAS: tuple[int, ...] = (3, 6, 12, MESES_DA_SERIE)
 
 #: `(parâmetro na URL, rótulo, atributo do contrato)`, do topo para o fundo.
 HIERARQUIA: tuple[tuple[str, str, str], ...] = (
-    ("regional", "Regional", "regional"),
+    # "Unidade" e não "Regional": este degrau é o nome da unidade do organograma
+    # (`lotacao.unidade.nome`), que é o que a permissão usa. Chamá-lo de
+    # "regional" fazia parecer recorte comercial — e é por aí que alguém tenta
+    # trocá-lo pela área e quebra o acesso do gerente.
+    ("regional", "Unidade", "regional"),
     ("cc", "Centro de custo", "centro_custo"),
     ("contrato", "Contrato", "codigo"),
 )
@@ -1337,19 +1661,27 @@ def _url_com(base: str, filtros: Filtros, **mudancas) -> str:
     from urllib.parse import urlencode
 
     atual = {
-        "competencia": filtros.competencia.strftime("%Y-%m"),
+        # `mes` e não `competencia`: a URL que a tela GERA usa o nome novo. O
+        # antigo continua sendo lido (ver `_mes_pedido`), mas não é mais
+        # produzido — senão a compatibilidade nunca envelhece e nunca sai.
+        "mes": filtros.competencia.strftime("%Y-%m"),
         "regional": filtros.regional,
         "cc": filtros.centro_custo,
         "contrato": filtros.contrato,
+        # Tuplas. `urlencode(..., doseq=True)` as expande em `area=a&area=b`,
+        # que é a forma que `getlist` lê de volta — o par tem de casar, senão o
+        # link que a pessoa manda por e-mail abre com um filtro só.
+        "area": filtros.area,
         "servico": filtros.servico,
         "layer": filtros.layer,
-        "janela": str(filtros.meses),
+        "periodo": filtros.periodo or PERIODO_PADRAO,
+        "comparar": filtros.comparar,
         "dim": filtros.dimensao,
     }
     if filtros.deficitario:
         atual["deficitario"] = "1"
     atual.update(mudancas)
-    return f"{base}?{urlencode({k: v for k, v in atual.items() if v})}"
+    return f"{base}?{urlencode({k: v for k, v in atual.items() if v}, doseq=True)}"
 
 
 def migalhas(filtros: Filtros, base: str) -> list:
@@ -1417,13 +1749,19 @@ class FiltroAtivo:
 #: Os filtros que ganham tarja, na ordem em que a tela os oferece.
 #: `(parâmetro, rótulo)`.
 COM_TARJA: tuple[tuple[str, str], ...] = (
-    ("regional", "Regional"),
+    ("regional", "Unidade"),
     ("cc", "Centro de custo"),
     ("contrato", "Contrato"),
+    ("area", "Área"),
     ("servico", "Serviço"),
     ("layer", "Layer"),
     ("deficitario", "Só deficitários"),
 )
+
+#: Os filtros que aceitam mais de um valor. Cada valor ganha a PRÓPRIA tarja,
+#: com o próprio X — remover "Área 03" não pode levar "Área 01" junto, que é o
+#: que uma tarja só para os dois faria.
+MULTIVALOR: frozenset[str] = frozenset({"area", "servico"})
 
 #: Quantos filtros CRUZADOS cabem ao mesmo tempo. O quarto substitui o mais
 #: antigo e avisa — quatro recortes simultâneos produzem um número que ninguém
@@ -1433,7 +1771,7 @@ COM_TARJA: tuple[tuple[str, str], ...] = (
 #: trilha já os mostra.
 MAXIMO_DE_CRUZADOS = 3
 
-CRUZAVEIS: tuple[str, ...] = ("servico", "layer", "deficitario")
+CRUZAVEIS: tuple[str, ...] = ("area", "servico", "layer", "deficitario")
 
 
 def filtros_ativos(filtros: Filtros, base: str) -> list[FiltroAtivo]:
@@ -1442,6 +1780,7 @@ def filtros_ativos(filtros: Filtros, base: str) -> list[FiltroAtivo]:
         "regional": filtros.regional,
         "cc": filtros.centro_custo,
         "contrato": filtros.contrato,
+        "area": filtros.area,
         "servico": filtros.servico,
         "layer": filtros.layer,
         "deficitario": "sim" if filtros.deficitario else "",
@@ -1450,8 +1789,15 @@ def filtros_ativos(filtros: Filtros, base: str) -> list[FiltroAtivo]:
     for parametro, rotulo in COM_TARJA:
         if not valores[parametro]:
             continue
+
+        if parametro in MULTIVALOR:
+            ativos.extend(
+                _tarjas_multi(filtros, base, parametro, rotulo, valores[parametro])
+            )
+            continue
+
         # Remover um degrau da hierarquia limpa os de baixo, pela mesma razão da
-        # trilha: a regional recortada por um CC que a tela diz não estar ativo
+        # trilha: a unidade recortada por um CC que a tela diz não estar ativo
         # é um número que não bate com nada.
         limpeza = {parametro: ""}
         if parametro == "regional":
@@ -1469,6 +1815,79 @@ def filtros_ativos(filtros: Filtros, base: str) -> list[FiltroAtivo]:
     return ativos
 
 
+def _tarjas_multi(
+    filtros: Filtros, base: str, parametro: str, rotulo: str, escolhidos: tuple
+) -> list[FiltroAtivo]:
+    """Uma tarja por valor, e o X de cada uma remove só o seu.
+
+    A alternativa — uma tarja "Área: 01, 03" com um X só — obriga a pessoa a
+    limpar tudo e remarcar para tirar uma das duas. Ela faz isso uma vez e passa
+    a não usar mais de um valor.
+    """
+    return [
+        FiltroAtivo(
+            chave=f"{parametro}:{valor}",
+            rotulo=rotulo,
+            valor=valor,
+            url_remover=_url_com(
+                base, filtros,
+                **{parametro: tuple(v for v in escolhidos if v != valor)},
+            ),
+        )
+        for valor in escolhidos
+    ]
+
+
+def recorte_em_texto(filtros: Filtros, areas: list[dict]) -> str:
+    """O recorte ativo em frase — A6.
+
+        "Área 01 e Área 03 · monitoramento · últimos 6 meses até AGO/2026"
+
+    ## Frase E tarjas, e não uma das duas
+
+    As tarjas dizem *o que remover*, uma por uma, com o X. A frase diz *o que
+    estou vendo*, de uma vez. Quem chega à tela lê a frase; quem quer mudar
+    clica na tarja. Uma tarja de cada vez não forma a leitura completa, e a
+    frase sozinha não deixa desfazer nada.
+
+    Sai da MESMA função de filtros que as tarjas, e não de um segundo cálculo:
+    duas verdades sobre o mesmo recorte, na mesma barra, é como alguém descobre
+    que a tela mente.
+
+    ## Se a frase não couber, o recorte já é complexo demais
+
+    Não há truncamento aqui de propósito. A frase crescer é o sinal — e o sinal
+    é para a pessoa, não para o CSS.
+    """
+    nomes = {a["codigo"]: a["nome"] for a in areas}
+    partes: list[str] = []
+
+    if filtros.area:
+        partes.append(_e_comercial([nomes.get(c, c) for c in filtros.area]))
+    if filtros.centro_custo:
+        partes.append(f"CC {filtros.centro_custo}")
+    if filtros.contrato:
+        partes.append(filtros.contrato)
+    if filtros.servico:
+        partes.append(_e_comercial(list(filtros.servico)))
+    if filtros.layer:
+        partes.append(f"layer {filtros.layer}")
+    if filtros.deficitario:
+        partes.append("só deficitários")
+
+    periodo = filtros.rotulo_do_periodo
+    mes = f"{filtros.competencia:%m/%Y}"
+    partes.append(f"{periodo} até {mes}" if periodo else mes)
+    return " · ".join(partes)
+
+
+def _e_comercial(valores: list[str]) -> str:
+    """`["a", "b", "c"]` → `"a, b e c"`. Português, não vírgula até o fim."""
+    if len(valores) <= 1:
+        return valores[0] if valores else ""
+    return f"{', '.join(valores[:-1])} e {valores[-1]}"
+
+
 def url_limpa(filtros: Filtros, base: str) -> str:
     """"Limpar tudo" — preserva a competência e a janela, e só elas.
 
@@ -1477,7 +1896,8 @@ def url_limpa(filtros: Filtros, base: str) -> str:
     """
     return _url_com(
         base, filtros,
-        regional="", cc="", contrato="", servico="", layer="", deficitario="",
+        regional="", cc="", contrato="", area=(), servico=(),
+        layer="", deficitario="",
     )
 
 
@@ -1504,18 +1924,26 @@ def cruzar(filtros: Filtros, base: str, parametro: str, valor: str) -> tuple[str
 
     ordem = [p for p in CRUZAVEIS if _valor_do_filtro(filtros, p)]
     substituiu = False
-    mudancas = {parametro: valor}
+    # Num filtro multivalor, clicar ACRESCENTA. Substituir faria o segundo
+    # clique desfazer o primeiro, e comparar duas áreas — que é a razão de o
+    # filtro aceitar mais de uma — ficaria impossível pelo gráfico.
+    if parametro in MULTIVALOR:
+        ja = _valor_do_filtro(filtros, parametro) or ()
+        mudancas = {parametro: ja if valor in ja else (*ja, valor)}
+    else:
+        mudancas = {parametro: valor}
     if parametro not in ordem and len(ordem) >= MAXIMO_DE_CRUZADOS:
         mudancas[ordem[0]] = ""
         substituiu = True
     return _url_com(base, filtros, **mudancas), substituiu
 
 
-def _valor_do_filtro(filtros: Filtros, parametro: str) -> str:
+def _valor_do_filtro(filtros: Filtros, parametro: str):
     return {
         "regional": filtros.regional,
         "cc": filtros.centro_custo,
         "contrato": filtros.contrato,
+        "area": filtros.area,
         "servico": filtros.servico,
         "layer": filtros.layer,
         "deficitario": "1" if filtros.deficitario else "",
@@ -1531,9 +1959,14 @@ def _valor_do_filtro(filtros: Filtros, parametro: str) -> str:
 #: nível. Serviço e layer são atributos: escolhê-los reagrupa sem descer, e o
 #: clique vira filtro cruzado.
 DIMENSOES: tuple[tuple[str, str, str, bool], ...] = (
-    ("regional", "Regional", "regional", False),
+    ("regional", "Unidade", "regional", False),
     ("cc", "Centro de custo", "centro_custo", False),
     ("contrato", "Contrato", "codigo", False),
+    # ÁREA é atributo e não nível, e a diferença não é arbitrária: um centro de
+    # custo atende contratos de áreas diferentes, então nenhuma das duas CONTÉM
+    # a outra. Como nível, descer para uma área depois de escolher um CC faria a
+    # lista crescer — o defeito que a Onda 11 corrigiu na hierarquia.
+    ("area", "Área", "area", True),
     ("servico", "Serviço", "servico", True),
     ("layer", "Layer", "layer", True),
 )
@@ -1616,21 +2049,26 @@ def _bloco_perfuracao(escopo, filtros: Filtros, base: str):
 
 
 def _estreitar_por_atributo(recorte: contrato.Escopo, filtros: Filtros):
-    """Traduz `serviço` e `layer` em uma LISTA DE CONTRATOS, e estreita o escopo.
+    """Traduz `layer` em uma LISTA DE CONTRATOS, e estreita o escopo.
 
-    Sem isto, os dois filtravam só a faixa da carteira: a pessoa escolhia
-    "serviço = cftv", a lista de contratos encolhia, e o gráfico do dinheiro
-    continuava mostrando a empresa inteira.
+    Sem isto, o layer filtrava só a faixa da carteira: a pessoa escolhia
+    "layer = 1", a lista de contratos encolhia, e o gráfico do dinheiro
+    continuava mostrando a empresa inteira. Duas faixas discordando sobre o
+    mesmo filtro, na mesma tela, é o defeito que faz alguém deixar de confiar no
+    número — e ele não dá erro nem aparece em log.
 
-    Duas faixas discordando sobre o mesmo filtro, na mesma tela, é o defeito que
-    faz alguém deixar de confiar no número — e ele não dá erro nem aparece em
-    log.
+    ## Serviço saiu daqui, e área nunca entrou
 
-    A tradução acontece UMA vez, aqui, e vale para todas as faixas. Fazê-la
-    dentro de cada montador seria a mesma consulta cinco vezes, e cinco lugares
-    para ela divergir.
+    Os dois são CAMPO do contrato, e agora viajam no próprio `Escopo`
+    (`servicos`, `areas`), filtrados em SQL pelo `_recortar` do espelho. Traduzir
+    para lista de códigos custaria uma volta ao provedor para chegar ao mesmo
+    lugar, e uma tupla de dezoito códigos onde cabia um `IN` de um valor.
+
+    **Layer não é campo.** Ele é calculado a partir da receita dos últimos meses
+    — não existe coluna para o banco filtrar —, e por isso continua precisando
+    da tradução. É a diferença que decide quem fica aqui.
     """
-    if not (filtros.servico or filtros.layer):
+    if not filtros.layer:
         return recorte
 
     provedor = contrato.obter(contrato.ProvedorCarteira)
@@ -1640,13 +2078,10 @@ def _estreitar_por_atributo(recorte: contrato.Escopo, filtros: Filtros):
         # o menos errado: a faixa da carteira já diz que a fonte não respondeu.
         return recorte
 
+    # `provedor.contratos(recorte)` JÁ aplicou área e serviço — a tradução do
+    # layer acontece dentro do que os outros filtros deixaram passar.
     codigos = tuple(
-        sorted(
-            c.codigo
-            for c in provedor.contratos(recorte)
-            if (not filtros.servico or c.servico == filtros.servico)
-            and (not filtros.layer or c.layer == filtros.layer)
-        )
+        sorted(c.codigo for c in provedor.contratos(recorte) if c.layer == filtros.layer)
     )
     if not codigos:
         # Nenhum contrato casa. `("",)` é um código que não existe — e é o que
@@ -1654,22 +2089,73 @@ def _estreitar_por_atributo(recorte: contrato.Escopo, filtros: Filtros):
         # uma tupla vazia significaria em `Escopo`.
         codigos = ("",)
 
+    # Área e serviço seguem junto. Sem isto, o recorte por atributo APAGARIA o
+    # filtro de área — e a tela mostraria, para quem filtrou a Área 03, os
+    # contratos de layer 1 da empresa inteira.
     return contrato.Escopo(
         regionais=recorte.regionais,
         centros_custo=recorte.centros_custo,
         contratos=codigos,
+        areas=recorte.areas,
+        servicos=recorte.servicos,
     )
 
 
-def _servicos_oferecidos(faixas: dict) -> list[str]:
-    """Os serviços presentes na carteira visível, ordenados.
+def _opcoes_de_atributo(escopo: contrato.Escopo) -> dict:
+    """As áreas e os serviços que a pessoa ALCANÇA — não os que ela já filtrou.
 
-    Sai das FAIXAS já montadas e não de uma consulta nova: elas já respeitam o
-    escopo da pessoa, e uma segunda consulta poderia oferecer um serviço que ela
-    não alcança — o que revelaria a existência dele.
+    ## Por que do escopo, e não das faixas já montadas
+
+    A versão anterior tirava os serviços da carteira montada, que já passou
+    pelos filtros. Isso tem uma consequência que só aparece com multi-seleção:
+    escolher "monitoramento" deixava a caixa com **uma opção só**, e não havia
+    como acrescentar "manutenção" sem editar a URL à mão. Com um valor por vez o
+    defeito era invisível; comparar dois serviços é exatamente a razão de o
+    filtro aceitar mais de um. É o mesmo cuidado que o filtro de editais do
+    radar já tomava.
+
+    ## E por que continua respeitando a permissão
+
+    O escopo aqui é o da PESSOA — apenas sem os filtros de área e serviço, que
+    não vêm da permissão. Não é o espelho inteiro: uma opção fora do alcance
+    dela não aparece, e a caixa não revela a existência de contrato que ela não
+    pode ver.
     """
-    contratos = getattr(faixas.get("contratos"), "conteudo", None) or {}
-    return sorted({c.servico for c in contratos.get("carteira", []) if c.servico})
+    provedor = contrato.obter(contrato.ProvedorCarteira)
+    if provedor is None:
+        return {"servicos": [], "areas": []}
+
+    # A HIERARQUIA fica; os dois atributos saem. É o que a permissão permite,
+    # antes de os filtros de leitura recortarem.
+    alcance = contrato.Escopo(
+        regionais=escopo.regionais,
+        centros_custo=escopo.centros_custo,
+        contratos=escopo.contratos,
+    )
+    carteira = provedor.contratos(alcance)
+
+    areas: dict[str, str] = {}
+    tem_sem_area = False
+    for c in carteira:
+        if c.area:
+            areas[c.area] = c.area_nome or c.area
+        else:
+            tem_sem_area = True
+
+    ordenadas = [
+        {"codigo": codigo, "nome": nome}
+        for codigo, nome in sorted(areas.items(), key=lambda par: par[1])
+    ]
+    if tem_sem_area:
+        # NO FIM, e sempre presente quando existe: "Sem área" é uma escolha, e
+        # não uma ausência. Escondê-la faria o contrato não agrupado sumir da
+        # soma no instante em que alguém marcasse qualquer área.
+        ordenadas.append({"codigo": "sem-area", "nome": "Sem área"})
+
+    return {
+        "servicos": sorted({c.servico for c in carteira if c.servico}),
+        "areas": ordenadas,
+    }
 
 
 def _competencias_oferecidas(atual: date, quantas: int = MESES_DA_SERIE) -> list[date]:

@@ -19,6 +19,34 @@
   --au-accent-400:#7376d3; --au-accent-500:#494cc6; --au-accent-600:#3539a9;
   --au-accent-700:#2b2e8a; --au-accent-800:#212369;
 
+  /* A PALETA DOS GRÁFICOS — papéis, e não tons.
+   *
+   * Existe separada das cores semânticas por uma razão de leitura: "orçado" não
+   * é um aviso, e pintá-lo com `--au-warning` faria toda barra de orçamento
+   * parecer um alerta. Trocar a paleta inteira é editar as quatro linhas
+   * abaixo — que é o que "a paleta num arquivo só" quer dizer.
+   *
+   * Os valores foram MEDIDOS, não escolhidos por gosto (08/09/2026):
+   *
+   *   realizado × orçado          5,26:1   (era 3,79:1 entre os dois azuis)
+   *   rótulo dentro do orçado     6,48:1   escuro sobre âmbar
+   *   linha da razão × fundo     17,85:1
+   *   linha da razão × barra RE   1,58:1   ← o preço, e ele é conhecido
+   *
+   * O par pedido na revisão era "azul-aço contra âmbar". Medido, ele dá
+   * **1,33:1** entre as duas séries — em escala de cinza viram a mesma barra,
+   * e a regra "cor nunca sozinha" cai junto. O par abaixo mantém a diferença
+   * de MATIZ que se pediu e recupera a de LUMINÂNCIA que ela custava.
+   *
+   * O 1,58:1 da linha sobre a barra escura é aceito de propósito: a linha
+   * carrega uma cápsula com o número em branco sobre ela, então o VALOR nunca
+   * se perde — só o traço, e só onde ele cruza a barra.
+   */
+  --au-chart-re:      #2b2e8a;   /* realizado */
+  --au-chart-or:      #f59e0b;   /* orçado */
+  --au-chart-terceira:#64748b;   /* a terceira de uma série categórica */
+  --au-chart-linha:   #0f172a;   /* a razão entre as duas — neutra, não é aviso */
+
   /* Crimson: ornamento de marca, NUNCA estado. Fica perto demais de
      --au-danger (#dc2626) para carregar significado de erro. O logo já usa os
      dois assim — navy é a massa, crimson é o anel. */

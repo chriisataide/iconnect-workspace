@@ -213,8 +213,16 @@ def test_as_telas_irmas_nao_oferecem_filtro_de_contrato(client, rota, fixture, r
 
     corpo = client.get(reverse(rota)).content.decode()
 
-    assert 'name="competencia"' in corpo, "a competência precisa continuar"
-    assert 'name="regional"' in corpo, "o recorte por lugar precisa continuar"
+    # `name="mes"` desde 08/09/2026 — A1. "Competência" é palavra de
+    # contabilidade, e esta barra é lida por quem não é do financeiro. O
+    # `?competencia=` antigo continua sendo LIDO, e há teste disso em
+    # `test_filtros_resultados.py`; o que a tela GERA usa o nome novo.
+    assert 'name="mes"' in corpo, "o seletor de mês precisa continuar"
+    # `name="area"` no lugar de `name="regional"` — A3. `regional` é o nome da
+    # UNIDADE do organograma e serve à PERMISSÃO; ele saiu da barra porque
+    # ninguém filtra digitando o nome de uma unidade, e porque oferecê-lo ali
+    # convida a trocá-lo pela área comercial e quebrar o acesso do gerente.
+    assert 'name="area"' in corpo, "o recorte por área precisa continuar"
     assert 'name="servico"' not in corpo
     assert 'name="layer"' not in corpo
     assert 'name="deficitario"' not in corpo

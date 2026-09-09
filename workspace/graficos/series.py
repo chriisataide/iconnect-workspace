@@ -76,17 +76,54 @@ FOLGA_DO_ROTULO = 74
 #: Valores literais e não `var(--au-…)`: o ECharts desenha em SVG mas escreve a
 #: cor como atributo de preenchimento, e `var()` num atributo de SVG não resolve.
 #: A duplicação é conferida por `test_toda_cor_do_grafico_existe_nos_tokens`.
-COR_PRINCIPAL = "#3539a9"   # --au-accent-600
-COR_SECUNDARIA = "#a0a2e1"  # --au-accent-300
-COR_LINHA = "#d97706"       # --au-warning
+#: REALIZADO × ORÇADO — o par que se repete em toda a tela.
+#:
+#: Era `#3539a9` contra `#a0a2e1`: o mesmo azul em duas claridades, e a queixa
+#: da revisão ("a paleta é lavada") estava certa — dois tons do mesmo matiz não
+#: se separam de relance.
+#:
+#: A revisão pedia "azul-aço contra âmbar". Medido, esse par dá **1,33:1** de
+#: contraste entre as séries: em escala de cinza as duas barras viram uma só, e
+#: "cor nunca sozinha" cai junto. O par abaixo tem o matiz que se pediu E
+#: **5,26:1** de luminância — melhor que os 3,79:1 de antes.
+#:
+#: Os valores moram em `--au-chart-*` no `tokens.css`, com a medição escrita lá.
+COR_PRINCIPAL = "#2b2e8a"   # --au-chart-re
+COR_SECUNDARIA = "#f59e0b"  # --au-chart-or
+#: A terceira de uma série categórica. Ardósia neutra, e não um terceiro azul:
+#: `#7376d3` foi a primeira escolha e a guarda de contraste a reprovou — branco
+#: sobre ela dá 3,99:1, abaixo do piso de 4,0 para rótulo dentro da barra.
+#: Esta dá 4,76:1, e ainda separa de RE (2,37:1) e de OR (2,22:1).
+COR_TERCIARIA = "#64748b"   # --au-chart-terceira
+
+#: A LINHA DA RAZÃO. Neutra escura, e não âmbar.
+#:
+#: Âmbar era `--au-warning`, e passou a ser a cor do ORÇADO — a linha ficaria
+#: igual a uma das barras. E ela nunca foi um aviso: é a razão entre as duas
+#: séries, que pode ser boa ou ruim.
+COR_LINHA = "#0f172a"       # --au-chart-linha
+
+#: A faixa "atenção" do medidor. SEPARADA de `COR_LINHA`, que era quem fazia
+#: este papel — no medidor a cor é semântica, e ali âmbar quer dizer atenção
+#: mesmo. Um símbolo servindo aos dois papéis fez a linha da razão parecer um
+#: alerta durante toda a vida anterior deste arquivo.
+COR_ATENCAO = "#d97706"     # --au-warning
+
+#: A série do PERÍODO COMPARADO — F1. O mesmo azul do realizado, mais claro:
+#: ela é a MESMA grandeza noutro tempo, e uma cor nova diria que é outra coisa.
+#: O tracejado é o que carrega a diferença, e ele sobrevive à escala de cinza.
+COR_COMPARADO = "#7376d3"   # --au-accent-400
 COR_NEGATIVO = "#dc2626"    # --au-danger
 # `--au-success-text`, e não `--au-success`. O verde mais claro (`#059669`) não
 # aceita rótulo dentro da barra: branco sobre ele dá 3,77:1 e escuro dá 3,69:1 —
 # nenhum dos dois chega aos 4,5:1 exigidos. Com este, branco dá 5,48:1.
 # A cascata pinta o passo de ganho com ele E escreve o valor dentro.
 COR_POSITIVO = "#047857"    # --au-success-text
-#: O fundo da etiqueta do percentual. Ver `barras_comparadas`.
-COR_LINHA_ETIQUETA = "#b45309"  # --au-warning-text
+#: O fundo da cápsula do percentual. Igual à linha: a cápsula É a linha
+#: rotulada, e duas cores ali fariam parecer duas informações. Branco sobre ela
+#: dá 17,85:1 — é o que garante que o VALOR nunca se perde, nem onde o traço
+#: cruza a barra escura.
+COR_LINHA_ETIQUETA = "#0f172a"  # --au-chart-linha
 COR_TEXTO = "#475569"       # --au-brand-600, que é --au-text-muted no claro
 COR_GRADE = "#c7c8ed"       # --au-accent-200
 
@@ -370,6 +407,11 @@ def barras_comparadas(
     rotulo_b: str,
     rotulo_linha: str = "",
     linha: list[Decimal | None] | None = None,
+    #: A série do período COMPARADO — F1. Alinhada por POSIÇÃO e não por
+    #: rótulo: os meses têm nomes diferentes (09/25 contra 09/26), e casar por
+    #: nome não casaria nada.
+    comparado: list[Decimal | None] | None = None,
+    rotulo_comparado: str = "",
     formatar=fmt.moeda_curta,
     formatar_tabela=fmt.moeda,
     formatar_linha=fmt.percentual,
@@ -389,6 +431,7 @@ def barras_comparadas(
         return Bloco(chave=chave, titulo=titulo, option={}, altura=altura)
 
     linha = linha or [None] * len(pontos)
+    comparado = comparado or [None] * len(pontos)
     fonte = [
         [
             mes,
@@ -398,8 +441,9 @@ def barras_comparadas(
             formatar(a),
             formatar(b),
             formatar_linha(c),
+            float(d) if d is not None else None,
         ]
-        for (mes, a, b), c in zip(pontos, linha)
+        for (mes, a, b), c, d in zip(pontos, linha, comparado)
     ]
 
     option = _base(altura)
@@ -407,7 +451,8 @@ def barras_comparadas(
         {
             "dataset": {
                 "dimensions": [
-                    "mes", "a", "b", "linha", "rotulo_a", "rotulo_b", "rotulo_linha",
+                    "mes", "a", "b", "linha", "rotulo_a", "rotulo_b",
+                    "rotulo_linha", "comparado",
                 ],
                 "source": fonte,
             },
@@ -463,6 +508,39 @@ def barras_comparadas(
         }
     )
 
+    if any(v is not None for v in comparado):
+        # LINHA e não terceira barra — F1.
+        #
+        # Com doze meses, três barras por mês são trinta e seis barras, e o
+        # rótulo dentro delas deixa de caber. A linha atravessa as barras sem
+        # disputar largura com elas, e é a convenção para "o mesmo período,
+        # antes".
+        #
+        # No eixo da ESQUERDA (`yAxisIndex` ausente = 0), porque ela está em
+        # reais como as barras. A linha da razão é a única do eixo direito —
+        # duas linhas em escalas diferentes seriam duas verdades sobre a mesma
+        # altura na tela.
+        option["series"].append(
+            {
+                "type": "line",
+                "name": rotulo_comparado or "Período anterior",
+                "encode": {"x": "mes", "y": "comparado"},
+                "itemStyle": {"color": COR_COMPARADO},
+                # TRACEJADA: é o que diz "isto não é deste período" sem depender
+                # de cor — a mesma regra que faz o trimestre parcial ser
+                # hachurado.
+                "lineStyle": {
+                    "color": COR_COMPARADO, "width": 2, "type": "dashed",
+                },
+                "symbolSize": 5,
+                "z": 5,
+                # SEM rótulo por ponto. As barras já carregam o valor dentro, e
+                # uma terceira etiqueta por mês torna o gráfico ilegível — que é
+                # exatamente a queixa que originou o filtro de período.
+                "label": {"show": False},
+            }
+        )
+
     if any(v is not None for v in linha):
         option["series"].append(
             {
@@ -495,12 +573,20 @@ def barras_comparadas(
         )
 
     colunas = [Coluna("Mês", numerica=False), Coluna(rotulo_a), Coluna(rotulo_b)]
+    tem_comparado = any(v is not None for v in comparado)
+    if tem_comparado:
+        colunas.append(Coluna(rotulo_comparado or "Período anterior"))
     if any(v is not None for v in linha):
         colunas.append(Coluna(rotulo_linha or "Razão"))
 
     linhas = []
-    for (mes, a, b), c in zip(pontos, linha):
+    for (mes, a, b), c, d in zip(pontos, linha, comparado):
         celulas = [mes, formatar_tabela(a), formatar_tabela(b)]
+        if tem_comparado:
+            # A tabela irmã ganha a coluna junto. Sem isso, quem não tem
+            # JavaScript veria a comparação sumir — e ela é o conteúdo, não o
+            # enfeite.
+            celulas.append(formatar_tabela(d))
         if any(v is not None for v in linha):
             celulas.append(formatar_linha(c))
         linhas.append(celulas)
@@ -721,7 +807,7 @@ def _paleta(quantos: int) -> list[str]:
     dizendo que a categoria errada foi escolhida — e repetir cor é melhor que
     inventar uma que não passa no contraste.
     """
-    base = [COR_PRINCIPAL, COR_SECUNDARIA, COR_LINHA, COR_POSITIVO, COR_NEGATIVO]
+    base = [COR_PRINCIPAL, COR_SECUNDARIA, COR_TERCIARIA, COR_POSITIVO, COR_NEGATIVO]
     return [base[i % len(base)] for i in range(quantos)]
 
 
@@ -979,7 +1065,7 @@ def rosca(
 #: cor nunca sozinha, e num medidor a cor é quase tudo o que existe.
 FAIXAS_PADRAO: tuple[tuple[Decimal, str, str], ...] = (
     (Decimal("50"), "crítico", COR_NEGATIVO),
-    (Decimal("75"), "atenção", COR_LINHA),
+    (Decimal("75"), "atenção", COR_ATENCAO),
     (Decimal("100"), "bom", COR_POSITIVO),
 )
 
@@ -1235,10 +1321,24 @@ def dispersao(
     option = _base(altura)
     option.update(
         {
-            # O tooltip carrega o texto JÁ FORMATADO, montado no Python. Um
-            # `formatter` em JS com `Intl` colocaria a regra de pt-BR num
-            # segundo lugar, e o segundo diverge do primeiro.
-            "tooltip": {"trigger": "item", "confine": True, "formatter": "{@detalhe}"},
+            # O TOOLTIP USA `{b}`, E NÃO `{@detalhe}` — corrigido em 08/09/2026.
+            #
+            # `{@dimensão}` só existe no caminho do RÓTULO. Provado no bundle:
+            # o regex `/\{@(.+?)\}/g` aparece em exatamente um `.replace()`,
+            # dentro de `getFormattedLabel`. O formatter de tooltip passa por
+            # `formatTpl`, que só conhece `{a}`, `{b}`, `{c}` e `{d}` — então
+            # `{@detalhe}` chegava à tela **literal**, que foi o defeito
+            # relatado.
+            #
+            # `{b}` é o `name` do item, e `name` aceita qualquer string. O texto
+            # rico vai ali, já formatado em pt-BR pelo Python — a regra de
+            # formato continua num lugar só.
+            #
+            # A correção que o relato sugeria — declarar `dataset.dimensions` e
+            # trocar o formatter por função — não serve aqui: `dimensions` não
+            # muda o caminho do tooltip, e função não sobrevive à serialização
+            # JSON pela qual a `option` viaja.
+            "tooltip": {"trigger": "item", "confine": True, "formatter": "{b}"},
             # A UNIDADE NO NOME DO EIXO. Sem ela, "25" no eixo vertical e
             # "30,000" no horizontal são dois números sem grandeza, e a pessoa
             # tem de deduzir qual é qual. Foi a primeira coisa que faltou quando
@@ -1270,7 +1370,13 @@ def dispersao(
                     "itemStyle": {"opacity": 0.8},
                     "data": [
                         {
-                            "name": rotulo,
+                            # `name` É o texto do tooltip. Ver a nota em
+                            # `tooltip`, acima.
+                            "name": (
+                                f"{rotulo}<br>{rotulo_x}: {formatar_x_exato(x)}"
+                                f"<br>{rotulo_y}: {formatar_y(y)}"
+                                + ("<br><b>abaixo do mínimo</b>" if abaixo(y) else "")
+                            ),
                             "value": [float(x), float(y)],
                             # O tamanho proporcional, entre 8 e 34 pixels. Sem
                             # piso, o contrato pequeno vira um ponto que ninguém
@@ -1283,12 +1389,16 @@ def dispersao(
                             "itemStyle": {
                                 "color": COR_NEGATIVO if abaixo(y) else COR_PRINCIPAL
                             },
-                            "label": {"show": bool(abaixo(y))},
-                            "detalhe": (
-                                f"{rotulo}<br>{rotulo_x}: {formatar_x_exato(x)}"
-                                f"<br>{rotulo_y}: {formatar_y(y)}"
-                                + ("<br><b>abaixo do mínimo</b>" if abaixo(y) else "")
-                            ),
+                            # O RÓTULO por item, com o texto LITERAL.
+                            #
+                            # `formatter` sem chave nenhuma é renderizado como
+                            # está — e com o nome do contrato aqui, o gráfico
+                            # deixa de depender de `{@rotulo}` resolver contra
+                            # uma dimensão que este tipo de série não declara.
+                            "label": {
+                                "show": bool(abaixo(y)),
+                                "formatter": rotulo,
+                            },
                         }
                         for rotulo, x, y, t in pontos
                     ],
@@ -1300,8 +1410,11 @@ def dispersao(
                     # aparecem são os que couberam, não os que importam. Nomear
                     # só os vermelhos deixa a leitura em uma frase — "estes
                     # quatro estão abaixo da margem, e este é grande".
+                    # SEM `formatter` na série: cada item traz o seu, com o
+                    # nome do contrato literal. O que fica aqui é só a
+                    # aparência, que é igual para todos.
                     "label": {
-                        "show": True, "formatter": "{@rotulo}",
+                        "show": True,
                         "position": "top", "fontSize": 10,
                         "fontWeight": "bold", "color": COR_NEGATIVO,
                     },

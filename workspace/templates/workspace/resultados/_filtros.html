@@ -31,9 +31,15 @@
     <div class="au-filtro-grupo">
       <p class="au-filtro-grupo-titulo">{% trans "Quando" %}</p>
       <div class="au-filtro-grupo-campos">
+        {% comment %}
+          "Mês" e não "Competência": a palavra é de contabilidade, e esta barra
+          é lida por quem não é do financeiro. O parâmetro virou `?mes=`; o
+          `?competencia=` antigo continua sendo LIDO por uma versão, para não
+          quebrar link já compartilhado — ver `_mes_pedido` no serviço.
+        {% endcomment %}
         <div class="au-filtro">
-          <label class="au-filtro-rotulo" for="f-competencia">{% trans "Competência" %}</label>
-          <select class="au-input au-input--compacto" id="f-competencia" name="competencia">
+          <label class="au-filtro-rotulo" for="f-mes">{% trans "Mês" %}</label>
+          <select class="au-input au-input--compacto" id="f-mes" name="mes">
             {% for mes in competencias %}
               <option value="{{ mes|date:'Y-m' }}"
                       {% if mes == filtros.competencia %}selected{% endif %}>{{ mes|date:"m/Y" }}</option>
@@ -41,20 +47,44 @@
           </select>
         </div>
         {% comment %}
-          A JANELA nasceu de uma reclamação concreta — "os números ficam um em
-          cima do outro". Girar o rótulo resolveu metade; estreitar a janela é a
-          outra metade, e é a que a pessoa controla.
+          O PERÍODO nasceu de uma reclamação concreta — "os números ficam um em
+          cima do outro". Girar o rótulo resolveu metade; estreitar o período é
+          a outra metade, e é a que a pessoa controla.
+
+          Valores nomeados e não o número de meses: `?janela=9` não dizia o que
+          significava a quem lia o link, e aceitava `?janela=7` — um recorte que
+          a tela oferecia sem oferecer.
         {% endcomment %}
         <div class="au-filtro">
-          <label class="au-filtro-rotulo" for="f-janela">{% trans "Janela" %}</label>
-          <select class="au-input au-input--compacto" id="f-janela" name="janela">
-            {% for opcao in janelas %}
-              <option value="{{ opcao }}" {% if opcao == filtros.meses %}selected{% endif %}>
-                {% blocktrans count n=opcao %}{{ n }} mês{% plural %}{{ n }} meses{% endblocktrans %}
-              </option>
+          <label class="au-filtro-rotulo" for="f-periodo">{% trans "Período" %}</label>
+          <select class="au-input au-input--compacto" id="f-periodo" name="periodo">
+            {% for valor, rotulo, meses in periodos %}
+              <option value="{{ valor }}"
+                      {% if valor == filtros.periodo %}selected{% endif %}>{{ rotulo }}</option>
             {% endfor %}
           </select>
         </div>
+        {% comment %}
+          COMPARAR COM — F1, e separado do período de propósito.
+
+          "Quero ver seis meses" e "quero ver contra o ano passado" são duas
+          perguntas. Um seletor só para as duas obrigaria a escolher entre elas.
+
+          "Nenhum" é opção explícita e é a primeira: sem ela não haveria como
+          DESLIGAR a comparação, e comparação que não se desliga acaba ficando
+          ligada sem ninguém lembrar de a ter pedido.
+        {% endcomment %}
+        {% if comparacoes %}
+        <div class="au-filtro">
+          <label class="au-filtro-rotulo" for="f-comparar">{% trans "Comparar com" %}</label>
+          <select class="au-input au-input--compacto" id="f-comparar" name="comparar">
+            {% for valor, rotulo, meses in comparacoes %}
+              <option value="{{ valor }}"
+                      {% if valor == filtros.comparar %}selected{% endif %}>{{ rotulo }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        {% endif %}
       </div>
     </div>
 
@@ -64,11 +94,28 @@
         <span class="au-filtro-grupo-dica">{% trans "do mais amplo ao mais específico" %}</span>
       </p>
       <div class="au-filtro-grupo-campos">
+        {% comment %}
+          A ÁREA no lugar da Regional, e a troca não é de nome.
+
+          `regional` é o nome da UNIDADE do organograma — é por ele que a
+          permissão recorta o que um gerente enxerga (`lotacao.unidade.nome`).
+          Ele saiu da barra porque ninguém filtra digitando o nome de uma
+          unidade, e porque oferecê-lo aqui convida a trocá-lo pela área e
+          quebrar o acesso. Continua vivo como degrau da perfuração, com o
+          rótulo "Unidade".
+
+          "Área" é o conglomerado COMERCIAL, e aceita mais de uma: comparar a
+          Área 01 com a 03 é a pergunta que ela existe para responder.
+        {% endcomment %}
         <div class="au-filtro">
-          <label class="au-filtro-rotulo" for="f-regional">{% trans "Regional" %}</label>
-          <input class="au-input au-input--compacto" id="f-regional" type="text" name="regional"
-                 value="{{ filtros.regional }}" maxlength="60"
-                 placeholder="{% trans 'todas' %}">
+          <label class="au-filtro-rotulo" for="f-area">{% trans "Área" %}</label>
+          <select class="au-input au-input--compacto" id="f-area" name="area"
+                  multiple size="4">
+            {% for a in areas %}
+              <option value="{{ a.codigo }}"
+                      {% if a.codigo in filtros.area %}selected{% endif %}>{{ a.nome }}</option>
+            {% endfor %}
+          </select>
         </div>
         <div class="au-filtro">
           <label class="au-filtro-rotulo" for="f-cc">{% trans "Centro de custo" %}</label>
@@ -95,10 +142,11 @@
         {% endcomment %}
         <div class="au-filtro">
           <label class="au-filtro-rotulo" for="f-servico">{% trans "Serviço" %}</label>
-          <select class="au-input au-input--compacto" id="f-servico" name="servico">
-            <option value="">{% trans "todos" %}</option>
+          <select class="au-input au-input--compacto" id="f-servico" name="servico"
+                  multiple size="4">
             {% for opcao in servicos %}
-              <option value="{{ opcao }}" {% if opcao == filtros.servico %}selected{% endif %}>{{ opcao }}</option>
+              <option value="{{ opcao }}"
+                      {% if opcao in filtros.servico %}selected{% endif %}>{{ opcao }}</option>
             {% endfor %}
           </select>
         </div>

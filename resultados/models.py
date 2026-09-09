@@ -88,6 +88,81 @@ class ProcedenciaMixin(models.Model):
         )
 
 
+#: O código reservado de "contrato sem área". Nenhuma `Area` pode usá-lo.
+#:
+#: Ele existe para que "sem área" seja uma OPÇÃO do filtro, e não um `NULL`
+#: escondido. Número que some ao filtrar é a forma mais rápida de perder a
+#: confiança da diretoria: quem soma as cinco áreas e não chega no total da
+#: empresa para de acreditar na tela inteira, e com razão.
+SEM_AREA = "sem-area"
+
+
+class Area(models.Model):
+    """Um conglomerado COMERCIAL de contratos. Não é divisão geográfica.
+
+    ## Por que não herda `ProcedenciaMixin`, e isso não é esquecimento
+
+    Todo o resto deste módulo é ESPELHO: veio de fora, tem fonte, chave externa
+    e instante de carga. `Area` é o contrário — ela é registro NOSSO, cadastrado
+    por quem administra, e nenhuma fonte externa a conhece.
+
+    É a mesma distinção que separou `EditalPublico` de `Oportunidade`: o que a
+    empresa escreve à mão não pode viver numa tabela que a carga da madrugada
+    reescreve. Aqui a garantia é dupla — `Area` não está em `ENTIDADES`, e
+    `Contrato.area` não vai no `dados` de nenhum conector, então o `_gravar` do
+    carregador nunca a toca. Há teste afirmando isso.
+
+    ## `Area` NÃO substitui `Contrato.regional`
+
+    As duas parecem a mesma coisa e não são, e confundi-las quebra a permissão:
+
+        regional   o nome da UNIDADE do organograma. É por ele que
+                   `Escopo.regionais` recorta o que um gerente pode ver — ele
+                   vem de `lotacao.unidade.nome`. É infraestrutura de
+                   autorização, e não aparece em nenhum filtro da tela.
+
+        area       o agrupamento comercial da carteira. É filtro de LEITURA,
+                   nunca de permissão: ninguém é "lotado na Área 03".
+
+    Trocar um pelo outro faria o gerente da unidade Sudeste não encontrar
+    contrato nenhum, porque nenhuma área se chama "Sudeste".
+
+    ## Editável sem migration, de propósito
+
+    Contrato novo entra numa área por cadastro. O agrupamento comercial muda com
+    a estratégia de vendas, e migração de dado a cada mudança de carteira é como
+    o cadastro para de ser atualizado.
+    """
+
+    #: `"area-01"`. Slug e não inteiro: ele aparece na query string, e
+    #: `?area=area-01` é legível no link que alguém cola num e-mail.
+    codigo = models.SlugField(max_length=20, unique=True)
+    nome = models.CharField(max_length=80)
+    #: Os clientes que a área agrupa, em texto. Aparece no seletor porque
+    #: ninguém sabe o que é "Área 03" sem ver o que tem dentro — e um filtro que
+    #: exige conhecimento prévio é um filtro que só o autor usa.
+    descricao = models.CharField(max_length=200, blank=True)
+    ordem = models.PositiveSmallIntegerField(default=0)
+    #: Área desativada some do SELETOR e não dos números. Os contratos dela
+    #: continuam no total — desativar é dizer "não vendemos mais assim", não
+    #: "esqueça o faturamento".
+    ativa = models.BooleanField(default=True, db_index=True)
+
+    class Meta:
+        ordering = ["ordem", "codigo"]
+        verbose_name = "área"
+        verbose_name_plural = "áreas"
+        constraints = [
+            models.CheckConstraint(
+                condition=~models.Q(codigo=SEM_AREA),
+                name="res_area_codigo_reservado",
+            )
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.nome} · {self.descricao}" if self.descricao else self.nome
+
+
 class ServicoContrato(models.TextChoices):
     CFTV = "cftv", "CFTV"
     ALARME = "alarme", "Alarme"
@@ -111,7 +186,21 @@ class Contrato(ProcedenciaMixin):
     #: que a regra de exceção 19 existe para vigiar — uma FK esconderia a
     #: divergência ao recusar a carga em vez de registrá-la.
     centro_custo = models.CharField(max_length=20, db_index=True)
+    #: O nome da UNIDADE do organograma, e é por ele que a permissão recorta —
+    #: ver `Area` para por que ele não é a área comercial e não pode virar uma.
+    #: Não aparece em filtro de tela.
     regional = models.CharField(max_length=60, blank=True, db_index=True)
+    #: O agrupamento comercial. `null` quer dizer "sem área", que é uma resposta
+    #: legítima e visível no filtro — nunca um contrato escondido.
+    #:
+    #: `SET_NULL` e não `PROTECT`: apagar uma área é decisão de cadastro, e ela
+    #: não deve levar contratos junto nem travar por causa deles. Os que ficarem
+    #: órfãos aparecem em "Sem área", que é exatamente onde alguém os encontra
+    #: para reagrupar.
+    area = models.ForeignKey(
+        "resultados.Area", null=True, blank=True,
+        on_delete=models.SET_NULL, related_name="contratos",
+    )
     inicio_vigencia = models.DateField(null=True, blank=True)
     fim_vigencia = models.DateField(null=True, blank=True, db_index=True)
     valor_mensal = models.DecimalField(max_digits=14, decimal_places=2, default=0)

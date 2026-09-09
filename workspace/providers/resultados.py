@@ -133,7 +133,15 @@ class ContratoDTO(ComProcedencia):
     nome_cliente: str = ""
     servico: str = ""
     centro_custo: str = ""
+    #: A UNIDADE do organograma — infraestrutura de permissão, não filtro de
+    #: tela. Ver `area` logo abaixo, e o cabeçalho de `resultados.models.Area`.
     regional: str = ""
+    #: O código da área comercial, ou `""` quando o contrato não tem uma. Vazio
+    #: é resposta legítima e aparece como "Sem área" — nunca some do total.
+    area: str = ""
+    #: O nome legível, para a tela não precisar consultar a área de novo só para
+    #: escrever "Área 03" ao lado do contrato.
+    area_nome: str = ""
     inicio_vigencia: date | None = None
     fim_vigencia: date | None = None
     valor_mensal: Decimal = Decimal("0")
@@ -318,13 +326,33 @@ class Escopo:
     cache na Onda 3.
     """
 
+    #: A HIERARQUIA — `regional ⊃ centro de custo ⊃ contrato`. Entre as três, a
+    #: mais específica vence; ver `_recortar` no espelho.
     regionais: tuple[str, ...] = ()
     centros_custo: tuple[str, ...] = ()
     contratos: tuple[str, ...] = ()
 
+    #: Os ATRIBUTOS, e a diferença com a hierarquia acima decide o desenho: eles
+    #: não descem um nível, eles recortam de lado. Um centro de custo pode
+    #: atender contratos de três áreas comerciais diferentes, e um contrato tem
+    #: um serviço só — nenhum dos dois CONTÉM o outro.
+    #:
+    #: Por isso entram com **E** contra o nível vencedor, e não na precedência.
+    #: Na precedência, escolher uma área substituiria o centro de custo e a
+    #: pessoa veria a lista crescer ao estreitar — que é exatamente o defeito
+    #: que o `OU` da hierarquia produzia antes da Onda 11.
+    #:
+    #: Vazio quer dizer "todas". Estes dois nunca vêm da permissão: ninguém é
+    #: lotado numa área comercial.
+    areas: tuple[str, ...] = ()
+    servicos: tuple[str, ...] = ()
+
     @property
     def tudo(self) -> bool:
-        return not (self.regionais or self.centros_custo or self.contratos)
+        return not (
+            self.regionais or self.centros_custo or self.contratos
+            or self.areas or self.servicos
+        )
 
 
 # ── Os contratos ────────────────────────────────────────────────────

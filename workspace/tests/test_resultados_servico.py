@@ -82,12 +82,27 @@ def test_sem_nenhuma_fonte_os_destaques_ficam_quietos(sem_provedores):
 # ── Filtros ─────────────────────────────────────────────────────────
 
 
-def test_a_janela_da_serie_tem_treze_meses(monkeypatch):
-    """Doze não bastam: a comparação com o mesmo mês do ano passado é a única
-    que separa crescimento de sazonalidade."""
+def test_a_serie_padrao_tem_doze_meses(monkeypatch):
+    """Treze até 08/09/2026, doze desde então — e a diferença tem dono.
+
+    O décimo terceiro mês existia por uma razão boa, que a versão anterior deste
+    teste escrevia: "doze não bastam, a comparação com o mesmo mês do ano
+    passado é a única que separa crescimento de sazonalidade".
+
+    A razão continua verdadeira. O que mudou foi ONDE ela é atendida: o período
+    passou a ser escolhido por nome (`mes`·`3m`·`6m`·`9m`·`12m`, A2), e um
+    décimo terceiro mês pendurado no fim da série de doze é comparação
+    ESCONDIDA — ninguém sabe que está olhando treze, e o gráfico ganha um ponto
+    a mais na esquerda que ninguém pediu.
+
+    A comparação virou explícita, com seletor próprio e a série do ano anterior
+    desenhada em traço separado. Enquanto ela não existir, esta capacidade está
+    EM FALTA — e é por isso que o item F1 deixou de ser opcional no plano desta
+    sessão. Ver `test_comparativo.py`.
+    """
     filtros = svc.Filtros(competencia=date(2026, 9, 1))
 
-    assert filtros.de == date(2025, 9, 1)
+    assert filtros.de == date(2025, 10, 1), "doze meses, contando o atual"
     assert filtros.ate == date(2026, 9, 30)
 
 
@@ -198,7 +213,18 @@ def test_a_carteira_filtra_por_servico_status_e_deficitario():
 
         return [c.codigo for c in svc._filtrar_carteira(carteira, replace(base, **campos))]
 
-    assert _codigos(servico="cftv") == ["A", "C"]
+    # SERVIÇO saiu daqui em 08/09/2026, e não por descuido: ele é campo do
+    # contrato e passou a filtrar em SQL, pelo próprio `Escopo`. Repetir a regra
+    # em Python seria um segundo lugar com a mesma decisão — e o dia em que os
+    # dois discordassem, a carteira e o gráfico do dinheiro mostrariam contratos
+    # diferentes na mesma tela.
+    #
+    # Que o serviço continua recortando TODAS as faixas está provado ponta a
+    # ponta, contra o espelho de verdade, em
+    # `resultados/tests/test_area.py::test_o_servico_tambem_recorta_todas_as_faixas`.
+    assert _codigos(servico=("cftv",)) == ["A", "B", "C"], (
+        "o serviço não filtra mais AQUI — filtra no banco"
+    )
     assert _codigos(status="encerrado") == ["C"]
     assert _codigos(deficitario=True) == ["B"]
     assert _codigos() == ["A", "B", "C"]

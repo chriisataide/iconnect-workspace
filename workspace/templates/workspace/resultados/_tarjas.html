@@ -12,6 +12,20 @@
   Por isso este bloco aparece SEMPRE — inclusive em apresentação, onde os
   controles somem e ele fica.
 {% endcomment %}
+{% comment %}
+  A FRASE vem antes das tarjas, e as duas coexistem de propósito.
+
+  A frase diz *o que estou vendo*, de uma vez — é o que alguém lê ao chegar na
+  tela ou ao receber o link. As tarjas dizem *o que remover*, uma por uma, com
+  o X. Uma tarja de cada vez não forma a leitura completa; a frase sozinha não
+  deixa desfazer nada.
+
+  Ela sai da MESMA função de filtros que as tarjas. Dois cálculos do mesmo
+  recorte, na mesma barra, é como alguém descobre que a tela mente.
+{% endcomment %}
+{% if recorte_em_texto %}
+  <p class="au-recorte">{{ recorte_em_texto }}</p>
+{% endif %}
 {% if filtros_ativos %}
   <div class="au-tarjas" role="status">
     <span class="au-tarjas-rotulo">{% trans "Filtrado por:" %}</span>

@@ -157,4 +157,16 @@ cargas = 97.0      # medido 97.39 · conectores, carregador, transporte
 # 3451 → 3452: o do vocabulário da tela de marketing. Ele segura o RÓTULO e não
 #   a função — a tela chamava de "oportunidade" tanto o convite de feira quanto
 #   o edital de licitação, e as duas listas ficam uma embaixo da outra.
-minimo = 3452
+# 3452 → 3516: as fases 1 a 5 de Resultados (área, filtros, gráficos,
+#   comparativo). Os que mais protegem, e por quê:
+#   · o que soma as áreas e exige que fechem o TOTAL — número que some ao
+#     filtrar é o jeito mais rápido de a diretoria parar de acreditar na tela;
+#   · o do vazamento do `OU`, que foi REPRODUZIDO antes de corrigido: o gerente
+#     do CC 1042 via a receita da regional inteira, e os dois números nunca
+#     aparecem lado a lado para alguém notar;
+#   · a guarda de `{@}` em tooltip, com um teste que confere que a própria
+#     guarda reprova quando o defeito existe, e outro que falha se um tipo novo
+#     de gráfico entrar no catálogo sem entrar na varredura;
+#   · o que exige 3,0:1 entre Realizado e Orçado — a paleta pedida na revisão
+#     dava 1,33:1, e em escala de cinza as duas barras viravam uma só.
+minimo = 3524
