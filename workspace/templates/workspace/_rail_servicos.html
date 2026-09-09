@@ -142,11 +142,29 @@
     também para quem ATENDE uma fila, que tem direito aos números da própria
     área sem precisar pedir relatório para a diretoria toda semana.
   {% endcomment %}
+  {% comment %}
+    DUAS telas, e os rótulos é que as separam — §I1.
+
+    `/painel/` é a empresa inteira: receita, margem, EBITDA, áreas.
+    `/indicadores/` é o SLA das solicitações: prazo prometido, quem entregou.
+
+    Os nomes eram "Indicadores" para a segunda e nada para a primeira, e a
+    palavra sozinha não dizia qual das duas perguntas cada uma responde. Trocar
+    a ROTA da existente quebraria link e favorito para ganhar uma palavra; o que
+    resolve a ambiguidade é o rótulo — foi o que resolveu /marketing/.
+  {% endcomment %}
+  {% if ve_resultados %}
+    <a class="au-rail-item {% if aba == 'painel' %}au-rail-item--ativo{% endif %}"
+       href="{% url 'workspace:painel' %}">
+      <svg class="au-icon" aria-hidden="true"><use href="#i-activity"></use></svg>
+      {% trans "Painel da empresa" %}
+    </a>
+  {% endif %}
   {% if ve_indicadores %}
     <a class="au-rail-item {% if aba == 'indicadores' %}au-rail-item--ativo{% endif %}"
        href="{% url 'workspace:indicadores' %}">
       <svg class="au-icon" aria-hidden="true"><use href="#i-activity"></use></svg>
-      {% trans "Indicadores" %}
+      {% trans "Indicadores de atendimento" %}
     </a>
   {% endif %}
   {% comment %}

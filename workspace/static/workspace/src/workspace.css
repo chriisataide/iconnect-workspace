@@ -4722,3 +4722,45 @@ tr[data-abre-resumo]:focus-visible {
   font-size: var(--au-t-sm);
   color: var(--au-accent-text);
 }
+
+/* O PAINEL DA EMPRESA — §I1. */
+.au-painel-numeros {
+  list-style: none; margin: 0 0 var(--au-5); padding: 0;
+  display: grid; gap: var(--au-3);
+  grid-template-columns: repeat(auto-fit, minmax(11rem, 1fr));
+}
+.au-painel-numero-link {
+  display: block; padding: var(--au-3) var(--au-4);
+  background: var(--au-surface-raised);
+  border: 1px solid var(--au-border); border-radius: var(--au-r-md);
+  color: inherit; text-decoration: none;
+}
+.au-painel-numero-link:hover { border-color: var(--au-accent); }
+.au-painel-numero-valor { display: block; font-size: var(--au-t-xl); font-weight: 700; }
+.au-painel-numero-titulo { display: block; font-size: var(--au-t-sm); color: var(--au-text-muted); }
+
+/* AS DUAS comparações lado a lado, cada uma rotulada. "−3,2%" sozinho não diz
+ * contra o quê — e a resposta muda a decisão: contra o mês pode ser calendário,
+ * contra o ano é tendência. */
+.au-painel-numero-comparacoes { display: flex; gap: var(--au-3); margin-top: var(--au-2); }
+.au-painel-delta { font-size: var(--au-t-xs); font-weight: 600; }
+.au-painel-delta small { display: block; font-weight: 400; color: var(--au-text-subtle); }
+.au-painel-delta--alta { color: var(--au-success-text); }
+.au-painel-delta--baixa { color: var(--au-danger-text); }
+
+.au-painel-destaque { display: flex; align-items: center; gap: var(--au-2); margin: 0 0 var(--au-2); }
+.au-painel-clientes, .au-painel-faixas { list-style: none; margin: 0; padding: 0; }
+.au-painel-clientes li, .au-painel-faixas li {
+  padding: var(--au-2) 0; border-bottom: 1px solid var(--au-border); font-size: var(--au-t-sm);
+}
+.au-painel-tres {
+  display: grid; gap: var(--au-4);
+  grid-template-columns: repeat(auto-fit, minmax(14rem, 1fr));
+}
+.au-painel-caixa {
+  padding: var(--au-3) var(--au-4);
+  background: var(--au-surface-sunken);
+  border: 1px solid var(--au-border); border-radius: var(--au-r-md);
+}
+.au-painel-caixa p { margin: 0 0 var(--au-1); font-size: var(--au-t-sm); }
+.au-painel-fontes { margin-top: var(--au-5); }

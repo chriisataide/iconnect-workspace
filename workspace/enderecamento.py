@@ -229,6 +229,7 @@ TELAS: tuple[Tela, ...] = (
     # `10.1` e `10.2`: elas deixaram de ser parte da 10, e um código filho diria
     # que ainda são. ADR-015 proíbe renumerar depois — então é melhor errar para
     # o lado de dois códigos independentes.
+    Tela("10.1", "Painel da empresa", "workspace:painel"),
     Tela("16", "Quadro e jornada", "workspace:quadro"),
     Tela("17", "Satisfação do cliente", "workspace:satisfacao"),
     Tela("09", "Relatórios", "workspace:relatorios"),

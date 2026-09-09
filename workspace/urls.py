@@ -186,6 +186,10 @@ urlpatterns = [
     path("planos/<int:pk>/fechar/", views.fechar_plano, name="fechar_plano"),
     path("excecoes/<slug:chave>/notificar/", views.notificar_excecao,
          name="notificar_excecao"),
+    # O PAINEL DA EMPRESA — §I1. Rota própria, e `/indicadores/` continua
+    # sendo o SLA de solicitações: trocar a rota daquela para dar o nome bonito
+    # a esta quebraria link, favorito e teste para ganhar uma palavra.
+    path("painel/", views.painel, name="painel"),
     path("resultados/", views.resultados, name="resultados"),
     path("resultados/pdf/", views.resultados_pdf, name="resultados_pdf"),
     # O DETALHE — mecanismo 4. Tela própria e não gaveta: uma tela tem URL, e é

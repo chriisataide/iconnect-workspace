@@ -207,4 +207,10 @@ cargas = 97.0      # medido 97.39 · conectores, carregador, transporte
 #   gráfico saía com quatro barras de um ano ao lado de uma de outro — pior que
 #   gráfico nenhum. E o que confere que a barra parcial é marcada ALÉM da cor:
 #   opacidade e tracejado somem em preto-e-branco, o texto é o que sobra.
-minimo = 3635
+# 3635 → 3656: o painel da empresa (I1/I2). O que mais protege: o que exige as
+#   DUAS comparações em todo número — uma só induz a erro num negócio com
+#   sazonalidade —, o que confere que as faixas de vencimento não contam o
+#   mesmo contrato três vezes, e o que afirma o teto de nove blocos: a décima
+#   informação sempre parece necessária, e é ela que faz o CEO parar de abrir a
+#   tela.
+minimo = 3656

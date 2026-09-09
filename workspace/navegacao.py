@@ -69,6 +69,7 @@ GRUPO_POR_ROTA: dict[str, str] = {
     "plano": "resultados",
     "orcamento": "resultados",
     "orcamento_centro": "resultados",
+    "painel": "resultados",
     "resultados": "resultados",
     "resultados_detalhe": "resultados",
     "resultados_pdf": "resultados",
