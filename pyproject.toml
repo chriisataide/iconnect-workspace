@@ -191,4 +191,9 @@ cargas = 97.0      # medido 97.39 · conectores, carregador, transporte
 #   ter contrato. Mais o que confere que a cascata FECHA no mesmo número da
 #   tabela: são duas leituras da mesma aritmética na mesma faixa, e se
 #   discordarem ninguém sabe qual está errada.
-minimo = 3580
+# 3580 → 3603: a frase de leitura (B2) e a correção da margem de contribuição.
+#   Metade dos testes novos afirma o SILÊNCIO — o caso em que a regra não deve
+#   falar —, que é o caso difícil e o único que mantém a frase honesta. E um
+#   deles pegou uma falha real do meu limiar: com dois contratos caindo igual,
+#   cada um pesava 50% e a frase nomearia um dos dois arbitrariamente.
+minimo = 3603

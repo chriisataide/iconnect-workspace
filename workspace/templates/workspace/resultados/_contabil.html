@@ -35,6 +35,23 @@
   Cada degrau LEVA à tabela com os grupos daquele degrau abertos. É o que
   transforma "o EBITDA caiu" em "o EBITDA caiu, e é 41504" sem procurar.
 {% endcomment %}
+{% comment %}
+  O AVISO DO CUSTO DESCONHECIDO.
+
+  A tabela e a cascata saem do RAZÃO, e no razão um contrato sem lançamento de
+  custo é indistinguível de um que não gastou nada. O agregado sabe a diferença
+  — ali o custo é NULO —, e é dele que este aviso vem.
+
+  Sem ele a cascata trataria "custo desconhecido" como "custo zero" e inflaria a
+  margem pela receita líquida inteira do contrato. A regra do produto é
+  explícita: sem amostra é "—", e nunca "0".
+{% endcomment %}
+{% if faixa.conteudo.sem_custo %}
+  <p class="au-ajuda au-ajuda--alerta">
+    {% blocktrans count n=faixa.conteudo.sem_custo|length with lista=faixa.conteudo.sem_custo|join:", " %}O contrato {{ lista }} tem receita no mês e custo desconhecido no fechamento. A margem abaixo está SUPERESTIMADA — o que falta não é zero.{% plural %}Os contratos {{ lista }} têm receita no mês e custo desconhecido no fechamento. A margem abaixo está SUPERESTIMADA — o que falta não é zero.{% endblocktrans %}
+  </p>
+{% endif %}
+
 {% if faixa.conteudo.cascata %}
   {% grafico faixa.conteudo.cascata %}
 {% endif %}

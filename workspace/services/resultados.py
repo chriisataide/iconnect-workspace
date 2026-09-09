@@ -28,6 +28,7 @@ mesma regra de `/workspace/indicadores/`.
 from __future__ import annotations
 
 import calendar
+import logging
 from dataclasses import dataclass, field
 from datetime import date, timedelta
 from decimal import Decimal
@@ -42,6 +43,8 @@ from workspace.providers import resultados as contrato
 from workspace.providers.frescor import NATIVO
 from workspace.graficos import formato as fmt
 from workspace.services import frescor as frs
+
+logger = logging.getLogger("workspace")
 
 PERMISSAO = "eco.ler"
 
@@ -507,6 +510,9 @@ class Faixa:
     #: diferentes de quem lê.
     motivo: str = ""
     conteudo: dict = field(default_factory=dict)
+    #: A FRASE DE LEITURA — B2. Vazia quando não há afirmação verdadeira a
+    #: fazer, e vazia é o estado normal: frase genérica é pior que ausência.
+    leitura: str = ""
     #: A competência pedida. Entra no carimbo como janela — "competência
     #: AGO/2026" diz mais sobre o número do que qualquer descrição de cadência.
     competencia: date | None = None
@@ -611,6 +617,204 @@ def dinheiro(escopo: contrato.Escopo, filtros: Filtros) -> Faixa:
         ),
     }
     return faixa
+
+
+# ── B2 · a frase de leitura ─────────────────────────────────────────
+#
+# Regra em Python, com número real. Nunca texto fixo — que não diz nada — e
+# nunca modelo de linguagem, que inventaria com confiança.
+#
+# TRÊS regras, e não onze. Cada uma é uma afirmação que pode ficar falsa, e onze
+# afirmações que ninguém revisa é como um painel passa a mentir devagar. Cada
+# uma tem teste do caso em que ela NÃO deve falar, que é o caso difícil.
+
+
+#: Quanto um contrato precisa explicar da variação para ser nomeado na frase.
+#:
+#: MAIS DA METADE — ele tem de pesar mais que todos os outros somados.
+#:
+#: Era quarenta por cento, e um teste mostrou por que não servia: com DOIS
+#: contratos caindo igual, cada um pesa 50% e passa no limiar — e a frase
+#: nomearia um dos dois arbitrariamente, mandando alguém cobrar a pessoa errada
+#: na reunião. "Puxada por" só é verdade quando um explica mais que o resto.
+PESO_PARA_CULPAR = Decimal("50")
+
+
+def _leitura_do_dinheiro(conteudo: dict, filtros: Filtros) -> str:
+    """"A margem caiu 2,3 pontos contra o mês anterior."
+
+    ## Por que em PONTOS e não em percentual
+
+    A margem já é um percentual. "Caiu 12%" sobre 19% é ambíguo — pode ser 7 ou
+    16,7 —, e as duas leituras levam a decisões diferentes. Ponto percentual é a
+    unidade em que se fala de margem.
+
+    Silencia quando não há mês anterior na série: comparar com nada e chamar de
+    variação seria inventar o número mais importante da frase.
+    """
+    serie = conteudo.get("serie") or []
+    atual = [l for l in serie if _no_mes(l, filtros.competencia)]
+    if not atual:
+        return ""
+
+    anterior_mes = _recuar(filtros.competencia, 1)
+    anterior = [l for l in serie if _no_mes(l, anterior_mes)]
+    if not anterior:
+        return ""
+
+    def margem(linhas) -> Decimal | None:
+        """A MESMA definição do cartão logo acima — só as linhas com contrato.
+
+        Somar o rateio daria margem depois do indireto, e a frase diria um
+        número diferente do cartão que ela está explicando. Duas leituras da
+        mesma coisa a um centímetro de distância é como alguém deixa de
+        confiar nas duas.
+        """
+        com_contrato = [l for l in linhas if l.contrato]
+        receita = sum((l.receita_bruta or Decimal("0")) for l in com_contrato)
+        if not receita:
+            return None
+        mc = sum((l.margem_contribuicao or Decimal("0")) for l in com_contrato)
+        return mc / receita * Decimal("100")
+
+    agora, antes = margem(atual), margem(anterior)
+    if agora is None or antes is None:
+        return ""
+
+    delta = (agora - antes).quantize(Decimal("0.1"))
+    if not delta:
+        return (
+            f"A margem ficou estável em {fmt.percentual(agora)} contra "
+            f"{anterior_mes:%m/%Y}."
+        )
+
+    direcao = "subiu" if delta > 0 else "caiu"
+    frase = (
+        f"A margem {direcao} {fmt.numero(abs(delta), 1)} "
+        f"{'ponto' if abs(delta) == 1 else 'pontos'} contra {anterior_mes:%m/%Y}, "
+        f"para {fmt.percentual(agora)}"
+    )
+    culpado = _quem_explica(atual, anterior)
+    return f"{frase}{culpado}."
+
+
+def _quem_explica(atual, anterior) -> str:
+    """", puxada por CT-101" — só quando UM contrato explica o bastante.
+
+    Sem isto a frase diz o que aconteceu e não onde olhar. Com um limiar baixo
+    ela nomearia um contrato entre vários de peso parecido, e alguém cobraria a
+    pessoa errada na reunião.
+    """
+    def por_contrato(linhas) -> dict[str, Decimal]:
+        soma: dict[str, Decimal] = {}
+        for linha in linhas:
+            chave = linha.contrato or ""
+            if not chave:
+                continue
+            soma[chave] = soma.get(chave, Decimal("0")) + (
+                linha.margem_contribuicao or Decimal("0")
+            )
+        return soma
+
+    agora, antes = por_contrato(atual), por_contrato(anterior)
+    variacoes = {
+        codigo: agora.get(codigo, Decimal("0")) - antes.get(codigo, Decimal("0"))
+        for codigo in set(agora) | set(antes)
+    }
+    total = sum((abs(v) for v in variacoes.values()), Decimal("0"))
+    if not total:
+        return ""
+
+    codigo, delta = max(variacoes.items(), key=lambda par: abs(par[1]))
+    peso = abs(delta) / total * Decimal("100")
+    # ESTRITAMENTE maior: no empate de dois, cada um dá exatamente 50% e
+    # nenhum explica mais que o outro.
+    return f", puxada por {codigo}" if peso > PESO_PARA_CULPAR else ""
+
+
+def _leitura_do_contabil(conteudo: dict) -> str:
+    """"Pessoal consumiu 18,9% da receita líquida, e estourou o orçado em X."
+
+    O grupo de MAIOR consumo, e não uma lista: a frase existe para dizer onde
+    olhar primeiro, e três nomes numa frase não priorizam nada.
+    """
+    grupos = [
+        g for g in (conteudo.get("grupos") or [])
+        if g.get("natureza") == "custo" and g.get("pct_da_receita") is not None
+    ]
+    if not grupos:
+        return ""
+
+    maior = max(grupos, key=lambda g: g["pct_da_receita"])
+    frase = (
+        f"{maior['nome'].capitalize()} consumiu "
+        f"{fmt.percentual(maior['pct_da_receita'])} da receita líquida"
+    )
+    folga = maior.get("dif_or_re")
+    if folga is not None and folga < 0:
+        frase += f", e estourou o orçado em {fmt.moeda(abs(folga))}"
+    return f"{frase}."
+
+
+def _leitura_dos_contratos(conteudo: dict) -> str:
+    """"Três contratos estão abaixo da margem mínima, e são 22% da receita."
+
+    O PESO junto da contagem: três contratos pequenos e três grandes pedem
+    reações diferentes, e a contagem sozinha não separa os casos.
+    """
+    carteira = conteudo.get("carteira") or []
+    abaixo = [
+        c for c in carteira
+        if c.margem_contribuicao_pct is not None
+        and c.margem_contribuicao_pct < MARGEM_MINIMA
+    ]
+    if not abaixo:
+        return ""
+
+    total = sum((c.valor_mensal for c in carteira), Decimal("0"))
+    frase = (
+        f"{len(abaixo)} contrato está" if len(abaixo) == 1
+        else f"{len(abaixo)} contratos estão"
+    )
+    frase += f" abaixo da margem mínima de {fmt.percentual(MARGEM_MINIMA)}"
+    if total:
+        peso = sum((c.valor_mensal for c in abaixo), Decimal("0")) / total * 100
+        frase += f", e são {fmt.percentual(peso)} da carteira"
+    return f"{frase}."
+
+
+#: `chave da faixa → a regra que escreve a frase`.
+#:
+#: Dicionário e não `if` em cadeia: faixa sem regra simplesmente não ganha
+#: frase, e acrescentar uma é uma linha aqui — não um ramo novo num `elif` de
+#: onze braços.
+LEITURAS = {
+    "dinheiro": lambda conteudo, filtros: _leitura_do_dinheiro(conteudo, filtros),
+    "contabil": lambda conteudo, filtros: _leitura_do_contabil(conteudo),
+    "contratos": lambda conteudo, filtros: _leitura_dos_contratos(conteudo),
+}
+
+
+def _com_leitura(faixas: dict, filtros: Filtros) -> None:
+    """Acrescenta a frase a cada faixa que tem regra.
+
+    Fora dos montadores, como os gráficos: eles são a leitura do espelho, e
+    escrever uma frase é outra coisa. E dentro de um `try` porque uma regra que
+    estoura não pode derrubar a tela — a frase é o acessório, e o número é o
+    conteúdo.
+    """
+    for chave, regra in LEITURAS.items():
+        faixa = faixas.get(chave)
+        if faixa is None or not faixa.disponivel or not faixa.conteudo:
+            continue
+        try:
+            faixa.leitura = regra(faixa.conteudo, filtros)
+        except (TypeError, ValueError, ArithmeticError, AttributeError):
+            # Silêncio e não erro: a frase some, o número fica. Uma regra de
+            # leitura que derruba a Apresentação de Resultados no meio de uma
+            # reunião seria o pior troco possível por uma linha de texto.
+            logger.warning("leitura da faixa %s falhou", chave, exc_info=True)
+            faixa.leitura = ""
 
 
 def _com_graficos(faixas: dict) -> None:
@@ -867,21 +1071,41 @@ def _percentual(realizado: Decimal, orcado: Decimal | None) -> Decimal | None:
 
 
 def _totais(linhas) -> dict:
-    def soma(campo):
-        return sum((getattr(l, campo) for l in linhas), Decimal("0"))
+    def soma(campo, apenas=None):
+        alvo = [l for l in linhas if apenas(l)] if apenas else linhas
+        return sum((getattr(l, campo) for l in alvo), Decimal("0"))
 
     receita = soma("receita_bruta")
+
+    # A MARGEM DE CONTRIBUIÇÃO soma só as linhas COM contrato — corrigido em
+    # 09/09/2026, quando a cascata da DRE apareceu na faixa logo abaixo e
+    # mostrou outro número com o mesmo nome.
+    #
+    # Margem de contribuição é receita menos custo DIRETO, por definição: ela é
+    # o que sobra antes de a estrutura ser paga. A linha de rateio de centro de
+    # custo não tem contrato nem receita, e o espelho guarda nela a margem como
+    # o custo indireto negativado — somá-la aqui produzia margem DEPOIS do
+    # indireto, que é outra coisa e tem outro nome.
+    #
+    # Medido: o cartão mostrava -R$ 38.132,23 enquanto a cascata mostrava
+    # R$ 335.428,65. A diferença era o rateio (R$ 234.000) mais o contrato com
+    # custo desconhecido — ver `_contratos_sem_custo`.
+    #
+    # `ebitda` continua somando TUDO, e está certo: EBITDA é depois do
+    # indireto, e a linha de rateio pertence a ele.
+    com_contrato = soma("margem_contribuicao", apenas=lambda l: bool(l.contrato))
+
     return {
         "receita_bruta": receita,
         "impostos": soma("impostos"),
         "custo_direto": soma("custo_direto"),
         "custo_indireto": soma("custo_indireto"),
-        "margem_contribuicao": soma("margem_contribuicao"),
+        "margem_contribuicao": com_contrato,
         "ebitda": soma("ebitda"),
         # Percentual sobre receita, como o benchmark mostra. `None` sem receita:
         # dividir por zero para exibir "0%" faria um mês sem lançamento parecer
         # um mês de margem zero.
-        "margem_pct": _sobre(soma("margem_contribuicao"), receita),
+        "margem_pct": _sobre(com_contrato, receita),
         "ebitda_pct": _sobre(soma("ebitda"), receita),
     }
 
@@ -948,7 +1172,9 @@ def contabil(escopo: contrato.Escopo, filtros: Filtros) -> Faixa:
         return _sem_dado(faixa, "lançamento por conta contábil")
 
     receita_liquida = _receita_liquida(linhas)
+    sem_custo = _contratos_sem_custo(provedor, escopo, inicio, filtros)
     faixa.conteudo = {
+        "sem_custo": sem_custo,
         "cascata": cascata_da_dre(linhas, filtros, receita_liquida),
         "grupos": _agrupar_por_conta(linhas, receita_liquida, filtros),
         "totais": _totais_contabeis(linhas, receita_liquida),
@@ -1117,6 +1343,57 @@ def cascata_da_dre(linhas, filtros: Filtros, receita_liquida: Decimal):
         subtotais=tuple(subtotais),
         urls=urls,
     )
+
+
+def _contratos_sem_custo(provedor, escopo, inicio: date, filtros: Filtros) -> list[str]:
+    """Contratos com receita no mês e custo DESCONHECIDO no agregado.
+
+    ## Por que esta função existe
+
+    A tabela e a cascata saem do RAZÃO. No razão, um contrato sem lançamento de
+    custo é indistinguível de um contrato que não gastou nada — e a cascata o
+    trata como zero, inflando a margem de contribuição pela receita líquida
+    inteira dele.
+
+    Medido na massa: o CT-102 tem o defeito 10 plantado — receita lançada, custo
+    ausente. A cascata dizia margem de R$ 335.428,65 enquanto a soma dos
+    contratos dava R$ 195.867,77. A diferença, R$ 139.560,88, era exatamente a
+    receita líquida dele.
+
+    A informação de que o custo é DESCONHECIDO (e não zero) só existe no
+    agregado, onde `custo_direto` é nulo. Por isso a comparação: o razão não tem
+    como saber sozinho, e a regra do produto é explícita — sem amostra é "—", e
+    nunca "0".
+
+    Devolve os CÓDIGOS, e não uma contagem: "um contrato está sem custo" manda
+    procurar; "o CT-102 está sem custo" manda agir.
+    """
+    # Contratos com RECEITA no razão, e nenhuma linha de custo nele.
+    #
+    # Detectado assim, e não por `custo_direto is None` no agregado, porque o
+    # campo NÃO É NULO no espelho: ele tem `default=0`, e o "custo ausente" que
+    # a massa planta chega gravado como `0,00`. O modelo não consegue dizer
+    # "desconhecido", e por isso a pergunta é feita ao razão, onde a ausência
+    # de linha é observável.
+    #
+    # A frase da tela é factual — "tem receita e nenhum lançamento de custo" —
+    # e não uma inferência sobre a intenção da fonte. Um contrato que de fato
+    # não gastou nada num mês cai aqui, e é correto que caia: a margem dele
+    # também está superestimada até alguém confirmar.
+    com_receita: set[str] = set()
+    com_custo: set[str] = set()
+    for linha in _linhas_do_razao_do_mes(provedor, escopo, inicio, filtros):
+        if not linha.contrato:
+            continue
+        if linha.natureza == "receita" and linha.realizado:
+            com_receita.add(linha.contrato)
+        elif linha.natureza == "custo" and linha.realizado:
+            com_custo.add(linha.contrato)
+    return sorted(com_receita - com_custo)
+
+
+def _linhas_do_razao_do_mes(provedor, escopo, inicio: date, filtros: Filtros):
+    return provedor.por_conta(escopo, inicio, filtros.ate)
 
 
 def _controles_da_tabela(filtros: Filtros) -> dict:
@@ -1995,6 +2272,7 @@ def _painel(
     if perfura:
         _com_perfuracao(faixas["dinheiro"], recorte, filtros)
     _com_graficos(faixas)
+    _com_leitura(faixas, filtros)
 
     opcoes = _opcoes_de_atributo(escopo)
 

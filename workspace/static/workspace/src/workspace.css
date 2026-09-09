@@ -4648,3 +4648,25 @@ tr[data-abre-resumo]:focus-visible {
   bottom: 0;
   background: var(--au-surface-raised);
 }
+
+/* A FRASE DE LEITURA de uma faixa — B2.
+ *
+ * Peso 550 e não negrito: ela é a leitura do número, e não um alerta. Em
+ * negrito competiria com o título logo acima; em peso normal se perderia entre
+ * o carimbo e o gráfico.
+ *
+ * A borda à esquerda é o que a marca como comentário sobre o bloco, e não como
+ * mais um dado dele.
+ */
+/* `au-faixa-leitura` e não `au-leitura`: aquela já existe, e é a leitura de um
+ * DOCUMENTO (`max-width: 72ch`). Reusar o nome faria esta regra vencer a de lá
+ * por vir depois no arquivo, e o corpo dos documentos mudaria de aparência sem
+ * ninguém tocar naquela tela. Foi o guarda de classe redefinida que pegou. */
+.au-faixa-leitura {
+  margin: 0 0 var(--au-3);
+  padding-left: var(--au-3);
+  border-left: 3px solid var(--au-accent-200);
+  font-size: var(--au-t-sm);
+  font-weight: 550;
+  color: var(--au-text-muted);
+}
