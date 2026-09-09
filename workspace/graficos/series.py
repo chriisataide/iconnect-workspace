@@ -1687,6 +1687,143 @@ def mapa_calor_tabela(
     )
 
 
+#: As cores por ano do comparativo trimestral — F2.
+#:
+#: Três, porque três anos é o teto do gráfico: a quarta barra por trimestre não
+#: cabe com rótulo, e comparar quatro anos de uma vez não é uma pergunta que
+#: alguém faça de pé numa reunião.
+#:
+#: O ano CORRENTE é o primeiro e o mais escuro — ele é o assunto, e os
+#: anteriores são o contexto.
+CORES_POR_ANO: tuple[str, ...] = (COR_PRINCIPAL, COR_SECUNDARIA, COR_COMPARADO)
+
+
+def barras_por_ano(
+    categorias: list[str],
+    series: list[tuple[str, list[Decimal | None]]],
+    *,
+    chave: str,
+    titulo: str,
+    #: `(nome da série, categoria)` dos valores INCOMPLETOS — F2.
+    #:
+    #: Comparar um trimestre de dois meses com um de três, sem avisar, é o erro
+    #: que mais gera decisão errada em reunião de resultado: a barra menor é
+    #: lida como queda, e a queda não existe.
+    parciais: dict[tuple[str, str], str] | None = None,
+    formatar=fmt.moeda_curta,
+    formatar_tabela=fmt.moeda,
+    altura: int = ALTURA,
+) -> Bloco:
+    """Barras agrupadas por período, uma cor por ano — F2.
+
+    ## O trimestre parcial é marcado de TRÊS formas
+
+    Opacidade, borda tracejada e o texto "parcial (2 de 3 meses)" no rótulo.
+    Três e não uma porque as duas primeiras somem em impressão preto-e-branco e
+    para quem não distingue a diferença — e a regra do produto é que cor nunca
+    vem sozinha. O texto é o que sobrevive a tudo, e é o que a tabela irmã leva.
+
+    Não usa `decal` do ECharts: o gerador de padrão pode não estar no build
+    customizado, e uma hachura que não desenha vira uma barra igual às outras
+    sem ninguém perceber.
+    """
+    if not categorias or not series:
+        return Bloco(chave=chave, titulo=titulo, option={}, altura=altura)
+
+    parciais = parciais or {}
+    option = _base(altura)
+    option.update(
+        {
+            "legend": {
+                "bottom": 0,
+                "icon": "roundRect",
+                "itemHeight": 8,
+                "textStyle": {"color": COR_TEXTO, "fontSize": 11},
+            },
+            "grid": {
+                "left": 8, "right": 8, "top": 34, "bottom": 30,
+                "containLabel": True,
+            },
+            "xAxis": {
+                "type": "category",
+                "data": categorias,
+                "axisLabel": {"color": COR_TEXTO, "fontSize": 11},
+                "axisTick": {"show": False},
+                "axisLine": {"lineStyle": {"color": COR_GRADE}},
+            },
+            "yAxis": _eixo_de_valor(),
+            "series": [
+                {
+                    "type": "bar",
+                    "name": nome,
+                    "barMaxWidth": 22,
+                    "data": [
+                        _barra_do_ano(
+                            valor, CORES_POR_ANO[i % len(CORES_POR_ANO)],
+                            parciais.get((nome, categoria)), formatar,
+                        )
+                        for categoria, valor in zip(categorias, valores)
+                    ],
+                    "labelLayout": {"hideOverlap": True},
+                }
+                for i, (nome, valores) in enumerate(series)
+            ],
+        }
+    )
+
+    colunas = [Coluna("Período", numerica=False)] + [
+        Coluna(nome) for nome, _ in series
+    ]
+    linhas = []
+    for indice, categoria in enumerate(categorias):
+        celulas = [categoria]
+        for nome, valores in series:
+            valor = valores[indice] if indice < len(valores) else None
+            texto = formatar_tabela(valor) if valor is not None else "—"
+            # A TABELA IRMÃ leva o aviso junto: sem JavaScript ela é o
+            # conteúdo, e um "parcial" que só existe no gráfico não existe.
+            aviso = parciais.get((nome, categoria))
+            celulas.append(f"{texto} ({aviso})" if aviso else texto)
+        linhas.append(celulas)
+
+    return Bloco(
+        chave=chave,
+        titulo=titulo,
+        option=option,
+        colunas=colunas,
+        linhas=linhas,
+        resumo=(
+            f"{titulo}: {len(series)} anos em {len(categorias)} períodos. "
+            "Os números estão na tabela abaixo."
+        ),
+        altura=altura,
+    )
+
+
+def _barra_do_ano(valor, cor: str, aviso: str | None, formatar):
+    """Uma barra. Parcial ganha opacidade, tracejado e o texto junto do rótulo."""
+    if valor is None:
+        return {"value": None}
+    estilo = {"color": cor}
+    rotulo = formatar(valor)
+    if aviso:
+        estilo |= {"opacity": 0.55, "borderColor": cor, "borderWidth": 1,
+                   "borderType": "dashed"}
+        rotulo = f"{rotulo}\n{aviso}"
+    return {
+        "value": float(valor),
+        "itemStyle": estilo,
+        "label": {
+            "show": True,
+            "position": "top",
+            "formatter": rotulo,
+            "fontSize": 10,
+            "fontWeight": "bold" if aviso else "normal",
+            "color": COR_ROTULO_ESCURO,
+        },
+    }
+
+
 def barras_por_categoria(
     pontos: list[Ponto],
     *,

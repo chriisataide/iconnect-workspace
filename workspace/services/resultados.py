@@ -613,6 +613,9 @@ def dinheiro(escopo: contrato.Escopo, filtros: Filtros) -> Faixa:
         # EBITDA fica SEM par: o espelho não traz EBITDA orçado. Inventar um
         # denominador para ter a linha seria a pior forma de completar um
         # gráfico — o bloco diz o que tem, e a razão fica de fora.
+        # O COMPARATIVO TRIMESTRAL — F2. Sai da mesma série: uma consulta
+        # própria daria um quarto caminho para o mesmo número.
+        "grafico_trimestral": trimestral(provedor, escopo, filtros),
         "grafico_ebitda": _bloco_mensal(
             serie, "ebitda", "ebitda", _titulo("EBITDA", filtros)
         ),
@@ -1419,6 +1422,101 @@ def _controles_da_tabela(filtros: Filtros) -> dict:
         # `data-limpar-vazios` da barra de filtros sem virar um caso especial.
         "url_recolher_tudo": _url_com(base, filtros, expandir=""),
     }
+
+
+#: Quantos anos o comparativo trimestral mostra — F2.
+#:
+#: Três. A quarta barra por trimestre não cabe com rótulo, e comparar quatro
+#: anos de uma vez não é pergunta que alguém faça de pé numa reunião.
+ANOS_NO_TRIMESTRAL = 3
+
+#: Quantos meses o comparativo trimestral busca. Vinte e quatro: é o mínimo em
+#: que existe o MESMO trimestre em dois anos, que é a comparação inteira.
+MESES_DO_TRIMESTRAL = 24
+
+
+def trimestral(provedor, escopo, filtros: Filtros):
+    """Receita por trimestre, uma cor por ano — F2.
+
+    ## Ele busca a PRÓPRIA janela, e é a única faixa que faz isso
+
+    Comparar anos exige dois anos. O seletor de período governa os gráficos
+    mensais — "quero ver seis meses" —, e reusar a série dele aqui produzia um
+    gráfico em que NENHUM trimestre tinha os dois anos: quatro barras de 2026 ao
+    lado de uma de 2025, medido antes de este parágrafo existir.
+
+    A consulta extra é o preço de a pergunta ser outra. O que ela NÃO faz é
+    mudar de escopo: é o mesmo `escopo` já recortado pela permissão e pelos
+    filtros, e por isso não há como ela mostrar mais do que a tela mostra.
+
+    ## O trimestre PARCIAL é o ponto do bloco
+
+    Comparar um trimestre de dois meses com um de três, sem avisar, é o erro que
+    mais gera decisão errada em reunião de resultado: a barra menor é lida como
+    queda, e a queda não existe — falta um mês.
+
+    O aviso diz QUANTOS meses entraram ("parcial — 2 de 3 meses"), e não só que
+    é parcial: "parcial" sozinho não deixa ninguém corrigir de cabeça.
+
+    ## Por que sai da mesma série do resto da faixa
+
+    Ela já está carregada, já respeita o escopo e já respeita os filtros. Uma
+    consulta própria daria um quarto caminho para o mesmo número — e o dia em
+    que discordasse, discordaria dentro da mesma tela.
+    """
+    from workspace.graficos import series as g
+
+    if provedor is None:
+        return None
+    # `MESES_DO_TRIMESTRAL` meses para trás a partir do fim do mês escolhido.
+    de = _recuar(filtros.competencia, MESES_DO_TRIMESTRAL - 1)
+    serie = provedor.serie_competencia(escopo, de, filtros.ate)
+    if not serie:
+        return None
+
+    por_ano_trimestre: dict[tuple[int, int], Decimal] = {}
+    meses_vistos: dict[tuple[int, int], set[int]] = {}
+    for linha in serie:
+        chave = (linha.ano, (linha.mes - 1) // 3 + 1)
+        por_ano_trimestre[chave] = por_ano_trimestre.get(chave, Decimal("0")) + (
+            linha.receita_bruta or Decimal("0")
+        )
+        meses_vistos.setdefault(chave, set()).add(linha.mes)
+
+    anos = sorted({ano for ano, _ in por_ano_trimestre}, reverse=True)
+    anos = anos[:ANOS_NO_TRIMESTRAL]
+    # PELO MENOS UM trimestre com dois anos — e não "pelo menos dois anos na
+    # série". Com janela de doze meses havia 2026 e 2025, e nenhum trimestre
+    # tinha os dois: eram quatro barras de um ano ao lado de uma de outro, que
+    # é um gráfico pior que gráfico nenhum.
+    comparaveis = [
+        t for t in (1, 2, 3, 4)
+        if sum(1 for ano in anos if (ano, t) in por_ano_trimestre) >= 2
+    ]
+    if not comparaveis:
+        return None
+
+    categorias = [f"T{t}" for t in (1, 2, 3, 4)]
+    montadas, parciais = [], {}
+    for ano in anos:
+        valores = []
+        for t in (1, 2, 3, 4):
+            chave = (ano, t)
+            valores.append(por_ano_trimestre.get(chave))
+            meses = len(meses_vistos.get(chave, ()))
+            if 0 < meses < 3:
+                parciais[(str(ano), f"T{t}")] = (
+                    f"parcial — {meses} de 3 {'mês' if meses == 1 else 'meses'}"
+                )
+        montadas.append((str(ano), valores))
+
+    return g.barras_por_ano(
+        categorias,
+        montadas,
+        chave="trimestral",
+        titulo="Receita por trimestre",
+        parciais=parciais,
+    )
 
 
 def _receita_liquida(linhas) -> Decimal:

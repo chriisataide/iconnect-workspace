@@ -201,4 +201,10 @@ cargas = 97.0      # medido 97.39 · conectores, carregador, transporte
 #   lista de foco que qualquer um edita deixa de ser foco —, e o que exige
 #   motivo ao abrir e resultado ao encerrar, que são os dois campos sem os
 #   quais o histórico vira uma lista de datas.
-minimo = 3624
+# 3624 → 3635: o comparativo trimestral (F2). O que mais protege é o que exige
+#   PELO MENOS UM trimestre com dois anos antes de desenhar: com a janela de
+#   doze meses havia 2026 e 2025 na série e nenhum trimestre com os dois, e o
+#   gráfico saía com quatro barras de um ano ao lado de uma de outro — pior que
+#   gráfico nenhum. E o que confere que a barra parcial é marcada ALÉM da cor:
+#   opacidade e tracejado somem em preto-e-branco, o texto é o que sobra.
+minimo = 3635

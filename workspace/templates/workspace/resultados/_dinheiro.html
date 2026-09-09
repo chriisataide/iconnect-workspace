@@ -94,6 +94,16 @@
 <div class="au-graficos">
   {% grafico faixa.conteudo.grafico_receita %}
   {% grafico faixa.conteudo.grafico_ebitda %}
+
+{% comment %}
+  O COMPARATIVO TRIMESTRAL — F2. Depois do EBITDA porque ele responde outra
+  pergunta: os dois de cima são "como foi o mês"; este é "como vai o ano contra
+  o anterior". Some quando só há um ano de dado — quatro barras soltas não são
+  um comparativo.
+{% endcomment %}
+{% if faixa.conteudo.grafico_trimestral %}
+  {% grafico faixa.conteudo.grafico_trimestral %}
+{% endif %}
 </div>
 
 {% comment %}

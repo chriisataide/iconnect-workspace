@@ -1434,6 +1434,14 @@ def _todos_os_blocos():
             [series.Ponto(rotulo=r, valor=v) for r, v in categorias],
             chave="j", titulo="t",
         ),
+        # Com um trimestre PARCIAL, que é o caminho em que este tipo monta o
+        # rótulo à mão — e onde um `{@}` entraria por descuido.
+        series.barras_por_ano(
+            ["T1", "T2"],
+            [("2026", [D("100"), D("60")]), ("2025", [D("90"), D("80")])],
+            chave="k", titulo="t",
+            parciais={("2026", "T2"): "parcial — 2 de 3 meses"},
+        ),
     ]
 
 
