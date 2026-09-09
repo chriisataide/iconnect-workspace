@@ -635,6 +635,20 @@ def cascata(
     inicial: Decimal | None = None,
     rotulo_inicial: str = "Início",
     rotulo_final: str = "Final",
+    #: Rótulos de `passos` que são SUBTOTAL, e não movimento — C6.
+    #:
+    #: Uma cascata da DRE sem eles é ilegível: entre a receita e o EBITDA há
+    #: onze deduções, e quem lê precisa dos dois marcos do meio — receita
+    #: líquida e margem de contribuição — para saber onde está. Sem marco, o
+    #: gráfico é uma escada de onze degraus sem patamar.
+    #:
+    #: O subtotal é desenhado do ZERO, com o valor acumulado, e NÃO move o
+    #: acumulador: ele é uma foto do estado, e somá-lo contaria o mesmo dinheiro
+    #: duas vezes.
+    subtotais: tuple[str, ...] = (),
+    #: Uma URL por passo, paralela a `passos`. É o que faz cada degrau LEVAR ao
+    #: detalhamento — o clique abre o grupo de contas correspondente.
+    urls: list[str] | None = None,
     formatar=fmt.moeda_curta,
     formatar_tabela=fmt.moeda,
     altura: int = ALTURA,
@@ -671,6 +685,15 @@ def cascata(
 
     for rotulo, delta in passos:
         rotulos.append(rotulo)
+        if rotulo in subtotais:
+            # SUBTOTAL: coluna cheia desde o zero, com o acumulado. Não mexe no
+            # acumulador — ele é uma foto do estado, e somá-lo contaria o mesmo
+            # dinheiro duas vezes.
+            bases.append(0)
+            valores.append(float(acumulado))
+            textos.append(formatar(acumulado))
+            cores.append(COR_PRINCIPAL)
+            continue
         # A base é o menor dos dois extremos: numa queda, ela fica no valor de
         # chegada e o bloco visível sobe até o de partida.
         base = min(acumulado, acumulado + delta)
@@ -752,22 +775,42 @@ def cascata(
         }
     )
 
+    # A TABELA IRMÃ repete a mesma aritmética, subtotal incluído.
+    #
+    # Se ela somasse o subtotal como movimento, contaria o mesmo dinheiro duas
+    # vezes e terminaria num acumulado diferente do gráfico ao lado — duas
+    # verdades na mesma faixa, e a tabela é justamente onde alguém vai conferir.
     linhas = []
+    urls_da_tabela: list[str] = []
     acumulado = inicial or Decimal("0")
     if inicial is not None:
-        linhas.append([rotulo_inicial, formatar_tabela(acumulado), formatar_tabela(acumulado)])
-    for rotulo, delta in passos:
-        acumulado += delta
-        linhas.append([rotulo, formatar_tabela(delta), formatar_tabela(acumulado)])
+        linhas.append(
+            [rotulo_inicial, formatar_tabela(acumulado), formatar_tabela(acumulado)]
+        )
+        urls_da_tabela.append("")
+    for indice, (rotulo, delta) in enumerate(passos):
+        if rotulo in subtotais:
+            linhas.append([rotulo, "—", formatar_tabela(acumulado)])
+        else:
+            acumulado += delta
+            linhas.append(
+                [rotulo, formatar_tabela(delta), formatar_tabela(acumulado)]
+            )
+        urls_da_tabela.append(urls[indice] if urls else "")
     if inicial is not None:
         linhas.append([rotulo_final, "—", formatar_tabela(acumulado)])
+        urls_da_tabela.append("")
 
     return Bloco(
         chave=chave,
         titulo=titulo,
         option=option,
-        colunas=[Coluna("Passo", numerica=False), Coluna("Movimento"), Coluna("Acumulado")],
+        colunas=[
+            Coluna("Passo", numerica=False), Coluna("Movimento"),
+            Coluna("Acumulado"),
+        ],
         linhas=linhas,
+        urls=urls_da_tabela if urls else [],
         resumo=(
             f"{titulo}: {len(passos)} movimentos, terminando em "
             f"{formatar_tabela(acumulado)}. Os números estão na tabela abaixo."

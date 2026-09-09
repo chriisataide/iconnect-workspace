@@ -183,4 +183,12 @@ cargas = 97.0      # medido 97.39 · conectores, carregador, transporte
 #   · o que reprova se alguma linha do razão cair em "conta não cadastrada":
 #     esse caminho existe para o dia em que a fonte real mandar código novo, e
 #     não para a massa se enganar sozinha (431 linhas já nasceram assim).
-minimo = 3566
+# 3566 → 3580: a cascata da DRE (C6) e os controles da tabela (D3). O que mais
+#   protege é o que exige que o degrau "Indireto" saia das linhas SEM contrato:
+#   a primeira versão o tirava da conta e dava 88 mil, enquanto a faixa logo
+#   acima mostrava 234 mil — o mesmo grupo carrega custo direto de contrato e
+#   rateio de administração, e o que faz um custo ser indireto é a linha não
+#   ter contrato. Mais o que confere que a cascata FECHA no mesmo número da
+#   tabela: são duas leituras da mesma aritmética na mesma faixa, e se
+#   discordarem ninguém sabe qual está errada.
+minimo = 3580

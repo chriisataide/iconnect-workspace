@@ -1,4 +1,4 @@
-{% load i18n wks %}
+{% load i18n wks graficos %}
 {% comment %}
   A TABELA CONTÁBIL — bloco D.
 
@@ -25,6 +25,20 @@
   negativo diria a mesma coisa duas vezes enquanto deixa o positivo mudo.
 {% endcomment %}
 
+{% comment %}
+  A CASCATA vem ANTES da tabela — C6.
+
+  Ela é a mesma aritmética, em três segundos: a tabela tem vinte e oito linhas
+  possíveis e responde "quanto"; a cascata responde "onde o dinheiro se
+  transformou" sem que ninguém precise somar nada.
+
+  Cada degrau LEVA à tabela com os grupos daquele degrau abertos. É o que
+  transforma "o EBITDA caiu" em "o EBITDA caiu, e é 41504" sem procurar.
+{% endcomment %}
+{% if faixa.conteudo.cascata %}
+  {% grafico faixa.conteudo.cascata %}
+{% endif %}
+
 {% if faixa.conteudo.desconhecidas %}
   {% comment %}
     O AVISO DA CONTA NÃO CADASTRADA.
@@ -37,6 +51,28 @@
     {% blocktrans count n=faixa.conteudo.desconhecidas %}{{ n }} lançamento veio com um código que não está no plano de contas. Ele está somado no total, na linha "Conta não cadastrada".{% plural %}{{ n }} lançamentos vieram com códigos que não estão no plano de contas. Eles estão somados no total, na linha "Conta não cadastrada".{% endblocktrans %}
   </p>
 {% endif %}
+
+{% comment %}
+  OS TRÊS CONTROLES — D3.
+
+  Links e não botões de JavaScript, pela mesma razão do "+": o estado vive na
+  URL, então cada controle é um `<a>` que leva à mesma tela com um parâmetro
+  trocado. O link resultante pode ser copiado com o modo e a expansão dentro.
+
+  "Exportar" reusa o PDF que já existe na barra de filtros — um segundo botão
+  aqui seria um segundo lugar onde a exportação pode divergir do que a tela
+  mostra.
+{% endcomment %}
+<div class="au-contabil-controles">
+  <a class="au-btn au-btn--fantasma" href="{{ faixa.conteudo.url_modo }}">
+    {{ faixa.conteudo.rotulo_do_outro_modo }}
+  </a>
+  {% if faixa.conteudo.tudo_aberto %}
+    <a class="au-btn au-btn--fantasma" href="{{ faixa.conteudo.url_recolher_tudo }}">{% trans "Recolher tudo" %}</a>
+  {% else %}
+    <a class="au-btn au-btn--fantasma" href="{{ faixa.conteudo.url_expandir_tudo }}">{% trans "Expandir tudo" %}</a>
+  {% endif %}
+</div>
 
 <div class="au-tabela au-tabela--contabil">
   <table>
@@ -66,12 +102,12 @@
               {{ grupo.nome }}
             </a>
           </th>
-          <td class="num">{{ grupo.realizado|moeda }}</td>
-          <td class="num">{% if grupo.ajustes %}{{ grupo.ajustes|moeda }}{% else %}—{% endif %}</td>
-          <td class="num">{{ grupo.realizado_ajustado|moeda }}</td>
-          <td class="num">{% if grupo.orcado is not None %}{{ grupo.orcado|moeda }}{% else %}—{% endif %}</td>
+          <td class="num">{% if faixa.conteudo.percentual %}{% if grupo.pct_realizado is not None %}{{ grupo.pct_realizado|numero:1 }}%{% else %}—{% endif %}{% else %}{% if grupo.realizado is not None %}{{ grupo.realizado|moeda }}{% else %}—{% endif %}{% endif %}</td>
+          <td class="num">{% if faixa.conteudo.percentual %}{% if grupo.pct_ajustes is not None %}{{ grupo.pct_ajustes|numero:1 }}%{% else %}—{% endif %}{% else %}{% if grupo.ajustes %}{{ grupo.ajustes|moeda }}{% else %}—{% endif %}{% endif %}</td>
+          <td class="num">{% if faixa.conteudo.percentual %}{% if grupo.pct_ajustado is not None %}{{ grupo.pct_ajustado|numero:1 }}%{% else %}—{% endif %}{% else %}{% if grupo.realizado_ajustado is not None %}{{ grupo.realizado_ajustado|moeda }}{% else %}—{% endif %}{% endif %}</td>
+          <td class="num">{% if faixa.conteudo.percentual %}{% if grupo.pct_orcado is not None %}{{ grupo.pct_orcado|numero:1 }}%{% else %}—{% endif %}{% else %}{% if grupo.orcado is not None %}{{ grupo.orcado|moeda }}{% else %}—{% endif %}{% endif %}</td>
           <td class="num">{% if grupo.pct_re_or is not None %}{{ grupo.pct_re_or|numero:1 }}%{% else %}—{% endif %}</td>
-          <td class="num">{% if grupo.dif_or_re is not None %}{{ grupo.dif_or_re|moeda }}{% else %}—{% endif %}</td>
+          <td class="num">{% if faixa.conteudo.percentual %}{% if grupo.pct_folga is not None %}{{ grupo.pct_folga|numero:1 }}%{% else %}—{% endif %}{% else %}{% if grupo.dif_or_re is not None %}{{ grupo.dif_or_re|moeda }}{% else %}—{% endif %}{% endif %}</td>
           <td class="num">{% if grupo.pct_da_receita is not None %}{{ grupo.pct_da_receita|numero:1 }}%{% else %}—{% endif %}</td>
         </tr>
 
@@ -82,12 +118,12 @@
                 <span class="au-contabil-codigo">{{ conta.codigo }}</span>
                 {{ conta.nome }}
               </th>
-              <td class="num">{{ conta.realizado|moeda }}</td>
-              <td class="num">{% if conta.ajustes %}{{ conta.ajustes|moeda }}{% else %}—{% endif %}</td>
-              <td class="num">{{ conta.realizado_ajustado|moeda }}</td>
-              <td class="num">{% if conta.orcado is not None %}{{ conta.orcado|moeda }}{% else %}—{% endif %}</td>
+              <td class="num">{% if faixa.conteudo.percentual %}{% if conta.pct_realizado is not None %}{{ conta.pct_realizado|numero:1 }}%{% else %}—{% endif %}{% else %}{% if conta.realizado is not None %}{{ conta.realizado|moeda }}{% else %}—{% endif %}{% endif %}</td>
+              <td class="num">{% if faixa.conteudo.percentual %}{% if conta.pct_ajustes is not None %}{{ conta.pct_ajustes|numero:1 }}%{% else %}—{% endif %}{% else %}{% if conta.ajustes %}{{ conta.ajustes|moeda }}{% else %}—{% endif %}{% endif %}</td>
+              <td class="num">{% if faixa.conteudo.percentual %}{% if conta.pct_ajustado is not None %}{{ conta.pct_ajustado|numero:1 }}%{% else %}—{% endif %}{% else %}{% if conta.realizado_ajustado is not None %}{{ conta.realizado_ajustado|moeda }}{% else %}—{% endif %}{% endif %}</td>
+              <td class="num">{% if faixa.conteudo.percentual %}{% if conta.pct_orcado is not None %}{{ conta.pct_orcado|numero:1 }}%{% else %}—{% endif %}{% else %}{% if conta.orcado is not None %}{{ conta.orcado|moeda }}{% else %}—{% endif %}{% endif %}</td>
               <td class="num">{% if conta.pct_re_or is not None %}{{ conta.pct_re_or|numero:1 }}%{% else %}—{% endif %}</td>
-              <td class="num">{% if conta.dif_or_re is not None %}{{ conta.dif_or_re|moeda }}{% else %}—{% endif %}</td>
+              <td class="num">{% if faixa.conteudo.percentual %}{% if conta.pct_folga is not None %}{{ conta.pct_folga|numero:1 }}%{% else %}—{% endif %}{% else %}{% if conta.dif_or_re is not None %}{{ conta.dif_or_re|moeda }}{% else %}—{% endif %}{% endif %}</td>
               <td class="num">{% if conta.pct_da_receita is not None %}{{ conta.pct_da_receita|numero:1 }}%{% else %}—{% endif %}</td>
             </tr>
           {% endfor %}
@@ -102,13 +138,13 @@
     <tfoot>
       <tr class="au-contabil-total">
         <th scope="row">{% trans "Total" %}</th>
-        <td class="num">{{ faixa.conteudo.totais.realizado|moeda }}</td>
+        <td class="num">{% if faixa.conteudo.percentual %}{% if faixa.conteudo.totais.pct_realizado is not None %}{{ faixa.conteudo.totais.pct_realizado|numero:1 }}%{% else %}—{% endif %}{% else %}{{ faixa.conteudo.totais.realizado|moeda }}{% endif %}</td>
         <td class="num">{% if faixa.conteudo.totais.ajustes %}{{ faixa.conteudo.totais.ajustes|moeda }}{% else %}—{% endif %}</td>
-        <td class="num">{{ faixa.conteudo.totais.realizado_ajustado|moeda }}</td>
+        <td class="num">{% if faixa.conteudo.percentual %}{% if faixa.conteudo.totais.pct_ajustado is not None %}{{ faixa.conteudo.totais.pct_ajustado|numero:1 }}%{% else %}—{% endif %}{% else %}{{ faixa.conteudo.totais.realizado_ajustado|moeda }}{% endif %}</td>
         <td class="num">{% if faixa.conteudo.totais.orcado is not None %}{{ faixa.conteudo.totais.orcado|moeda }}{% else %}—{% endif %}</td>
         <td class="num">{% if faixa.conteudo.totais.pct_re_or is not None %}{{ faixa.conteudo.totais.pct_re_or|numero:1 }}%{% else %}—{% endif %}</td>
         <td class="num">{% if faixa.conteudo.totais.dif_or_re is not None %}{{ faixa.conteudo.totais.dif_or_re|moeda }}{% else %}—{% endif %}</td>
-        <td class="num">—</td>
+        <td class="num">{% if faixa.conteudo.percentual %}100,0%{% else %}—{% endif %}</td>
       </tr>
     </tfoot>
   </table>

@@ -170,10 +170,22 @@ class NaturezaConta(models.TextChoices):
 
     RECEITA = "receita", "Receita"
     IMPOSTO = "imposto", "Imposto sobre faturamento"
-    CUSTO = "custo", "Custo direto"
-    INDIRETO = "indireto", "Custo indireto"
+    CUSTO = "custo", "Custo"
     FINANCEIRO = "financeiro", "Resultado financeiro"
     NAO_OPERACIONAL = "nao_operacional", "Não operacional"
+
+    # NÃO EXISTE "custo indireto" AQUI, e a ausência é a correção de um erro
+    # meu de 09/09/2026.
+    #
+    # Havia `INDIRETO`, e ele estava em `41601` DESPESAS GERAIS, `41602`
+    # COMUNICAÇÕES, `41701` TRIBUTOS e `41801` DEPRECIAÇÕES. A cascata da DRE
+    # somava só esses grupos no degrau "Indireto" e dava 88 mil, enquanto a
+    # faixa do dinheiro logo acima mostrava 234 mil.
+    #
+    # A causa: o MESMO grupo carrega as duas coisas. A telefonia de um contrato
+    # é custo direto dele; a telefonia da administração é rateio. O que faz um
+    # custo ser indireto é a LINHA não ter contrato — e não a conta em que ela
+    # foi lançada. Ver `cascata_da_dre`, que deriva o degrau daí.
 
 
 class DegrauDRE(models.TextChoices):

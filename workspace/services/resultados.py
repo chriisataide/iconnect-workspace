@@ -170,6 +170,32 @@ def _lotacao(pessoa):
 # ── Filtros ─────────────────────────────────────────────────────────
 
 
+#: O valor que abre TODOS os grupos — D3.
+#:
+#: Sentinela e não uma lista com os vinte e oito códigos: a lista tem teto de
+#: oito (`MAXIMO_EXPANDIDO`), e "expandir tudo" precisa passar por cima dele sem
+#: afrouxá-lo para uma URL forjada. E `?expandir=tudo` é legível no link que
+#: alguém cola num e-mail, o que `?expandir=31101,31201,41101,…` não é.
+TUDO = "tudo"
+
+#: Como a tabela mostra os números — D3.
+#:
+#: `%` responde "quanto do meu contrato foi para pessoal?", que é a pergunta em
+#: que a tabela é usada de verdade. O absoluto é o padrão porque é contra ele
+#: que se confere o fechamento contábil.
+MODO_ABSOLUTO = "reais"
+MODO_PERCENTUAL = "pct"
+MODOS: tuple[tuple[str, str], ...] = (
+    (MODO_ABSOLUTO, "Em reais"),
+    (MODO_PERCENTUAL, "Em % da receita líquida"),
+)
+
+
+def _modo_dos_numeros(parametros) -> str:
+    pedido = (parametros.get("numeros") or "").strip().lower()
+    return pedido if pedido in dict(MODOS) else MODO_ABSOLUTO
+
+
 @dataclass(frozen=True)
 class Filtros:
     """A barra de filtros, que se repete em toda tela futura.
@@ -221,8 +247,14 @@ class Filtros:
     #: obrigaria a escolher entre elas.
     comparar: str = ""
     #: Os grupos abertos na tabela contábil — D1. Na URL para o link chegar
-    #: aberto no ponto certo do outro lado.
+    #: aberto no ponto certo do outro lado. `("tudo",)` abre todos.
     expandidos: tuple[str, ...] = ()
+    #: Como a tabela contábil mostra os números — D3.
+    numeros: str = MODO_ABSOLUTO
+
+    @property
+    def tudo_aberto(self) -> bool:
+        return TUDO in self.expandidos
     #: Por qual dimensão o bloco de perfuração agrupa. Vazio = a do nível
     #: seguinte na hierarquia, que é o que quem não escolheu nada quer.
     dimensao: str = ""
@@ -351,6 +383,7 @@ def ler_filtros(parametros, hoje: date | None = None) -> Filtros:
         periodo=_periodo(parametros),
         comparar=_comparacao(parametros),
         expandidos=_expandidos(parametros),
+        numeros=_modo_dos_numeros(parametros),
         dimensao=(parametros.get("dim") or "").strip()[:20],
     )
 
@@ -869,13 +902,15 @@ MAXIMO_EXPANDIDO = 8
 
 
 def _expandidos(parametros) -> tuple[str, ...]:
-    """Os grupos abertos, de `?expandir=41101,41106`.
+    """Os grupos abertos, de `?expandir=41101,41106` — ou `?expandir=tudo`.
 
     Na URL e não em `sessionStorage`: mandar o link **já aberto no ponto certo**
     é o que faz a reunião andar. Guardado no navegador, o link chegaria fechado
     do outro lado e a pessoa teria de procurar de novo o que já foi mostrado.
     """
     bruto = (parametros.get("expandir") or "").strip()
+    if bruto.lower() == TUDO:
+        return (TUDO,)
     if not bruto:
         return ()
     vistos: list[str] = []
@@ -914,10 +949,15 @@ def contabil(escopo: contrato.Escopo, filtros: Filtros) -> Faixa:
 
     receita_liquida = _receita_liquida(linhas)
     faixa.conteudo = {
+        "cascata": cascata_da_dre(linhas, filtros, receita_liquida),
         "grupos": _agrupar_por_conta(linhas, receita_liquida, filtros),
         "totais": _totais_contabeis(linhas, receita_liquida),
         "receita_liquida": receita_liquida,
         "expandidos": filtros.expandidos,
+        "modo": filtros.numeros,
+        "percentual": filtros.numeros == MODO_PERCENTUAL,
+        "tudo_aberto": filtros.tudo_aberto,
+        **_controles_da_tabela(filtros),
         # Quantas linhas a fonte mandou com código fora do plano. Zero é o
         # normal; qualquer outra coisa é um aviso na tela, e não um silêncio.
         "desconhecidas": sum(1 for linha in linhas if linha.desconhecida),
@@ -945,6 +985,162 @@ def _sinal(natureza: str) -> int:
     número contra o qual alguém confere a tabela inteira.
     """
     return -1 if natureza in NATUREZAS_NEGATIVAS else 1
+
+
+#: A CASCATA DA DRE — `(degrau, rótulo)` na ordem contábil. C6.
+#:
+#: A ordem é a da leitura, e não a dos códigos: é ela que faz a cascata contar a
+#: história do faturamento até o EBITDA. Um dicionário perderia a ordem, e uma
+#: ordenação por código poria "Indireto" no meio das deduções diretas.
+#:
+#: `receita_bruta` NÃO está aqui: ela é a coluna INICIAL da cascata, e listá-la
+#: como movimento a somaria duas vezes.
+DEGRAUS_DA_DRE: tuple[tuple[str, str], ...] = (
+    ("impostos", "Impostos"),
+    ("pessoal", "Pessoal"),
+    ("encargos", "Encargos e Provisões"),
+    ("beneficios", "Benefícios"),
+    ("materiais", "Materiais e Insumos"),
+    ("servicos_pj", "Serviços PJ"),
+    ("transportes", "Transportes"),
+    ("demais", "Demais"),
+)
+
+#: O degrau INDIRETO não sai de conta nenhuma — ele é a soma das linhas SEM
+#: contrato, e por isso vem depois de todos os outros.
+#:
+#: A primeira versão o tirava de `degrau_dre`, com `41601`, `41602`, `41701` e
+#: `41801` marcados como indiretos. Dava 88 mil, enquanto a faixa do dinheiro
+#: logo acima mostrava 234 mil de custo indireto — e as duas ficavam na mesma
+#: tela sem ninguém explicar a diferença.
+#:
+#: A causa é que o MESMO grupo carrega as duas coisas: a telefonia de um
+#: contrato é custo direto dele, a telefonia da administração é rateio. O que
+#: faz um custo ser indireto é a linha não ter contrato.
+ROTULO_INDIRETO = "Indireto"
+
+#: Onde os PATAMARES entram, e depois de qual degrau.
+#:
+#: Sem eles a cascata é uma escada de onze degraus sem descanso, e quem lê perde
+#: a conta de onde está. Com eles, os dois números que a diretoria procura —
+#: receita líquida e margem de contribuição — aparecem como coluna cheia.
+PATAMARES: dict[str, str] = {
+    "impostos": "Receita Líquida",
+    "demais": "Margem de Contribuição",
+}
+
+
+def cascata_da_dre(linhas, filtros: Filtros, receita_liquida: Decimal):
+    """Do faturamento ao EBITDA, na ordem contábil — C6.
+
+    ## Por que ela vive aqui e não na faixa do dinheiro
+
+    Porque ela é a MESMA aritmética da tabela contábil, e sai das mesmas linhas.
+    Montá-la a partir dos seis campos agregados de `CompetenciaResultado` daria
+    um gráfico que discorda da tabela logo abaixo dele — os agregados não se
+    decompõem em degraus, e a diferença apareceria justamente nos meses em que
+    algum campo vem vazio.
+
+    ## Cada degrau LEVA ao detalhamento
+
+    A URL abre os grupos de conta daquele degrau na tabela. É o que transforma
+    "o EBITDA caiu" em "o EBITDA caiu, e é `41504`" sem ninguém procurar.
+    """
+    from django.urls import reverse
+
+    from workspace.graficos import series
+
+    por_degrau: dict[str, Decimal] = {}
+    grupos_do_degrau: dict[str, set[str]] = {}
+    indireto = Decimal("0")
+    grupos_indiretos: set[str] = set()
+    for linha in linhas:
+        if not linha.degrau:
+            # Financeiro e não operacional ficam FORA: esta DRE vai até o
+            # EBITDA, e EBITDA é antes de juros. Incluí-los faria a cascata não
+            # fechar com o número que a faixa do dinheiro mostra.
+            continue
+        valor = linha.realizado_ajustado * _sinal(linha.natureza)
+        if not linha.contrato:
+            # SEM CONTRATO é o rateio — e é ele, e só ele, que é indireto.
+            indireto += valor
+            grupos_indiretos.add(linha.grupo_codigo)
+            continue
+        por_degrau[linha.degrau] = por_degrau.get(linha.degrau, Decimal("0")) + valor
+        grupos_do_degrau.setdefault(linha.degrau, set()).add(linha.grupo_codigo)
+
+    bruta = por_degrau.get("receita_bruta", Decimal("0"))
+    if not bruta:
+        return None
+
+    base = reverse("workspace:resultados")
+    passos: list[tuple[str, Decimal]] = []
+    urls: list[str] = []
+    subtotais: list[str] = []
+    for degrau, rotulo in DEGRAUS_DA_DRE:
+        passos.append((rotulo, por_degrau.get(degrau, Decimal("0"))))
+        grupos = sorted(grupos_do_degrau.get(degrau, ()))
+        urls.append(
+            _url_com(base, filtros, expandir=",".join(grupos[:MAXIMO_EXPANDIDO]))
+            if grupos
+            else ""
+        )
+        patamar = PATAMARES.get(degrau)
+        if patamar:
+            passos.append((patamar, Decimal("0")))
+            subtotais.append(patamar)
+            # O patamar não leva a lugar nenhum: ele é uma soma, e não um grupo
+            # de contas. Um link ali abriria "o quê"?
+            urls.append("")
+
+    passos.append((ROTULO_INDIRETO, indireto))
+    urls.append(
+        _url_com(
+            base, filtros,
+            expandir=",".join(sorted(grupos_indiretos)[:MAXIMO_EXPANDIDO]),
+        )
+        if grupos_indiretos
+        else ""
+    )
+
+    return series.cascata(
+        passos,
+        chave="dre",
+        # O MÊS e não o período. Esta cascata é do mês, como a tabela — e
+        # `_titulo` escreveria "últimos 12 meses", que é o recorte dos
+        # gráficos da faixa acima. Um gráfico de um mês rotulado como doze é o
+        # tipo de erro que ninguém percebe porque nada parece errado.
+        titulo=f"Do faturamento ao EBITDA — {filtros.competencia:%m/%Y}",
+        inicial=bruta,
+        rotulo_inicial="Receita Bruta",
+        rotulo_final="EBITDA",
+        subtotais=tuple(subtotais),
+        urls=urls,
+    )
+
+
+def _controles_da_tabela(filtros: Filtros) -> dict:
+    """As URLs dos três controles do cabeçalho — D3.
+
+    Montadas em PYTHON, como toda URL desta tela: só o servidor sabe quais
+    filtros preservar ao mudar um deles, e replicar essa regra em JavaScript a
+    faria mudar sozinha na primeira dimensão nova.
+    """
+    from django.urls import reverse
+
+    base = reverse("workspace:resultados")
+    outro_modo = (
+        MODO_ABSOLUTO if filtros.numeros == MODO_PERCENTUAL else MODO_PERCENTUAL
+    )
+    return {
+        "url_modo": _url_com(base, filtros, numeros=outro_modo),
+        "rotulo_do_outro_modo": dict(MODOS)[outro_modo],
+        "url_expandir_tudo": _url_com(base, filtros, expandir=TUDO),
+        # Recolher é `expandir=` VAZIO, e não a ausência do parâmetro: ausência
+        # e vazio dão o mesmo resultado aqui, e o vazio é o que sobrevive ao
+        # `data-limpar-vazios` da barra de filtros sem virar um caso especial.
+        "url_recolher_tudo": _url_com(base, filtros, expandir=""),
+    }
 
 
 def _receita_liquida(linhas) -> Decimal:
@@ -1016,12 +1212,21 @@ def _agrupar_por_conta(
             _com_derivadas(conta, receita_liquida)
             for conta in sorted(grupo["contas"].values(), key=lambda c: c["codigo"])
         ]
-        _com_expansao(grupo, filtros)
         montados.append(_com_derivadas(grupo, receita_liquida))
-    return sorted(montados, key=lambda g: g["codigo"])
+    montados.sort(key=lambda g: g["codigo"])
+
+    # A EXPANSÃO num segundo passo, porque ela precisa da lista COMPLETA de
+    # grupos: fechar um grupo com "tudo aberto" produz a URL "todos menos este",
+    # e no primeiro passo os grupos seguintes ainda não existem.
+    todos = tuple(g["codigo"] for g in montados)
+    for grupo in montados:
+        _com_expansao(grupo, filtros, todos)
+    return montados
 
 
-def _com_expansao(grupo: dict, filtros: Filtros | None) -> None:
+def _com_expansao(
+    grupo: dict, filtros: Filtros | None, todos: tuple[str, ...] = ()
+) -> None:
     """`aberto` e a URL que alterna — montada em PYTHON.
 
     A URL sai daqui pela mesma razão da perfuração: só o servidor sabe quais
@@ -1037,15 +1242,19 @@ def _com_expansao(grupo: dict, filtros: Filtros | None) -> None:
 
     codigo = grupo["codigo"]
     abertos = filtros.expandidos
-    grupo["aberto"] = codigo in abertos
+    grupo["aberto"] = filtros.tudo_aberto or codigo in abertos
     # Fechar TIRA o próprio; abrir ACRESCENTA no fim. Acrescentar no começo
     # faria a ordem da URL mudar a cada clique, e dois links do mesmo estado
     # ficariam com textos diferentes.
-    novos = (
-        tuple(c for c in abertos if c != codigo)
-        if grupo["aberto"]
-        else (*abertos, codigo)
-    )
+    if filtros.tudo_aberto:
+        # Fechar UM com tudo aberto: a lista passa a ser "todos menos este".
+        # Sem isto, o clique num grupo com tudo aberto não faria nada, e a
+        # pessoa clicaria de novo achando que não pegou.
+        novos = tuple(c for c in todos if c != codigo)[:MAXIMO_EXPANDIDO]
+    elif grupo["aberto"]:
+        novos = tuple(c for c in abertos if c != codigo)
+    else:
+        novos = (*abertos, codigo)
     grupo["url_alternar"] = _url_com(
         reverse("workspace:resultados"), filtros, expandir=",".join(novos)
     )
@@ -1073,6 +1282,32 @@ def _com_derivadas(linha: dict, receita_liquida: Decimal) -> dict:
     # Com o percentual negativo junto, a mesma linha diria a direção duas vezes
     # e a coluna deixaria de somar 100% entre as despesas.
     linha["pct_da_receita"] = _sobre(abs(ajustado), receita_liquida)
+
+    # AS COLUNAS DE DINHEIRO EM PERCENTUAL — o "ver números" do D3.
+    #
+    # Calculadas aqui e não no template: `% sobre a receita líquida` é regra de
+    # negócio, e o dia em que a base mudar de líquida para bruta ela muda num
+    # lugar. Num filtro de template, mudaria em cada tela que o usasse.
+    #
+    # Todas as cinco, e não só a do ajustado: no modo percentual a tabela troca
+    # a coluna INTEIRA, e uma que continuasse em reais faria a linha somar
+    # grandezas diferentes.
+    linha["pct_realizado"] = _sobre(abs(realizado), receita_liquida)
+    # `None` quando não há ajuste, e não `0,0%`: no modo em reais a célula
+    # mostra "—", e mostrar "0,0%" no outro faria a mesma ausência parecer duas
+    # coisas diferentes conforme o botão que a pessoa apertou.
+    linha["pct_ajustes"] = (
+        _sobre(abs(linha["ajustes"]), receita_liquida) if linha["ajustes"] else None
+    )
+    linha["pct_ajustado"] = linha["pct_da_receita"]
+    linha["pct_orcado"] = (
+        _sobre(abs(orcado), receita_liquida) if orcado is not None else None
+    )
+    linha["pct_folga"] = (
+        _sobre(abs(linha["dif_or_re"]), receita_liquida)
+        if linha["dif_or_re"] is not None
+        else None
+    )
     return linha
 
 
@@ -1968,6 +2203,9 @@ def _url_com(base: str, filtros: Filtros, **mudancas) -> str:
         "periodo": filtros.periodo or PERIODO_PADRAO,
         "comparar": filtros.comparar,
         "expandir": ",".join(filtros.expandidos),
+        # O modo ABSOLUTO não vai para a URL: ele é o padrão, e carregá-lo
+        # deixaria `?numeros=reais` em todo link que alguém compartilha.
+        "numeros": "" if filtros.numeros == MODO_ABSOLUTO else filtros.numeros,
         "dim": filtros.dimensao,
     }
     if filtros.deficitario:

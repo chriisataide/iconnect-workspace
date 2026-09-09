@@ -389,3 +389,199 @@ def test_sem_lancamento_a_faixa_diz_o_que_falta(client, diretoria, plano, db):
 
     assert not faixa.disponivel
     assert "lançamento por conta contábil" in faixa.motivo
+
+
+# ── C6 · a cascata da DRE ───────────────────────────────────────────
+
+
+def test_a_cascata_vai_da_receita_ao_ebitda(client, espelho, diretoria):
+    """A ordem é a contábil, e é ela que faz o gráfico contar a história."""
+    client.force_login(diretoria)
+
+    _, faixa = _faixa(client, "?mes=2026-09")
+    passos = [celulas[0] for celulas, _ in faixa.conteudo["cascata"].linhas_com_url]
+
+    assert passos[0] == "Receita Bruta"
+    assert passos[-1] == "EBITDA"
+    assert "Receita Líquida" in passos
+    assert "Margem de Contribuição" in passos
+
+
+def test_a_cascata_fecha_no_MESMO_numero_da_tabela(client, espelho, diretoria):
+    """Duas leituras da mesma aritmética, na mesma faixa. Se discordarem, uma
+    delas está errada e ninguém sabe qual."""
+    client.force_login(diretoria)
+
+    _, faixa = _faixa(client, "?mes=2026-09")
+    ultima = faixa.conteudo["cascata"].linhas[-1]
+
+    from workspace.graficos import formato as fmt
+
+    assert ultima[0] == "EBITDA"
+    assert ultima[2] == fmt.moeda(
+        faixa.conteudo["totais"]["realizado_ajustado"]
+    )
+
+
+def test_o_patamar_NAO_soma_de_novo(client, espelho, diretoria):
+    """Subtotal é uma foto do estado. Somado como movimento, contaria o mesmo
+    dinheiro duas vezes e o EBITDA sairia dobrado."""
+    client.force_login(diretoria)
+
+    _, faixa = _faixa(client, "?mes=2026-09")
+    linhas = {celulas[0]: celulas for celulas, _ in faixa.conteudo["cascata"].linhas_com_url}
+
+    assert linhas["Receita Líquida"][1] == "—", "patamar não tem movimento"
+    # Receita líquida = 1000 − 150 = 850, e o acumulado não pulou.
+    from workspace.graficos import formato as fmt
+
+    assert linhas["Receita Líquida"][2] == fmt.moeda(Decimal("850"))
+
+
+def test_o_degrau_do_INDIRETO_sai_das_linhas_SEM_contrato(
+    client, espelho, diretoria, plano
+):
+    """A correção de um erro meu.
+
+    A primeira versão tirava o indireto de `degrau_dre`, com `41601`, `41602`,
+    `41701` e `41801` marcados como indiretos. Dava 88 mil enquanto a faixa do
+    dinheiro logo acima mostrava 234 mil.
+
+    O MESMO grupo carrega as duas coisas: a telefonia de um contrato é custo
+    direto dele, a da administração é rateio. O que faz um custo ser indireto é
+    a linha não ter contrato.
+    """
+    from resultados.models import ContaContabil, Fonte, ResultadoPorConta
+
+    ResultadoPorConta.objects.create(
+        fonte=Fonte.SANKHYA, chave_externa="snk-cc1042-202609-41602001",
+        contrato=None, centro_custo="1042", ano=2026, mes=9,
+        conta=ContaContabil.objects.get(codigo="41602001"),
+        codigo_origem="41602001", valor_realizado=Decimal("30"),
+    )
+    client.force_login(diretoria)
+
+    _, faixa = _faixa(client, "?mes=2026-09")
+    linhas = {c[0]: c for c, _ in faixa.conteudo["cascata"].linhas_com_url}
+
+    from workspace.graficos import formato as fmt
+
+    assert linhas["Indireto"][1] == fmt.moeda(Decimal("-30"))
+    # E o rateio NÃO entrou em "Demais", que é onde a conta 41602 mora.
+    assert linhas["Demais"][1] == fmt.moeda(Decimal("0"))
+
+
+def test_cada_degrau_LEVA_ao_grupo_de_contas_dele(client, espelho, diretoria):
+    """É o que transforma "o EBITDA caiu" em "o EBITDA caiu, e é 41504" sem
+    ninguém procurar."""
+    client.force_login(diretoria)
+
+    _, faixa = _faixa(client, "?mes=2026-09")
+    por_passo = dict(
+        (celulas[0], url)
+        for celulas, url in faixa.conteudo["cascata"].linhas_com_url
+    )
+
+    assert "expandir=41101" in por_passo["Pessoal"]
+    assert "expandir=31201" in por_passo["Impostos"]
+    assert por_passo["Receita Líquida"] == "", "patamar não é grupo de contas"
+
+
+def test_o_titulo_da_cascata_diz_o_MES_e_nao_o_periodo(client, espelho, diretoria):
+    """`_titulo` escreveria "últimos 12 meses", que é o recorte dos gráficos da
+    faixa acima. Um gráfico de um mês rotulado como doze é o tipo de erro que
+    ninguém percebe porque nada parece errado."""
+    client.force_login(diretoria)
+
+    _, faixa = _faixa(client, "?mes=2026-09&periodo=12m")
+
+    assert faixa.conteudo["cascata"].titulo.endswith("09/2026")
+    assert "meses" not in faixa.conteudo["cascata"].titulo
+
+
+# ── D3 · os três controles ──────────────────────────────────────────
+
+
+def test_ver_numeros_alterna_entre_reais_e_percentual(client, espelho, diretoria):
+    """"Quanto do meu contrato foi para pessoal?" é a pergunta em que a tabela é
+    usada de verdade, e ela se responde em percentual."""
+    client.force_login(diretoria)
+
+    _, reais = _faixa(client, "?mes=2026-09")
+    _, pct = _faixa(client, "?mes=2026-09&numeros=pct")
+
+    assert not reais.conteudo["percentual"]
+    assert pct.conteudo["percentual"]
+    assert "numeros=pct" in reais.conteudo["url_modo"]
+    assert "numeros=pct" not in pct.conteudo["url_modo"], "o link volta"
+
+
+def test_o_modo_padrao_NAO_vai_para_a_url(client, espelho, diretoria):
+    """Carregá-lo deixaria `?numeros=reais` em todo link compartilhado."""
+    client.force_login(diretoria)
+
+    _, faixa = _faixa(client, "?mes=2026-09")
+
+    assert "numeros" not in faixa.conteudo["url_recolher_tudo"]
+
+
+def test_o_percentual_e_calculado_em_TODA_coluna_de_dinheiro(
+    client, espelho, diretoria
+):
+    """Uma coluna que continuasse em reais faria a linha somar grandezas
+    diferentes."""
+    client.force_login(diretoria)
+
+    _, faixa = _faixa(client, "?mes=2026-09&numeros=pct")
+    pessoal = next(g for g in faixa.conteudo["grupos"] if g["codigo"] == "41101")
+
+    for campo in ("pct_realizado", "pct_ajustado", "pct_orcado", "pct_folga"):
+        assert pessoal[campo] is not None, campo
+
+
+def test_sem_ajuste_a_celula_e_TRACO_nos_dois_modos(client, espelho, diretoria):
+    """Mostrar "0,0%" num modo e "—" no outro faria a mesma ausência parecer
+    duas coisas diferentes conforme o botão apertado."""
+    client.force_login(diretoria)
+
+    _, faixa = _faixa(client, "?mes=2026-09&numeros=pct")
+    pessoal = next(g for g in faixa.conteudo["grupos"] if g["codigo"] == "41101")
+
+    assert pessoal["ajustes"] == Decimal("0")
+    assert pessoal["pct_ajustes"] is None
+
+
+def test_expandir_tudo_abre_todos_os_grupos(client, espelho, diretoria):
+    client.force_login(diretoria)
+
+    _, faixa = _faixa(client, "?mes=2026-09&expandir=tudo")
+
+    assert faixa.conteudo["tudo_aberto"]
+    assert all(g["aberto"] for g in faixa.conteudo["grupos"])
+
+
+def test_expandir_tudo_passa_por_cima_do_teto(client, espelho, diretoria):
+    """O teto de oito existe contra URL forjada com duzentos códigos. "Tudo" é
+    um pedido explícito, e é o `tfoot` grudado que segura a linha de total no
+    lugar quando a tabela cresce."""
+    assert len(svc.ler_filtros({"expandir": "tudo"}).expandidos) == 1
+    assert svc.ler_filtros({"expandir": "tudo"}).tudo_aberto
+
+
+def test_recolher_tudo_volta_ao_estado_fechado(client, espelho, diretoria):
+    client.force_login(diretoria)
+
+    _, aberto = _faixa(client, "?mes=2026-09&expandir=tudo")
+    assert "expandir" not in aberto.conteudo["url_recolher_tudo"]
+
+
+def test_fechar_UM_grupo_com_tudo_aberto_fecha_so_ele(client, espelho, diretoria):
+    """Sem isto, o clique num grupo com tudo aberto não faria nada — e a pessoa
+    clicaria de novo achando que não pegou."""
+    client.force_login(diretoria)
+
+    _, faixa = _faixa(client, "?mes=2026-09&expandir=tudo")
+    pessoal = next(g for g in faixa.conteudo["grupos"] if g["codigo"] == "41101")
+
+    assert "expandir=" in pessoal["url_alternar"]
+    assert "41101" not in pessoal["url_alternar"].split("expandir=")[1].split("&")[0]

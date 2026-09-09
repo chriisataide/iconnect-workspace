@@ -4618,3 +4618,33 @@ tr[data-abre-resumo]:focus-visible {
   font-weight: 700;
   border-top: 2px solid var(--au-border);
 }
+
+/* OS CONTROLES da tabela contábil — D3.
+ *
+ * Acima da tabela e alinhados à direita: eles agem sobre ela, e à esquerda
+ * competiriam com o título da faixa pelo mesmo olhar.
+ */
+.au-contabil-controles {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: var(--au-2);
+  margin-bottom: var(--au-2);
+}
+
+/* O TOTAL FIXO AO ROLAR — D3, e é ele que faz a tabela ser conferível.
+ *
+ * Com "expandir tudo" a tabela passa de vinte e oito para cento e quarenta e
+ * nove linhas, e a última — o resultado — sai de vista. É contra ela que se
+ * confere o fechamento, e uma linha de total que exige rolar até o fim para
+ * cada olhada é uma linha que ninguém olha.
+ *
+ * `bottom: 0` no `tfoot` gruda no rodapé da JANELA, e não da tabela: a tabela
+ * pode ser mais alta que a tela, que é justamente o caso.
+ */
+.au-tabela--contabil tfoot th,
+.au-tabela--contabil tfoot td {
+  position: sticky;
+  bottom: 0;
+  background: var(--au-surface-raised);
+}

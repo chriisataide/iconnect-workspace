@@ -208,7 +208,7 @@ PLANO: tuple[tuple[str, str, str, str, tuple[str, ...]], ...] = (
     ),
     # ── DESPESAS ────────────────────────────────────────────────────
     (
-        "41601", "DESPESAS GERAIS", N.INDIRETO, D.DEMAIS,
+        "41601", "DESPESAS GERAIS", N.CUSTO, D.DEMAIS,
         (
             "Seguros",
             "Refeições e lanches",
@@ -224,14 +224,14 @@ PLANO: tuple[tuple[str, str, str, str, tuple[str, ...]], ...] = (
         ),
     ),
     (
-        "41602", "COMUNICAÇÕES", N.INDIRETO, D.DEMAIS,
+        "41602", "COMUNICAÇÕES", N.CUSTO, D.DEMAIS,
         ("Telefonia fixa", "Telefonia móvel", "Internet e link de dados"),
     ),
-    ("41603", "VIAGENS E ESTADIAS", N.INDIRETO, D.DEMAIS, ()),
-    ("41604", "EXECUÇÕES JUDICIAIS TRABALHISTAS", N.INDIRETO, D.DEMAIS, ()),
-    ("41606", "PROVISÕES CONTRATUAIS (PCO)", N.INDIRETO, D.DEMAIS, ()),
+    ("41603", "VIAGENS E ESTADIAS", N.CUSTO, D.DEMAIS, ()),
+    ("41604", "EXECUÇÕES JUDICIAIS TRABALHISTAS", N.CUSTO, D.DEMAIS, ()),
+    ("41606", "PROVISÕES CONTRATUAIS (PCO)", N.CUSTO, D.DEMAIS, ()),
     (
-        "41701", "IMPOSTOS, EMOLUMENTOS E LICENÇAS", N.INDIRETO, D.DEMAIS,
+        "41701", "IMPOSTOS, EMOLUMENTOS E LICENÇAS", N.CUSTO, D.DEMAIS,
         (
             "Licenças de software",
             "Contribuição sindical patronal",
@@ -241,7 +241,10 @@ PLANO: tuple[tuple[str, str, str, str, tuple[str, ...]], ...] = (
             "Taxas de polícia federal",
         ),
     ),
-    ("41801", "DEPRECIAÇÕES E AMORTIZAÇÕES", N.INDIRETO, D.INDIRETO, ()),
+    # `D.DEMAIS` e não `D.INDIRETO`: a depreciação do equipamento de um
+    # contrato de locação é custo DIRETO dele. O degrau "Indireto" da cascata
+    # não sai de conta nenhuma — ele é a soma das linhas sem contrato.
+    ("41801", "DEPRECIAÇÕES E AMORTIZAÇÕES", N.CUSTO, D.DEMAIS, ()),
     # ── FINANCEIRO E NÃO OPERACIONAL ────────────────────────────────
     ("41901", "RECEITAS FINANCEIRAS", N.FINANCEIRO, "", ("Juros ativos",)),
     (
