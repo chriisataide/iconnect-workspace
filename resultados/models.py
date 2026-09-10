@@ -465,9 +465,25 @@ class CompetenciaResultado(ProcedenciaMixin):
 
     receita_bruta = models.DecimalField(max_digits=16, decimal_places=2, default=0)
     impostos = models.DecimalField(max_digits=16, decimal_places=2, default=0)
-    custo_direto = models.DecimalField(max_digits=16, decimal_places=2, default=0)
+    #: ANULÁVEL desde 10/09/2026, e a mudança é sobre o que o espelho consegue
+    #: DIZER.
+    #:
+    #: Com `default=0` ele não sabia dizer "desconhecido": o defeito 10 da massa
+    #: — receita lançada e custo ausente — chegava gravado como `0,00`, e a
+    #: cascata da DRE o tratava como "não gastou nada", inflando a margem de
+    #: contribuição pela receita líquida inteira do contrato.
+    #:
+    #: Os campos ORÇADOS ao lado já eram anuláveis exatamente por essa razão. A
+    #: regra valia para metade dos campos.
+    custo_direto = models.DecimalField(
+        max_digits=16, decimal_places=2, null=True, blank=True
+    )
     custo_indireto = models.DecimalField(max_digits=16, decimal_places=2, default=0)
-    margem_contribuicao = models.DecimalField(max_digits=16, decimal_places=2, default=0)
+    #: Anulável pela mesma razão do custo: ela é derivada dele, e uma margem de
+    #: `0,00` calculada sobre custo desconhecido é um número inventado.
+    margem_contribuicao = models.DecimalField(
+        max_digits=16, decimal_places=2, null=True, blank=True
+    )
     ebitda = models.DecimalField(max_digits=16, decimal_places=2, default=0)
 
     #: A COLUNA DO MEIO do benchmark: o que a operação declara que já aconteceu

@@ -1125,7 +1125,13 @@ def _percentual(realizado: Decimal, orcado: Decimal | None) -> Decimal | None:
 def _totais(linhas) -> dict:
     def soma(campo, apenas=None):
         alvo = [l for l in linhas if apenas(l)] if apenas else linhas
-        return sum((getattr(l, campo) for l in alvo), Decimal("0"))
+        # `None` é DESCONHECIDO e sai da soma — somá-lo como zero faria o
+        # total de um mês com custo ausente parecer completo. O aviso de
+        # `_contratos_sem_custo` é quem diz que falta linha.
+        return sum(
+            (v for v in (getattr(x, campo) for x in alvo) if v is not None),
+            Decimal("0"),
+        )
 
     receita = soma("receita_bruta")
 
@@ -1420,32 +1426,24 @@ def _contratos_sem_custo(provedor, escopo, inicio: date, filtros: Filtros) -> li
     Devolve os CÓDIGOS, e não uma contagem: "um contrato está sem custo" manda
     procurar; "o CT-102 está sem custo" manda agir.
     """
-    # Contratos com RECEITA no razão, e nenhuma linha de custo nele.
+    # `custo_direto is None` no AGREGADO — a pergunta direta, desde que o
+    # espelho passou a saber respondê-la (10/09/2026).
     #
-    # Detectado assim, e não por `custo_direto is None` no agregado, porque o
-    # campo NÃO É NULO no espelho: ele tem `default=0`, e o "custo ausente" que
-    # a massa planta chega gravado como `0,00`. O modelo não consegue dizer
-    # "desconhecido", e por isso a pergunta é feita ao razão, onde a ausência
-    # de linha é observável.
-    #
-    # A frase da tela é factual — "tem receita e nenhum lançamento de custo" —
-    # e não uma inferência sobre a intenção da fonte. Um contrato que de fato
-    # não gastou nada num mês cai aqui, e é correto que caia: a margem dele
-    # também está superestimada até alguém confirmar.
-    com_receita: set[str] = set()
-    com_custo: set[str] = set()
-    for linha in _linhas_do_razao_do_mes(provedor, escopo, inicio, filtros):
-        if not linha.contrato:
-            continue
-        if linha.natureza == "receita" and linha.realizado:
-            com_receita.add(linha.contrato)
-        elif linha.natureza == "custo" and linha.realizado:
-            com_custo.add(linha.contrato)
-    return sorted(com_receita - com_custo)
-
-
-def _linhas_do_razao_do_mes(provedor, escopo, inicio: date, filtros: Filtros):
-    return provedor.por_conta(escopo, inicio, filtros.ate)
+    # Antes o campo tinha `default=0` e não distinguia "não gastou" de "não
+    # sei", então isto era deduzido do razão: contrato com receita e nenhuma
+    # linha de custo. A dedução funcionava e tinha um falso positivo — o
+    # contrato que de fato não gastou nada no mês. Com o campo anulável a
+    # pergunta é feita a quem tem a resposta.
+    return sorted(
+        {
+            linha.contrato
+            for linha in provedor.serie_competencia(escopo, inicio, filtros.ate)
+            if _no_mes(linha, filtros.competencia)
+            and linha.contrato
+            and linha.custo_direto is None
+            and linha.receita_bruta
+        }
+    )
 
 
 def _controles_da_tabela(filtros: Filtros) -> dict:

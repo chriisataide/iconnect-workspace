@@ -237,10 +237,15 @@ def test_defeito_10_uma_competencia_com_receita_e_sem_custo(massa):
     Custo zero e custo desconhecido produzem o mesmo número e leituras opostas.
     """
     sem_custo = CompetenciaResultado.objects.filter(
-        contrato__codigo="CT-102", custo_direto=0, receita_bruta__gt=0
+        contrato__codigo="CT-102", custo_direto__isnull=True, receita_bruta__gt=0
     )
 
-    assert sem_custo.exists()
+    assert sem_custo.exists(), "o custo ausente é NULO, e não zero"
+    # E o zero continua existindo como número: um mês em que o custo foi zero é
+    # outra coisa, e o espelho precisa saber dizer as duas.
+    assert not CompetenciaResultado.objects.filter(
+        contrato__codigo="CT-102", custo_direto=0
+    ).exists()
 
 
 def test_defeito_11_duas_conquistas_e_uma_perda_no_trimestre(massa):

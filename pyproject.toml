@@ -225,4 +225,8 @@ cargas = 97.0      # medido 97.39 · conectores, carregador, transporte
 #   regra — a barra do orçado só existe quando o espelho a traz, e sem ela o
 #   mês fica sem barra em vez de com um zero que seria lido como "não cumpriu
 #   nada".
-minimo = 3678
+# 3678 → 3682: os 4 do custo anulável. O que mais protege é o que exige que a
+#   SOMA ignore o desconhecido: somá-lo como zero faria o total de um mês com
+#   custo ausente parecer completo, e o aviso na tela diria que falta linha
+#   enquanto o número dizia que não.
+minimo = 3682

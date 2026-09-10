@@ -585,3 +585,83 @@ def test_fechar_UM_grupo_com_tudo_aberto_fecha_so_ele(client, espelho, diretoria
 
     assert "expandir=" in pessoal["url_alternar"]
     assert "41101" not in pessoal["url_alternar"].split("expandir=")[1].split("&")[0]
+
+
+# ── O espelho sabe dizer "não sei" ──────────────────────────────────
+
+
+def test_custo_ausente_e_NULO_e_nao_zero(db, plano):
+    """A correção de 10/09/2026, e a razão dela.
+
+    `custo_direto` tinha `default=0`. O "custo ausente" — receita lançada e
+    custo que ainda não chegou da contabilidade — ficava gravado como `0,00`, e
+    a cascata da DRE lia isso como "não gastou nada", inflando a margem de
+    contribuição pela receita líquida inteira do contrato.
+
+    Os campos ORÇADOS ao lado já eram anuláveis exatamente por essa razão: a
+    regra valia para metade dos campos.
+    """
+    from resultados.models import CompetenciaResultado, Contrato, Fonte
+
+    contrato = Contrato.objects.create(
+        fonte=Fonte.PLATFORM, chave_externa="p-x", codigo="C-X",
+        nome_cliente="Cliente", servico="monitoramento", centro_custo="1042",
+    )
+    linha = CompetenciaResultado.objects.create(
+        fonte=Fonte.SANKHYA, chave_externa="s-x", contrato=contrato,
+        centro_custo="1042", ano=2026, mes=9,
+        receita_bruta=Decimal("1000"),
+    )
+
+    linha.refresh_from_db()
+    assert linha.custo_direto is None, "sem informar, é DESCONHECIDO"
+    assert linha.margem_contribuicao is None
+
+
+def test_zero_continua_sendo_um_numero(db, plano):
+    """Um mês em que o custo foi de fato zero é outra coisa, e o espelho precisa
+    saber dizer as duas."""
+    from resultados.models import CompetenciaResultado, Contrato, Fonte
+
+    contrato = Contrato.objects.create(
+        fonte=Fonte.PLATFORM, chave_externa="p-y", codigo="C-Y",
+        nome_cliente="Cliente", servico="monitoramento", centro_custo="1042",
+    )
+    linha = CompetenciaResultado.objects.create(
+        fonte=Fonte.SANKHYA, chave_externa="s-y", contrato=contrato,
+        centro_custo="1042", ano=2026, mes=9,
+        receita_bruta=Decimal("1000"), custo_direto=Decimal("0"),
+    )
+
+    linha.refresh_from_db()
+    assert linha.custo_direto == Decimal("0")
+    assert linha.custo_direto is not None
+
+
+def test_o_aviso_sai_do_AGREGADO_e_nao_da_deducao(client, espelho, diretoria, db):
+    """Antes o campo não distinguia "não gastou" de "não sei", e isto era
+    deduzido do razão — contrato com receita e nenhuma linha de custo. A dedução
+    funcionava e tinha um falso positivo: o contrato que de fato não gastou nada
+    no mês entrava na lista."""
+    from resultados.models import CompetenciaResultado
+
+    CompetenciaResultado.objects.filter(contrato=espelho).update(custo_direto=None)
+    client.force_login(diretoria)
+
+    _, faixa = _faixa(client, "?mes=2026-09")
+
+    assert faixa.conteudo["sem_custo"] == ["C-1"]
+
+
+def test_a_soma_IGNORA_o_desconhecido(db):
+    """Somá-lo como zero faria o total de um mês com custo ausente parecer
+    completo. O aviso é quem diz que falta linha — a soma não pode mentir junto."""
+    from resultados import services as res
+
+    class _L:
+        def __init__(self, receita, mc):
+            self.receita_bruta = Decimal(receita)
+            self.margem_contribuicao = Decimal(mc) if mc is not None else None
+
+    # 300 de margem sobre 2000 de receita = 15%. A linha sem margem não vira 0.
+    assert res.margem_pct([_L("1000", "300"), _L("1000", None)]) == Decimal("15.00")

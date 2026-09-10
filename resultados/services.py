@@ -107,7 +107,10 @@ def margem_pct(linhas) -> Decimal | None:
     receita = sum((l.receita_bruta for l in linhas), Decimal("0"))
     if receita <= 0:
         return None
-    mc = sum((l.margem_contribuicao for l in linhas), Decimal("0"))
+    mc = sum(
+        (x.margem_contribuicao for x in linhas if x.margem_contribuicao is not None),
+        Decimal("0"),
+    )
     return (mc / receita * 100).quantize(Decimal("0.01"))
 
 

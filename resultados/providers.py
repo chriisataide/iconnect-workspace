@@ -657,7 +657,12 @@ SOMAVEIS = (
 
 
 def _somar_apontamentos(linhas):
-    valores = {campo: sum(getattr(l, campo) for l in linhas) for campo in SOMAVEIS}
+    valores = {
+        campo: sum(
+            v for v in (getattr(x, campo) for x in linhas) if v is not None
+        )
+        for campo in SOMAVEIS
+    }
     valores["centro_custo"] = "" if len(linhas) > 1 else linhas[0].centro_custo
     valores["ano"] = linhas[0].ano
     valores["mes"] = linhas[0].mes

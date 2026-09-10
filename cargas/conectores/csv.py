@@ -82,6 +82,24 @@ BOOLEANOS = frozenset({"bloqueado", "tratativa_aberta"})
 #: CSV é `conta` e o valor é o código de nove dígitos.
 REFERENCIAS = {"contrato": "codigo", "projeto": "codigo", "conta": "codigo"}
 
+#: Colunas em que VAZIO quer dizer `None`, e não "não mandei".
+#:
+#: A diferença decide o que fica gravado. Para o resto, coluna vazia some do
+#: payload e o valor anterior permanece — que é o certo para um CSV parcial.
+#: Aqui, vazio é uma AFIRMAÇÃO: "não sei quanto foi", e "sem orçado" e "orçado
+#: zero" são leituras opostas.
+#:
+#: `custo_direto` e `margem_contribuicao` entraram em 10/09/2026, quando os dois
+#: passaram a ser anuláveis no espelho. Antes o vazio virava `_IGNORAR`, o
+#: `default=0` do model preenchia, e o "custo ausente" chegava gravado como
+#: `0,00` — que a cascata da DRE lia como "não gastou nada".
+def _e_anulavel(coluna: str) -> bool:
+    return (
+        coluna in DATAS
+        or coluna.endswith(("_orcada", "_orcado"))
+        or coluna in {"custo_direto", "margem_contribuicao"}
+    )
+
 VERDADEIROS = frozenset({"1", "true", "sim", "s", "y", "yes", "verdadeiro"})
 
 
@@ -169,7 +187,7 @@ def _converter_valor(coluna: str, bruto):
         # resto. Quem decide é o model, e quem descobre é o carregador ao
         # gravar — aqui só não podemos inventar zero: "sem orçado" e "orçado
         # zero" são leituras opostas.
-        return None if coluna in DATAS or coluna.endswith("_orcada") or coluna.endswith("_orcado") else _IGNORAR
+        return None if _e_anulavel(coluna) else _IGNORAR
 
     if coluna in REFERENCIAS:
         return _resolver_referencia(coluna, texto)

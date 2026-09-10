@@ -95,9 +95,10 @@ class CompetenciaDTO(ComProcedencia):
     mes: int = 0
     receita_bruta: Decimal = Decimal("0")
     impostos: Decimal = Decimal("0")
-    custo_direto: Decimal = Decimal("0")
+    #: `None` = DESCONHECIDO, e não zero. Ver o modelo no espelho.
+    custo_direto: Decimal | None = None
     custo_indireto: Decimal = Decimal("0")
-    margem_contribuicao: Decimal = Decimal("0")
+    margem_contribuicao: Decimal | None = None
     ebitda: Decimal = Decimal("0")
     ajuste_potencial: Decimal = Decimal("0")
     #: `None` e não `Decimal("0")`: sem orçado é diferente de orçado zero. A
