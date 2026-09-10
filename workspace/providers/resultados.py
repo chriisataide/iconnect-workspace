@@ -142,6 +142,8 @@ class ContratoDTO(ComProcedencia):
     #: O nome legível, para a tela não precisar consultar a área de novo só para
     #: escrever "Área 03" ao lado do contrato.
     area_nome: str = ""
+    #: O que está instalado, em texto — §H1.
+    escopo: str = ""
     inicio_vigencia: date | None = None
     fim_vigencia: date | None = None
     valor_mensal: Decimal = Decimal("0")

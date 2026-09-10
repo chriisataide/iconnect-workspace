@@ -28,7 +28,19 @@
     {% for c in faixa.conteudo.deficitarios %}
       <li class="au-contrato au-contrato--deficitario">
         <span class="au-contrato-codigo">{{ c.codigo }}</span>
-        <span class="au-contrato-cliente">{{ c.nome_cliente }}</span>
+        <span class="au-contrato-cliente">
+          {{ c.nome_cliente }}
+          {% comment %}
+            O ESCOPO — §H1. "800 câmeras, 30 switches" responde "que contrato é
+            este?" sem sair da tela, e é a pergunta seguinte a "por que ele está
+            deficitário?".
+
+            `au-procedencia` e não uma classe nova: é a mesma coisa — texto
+            pequeno e secundário sob o principal —, e uma classe a mais seria
+            uma regra a mais para manter em sincronia com aquela.
+          {% endcomment %}
+          {% if c.escopo %}<small class="au-procedencia">{{ c.escopo|truncatechars:90 }}</small>{% endif %}
+        </span>
         <span class="au-contrato-margem">{{ c.margem_contribuicao_pct }}%</span>
         <span class="au-contrato-valor">R$ {{ c.valor_mensal|moeda }}</span>
       </li>
@@ -42,7 +54,19 @@
     {% for c in faixa.conteudo.abaixo_da_margem %}
       <li class="au-contrato">
         <span class="au-contrato-codigo">{{ c.codigo }}</span>
-        <span class="au-contrato-cliente">{{ c.nome_cliente }}</span>
+        <span class="au-contrato-cliente">
+          {{ c.nome_cliente }}
+          {% comment %}
+            O ESCOPO — §H1. "800 câmeras, 30 switches" responde "que contrato é
+            este?" sem sair da tela, e é a pergunta seguinte a "por que ele está
+            deficitário?".
+
+            `au-procedencia` e não uma classe nova: é a mesma coisa — texto
+            pequeno e secundário sob o principal —, e uma classe a mais seria
+            uma regra a mais para manter em sincronia com aquela.
+          {% endcomment %}
+          {% if c.escopo %}<small class="au-procedencia">{{ c.escopo|truncatechars:90 }}</small>{% endif %}
+        </span>
         <span class="au-contrato-margem">{{ c.margem_contribuicao_pct }}%</span>
         <span class="au-etiqueta">{% trans "Layer" %} {{ c.layer }}</span>
       </li>

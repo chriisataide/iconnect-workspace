@@ -415,6 +415,13 @@ class Contrato(ProcedenciaMixin):
         "resultados.Area", null=True, blank=True,
         on_delete=models.SET_NULL, related_name="contratos",
     )
+    #: O QUE está instalado, em texto — §H1. "800 câmeras, 30 switches PoE".
+    #:
+    #: Texto e não FK para um catálogo: nada consulta equipamento hoje — não há
+    #: filtro por câmera nem relatório por item —, e um modelo com FK por item
+    #: seria uma tabela que só a semeadora escreve. Quando existir a pergunta
+    #: ("quantas câmeras a empresa mantém?"), vira modelo.
+    escopo = models.TextField(blank=True)
     inicio_vigencia = models.DateField(null=True, blank=True)
     fim_vigencia = models.DateField(null=True, blank=True, db_index=True)
     valor_mensal = models.DecimalField(max_digits=14, decimal_places=2, default=0)

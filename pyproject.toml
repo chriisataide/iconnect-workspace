@@ -213,4 +213,9 @@ cargas = 97.0      # medido 97.39 · conectores, carregador, transporte
 #   mesmo contrato três vezes, e o que afirma o teto de nove blocos: a décima
 #   informação sempre parece necessária, e é ela que faz o CEO parar de abrir a
 #   tela.
-minimo = 3656
+# 3656 → 3666: o catálogo de equipamentos (H1). Cinco deles guardam as respostas
+#   da conferência de 09/09/2026 — LPR e térmica entram, cerca elétrica é
+#   escopo, eclusa e torniquete são itens diferentes, a central é própria —,
+#   para que remover um deles achando que a ADB não vende reprove com a data da
+#   conferência junto.
+minimo = 3666

@@ -45,6 +45,7 @@ from cargas.carregador import carregar
 from cargas.conectores import registro as reg
 from cargas.conectores.csv import ConectorCSV
 from cargas.models import Divergencia, ExecucaoCarga, FonteDados, Fonte, StatusCarga
+from resultados import equipamentos as eqp
 from resultados.plano_de_contas import PLANO
 
 SEMENTE = 42
@@ -584,6 +585,24 @@ def _contas_do_mes(contrato, linha, acaso) -> list[dict]:
     return linhas
 
 
+def _escopo(indice: int, layer: str) -> str:
+    """O que está instalado — §H1, com os dois arquétipos reais.
+
+    PREDIAL e REDE não diferem só em tamanho: diferem em FORMATO. O predial
+    concentra tudo num endereço e pesa em infraestrutura; a rede multiplica um
+    kit pequeno por centenas de unidades e pesa em deslocamento.
+
+    É essa diferença que faz o detalhamento por conta contábil ensinar alguma
+    coisa — sem ela, todo contrato tem a mesma cara e abrir a tabela não muda
+    nada. Os números vieram de contratos existentes (09/09/2026).
+    """
+    if indice % 3 == 0:
+        # REDE: quanto maior o layer, mais unidades.
+        unidades = {"3": 340, "2": 90, "1": 22}.get(layer, 12)
+        return eqp.escopo_de_rede(unidades)
+    return eqp.escopo_predial({"3": 1.0, "2": 0.35, "1": 0.12}.get(layer, 0.08))
+
+
 def _fixo(texto: str) -> int:
     """Um número estável a partir de um texto.
 
@@ -624,6 +643,7 @@ def _contratos(acaso: random.Random, hoje: date) -> list[dict]:
                 "fim_vigencia": (hoje + timedelta(days=200 + i * 9)).isoformat(),
                 "valor_mensal": str(valor),
                 "status": "ativo",
+                "escopo": _escopo(i, layer),
                 "_layer": layer,
             }
         )
@@ -657,6 +677,9 @@ def _contratos(acaso: random.Random, hoje: date) -> list[dict]:
             "fim_vigencia": (hoje + timedelta(days=340)).isoformat(),
             "valor_mensal": "90000",
             "status": "ativo",
+            # Um predial de porte médio: o contrato é novo, e o escopo é o que
+            # diz o que ele é enquanto não há histórico para a layer decidir.
+            "escopo": eqp.escopo_predial(0.35),
             "_layer": "sem_amostra",
         }
     )

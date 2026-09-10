@@ -401,6 +401,7 @@ class EspelhoLocal(
             # dia em que a empresa crescer.
             area=contrato.area.codigo if contrato.area_id else "",
             area_nome=contrato.area.nome if contrato.area_id else "",
+            escopo=contrato.escopo,
             inicio_vigencia=contrato.inicio_vigencia,
             fim_vigencia=contrato.fim_vigencia,
             valor_mensal=contrato.valor_mensal,
