@@ -133,6 +133,35 @@
   </table>
 </div>
 
+{% comment %}
+  AS SAFRAS — C5.
+
+  Responde "as perdas de 2023 ainda estão pesando?". A safra é DERIVADA do ano
+  de entrada (`C`) ou de saída (`P`) — nenhum campo novo no espelho, porque a
+  data já está lá e um terceiro lugar guardando o mesmo fato divergiria dela.
+
+  A lista sai do que EXISTE na carteira: `C2016…C2026` fixo ofereceria safras
+  vazias, e um filtro que devolve vazio parece quebrado. Sem caixa de busca —
+  uma década de anos cabe na tela.
+{% endcomment %}
+{% if faixa.conteudo.safras %}
+  <h3 class="au-subsecao">{% trans "Por safra" %}</h3>
+  <div class="au-filtros-chips">
+    {% for s in faixa.conteudo.safras %}
+      <a class="au-chip {% if s.chave == faixa.conteudo.safra_escolhida %}au-chip--ativo{% endif %} {% if s.perda %}au-chip--perda{% endif %}"
+         href="{% querystring safra=s.chave %}">{{ s.chave }} <small>({{ s.quantos }})</small></a>
+    {% endfor %}
+    {% if faixa.conteudo.safra_escolhida %}
+      <a class="au-chip" href="{% querystring safra=None %}">{% trans "todas" %}</a>
+    {% endif %}
+  </div>
+  {% if faixa.conteudo.grafico_safra %}
+    {% grafico faixa.conteudo.grafico_safra %}
+  {% elif faixa.conteudo.safra_escolhida %}
+    <p class="au-ajuda">{% trans "Esta safra não tem receita lançada na janela escolhida." %}</p>
+  {% endif %}
+{% endif %}
+
 <h3 class="au-subsecao">{% trans "Movimentação no período" %}</h3>
 <div class="au-colunas">
   <div>

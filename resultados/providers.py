@@ -325,6 +325,9 @@ class EspelhoLocal(
             ajuste_potencial=linha.ajuste_potencial,
             receita_orcada=linha.receita_orcada,
             custo_orcado=linha.custo_orcado,
+            impostos_orcado=linha.impostos_orcado,
+            custo_indireto_orcado=linha.custo_indireto_orcado,
+            ebitda_orcado=linha.ebitda_orcado,
             margem_orcada=linha.margem_orcada,
             contrato=linha.contrato.codigo if linha.contrato_id else "",
         )

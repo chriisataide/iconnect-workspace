@@ -57,6 +57,7 @@ DECIMAIS = frozenset({
     "valor_mensal", "receita_bruta", "impostos", "custo_direto", "custo_indireto",
     "margem_contribuicao", "ebitda", "ajuste_potencial", "receita_orcada",
     "custo_orcado", "margem_orcada", "turnover_pct", "absenteismo_pct",
+    "impostos_orcado", "custo_indireto_orcado", "ebitda_orcado",
     "horas_normais", "he_total", "he_ineficiencia", "he_servico_extra",
     "he_sem_classificacao", "hora_escala", "hora_abono", "hora_desconto",
     "hora_noturna", "banco_horas_saldo",

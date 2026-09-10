@@ -19,22 +19,9 @@ class _Linha:
         self.receita_bruta = Decimal(receita)
 
 
-class _Provedor:
-    """Devolve o que lhe deram, ignorando a janela — o recorte é testado noutro
-    lugar, e aqui o assunto é o agrupamento."""
-
-    def __init__(self, linhas):
-        self.linhas = linhas
-        self.chamadas = []
-
-    def serie_competencia(self, escopo, de, ate):
-        self.chamadas.append((de, ate))
-        return self.linhas
-
-
 def _bloco(linhas, mes="2026-09"):
     return svc.trimestral(
-        _Provedor(linhas), None, svc.ler_filtros({"mes": mes}, hoje=date(2026, 9, 1))
+        linhas, svc.ler_filtros({"mes": mes}, hoje=date(2026, 9, 1))
     )
 
 
@@ -106,25 +93,21 @@ def test_sem_serie_nao_ha_bloco():
     assert _bloco([]) is None
 
 
-def test_sem_provedor_nao_estoura():
-    assert svc.trimestral(None, None, svc.ler_filtros({})) is None
+def test_sem_serie_nao_estoura():
+    assert svc.trimestral(None, svc.ler_filtros({})) is None
 
 
 # ── A janela ────────────────────────────────────────────────────────
 
 
-def test_busca_a_PROPRIA_janela_de_24_meses():
-    """O seletor de período governa os gráficos mensais. Reusar a série dele
-    aqui dava um gráfico sem nenhum trimestre comparável."""
-    provedor = _Provedor(_cheio(2026, 1) + _cheio(2025, 1))
+def test_a_janela_longa_e_de_24_meses():
+    """O seletor de período governa os gráficos mensais, e com a série dele
+    nenhum trimestre tinha os dois anos.
 
-    svc.trimestral(
-        provedor, None, svc.ler_filtros({"mes": "2026-09", "periodo": "3m"})
-    )
-
-    de, ate = provedor.chamadas[0]
+    A busca dos vinte e quatro meses mora na faixa do dinheiro e é lida também
+    pela tendência da safra (C5) — antes cada um buscava a sua, e a safra não
+    buscava nenhuma."""
     assert svc.MESES_DO_TRIMESTRAL == 24
-    assert (ate.year - de.year) * 12 + (ate.month - de.month) == 23
 
 
 def test_mostra_no_maximo_tres_anos():

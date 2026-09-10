@@ -105,6 +105,9 @@ class CompetenciaDTO(ComProcedencia):
     #: 100% — que é o que uma conciliação de centro de custo quebrada produz.
     receita_orcada: Decimal | None = None
     custo_orcado: Decimal | None = None
+    impostos_orcado: Decimal | None = None
+    custo_indireto_orcado: Decimal | None = None
+    ebitda_orcado: Decimal | None = None
     margem_orcada: Decimal | None = None
     contrato: str = ""
 

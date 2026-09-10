@@ -4764,3 +4764,8 @@ tr[data-abre-resumo]:focus-visible {
 }
 .au-painel-caixa p { margin: 0 0 var(--au-1); font-size: var(--au-t-sm); }
 .au-painel-fontes { margin-top: var(--au-5); }
+
+/* A safra de PERDA, distinta da de conquista — C5. Borda e não só matiz: a
+ * lista mistura `C2023` e `P2023`, e a letra sozinha exige leitura atenta de
+ * uma lista de vinte chips. */
+.au-chip--perda { border-color: var(--au-danger); }

@@ -255,6 +255,8 @@ class Filtros:
     expandidos: tuple[str, ...] = ()
     #: Como a tabela contábil mostra os números — D3.
     numeros: str = MODO_ABSOLUTO
+    #: A safra escolhida — `C2023` ou `P2019`. Vazio mostra a lista.
+    safra: str = ""
 
     @property
     def tudo_aberto(self) -> bool:
@@ -388,6 +390,7 @@ def ler_filtros(parametros, hoje: date | None = None) -> Filtros:
         comparar=_comparacao(parametros),
         expandidos=_expandidos(parametros),
         numeros=_modo_dos_numeros(parametros),
+        safra=(parametros.get("safra") or "").strip().upper()[:6],
         dimensao=(parametros.get("dim") or "").strip()[:20],
     )
 
@@ -591,8 +594,19 @@ def dinheiro(escopo: contrato.Escopo, filtros: Filtros) -> Faixa:
             escopo, filtros.de_comparado, filtros.ate_comparado
         )
 
+    # A SÉRIE LONGA — 24 meses, buscada UMA vez e lida por dois blocos.
+    #
+    # O comparativo trimestral (F2) e a tendência da safra (C5) comparam com o
+    # MESMO MÊS do ano anterior, e a série do seletor de período tem doze meses:
+    # nenhum dos dois encontrava par. Antes disso o trimestral buscava sozinho,
+    # e a safra mostrava "—" em toda linha.
+    serie_longa = provedor.serie_competencia(
+        escopo, _recuar(filtros.competencia, MESES_DO_TRIMESTRAL - 1), filtros.ate
+    )
+
     faixa.conteudo = {
         "serie": serie,
+        "serie_longa": serie_longa,
         "comparacao": _comparacao_em_texto(serie, comparada, filtros),
         "linhas": [_linha_de_dinamica(linha) for linha in do_mes],
         "totais": _totais(do_mes),
@@ -610,14 +624,29 @@ def dinheiro(escopo: contrato.Escopo, filtros: Filtros) -> Faixa:
             comparada=comparada,
             rotulo_comparado=filtros.rotulo_do_comparado,
         ),
-        # EBITDA fica SEM par: o espelho não traz EBITDA orçado. Inventar um
-        # denominador para ter a linha seria a pior forma de completar um
-        # gráfico — o bloco diz o que tem, e a razão fica de fora.
+        # C2 · IMPOSTOS, agora com par. A coluna `impostos_orcado` chegou em
+        # 10/09/2026 e destravou este gráfico e o de indireto.
+        "grafico_impostos": _bloco_comparado(
+            serie, "impostos", "impostos_orcado", "impostos",
+            _titulo("Impostos", filtros),
+        ),
+        # C3 · INDIRETO. O orçado dele mora nas linhas de RATEIO — é o que ele
+        # é. Nos contratos vem vazio, e a tela diz "sem orçado" em vez de
+        # mostrar variação de 100%.
+        "grafico_indireto": _bloco_comparado(
+            serie, "custo_indireto", "custo_indireto_orcado", "indireto",
+            _titulo("Custo indireto", filtros),
+        ),
         # O COMPARATIVO TRIMESTRAL — F2. Sai da mesma série: uma consulta
         # própria daria um quarto caminho para o mesmo número.
-        "grafico_trimestral": trimestral(provedor, escopo, filtros),
-        "grafico_ebitda": _bloco_mensal(
-            serie, "ebitda", "ebitda", _titulo("EBITDA", filtros)
+        "grafico_trimestral": trimestral(serie_longa, filtros),
+        # O EBITDA GANHOU PAR. Ele ficava sem porque o espelho não trazia
+        # `ebitda_orcado`, e a nota anterior dizia que inventar um denominador
+        # para completar o gráfico seria a pior forma de fazê-lo. A coluna
+        # chegou, e a linha passou a ser calculada em vez de inventada.
+        "grafico_ebitda": _bloco_comparado(
+            serie, "ebitda", "ebitda_orcado", "ebitda",
+            _titulo("EBITDA", filtros),
         ),
     }
     return faixa
@@ -821,7 +850,7 @@ def _com_leitura(faixas: dict, filtros: Filtros) -> None:
             faixa.leitura = ""
 
 
-def _com_graficos(faixas: dict) -> None:
+def _com_graficos(faixas: dict, filtros: Filtros | None = None) -> None:
     """Acrescenta o gráfico de cada faixa — passo 6.
 
     Fora dos montadores de propósito: eles são a leitura do espelho, e desenhar
@@ -836,6 +865,25 @@ def _com_graficos(faixas: dict) -> None:
             1
             for c in contratos_.conteudo.get("carteira", [])
             if c.margem_contribuicao_pct is None or c.layer == SEM_AMOSTRA
+        )
+
+    # C5 · AS SAFRAS. Aqui e não dentro de um montador porque o bloco precisa
+    # de DUAS faixas: a série mensal está no dinheiro e a carteira está nos
+    # contratos. Montá-lo em qualquer uma das duas custaria uma consulta que a
+    # outra já pagou.
+    dinheiro_ = faixas.get("dinheiro")
+    if contratos_ is not None and contratos_.disponivel and contratos_.conteudo:
+        carteira = contratos_.conteudo.get("carteira", [])
+        contratos_.conteudo["safras"] = safras_da_carteira(carteira)
+        escolhida = getattr(filtros, "safra", "")
+        contratos_.conteudo["safra_escolhida"] = escolhida
+        # A SÉRIE LONGA: a tendência é contra o mesmo mês do ano anterior, e
+        # com doze meses ela era "—" em toda linha.
+        serie = (getattr(dinheiro_, "conteudo", None) or {}).get("serie_longa") or []
+        contratos_.conteudo["grafico_safra"] = (
+            grafico_da_safra(serie, carteira, escolhida, filtros)
+            if escolhida and filtros
+            else None
         )
 
     vencimentos_ = faixas.get("vencimentos")
@@ -1435,19 +1483,18 @@ ANOS_NO_TRIMESTRAL = 3
 MESES_DO_TRIMESTRAL = 24
 
 
-def trimestral(provedor, escopo, filtros: Filtros):
+def trimestral(serie, filtros: Filtros):
     """Receita por trimestre, uma cor por ano — F2.
 
-    ## Ele busca a PRÓPRIA janela, e é a única faixa que faz isso
+    ## Ele lê a SÉRIE LONGA, e não a do seletor de período
 
-    Comparar anos exige dois anos. O seletor de período governa os gráficos
-    mensais — "quero ver seis meses" —, e reusar a série dele aqui produzia um
-    gráfico em que NENHUM trimestre tinha os dois anos: quatro barras de 2026 ao
-    lado de uma de 2025, medido antes de este parágrafo existir.
+    Comparar anos exige dois anos. O seletor governa os gráficos mensais —
+    "quero ver seis meses" —, e com a série dele NENHUM trimestre tinha os dois
+    anos: quatro barras de 2026 ao lado de uma de 2025, medido.
 
-    A consulta extra é o preço de a pergunta ser outra. O que ela NÃO faz é
-    mudar de escopo: é o mesmo `escopo` já recortado pela permissão e pelos
-    filtros, e por isso não há como ela mostrar mais do que a tela mostra.
+    A série de vinte e quatro meses é buscada uma vez na faixa e lida também
+    pela tendência da safra (C5). Antes ela era buscada aqui dentro, e a safra
+    não tinha nenhuma — mostrando "—" em toda linha.
 
     ## O trimestre PARCIAL é o ponto do bloco
 
@@ -1466,11 +1513,6 @@ def trimestral(provedor, escopo, filtros: Filtros):
     """
     from workspace.graficos import series as g
 
-    if provedor is None:
-        return None
-    # `MESES_DO_TRIMESTRAL` meses para trás a partir do fim do mês escolhido.
-    de = _recuar(filtros.competencia, MESES_DO_TRIMESTRAL - 1)
-    serie = provedor.serie_competencia(escopo, de, filtros.ate)
     if not serie:
         return None
 
@@ -1795,6 +1837,98 @@ def contratos(escopo: contrato.Escopo, filtros: Filtros) -> Faixa:
         "movimentacao": provedor.movimentacoes(escopo, filtros.de, filtros.ate),
     }
     return faixa
+
+
+# ── C5 · as safras ──────────────────────────────────────────────────
+
+
+def _safra_de(contrato_dto) -> str | None:
+    """`C2023` para quem entrou em 2023, `P2019` para quem saiu em 2019.
+
+    DERIVADA e não gravada: o ano de entrada já é `inicio_vigencia` e o de saída
+    é `fim_vigencia`. Um campo `safra` no espelho seria um terceiro lugar
+    guardando o mesmo fato, e o dia em que discordasse da data ninguém saberia
+    qual das duas está certa.
+    """
+    if contrato_dto.status == "encerrado" and contrato_dto.fim_vigencia:
+        return f"P{contrato_dto.fim_vigencia.year}"
+    if contrato_dto.inicio_vigencia:
+        return f"C{contrato_dto.inicio_vigencia.year}"
+    return None
+
+
+def safras_da_carteira(carteira) -> list[dict]:
+    """As safras presentes, das mais recentes para as mais antigas.
+
+    Saem do que EXISTE, e não de um intervalo fixo de anos: `C2016…C2026` numa
+    carteira que começa em 2019 ofereceria três safras vazias, e um filtro que
+    devolve vazio parece quebrado.
+    """
+    contagem: dict[str, int] = {}
+    for c in carteira:
+        chave = _safra_de(c)
+        if chave:
+            contagem[chave] = contagem.get(chave, 0) + 1
+    return [
+        {"chave": chave, "quantos": quantos, "perda": chave.startswith("P")}
+        for chave, quantos in sorted(contagem.items(), reverse=True)
+    ]
+
+
+def grafico_da_safra(serie, carteira, safra: str, filtros: Filtros):
+    """A receita mensal dos contratos de UMA safra, com a tendência anual.
+
+    Responde "as perdas de 2023 ainda estão pesando?" — e a linha é contra o
+    MESMO MÊS do ano anterior, e não contra o mês anterior: uma safra é um
+    fenômeno de doze meses, e comparar agosto com julho dentro dela mede
+    sazonalidade em vez de tendência.
+    """
+    from workspace.graficos import series as g
+
+    codigos = {c.codigo for c in carteira if _safra_de(c) == safra}
+    if not codigos:
+        return None
+
+    por_mes: dict[str, Decimal] = {}
+    ordem: list[str] = []
+    bruto: dict[tuple[int, int], Decimal] = {}
+    for linha in serie:
+        if linha.contrato not in codigos:
+            continue
+        rotulo = f"{linha.mes:02d}/{str(linha.ano)[2:]}"
+        if rotulo not in por_mes:
+            por_mes[rotulo] = Decimal("0")
+            ordem.append(rotulo)
+        receita = linha.receita_bruta or Decimal("0")
+        por_mes[rotulo] += receita
+        bruto[(linha.ano, linha.mes)] = bruto.get(
+            (linha.ano, linha.mes), Decimal("0")
+        ) + receita
+
+    if not ordem:
+        return None
+
+    pontos = [(rotulo, por_mes[rotulo], None) for rotulo in ordem]
+    tendencia = []
+    for rotulo in ordem:
+        mes, ano = rotulo.split("/")
+        atual = bruto[(2000 + int(ano), int(mes))]
+        antes = bruto.get((2000 + int(ano) - 1, int(mes)))
+        # `None` sem o mesmo mês do ano anterior — a safra pode ser nova, e
+        # inventar 100% faria o primeiro ano parecer crescimento infinito.
+        tendencia.append(
+            (atual / antes * 100).quantize(Decimal("0.1")) if antes else None
+        )
+
+    return g.barras_comparadas(
+        pontos,
+        chave=f"safra-{safra}",
+        titulo=f"Safra {safra} — receita mensal",
+        rotulo_a="Receita",
+        rotulo_b="",
+        rotulo_linha="% contra o mesmo mês do ano anterior",
+        linha=tendencia,
+    )
 
 
 def _filtrar_carteira(carteira, filtros: Filtros):
@@ -2459,7 +2593,7 @@ def _painel(
     # uma vez tornaria impossível dizer qual delas quebrou.
     if perfura:
         _com_perfuracao(faixas["dinheiro"], recorte, filtros)
-    _com_graficos(faixas)
+    _com_graficos(faixas, filtros)
     _com_leitura(faixas, filtros)
 
     opcoes = _opcoes_de_atributo(escopo)
@@ -2677,6 +2811,7 @@ def _url_com(base: str, filtros: Filtros, **mudancas) -> str:
         # O modo ABSOLUTO não vai para a URL: ele é o padrão, e carregá-lo
         # deixaria `?numeros=reais` em todo link que alguém compartilha.
         "numeros": "" if filtros.numeros == MODO_ABSOLUTO else filtros.numeros,
+        "safra": filtros.safra,
         "dim": filtros.dimensao,
     }
     if filtros.deficitario:

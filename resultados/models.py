@@ -484,6 +484,18 @@ class CompetenciaResultado(ProcedenciaMixin):
     custo_orcado = models.DecimalField(
         max_digits=16, decimal_places=2, null=True, blank=True
     )
+    #: As TRÊS que faltavam — sem elas, C2 e C3 não tinham par para comparar e
+    #: os gráficos de imposto, indireto e EBITDA saíam sem a barra do orçado.
+    #: Anuláveis como as outras: sem orçado é diferente de orçado zero.
+    impostos_orcado = models.DecimalField(
+        max_digits=16, decimal_places=2, null=True, blank=True
+    )
+    custo_indireto_orcado = models.DecimalField(
+        max_digits=16, decimal_places=2, null=True, blank=True
+    )
+    ebitda_orcado = models.DecimalField(
+        max_digits=16, decimal_places=2, null=True, blank=True
+    )
     margem_orcada = models.DecimalField(
         max_digits=16, decimal_places=2, null=True, blank=True
     )

@@ -218,4 +218,11 @@ cargas = 97.0      # medido 97.39 · conectores, carregador, transporte
 #   escopo, eclusa e torniquete são itens diferentes, a central é própria —,
 #   para que remover um deles achando que a ADB não vende reprove com a data da
 #   conferência junto.
-minimo = 3666
+# 3666 → 3678: as três colunas orçadas (C2/C3) e as safras (C5). O que mais
+#   protege é o que virou do avesso: `test_o_ebitda_nao_ganha_par_inventado`
+#   garantia que o gráfico NÃO tinha par enquanto o espelho não trazia a
+#   coluna. A coluna chegou, e ele passou a guardar a outra metade da mesma
+#   regra — a barra do orçado só existe quando o espelho a traz, e sem ela o
+#   mês fica sem barra em vez de com um zero que seria lido como "não cumpriu
+#   nada".
+minimo = 3678

@@ -723,6 +723,17 @@ def _competencias_de_resultado(acaso, contratos, competencias) -> list[dict]:
                 "receita_orcada": str((valor * Decimal("1.03")).quantize(Decimal("0.01"))),
                 "custo_orcado": "",
                 "margem_orcada": "",
+                # As TRÊS que destravam C2 e C3. Orçadas um pouco ABAIXO do
+                # realizado de propósito: um orçamento que sempre bate deixa a
+                # linha de "% do orçado" colada em 100% e o gráfico não ensina
+                # nada — a pergunta dele é justamente onde o mês saiu da conta.
+                "impostos_orcado": str(
+                    (impostos * Decimal("0.97")).quantize(Decimal("0.01"))
+                ),
+                "custo_indireto_orcado": "",
+                "ebitda_orcado": str(
+                    (mc * Decimal("0.62") * Decimal("1.05")).quantize(Decimal("0.01"))
+                ),
             }
 
             # DEFEITO 10 — uma competência com receita lançada e custo AUSENTE.
@@ -790,6 +801,14 @@ def _rateios(acaso, competencias) -> list[dict]:
                 "receita_orcada": str((custo / Decimal("0.97")).quantize(Decimal("0.01"))),
                 "custo_orcado": "",
                 "margem_orcada": "",
+                "impostos_orcado": "",
+                # A linha de rateio é onde o INDIRETO tem orçado — é ela que ele
+                # é. Nos contratos ele fica vazio, e a tela diz "sem orçado" em
+                # vez de mostrar variação de 100%.
+                "custo_indireto_orcado": str(
+                    (custo * Decimal("0.94")).quantize(Decimal("0.01"))
+                ),
+                "ebitda_orcado": "",
             }
             # DEFEITO 6 — um CC SEM orçamento definido. A barra precisa dizer
             # isso, e a faixa 2 precisa marcar a linha como "sem orçado" em vez

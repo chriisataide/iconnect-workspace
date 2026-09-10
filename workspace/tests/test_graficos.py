@@ -576,18 +576,38 @@ def test_mes_sem_orcado_nao_vira_ponto_em_zero_na_linha():
     assert fonte[1][3] is None, "sem orçado, sem ponto na linha"
 
 
-def test_o_ebitda_nao_ganha_par_inventado(client, espelho, diretoria):
-    """O espelho não traz EBITDA orçado. Inventar um denominador para ter a
-    linha seria a pior forma de completar um gráfico."""
+def test_o_par_do_ebitda_e_CALCULADO_e_nao_inventado(client, espelho, diretoria):
+    """O EBITDA ficou sem par até 10/09/2026, e a nota de então dizia por quê: o
+    espelho não trazia `ebitda_orcado`, e inventar um denominador para ter a
+    linha seria a pior forma de completar um gráfico.
+
+    A coluna chegou. O que este teste guarda agora é a outra metade da mesma
+    regra: a barra do orçado só existe quando o ESPELHO a traz — sem
+    `ebitda_orcado` na competência, o mês fica sem barra clara e sem ponto na
+    linha, e não com um zero que seria lido como "não cumpriu nada".
+    """
+    from resultados.models import CompetenciaResultado
+
     client.force_login(diretoria)
-
     html = client.get(reverse("workspace:resultados")).content.decode()
-    corpo = re.search(
-        r'id="grafico-dados-ebitda"[^>]*>(.*?)</script>', html, re.S
-    ).group(1)
-    option = json.loads(corpo)
+    option = json.loads(
+        re.search(r'id="grafico-dados-ebitda"[^>]*>(.*?)</script>', html, re.S)
+        .group(1)
+    )
 
-    assert len(option["series"]) == 1
+    assert len(option["series"]) >= 2, "com orçado no espelho, há par"
+
+    CompetenciaResultado.objects.update(ebitda_orcado=None)
+    html = client.get(reverse("workspace:resultados")).content.decode()
+    option = json.loads(
+        re.search(r'id="grafico-dados-ebitda"[^>]*>(.*?)</script>', html, re.S)
+        .group(1)
+    )
+    orcado = [
+        linha[2] for linha in option["dataset"]["source"]
+    ]
+
+    assert all(v is None for v in orcado), "sem orçado, sem barra — nunca zero"
 
 
 # ── Os filtros ──────────────────────────────────────────────────────

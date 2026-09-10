@@ -93,6 +93,13 @@
 
 <div class="au-graficos">
   {% grafico faixa.conteudo.grafico_receita %}
+  {% comment %}
+    C2 e C3 — impostos e indireto. Entraram em 10/09/2026, quando as três
+    colunas orçadas chegaram ao espelho: antes deles a linha de "% do orçado"
+    não tinha denominador, e o gráfico saía com uma barra só.
+  {% endcomment %}
+  {% grafico faixa.conteudo.grafico_impostos %}
+  {% grafico faixa.conteudo.grafico_indireto %}
   {% grafico faixa.conteudo.grafico_ebitda %}
 
 {% comment %}
