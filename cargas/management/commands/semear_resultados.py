@@ -45,13 +45,20 @@ from cargas.carregador import carregar
 from cargas.conectores import registro as reg
 from cargas.conectores.csv import ConectorCSV
 from cargas.models import Divergencia, ExecucaoCarga, FonteDados, Fonte, StatusCarga
+from resultados import equipamentos as eqp
+from resultados.plano_de_contas import PLANO
 
 SEMENTE = 42
 MESES = 24
 
 REGIONAIS = ("Sudeste", "Sul", "Nordeste", "Centro-Oeste")
 CENTROS = tuple(f"{1000 + i * 7}" for i in range(12))
-SERVICOS = ("cftv", "alarme", "monitoramento", "instalacao", "manutencao")
+#: COMO o contrato foi vendido — ver `resultados.models.ServicoContrato`.
+#: A lista antiga (`cftv`, `alarme`, `instalacao`) misturava equipamento com
+#: contratação, e por isso o filtro por serviço não separava nada comparável.
+SERVICOS = (
+    "projeto", "monitoramento", "manutencao", "locacao", "projeto_turnkey",
+)
 
 #: Clientes claramente inventados. Nome de cliente real numa massa versionada é
 #: vazamento com aparência de exemplo.
@@ -84,7 +91,10 @@ SAZONALIDADE = {
 
 #: Cada fonte recebe as entidades que ela seria dona no mundo real.
 POR_FONTE = {
-    Fonte.SANKHYA: ("competencia", "quadro", "apontamento"),
+    # `conta` é do SANKHYA, como a competência: o razão contábil vem do ERP, e
+    # o agregado é derivado dele. Pô-lo noutra fonte faria a tela mostrar dois
+    # carimbos de frescor para números que têm de fechar entre si.
+    Fonte.SANKHYA: ("competencia", "conta", "quadro", "apontamento"),
     Fonte.MONDAY: ("projeto", "marco"),
     Fonte.PLATFORM: ("contrato", "avaliacao"),
 }
@@ -116,6 +126,17 @@ class Command(BaseCommand):
                 )
             )
             return
+
+        if not _plano_semeado():
+            # AVISO e não erro: a massa é válida sem o bloco D, e quem só quer
+            # ver as outras faixas não deve ser bloqueado por causa dele.
+            self.stdout.write(
+                self.style.WARNING(
+                    "O plano de contas está vazio — o razão por conta NÃO será "
+                    "gerado, e a tabela contábil dirá que falta lançamento. "
+                    "Rode `semear_plano_de_contas --aplicar` e semeie de novo."
+                )
+            )
 
         if opcoes["limpar"] and aplicar:
             self._limpar()
@@ -266,15 +287,320 @@ def _montar(acaso: random.Random, meses: int) -> dict[str, list[dict]]:
     competencias = _competencias(hoje, meses)
 
     contratos = _contratos(acaso, hoje)
+    # As competências são montadas UMA vez e reusadas pelas contas. Recalcular
+    # produziria dois conjuntos com o mesmo `random` consumido em ordens
+    # diferentes — e o razão não fecharia com o agregado por uma razão que
+    # ninguém acharia olhando o código do bloco D.
+    resultados = _competencias_de_resultado(acaso, contratos, competencias)
     return {
         "contrato": contratos,
-        "competencia": _competencias_de_resultado(acaso, contratos, competencias),
+        "competencia": resultados,
         "projeto": _projetos(acaso, contratos, hoje),
         "marco": _marcos(acaso, hoje),
         "quadro": _quadros(acaso, competencias),
         "apontamento": _apontamentos(acaso, competencias),
         "avaliacao": _avaliacoes(contratos, hoje),
+        "conta": _contas(acaso, contratos, resultados),
     }
+
+
+def _contas(acaso, contratos, resultados) -> list[dict]:
+    """O razão de todos os contratos, derivado das competências já montadas.
+
+    Derivado e não gerado à parte: o agregado é a verdade, e o detalhe tem de
+    somar exatamente ele. Gerar os dois de forma independente daria duas
+    verdades sobre o mesmo mês.
+
+    As linhas de RATEIO de centro de custo entram também, com o peso
+    administrativo — e isso não é detalhe.
+
+    Deixá-las de fora foi a primeira tentativa, com o argumento de "não inventar
+    o rateio contábil". O argumento não se sustenta: a decomposição inteira já é
+    inventada. E o custo era alto — a soma da tabela contábil não fechava com a
+    margem de contribuição da faixa logo acima dela, porque os rateios entram
+    numa e não na outra. Detalhe que não bate com o total destrói a confiança na
+    tela inteira, e é a única coisa que o bloco D não pode errar.
+    """
+    # SEM PLANO, SEM RAZÃO. O aviso sai em `handle`, pelo `self.stdout` — aqui
+    # não há de onde escrever, e um `print` não apareceria na captura de quem
+    # chama o comando de dentro de um teste.
+    #
+    # Gerar as linhas assim mesmo produziria três mil lançamentos apontando para
+    # contas que não existem, e a tela mostraria "3.000 lançamentos vieram com
+    # códigos que não estão no plano" — um alarme sobre um problema que o
+    # próprio seeder criou.
+    if not _plano_semeado():
+        return []
+
+    por_codigo = {c["codigo"]: c for c in contratos}
+    recentes = _meses_recentes(resultados, MESES_DE_RAZAO)
+    linhas: list[dict] = []
+    for resultado in resultados:
+        if (int(resultado["ano"]), int(resultado["mes"])) not in recentes:
+            continue
+        contrato = por_codigo.get(resultado.get("contrato"))
+        if contrato is None:
+            linhas += _contas_do_rateio(resultado)
+        else:
+            linhas += _contas_do_mes(contrato, resultado, acaso)
+    return linhas
+
+
+def _plano_semeado() -> bool:
+    """O plano de contas existe? É pré-requisito do razão, como as fontes são
+    da massa inteira."""
+    from resultados.models import ContaContabil
+
+    return ContaContabil.objects.exists()
+
+
+def _meses_recentes(resultados, quantos: int) -> set[tuple[int, int]]:
+    """Os `quantos` meses mais recentes presentes nas competências.
+
+    Derivado do que EXISTE, e não de `hoje`: se a massa mudar de janela, o razão
+    acompanha sozinho — e nunca sobra um mês de razão sem competência para
+    fechar com ele.
+    """
+    meses = {(int(r["ano"]), int(r["mes"])) for r in resultados}
+    return set(sorted(meses, reverse=True)[:quantos])
+
+
+#: Quantos meses de RAZÃO a massa gera, contando o corrente.
+#:
+#: Seis, e não os vinte e quatro das competências. A tabela contábil é do MÊS —
+#: ela responde "onde foi o dinheiro deste mês", e nunca mostra dois meses
+#: juntos. Vinte e quatro meses de razão numa massa de demonstração são dez mil
+#: linhas que nenhuma tela lê.
+#:
+#: O preço, declarado: abrindo um mês anterior ao sexto, o bloco D diz "sem
+#: lançamento por conta contábil" enquanto a faixa do dinheiro mostra números.
+#: É honesto — é exatamente o que uma sincronização parcial do Sankhya produz —
+#: e é um estado que o roteiro de QA precisa exercitar de qualquer jeito.
+#:
+#: O efeito colateral é bem-vindo: a suíte tinha passado de 8min30 para 13min14
+#: porque vinte testes semeiam a massa inteira, um por um.
+MESES_DE_RAZAO = 6
+
+#: O peso do rateio administrativo. Sem gente na ponta e sem equipamento: é a
+#: estrutura que não pertence a cliente nenhum.
+PESO_DO_RATEIO: tuple[tuple[str, float], ...] = (
+    ("41601", 0.31), ("41602", 0.14), ("41701", 0.12),
+    ("41603", 0.08), ("41403", 0.15), ("41801", 0.20),
+)
+
+
+def _contas_do_rateio(linha) -> list[dict]:
+    """O razão de uma linha de centro de custo — a que não tem contrato.
+
+    O valor decomposto é o `custo_indireto`, e não o `custo_direto`: por
+    definição essa linha é indireta, e é assim que ela aparece na faixa do
+    dinheiro.
+    """
+    centro = linha["centro_custo"]
+    ano, mes = int(linha["ano"]), int(linha["mes"])
+    custo = Decimal(linha["custo_indireto"] or "0")
+    if not custo:
+        return []
+
+    linhas: list[dict] = []
+    for grupo, valor in _partes(custo, PESO_DO_RATEIO):
+        quantas = min(ANALITICAS_DO_GRUPO.get(grupo, 0), ANALITICAS_POR_GRUPO)
+        if quantas:
+            fatias = (0.55, 0.30, 0.15)[:quantas]
+            soma = sum(fatias)
+            pesos = tuple(
+                (f"{grupo}{i + 1:03d}", p / soma) for i, p in enumerate(fatias)
+            )
+        else:
+            pesos = ((grupo, 1.0),)
+        for conta, parcela in _partes(valor, pesos):
+            linhas.append({
+                "chave_externa": f"snk-cc{centro}-{ano}{mes:02d}-{conta}",
+                # SEM contrato — é o rateio, e ele precisa aparecer no nível do
+                # centro de custo em vez de sumir do total.
+                "contrato": "",
+                "centro_custo": centro,
+                "ano": str(ano),
+                "mes": str(mes),
+                "conta": conta,
+                "codigo_origem": conta,
+                "valor_realizado": str(parcela),
+                "ajustes": "0",
+                "valor_orcado": "",
+            })
+    return linhas
+
+
+#: O PESO DE CADA GRUPO DE CONTA, por forma de contratação.
+#:
+#: É isto que torna o detalhamento útil. Sem a diferença, todo contrato tem a
+#: mesma cara e abrir a tabela não ensina nada — a pessoa olha uma vez e não
+#: volta.
+#:
+#: Os pesos somam 1 em cada serviço, e a decomposição usa o ÚLTIMO grupo como
+#: resto: distribuir por arredondamento faria a soma das contas ficar alguns
+#: centavos longe do custo direto, e o teste que confere se o detalhe fecha com
+#: o agregado reprovaria por um erro que não é de negócio.
+PESO_POR_SERVICO: dict[str, tuple[tuple[str, float], ...]] = {
+    # Gente na ponta e link de dados — é o que um contrato de monitoramento é.
+    "monitoramento": (
+        ("41101", 0.46), ("41104", 0.14), ("41106", 0.09),
+        ("41602", 0.11), ("41301", 0.06), ("41501", 0.05),
+        ("41401", 0.09),
+    ),
+    # Deslocamento e peça. O técnico vai até lá, e leva material.
+    "manutencao": (
+        ("41301", 0.24), ("41504", 0.27), ("41101", 0.22),
+        ("41104", 0.07), ("41505", 0.06), ("41501", 0.06),
+        ("41401", 0.08),
+    ),
+    # O ativo é da empresa: deprecia e é alugado.
+    "locacao": (
+        ("41801", 0.38), ("41403", 0.21), ("41504", 0.14),
+        ("41101", 0.12), ("41301", 0.05), ("41602", 0.04),
+        ("41401", 0.06),
+    ),
+    "projeto": (
+        ("41401", 0.28), ("41501", 0.19), ("41504", 0.18),
+        ("41101", 0.20), ("41104", 0.06), ("41301", 0.05),
+        ("41502", 0.04),
+    ),
+    # Turnkey: a empresa responde pelo resultado inteiro, e o equipamento é a
+    # maior fatia — é por isso que o estouro dele dói tanto (defeito 16).
+    "projeto_turnkey": (
+        ("41504", 0.34), ("41401", 0.23), ("41101", 0.16),
+        ("41501", 0.10), ("41301", 0.06), ("41104", 0.05),
+        ("41403", 0.06),
+    ),
+}
+
+#: Quantas contas analíticas de cada grupo recebem valor. Três: uma só faria a
+#: expansão do grupo mostrar uma linha idêntica ao grupo, e o nível 2 pareceria
+#: quebrado.
+ANALITICAS_POR_GRUPO = 3
+
+#: `grupo → quantas analíticas ele tem no plano`. Derivado do próprio plano, e
+#: não escrito à mão: uma lista paralela divergiria dele na primeira conta nova,
+#: e o sintoma seria despesa caindo em "Conta não cadastrada" sem motivo.
+ANALITICAS_DO_GRUPO = {
+    codigo: len(analiticas) for codigo, _, _, _, analiticas in PLANO
+}
+
+#: As contas de receita e de imposto. A receita não muda com o serviço — o que
+#: muda é como ela foi vendida, e isso já está em `Contrato.servico`.
+CONTAS_DE_RECEITA = (("31101", 1.0),)
+CONTAS_DE_IMPOSTO = (("31201", 1.0),)
+
+
+def _partes(total: Decimal, pesos) -> list[tuple[str, Decimal]]:
+    """Divide `total` entre os grupos, com o último recebendo o RESTO.
+
+    O resto e não o arredondamento de cada parte: somar sete valores arredondados
+    dá alguns centavos a mais ou a menos que o total, e a tela mostraria um
+    detalhamento que não fecha com o número logo acima dele.
+    """
+    partes = []
+    acumulado = Decimal("0")
+    for i, (grupo, peso) in enumerate(pesos):
+        if i == len(pesos) - 1:
+            valor = total - acumulado
+        else:
+            valor = (total * Decimal(str(peso))).quantize(Decimal("0.01"))
+            acumulado += valor
+        partes.append((grupo, valor))
+    return partes
+
+
+def _contas_do_mes(contrato, linha, acaso) -> list[dict]:
+    """As linhas do razão de UM contrato num mês.
+
+    Elas somam exatamente a receita, os impostos e o custo direto da
+    `competencia` correspondente — há teste conferindo isso, e é a única coisa
+    que o bloco D não pode errar.
+    """
+    codigo = contrato["codigo"]
+    servico = contrato["servico"]
+    ano, mes = int(linha["ano"]), int(linha["mes"])
+    linhas: list[dict] = []
+
+    def emitir(grupo: str, valor: Decimal, orcado: Decimal | None) -> None:
+        """Espalha o valor entre as analíticas do grupo — as que EXISTEM.
+
+        Alguns grupos não têm analítica no plano: `41801` DEPRECIAÇÕES e
+        `41103` PARTICIPAÇÃO NOS RESULTADOS são lançados direto no sintético.
+        Gerar `41801001` para eles produzia 431 linhas com `conta` nula — o
+        caminho de "conta não cadastrada", que existe para o dia em que a fonte
+        real mandar um código novo, e não para a massa se enganar sozinha.
+
+        A quantidade sai de `ANALITICAS_DO_GRUPO`, derivada do próprio plano:
+        uma lista escrita à mão aqui divergiria dele na primeira conta nova.
+        """
+        quantas = min(ANALITICAS_DO_GRUPO.get(grupo, 0), ANALITICAS_POR_GRUPO)
+        if not quantas:
+            pesos = ((grupo, 1.0),)
+        else:
+            fatias = (0.55, 0.30, 0.15)[:quantas]
+            total_fatias = sum(fatias)
+            pesos = tuple(
+                (f"{grupo}{i + 1:03d}", p / total_fatias)
+                for i, p in enumerate(fatias)
+            )
+        for conta, parcela in _partes(valor, pesos):
+            linhas.append({
+                "chave_externa": f"snk-{codigo}-{ano}{mes:02d}-{conta}",
+                "contrato": codigo,
+                "centro_custo": contrato["centro_custo"],
+                "ano": str(ano),
+                "mes": str(mes),
+                "conta": conta,
+                "codigo_origem": conta,
+                "valor_realizado": str(parcela),
+                "ajustes": "0",
+                "valor_orcado": str(
+                    (parcela * orcado).quantize(Decimal("0.01"))
+                ) if orcado else "",
+            })
+
+    for grupo, valor in _partes(Decimal(linha["receita_bruta"]), CONTAS_DE_RECEITA):
+        emitir(grupo, valor, Decimal("1.03"))
+    for grupo, valor in _partes(Decimal(linha["impostos"]), CONTAS_DE_IMPOSTO):
+        emitir(grupo, valor, Decimal("1.03"))
+
+    custo = Decimal(linha["custo_direto"] or "0")
+    if custo:
+        pesos = PESO_POR_SERVICO.get(servico, PESO_POR_SERVICO["monitoramento"])
+        for grupo, valor in _partes(custo, pesos):
+            # DEFEITO 16 — o turnkey que estourou no equipamento. É o caso que
+            # a tabela contábil existe para achar: o contrato fecha no total e
+            # a conta 41504 sozinha explica o buraco.
+            estourou = (
+                codigo == "CT-101" and grupo == "41504"
+            )
+            # DEFEITO 17 — o contrato de manutenção com garantia e retrabalho
+            # acima do normal. Ele PARECE rentável no agregado; só a linha
+            # 41505 mostra que não é.
+            retrabalho = codigo == "CT-107" and grupo == "41505"
+            orcado = Decimal("0.72") if (estourou or retrabalho) else Decimal("1.02")
+            emitir(grupo, valor, orcado)
+    return linhas
+
+
+def _escopo(indice: int, layer: str) -> str:
+    """O que está instalado — §H1, com os dois arquétipos reais.
+
+    PREDIAL e REDE não diferem só em tamanho: diferem em FORMATO. O predial
+    concentra tudo num endereço e pesa em infraestrutura; a rede multiplica um
+    kit pequeno por centenas de unidades e pesa em deslocamento.
+
+    É essa diferença que faz o detalhamento por conta contábil ensinar alguma
+    coisa — sem ela, todo contrato tem a mesma cara e abrir a tabela não muda
+    nada. Os números vieram de contratos existentes (09/09/2026).
+    """
+    if indice % 3 == 0:
+        # REDE: quanto maior o layer, mais unidades.
+        unidades = {"3": 340, "2": 90, "1": 22}.get(layer, 12)
+        return eqp.escopo_de_rede(unidades)
+    return eqp.escopo_predial({"3": 1.0, "2": 0.35, "1": 0.12}.get(layer, 0.08))
 
 
 def _fixo(texto: str) -> int:
@@ -317,6 +643,7 @@ def _contratos(acaso: random.Random, hoje: date) -> list[dict]:
                 "fim_vigencia": (hoje + timedelta(days=200 + i * 9)).isoformat(),
                 "valor_mensal": str(valor),
                 "status": "ativo",
+                "escopo": _escopo(i, layer),
                 "_layer": layer,
             }
         )
@@ -350,6 +677,9 @@ def _contratos(acaso: random.Random, hoje: date) -> list[dict]:
             "fim_vigencia": (hoje + timedelta(days=340)).isoformat(),
             "valor_mensal": "90000",
             "status": "ativo",
+            # Um predial de porte médio: o contrato é novo, e o escopo é o que
+            # diz o que ele é enquanto não há histórico para a layer decidir.
+            "escopo": eqp.escopo_predial(0.35),
             "_layer": "sem_amostra",
         }
     )
@@ -393,6 +723,17 @@ def _competencias_de_resultado(acaso, contratos, competencias) -> list[dict]:
                 "receita_orcada": str((valor * Decimal("1.03")).quantize(Decimal("0.01"))),
                 "custo_orcado": "",
                 "margem_orcada": "",
+                # As TRÊS que destravam C2 e C3. Orçadas um pouco ABAIXO do
+                # realizado de propósito: um orçamento que sempre bate deixa a
+                # linha de "% do orçado" colada em 100% e o gráfico não ensina
+                # nada — a pergunta dele é justamente onde o mês saiu da conta.
+                "impostos_orcado": str(
+                    (impostos * Decimal("0.97")).quantize(Decimal("0.01"))
+                ),
+                "custo_indireto_orcado": "",
+                "ebitda_orcado": str(
+                    (mc * Decimal("0.62") * Decimal("1.05")).quantize(Decimal("0.01"))
+                ),
             }
 
             # DEFEITO 10 — uma competência com receita lançada e custo AUSENTE.
@@ -460,6 +801,14 @@ def _rateios(acaso, competencias) -> list[dict]:
                 "receita_orcada": str((custo / Decimal("0.97")).quantize(Decimal("0.01"))),
                 "custo_orcado": "",
                 "margem_orcada": "",
+                "impostos_orcado": "",
+                # A linha de rateio é onde o INDIRETO tem orçado — é ela que ele
+                # é. Nos contratos ele fica vazio, e a tela diz "sem orçado" em
+                # vez de mostrar variação de 100%.
+                "custo_indireto_orcado": str(
+                    (custo * Decimal("0.94")).quantize(Decimal("0.01"))
+                ),
+                "ebitda_orcado": "",
             }
             # DEFEITO 6 — um CC SEM orçamento definido. A barra precisa dizer
             # isso, e a faixa 2 precisa marcar a linha como "sem orçado" em vez
@@ -603,6 +952,30 @@ def _apontamentos(acaso, competencias) -> list[dict]:
 
 
 def _avaliacoes(contratos, hoje: date) -> list[dict]:
+    """As avaliações do cliente, ancoradas no MÊS e não no dia.
+
+    ## O defeito que isto corrige — encontrado em 09/09/2026
+
+    A chave de negócio da avaliação é `(contrato, data)`, e a `chave_externa`
+    era fixa (`plt-av-0`). Com a data saindo de `hoje`, rodar o seeder num dia
+    diferente do anterior produzia uma data que não casava com nenhuma linha
+    existente: o carregador tentava CRIAR, e batia no
+    `UNIQUE (fonte, chave_externa)`.
+
+    O sintoma era uma carga `parcial` com "a fonte mandou o mesmo registro duas
+    vezes" — e ele só aparecia para quem semeasse duas vezes em dias
+    diferentes, que é o caso normal de quem trabalha no projeto por mais de um
+    dia. Ficou escondido porque a suíte semeia uma vez, num dia só.
+
+    ## A âncora é o primeiro dia do mês, e a chave carrega a competência
+
+    Dentro do mesmo mês, semear de novo encontra a mesma linha e não escreve.
+    Virado o mês, a data E a chave mudam juntas, e nasce uma avaliação nova —
+    que é o certo: avaliação de cliente é histórico, e o mês seguinte tem as
+    suas.
+    """
+    ancora = date(hoje.year, hoje.month, 1)
+    competencia = f"{ancora:%Y%m}"
     linhas = []
     for i, contrato in enumerate(contratos[:12]):
         nota = 9 - (i % 4)
@@ -611,9 +984,11 @@ def _avaliacoes(contratos, hoje: date) -> list[dict]:
         )
         linhas.append(
             {
-                "chave_externa": f"plt-av-{i}",
+                # A COMPETÊNCIA entra na chave: sem ela, a avaliação do mês
+                # seguinte colidiria com a deste na constraint de origem.
+                "chave_externa": f"plt-av-{competencia}-{i}",
                 "contrato": contrato["codigo"],
-                "data": (hoje - timedelta(days=5 + i * 2)).isoformat(),
+                "data": (ancora + timedelta(days=i * 2)).isoformat(),
                 "nota": str(nota),
                 "classificacao": classificacao,
                 "comentario": "Atendimento dentro do combinado." if nota >= 7 else "",
@@ -641,7 +1016,9 @@ def _avaliacoes(contratos, hoje: date) -> list[dict]:
         detratores[0].update(
             comentario="Chamado demorou três dias para ser atendido.",
             tratativa_aberta="sim",
-            tratativa_prazo=(hoje + timedelta(days=10)).isoformat(),
+            # Também ancorado: um prazo derivado de `hoje` mudaria o hash do
+            # registro todo dia, e a carga nunca diria "ignorado".
+            tratativa_prazo=(ancora + timedelta(days=40)).isoformat(),
             tratativa_status="em andamento no prazo",
         )
     if len(detratores) > 1:

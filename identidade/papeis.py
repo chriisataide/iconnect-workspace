@@ -84,6 +84,14 @@ PAPEIS_V1 = [
             # da empresa inteira é conversa de diretoria — mostrar tudo aqui
             # transformaria a tela num vazamento com aparência de transparência.
             "eco.ler.departamento",
+            # O quadro da PRÓPRIA equipe, no mesmo recorte. Sem esta linha, a
+            # separação das telas RETIRARIA do gestor algo que ele já via dentro
+            # da tela 10 — e mudança de arquitetura que tira acesso em silêncio
+            # é a que ninguém associa à causa três semanas depois.
+            #
+            # Satisfação do cliente NÃO vem junto: ela é do comercial, e o
+            # gestor de operação nunca a teve recortada por contrato dele.
+            "eco.pessoas.departamento",
             # O ciclo de planejamento, e SÓ os ciclos cuja plateia inclui o
             # papel `gestor`. `.departamento` e não `.global`: o escopo global
             # é o que abre TODOS os ciclos, inclusive o trimestral de
@@ -129,6 +137,28 @@ PAPEIS_V1 = [
             # ele existe: volume por área, tempo até resolver, onde trava.
             "ind.ler.global",
             "eco.ler.global",
+            # MARCAR CONCENTRAÇÃO — permissão própria, e não `eco.ler`.
+            #
+            # Ler o resultado é uma coisa; declarar onde a empresa vai se
+            # concentrar é outra, e a segunda é de quem responde pelo
+            # período. Com `eco.ler`, R.H. e Financeiro — que leem o
+            # resultado por razões próprias — editariam a lista de foco da
+            # diretoria, e uma lista de foco que qualquer um edita deixa de
+            # ser foco.
+            "eco.concentrar.global",
+            # AS DUAS TELAS IRMÃS DA 10, e por que são permissões próprias.
+            #
+            # Quadro e jornada (16) e Satisfação do cliente (17) saíram de
+            # dentro da Apresentação de Resultados: são perguntas de outra
+            # gente. Enquanto exigiam `eco.ler`, a única forma de dar a alguém o
+            # turnover da própria equipe era dar junto a margem de todo contrato
+            # da empresa.
+            #
+            # Ninguém perde nada nesta mudança: quem tinha `eco.ler` recebe as
+            # duas. O que muda é o FUTURO — agora dá para conceder uma sem a
+            # outra.
+            "eco.pessoas.global",
+            "eco.satisfacao.global",
             # O painel de exceções INTEIRO. Sem isto, a diretoria veria só as
             # regras dos papéis que ela ocupa — e o painel existe justamente
             # para ver o que está solto nos departamentos dos outros.
@@ -187,6 +217,17 @@ PAPEIS_V1 = [
             "ops.ler.global",
             "ind.ler.global",
             "eco.ler.global",
+            # MARCAR CONCENTRAÇÃO — permissão própria, e não `eco.ler`.
+            #
+            # Ler o resultado é uma coisa; declarar onde a empresa vai se
+            # concentrar é outra, e a segunda é de quem responde pelo
+            # período. Com `eco.ler`, R.H. e Financeiro — que leem o
+            # resultado por razões próprias — editariam a lista de foco da
+            # diretoria, e uma lista de foco que qualquer um edita deixa de
+            # ser foco.
+            "eco.concentrar.global",
+            "eco.pessoas.global",
+            "eco.satisfacao.global",
             "exc.ler.global",
             # Lê o ciclo inteiro e NÃO conduz — pela mesma razão que este papel
             # não tem as permissões administrativas: sócio decide sobre
@@ -211,6 +252,8 @@ PAPEIS_V1 = [
             "rh.admin.global",
             "ind.ler.global",
             "eco.ler.global",
+            "eco.pessoas.global",
+            "eco.satisfacao.global",
             "hab.ler.unidade",
             "hab.registrar.presenca",
             # §48 — o painel de conformidade passou a exigir `hab.auditoria.ler`
@@ -253,6 +296,8 @@ PAPEIS_V1 = [
             # a visão da empresa faria a conferência acontecer na planilha, que
             # é de onde este produto está tentando tirar a conversa.
             "eco.ler.global",
+            "eco.pessoas.global",
+            "eco.satisfacao.global",
             # O orçamento anual, e a REVISÃO. Ler e revisar separadas: montar o
             # ano é ato de planejamento, e mudar o teto vigente é ato de
             # governança — a segunda deixa motivo e autor no histórico.
@@ -437,6 +482,11 @@ PAPEIS_V1 = [
         "escopo_padrao": ESCOPO_UNIDADE,
         "permissoes": AUTOATENDIMENTO
         + [
+            # A AVALIAÇÃO DO CLIENTE (17) — o público novo que justifica a
+            # separação. Antes ela morava dentro da tela 10, e dar o NPS ao
+            # comercial exigia dar junto a margem de todo contrato da empresa.
+            # Ninguém fez isso, então o comercial simplesmente não via o NPS.
+            "eco.satisfacao.global",
             "ven.atender.unidade",
             "ven.aprovar.unidade",
             "ven.ler.unidade",

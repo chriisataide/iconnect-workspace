@@ -208,7 +208,7 @@ def test_recarregar_dispara_a_carga_de_verdade(client, fontes_cadastradas, tmp_p
 
     (tmp_path / "contrato.csv").write_text(
         "chave_externa,codigo,nome_cliente,servico,centro_custo\n"
-        "ext-1,C-1,Cliente Fictício,cftv,1042\n",
+        "ext-1,C-1,Cliente Fictício,monitoramento,1042\n",
         encoding="utf-8",
     )
     client.force_login(_com("ti", ["eco.carga.global"]))

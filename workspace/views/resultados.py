@@ -25,7 +25,9 @@ from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.core.exceptions import PermissionDenied
 from django.http import HttpRequest, HttpResponse, JsonResponse
-from django.shortcuts import redirect, render
+from django.shortcuts import get_object_or_404, redirect, render
+from django.urls import reverse
+from django.utils.dateparse import parse_date
 from django.views.decorators.http import require_POST
 
 from workspace.providers import frescor as contrato_frescor
@@ -59,6 +61,111 @@ def resultados(request: HttpRequest) -> HttpResponse:
             "apresentacao": apresentacao,
             "pode_ver_fontes": svc.pode_ver_fontes(request.user, cache=_cache(request)),
         },
+    )
+
+
+@login_required
+@require_POST
+def concentracao_abrir(request: HttpRequest) -> HttpResponse:
+    """Marca um foco do período — §E1.
+
+    `POST` e volta para a tela, como todo caminho de escrita deste produto:
+    `GET` faria um *prefetch* do navegador abrir uma concentração sozinho.
+    """
+    from workspace.services import concentracao as svc_conc
+
+    try:
+        svc_conc.abrir(
+            request.user,
+            origem_tipo=request.POST.get("origem_tipo", ""),
+            origem_ref=request.POST.get("origem_ref", ""),
+            titulo=request.POST.get("titulo", ""),
+            motivo=request.POST.get("motivo", ""),
+            responsavel=_pessoa(request.POST.get("responsavel")),
+            prazo=parse_date(request.POST.get("prazo") or "") or None,
+            cache=_cache(request),
+        )
+    except svc_conc.ConcentracaoError as erro:
+        messages.error(request, str(erro))
+    else:
+        messages.success(request, "Concentração aberta.")
+    return redirect(f"{reverse('workspace:resultados')}#destaques")
+
+
+@login_required
+@require_POST
+def concentracao_encerrar(request: HttpRequest, pk: int) -> HttpResponse:
+    """Fecha, com o resultado escrito. Não há caminho de exclusão — encerrar é
+    o fim da vida de uma concentração, e o histórico é o produto."""
+    from workspace.models.concentracao import Concentracao
+    from workspace.services import concentracao as svc_conc
+
+    alvo = get_object_or_404(Concentracao, pk=pk)
+    try:
+        svc_conc.encerrar(
+            alvo, request.user, request.POST.get("resultado", ""),
+            cache=_cache(request),
+        )
+    except svc_conc.ConcentracaoError as erro:
+        messages.error(request, str(erro))
+    else:
+        messages.success(request, f"{alvo.titulo} — encerrada.")
+    return redirect(f"{reverse('workspace:resultados')}#destaques")
+
+
+def _pessoa(bruto):
+    from django.contrib.auth import get_user_model
+
+    return (
+        get_user_model().objects.filter(pk=int(bruto)).first()
+        if bruto and str(bruto).isdigit()
+        else None
+    )
+
+
+@login_required
+def quadro(request: HttpRequest) -> HttpResponse:
+    """Quadro e jornada (16) — a antiga faixa 6 da tela 10.
+
+    Tela própria porque a PERGUNTA é de outra gente. Enquanto ela morava dentro
+    da Apresentação de Resultados, dar o turnover de um centro de custo a quem
+    responde por gente significava dar junto a margem de todo contrato da
+    empresa — e por isso ninguém dava.
+
+    Sem dado pessoal, aqui como lá: o quadro é agregado por centro de custo, e
+    nome de colaborador não entra em grade nem em exportação.
+    """
+    try:
+        panorama = svc.painel_de_pessoas(request.user, request.GET, cache=_cache(request))
+    except svc.SemResultados as sem:
+        raise PermissionDenied(str(sem))
+
+    return render(
+        request,
+        "workspace/quadro.html",
+        {**panorama, "apresentacao": request.GET.get("apresentacao") == "1"},
+    )
+
+
+@login_required
+def satisfacao(request: HttpRequest) -> HttpResponse:
+    """Satisfação do cliente (17) — a antiga faixa 7 da tela 10.
+
+    Mesma razão da 16, outro público: o NPS é do comercial. E o detrator SEM
+    tratativa é o motivo de a tela existir — ele não é linha de tabela, é uma
+    pessoa esperando.
+    """
+    try:
+        panorama = svc.painel_de_satisfacao(
+            request.user, request.GET, cache=_cache(request)
+        )
+    except svc.SemResultados as sem:
+        raise PermissionDenied(str(sem))
+
+    return render(
+        request,
+        "workspace/satisfacao.html",
+        {**panorama, "apresentacao": request.GET.get("apresentacao") == "1"},
     )
 
 

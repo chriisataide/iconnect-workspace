@@ -15,6 +15,7 @@ from django.core.management import call_command
 from django.urls import reverse
 
 from identidade.tests import fabricas as f
+from workspace.services import resultados as svc
 
 pytestmark = pytest.mark.django_db
 
@@ -22,12 +23,24 @@ pytestmark = pytest.mark.django_db
 @pytest.fixture
 def diretoria_com_massa(db):
     call_command("semear_fontes", "--aplicar", verbosity=0)
+    # O PLANO DE CONTAS antes da massa. Sem ele o razão por conta não é gerado
+    # — o seeder avisa e segue —, e a faixa contábil diria "sem lançamento"
+    # num teste cuja afirmação é justamente que NENHUMA faixa fica sem dado.
+    call_command("semear_plano_de_contas", "--aplicar", verbosity=0)
     call_command("semear_resultados", "--aplicar", verbosity=0)
     pessoa = f.pessoa("diretoria", nome="Diretoria")
     f.lotar(pessoa)
     f.atribuir(
         pessoa,
-        f.papel("dir", ["eco.ler.global", "eco.carga.global"], escopo="global"),
+        f.papel(
+            "dir",
+            [
+                "eco.ler.global", "eco.carga.global",
+                # As duas telas irmãs, desde que saíram de dentro da 10.
+                "eco.pessoas.global", "eco.satisfacao.global",
+            ],
+            escopo="global",
+        ),
         escopo="global",
     )
     return pessoa
@@ -39,31 +52,74 @@ def tela(client, diretoria_com_massa):
     return client.get(reverse("workspace:resultados"))
 
 
-def test_as_seis_faixas_abrem_com_dado(tela):
+@pytest.fixture
+def tela_do_quadro(client, diretoria_com_massa):
+    """A 16 — quadro e jornada. Era a faixa 6 da tela 10 até 04/09/2026."""
+    client.force_login(diretoria_com_massa)
+    return client.get(reverse("workspace:quadro"))
+
+
+@pytest.fixture
+def tela_da_satisfacao(client, diretoria_com_massa):
+    """A 17 — avaliação do cliente. Era a faixa 7."""
+    client.force_login(diretoria_com_massa)
+    return client.get(reverse("workspace:satisfacao"))
+
+
+def test_todas_as_faixas_abrem_com_dado(tela, tela_do_quadro, tela_da_satisfacao):
     """Nenhuma diz "sem fonte conectada" e nenhuma some.
 
-    Com a massa carregada pelas três fontes, todas têm o que mostrar — e se uma
-    não tiver, o motivo dela vem no `assert`.
+    Eram SEIS e passaram a SETE em 09/09/2026, com a tabela contábil (bloco D):
+    cinco na tela 10 e uma em cada irmã. O teste soma as três telas de
+    propósito — se olhasse só a 10, a separação das telas irmãs teria
+    "consertado" a cobertura fazendo duas faixas deixarem de ser conferidas.
+
+    A contagem sai de `MONTADORES` e não de um número escrito: faixa nova que
+    nasça sem massa reprova aqui, que é onde se descobre que a semeadora não a
+    acompanhou.
     """
     indisponiveis = {
-        faixa.chave: faixa.motivo for faixa in tela.context["faixas"] if not faixa.disponivel
+        faixa.chave: faixa.motivo
+        for resposta in (tela, tela_do_quadro, tela_da_satisfacao)
+        for faixa in resposta.context["faixas"]
+        if not faixa.disponivel
     }
 
     assert indisponiveis == {}
 
+    vistas = {
+        faixa.chave
+        for resposta in (tela, tela_do_quadro, tela_da_satisfacao)
+        for faixa in resposta.context["faixas"]
+    }
+    esperadas = {chave for chave, _ in svc.MONTADORES}
+    esperadas |= {chave for chave, _ in svc.MONTADORES_PESSOAS}
+    esperadas |= {chave for chave, _ in svc.MONTADORES_SATISFACAO}
+    assert vistas == esperadas
 
-def test_cada_faixa_carimba_a_SUA_fonte(tela):
+
+def test_cada_faixa_carimba_a_SUA_fonte(tela, tela_da_satisfacao):
     """É a razão de o carimbo ser por bloco e não por tela.
 
-    Nesta mesma página o dinheiro vem do Sankhya e os projetos vêm do monday. Um
-    carimbo único no topo estaria certo sobre metade do conteúdo.
+    Na tela 10 o dinheiro vem do Sankhya e os projetos vêm do monday. Um carimbo
+    único no topo estaria certo sobre metade do conteúdo.
+
+    A satisfação saiu para a 17 e continua carimbando o Platform: a separação
+    mudou a tela, não a procedência — e o carimbo é justamente o que não pode
+    mudar de significado quando a faixa muda de endereço.
     """
     por_chave = {faixa.chave: faixa.carimbo.fonte for faixa in tela.context["faixas"]}
 
     assert por_chave["dinheiro"] == "sankhya"
     assert por_chave["projetos"] == "monday"
-    assert por_chave["satisfacao"] == "iconnect_platform"
-    assert len(set(por_chave.values())) == 3, "três fontes distintas na mesma tela"
+    assert por_chave["contratos"] == "iconnect_platform"
+    # TRÊS, e continuam três mesmo sem a satisfação: carteira e vencimentos
+    # também vêm do Platform. Escrevi "duas" ao mexer aqui e o teste me corrigiu
+    # — que é exatamente para isso que ele conta as fontes em vez de nomeá-las.
+    assert len(set(por_chave.values())) == 3, "três fontes distintas na tela 10"
+
+    irma = {f.chave: f.carimbo.fonte for f in tela_da_satisfacao.context["faixas"]}
+    assert irma["satisfacao"] == "iconnect_platform"
 
 
 def test_o_monday_aparece_em_alerta_e_as_outras_nao(tela):
@@ -79,23 +135,33 @@ def test_o_monday_aparece_em_alerta_e_as_outras_nao(tela):
     assert por_chave["dinheiro"].carimbo.alerta is False
 
 
-def test_os_cartoes_saem_das_regras_e_nao_de_uma_lista(tela):
+def test_os_cartoes_saem_das_regras_e_nao_de_uma_lista(
+    tela, tela_do_quadro, tela_da_satisfacao
+):
     """Cada cartão corresponde a um defeito plantado.
 
     Se a massa deixar de ter deficitário, o cartão some — que é o comportamento
     certo. Painel que sempre mostra oito cartões ensina a ignorar os oito.
     """
-    chaves = {c.chave for c in tela.context["destaques"].conteudo["cartoes"]}
+    def chaves_de(resposta):
+        return {c.chave for c in resposta.context["destaques"].conteudo["cartoes"]}
 
+    chaves = chaves_de(tela)
     assert "fonte-monday" in chaves, "a fonte quebrada vem primeiro"
     assert "deficitarios" in chaves
     assert "abaixo-da-margem" in chaves
     assert "layer3-vencendo" in chaves
     assert "projetos-bloqueados" in chaves
     assert "marcos-vencidos" in chaves
-    assert "detrator-sem-tratativa" in chaves
     assert "sem-orcado" in chaves
-    assert "turnover" in chaves
+
+    # OS CARTÕES SEGUIRAM AS FAIXAS. Um cartão de detrator numa tela que não
+    # mostra a avaliação levaria a uma âncora que não existe — e o cartão é um
+    # link para a faixa logo abaixo.
+    assert "detrator-sem-tratativa" in chaves_de(tela_da_satisfacao)
+    assert "turnover" in chaves_de(tela_do_quadro)
+    assert "detrator-sem-tratativa" not in chaves
+    assert "turnover" not in chaves
 
 
 def test_a_fonte_quebrada_e_o_primeiro_cartao_da_lista(tela):
@@ -104,22 +170,22 @@ def test_a_fonte_quebrada_e_o_primeiro_cartao_da_lista(tela):
     assert cartoes[0].chave == "fonte-monday"
 
 
-def test_a_faixa_de_pessoas_mostra_o_centro_que_destoa(tela):
+def test_a_faixa_de_pessoas_mostra_o_centro_que_destoa(tela_do_quadro):
     """A média esconderia: 8,4% num centro contra 2,1% nos outros vira 2,6%.
 
     O recorte por centro de custo é o único que mostra o número que pede ação.
     """
-    pessoas = tela.context["por_chave"]["pessoas"]
+    pessoas = tela_do_quadro.context["por_chave"]["pessoas"]
     pior = pessoas.conteudo["por_centro"][0]
 
     assert pior.turnover_pct > 5
     assert pessoas.conteudo["quadro"].turnover_pct < 5, "o agregado é tranquilo"
 
 
-def test_a_conformidade_do_ponto_tem_bloco_proprio(tela):
+def test_a_conformidade_do_ponto_tem_bloco_proprio(tela_do_quadro):
     """Folha pendente e contrato sem assinatura viram autuação — no meio da
     tabela de horas elas passam como mais uma linha."""
-    conformidade = tela.context["por_chave"]["pessoas"].conteudo["conformidade"]
+    conformidade = tela_do_quadro.context["por_chave"]["pessoas"].conteudo["conformidade"]
 
     assert conformidade["folhas_pendentes"] == 14
     assert conformidade["contratos_pendentes"] == 3
@@ -182,11 +248,20 @@ def test_o_modo_apresentacao_mostra_os_mesmos_numeros(client, diretoria_com_mass
     assert _totais(normal) == _totais(reuniao)
 
 
-def test_a_tela_de_fontes_lista_as_quatro_e_a_divergencia(client, diretoria_com_massa):
+def test_a_tela_de_fontes_lista_todas_e_a_divergencia(client, diretoria_com_massa):
+    """CINCO desde 08/09/2026 — o PNCP entrou.
+
+    O número sai de `FonteDados`, e não de uma constante: a tela 99 existe para
+    responder "de onde vem cada número", e uma fonte cadastrada que não
+    aparecesse ali seria justamente a que ninguém audita.
+    """
+    from cargas.models import FonteDados
+
     client.force_login(diretoria_com_massa)
 
     resposta = client.get(reverse("workspace:fontes"))
 
-    assert len(resposta.context["fontes"]) == 4
+    assert len(resposta.context["fontes"]) == FonteDados.objects.count()
+    assert len(resposta.context["fontes"]) == 5
     assert resposta.context["divergencias"], "a massa planta uma"
     assert resposta.context["historico"], "as três cargas ficaram registradas"

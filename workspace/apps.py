@@ -1,10 +1,16 @@
 from django.apps import AppConfig
+from django.conf import settings
 
 
 class WorkspaceConfig(AppConfig):
     default_auto_field = "django.db.models.BigAutoField"
+    #: `name` é o app Python e NÃO muda com o rebatismo — trocá-lo renomearia
+    #: a tabela de todo model daqui. O que a pessoa lê é o `verbose_name`.
     name = "workspace"
-    verbose_name = "iConnect Workspace"
+    #: Do settings, e não escrito aqui: o cabeçalho do `/admin/` é onde o nome
+    #: antigo sobreviveria mais tempo, porque quase ninguém do produto abre o
+    #: admin — e um template já mandava a pessoa para "Admin › <nome> › …".
+    verbose_name = settings.PRODUTO_NOME
 
     def ready(self) -> None:
         # A semente nunca sobrescreve um app que já se registrou, então a

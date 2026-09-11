@@ -19,11 +19,19 @@
     O sufixo é o produto, e o bloco é a página. Antes o sufixo era "iConnect",
     o que fazia a aba dizer "RH · iConnect" para uma tela que não é do iConnect.
   {% endcomment %}
-  <title>{% block titulo %}{% trans "Início" %}{% endblock %} · iConnect Workspace</title>
+  <title>{% block titulo %}{% trans "Início" %}{% endblock %} · {% produto %}</title>
 
-  <link rel="icon" href="{% static 'workspace/img/favicon.ico' %}" sizes="any">
-  <link rel="icon" type="image/png" href="{% static 'workspace/img/icodev-512.png' %}">
-  <link rel="apple-touch-icon" href="{% static 'workspace/img/icodev-apple-touch.png' %}">
+  {% comment %}
+    Os três derivam do MESMO arquivo, `favicon-adb.png`, quadrado com folga de
+    8% — favicon é desenhado numa caixa quadrada, e o original (240×189) sairia
+    esticado ou recortado conforme o navegador.
+
+    O apple-touch é o único com fundo BRANCO e sem alfa: o iOS pinta a
+    transparência de preto, e a águia vermelha sobre preto some.
+  {% endcomment %}
+  <link rel="icon" href="{% static 'workspace/img/favicon-adb.ico' %}" sizes="any">
+  <link rel="icon" type="image/png" href="{% static 'workspace/img/adb-512.png' %}">
+  <link rel="apple-touch-icon" href="{% static 'workspace/img/adb-apple-touch.png' %}">
 
   <link rel="stylesheet" href="{% estatico 'workspace/src/tokens.css' %}">
   <link rel="stylesheet" href="{% estatico 'workspace/src/workspace.css' %}">
@@ -36,26 +44,38 @@
 
   <header class="au-topbar">
     <a class="au-brand" href="{% url 'workspace:home' %}">
-      <img class="au-brand-logo" src="{% static 'workspace/img/icodev-wordmark.png' %}"
-           alt="icodev" width="176" height="60">
+      {% comment %}
+        `width` e `height` são os do ARQUIVO (600×189), e não o tamanho na
+        tela — o CSS dá `height: 26px` e a largura se ajusta. Os dois atributos
+        existem para o navegador reservar a caixa antes de a imagem chegar: sem
+        eles a topbar salta quando o logo carrega, e o salto acontece no alto
+        de toda tela do produto.
+
+        O `alt` é a EMPRESA e não o produto: "Portal ADB360" já está escrito ao
+        lado, em texto, e repetir faria o leitor de tela dizer o nome duas vezes
+        sem nunca dizer de quem é o portal.
+      {% endcomment %}
+      <img class="au-brand-logo" src="{% static 'workspace/img/adb-wordmark.png' %}"
+           alt="{% marca %}" width="600" height="189">
       <span class="au-brand-divisor" aria-hidden="true"></span>
-      <span class="au-brand-produto">Workspace</span>
+      <span class="au-brand-produto">{% produto %}</span>
     </a>
 
     {% comment %}
-      O CÓDIGO DA TELA — ver `workspace/enderecamento.py`.
+      O CÓDIGO DA TELA NÃO APARECE MAIS AQUI — retirado em 04/09/2026.
 
-      Na casca e não em cada template: são quarenta arquivos, e o primeiro que
-      esquecesse ficaria mudo justamente na tela que alguém tentasse endereçar.
-      Sai vazio nas rotas que não são lugar (aprovar, cancelar, baixar), e aí
-      não renderiza nada em vez de mostrar um espaço reservado.
+      Ele ficava ao lado do nome do produto, e lido assim virava número de
+      página: "00" na home, "10" nos resultados. Duas numerações na mesma barra
+      (o código e a contagem do sino) é uma a mais do que alguém consegue
+      interpretar de relance.
+
+      O ENDEREÇAMENTO CONTINUA INTEIRO — `enderecamento.TELAS`,
+      `/workspace/ir/<codigo>/` e o código como termo de busca funcionam
+      exatamente como antes. O que se perdeu é a DESCOBERTA: quem estava numa
+      tela via o código dela sem procurar, e agora precisa saber que ele existe.
+      A troca é deliberada, e é revisível — a tag `{% templatetag openblock %} codigo_da_tela {% templatetag closeblock %}`
+      continua no lugar, e repô-la é uma linha.
     {% endcomment %}
-    {% codigo_da_tela as codigo_desta_tela %}
-    {% if codigo_desta_tela %}
-      <span class="au-codigo"
-            title="{% blocktrans %}Código desta tela. Digite {{ codigo_desta_tela }} na busca para voltar aqui.{% endblocktrans %}"
-      >{{ codigo_desta_tela }}</span>
-    {% endif %}
 
     <div class="au-topbar-fim">
       {% comment %}
@@ -183,10 +203,12 @@
     na home, e o atalho — que está no JS desde o começo — não achava nada nas
     outras.
   {% endcomment %}
-  <dialog class="au-paleta" id="paleta" aria-label="{% trans 'Buscar no Workspace' %}">
+  {% produto as nome_do_produto %}
+  <dialog class="au-paleta" id="paleta"
+          aria-label="{% blocktrans %}Buscar no {{ nome_do_produto }}{% endblocktrans %}">
     <div class="au-paleta-campo">
       <svg class="au-busca-icone" aria-hidden="true"><use href="#i-search"></use></svg>
-      <label class="au-sr" for="busca">{% trans "Buscar no Workspace" %}</label>
+      <label class="au-sr" for="busca">{% blocktrans %}Buscar no {{ nome_do_produto }}{% endblocktrans %}</label>
       <input class="au-busca-campo" id="busca" type="search" autocomplete="off"
              role="combobox" aria-expanded="false" aria-controls="busca-resultados"
              placeholder="{% trans 'Serviço, documento, comunicado, sistema…' %}">
@@ -234,9 +256,9 @@
   </main>
 
   <footer class="au-rodape">
-    <img class="au-rodape-marca" src="{% static 'workspace/img/icodev-mark.png' %}"
-         alt="" width="18" height="18" aria-hidden="true">
-    <span>{% blocktrans %}iConnect Workspace · a vida corporativa em um lugar{% endblocktrans %}</span>
+    <img class="au-rodape-marca" src="{% static 'workspace/img/favicon-adb.png' %}"
+         alt="" width="240" height="189" aria-hidden="true">
+    <span>{% blocktrans %}{{ nome_do_produto }} · a vida corporativa em um lugar{% endblocktrans %}</span>
   </footer>
 
   {% comment %}

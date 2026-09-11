@@ -46,7 +46,7 @@ logger = logging.getLogger("cargas")
 
 ENTIDADES = (
     "contrato", "competencia", "projeto", "marco",
-    "quadro", "apontamento", "avaliacao",
+    "quadro", "apontamento", "avaliacao", "conta",
 )
 
 #: Campos que precisam virar outro tipo. O CSV é todo string; gravar "1200.50"
@@ -57,9 +57,11 @@ DECIMAIS = frozenset({
     "valor_mensal", "receita_bruta", "impostos", "custo_direto", "custo_indireto",
     "margem_contribuicao", "ebitda", "ajuste_potencial", "receita_orcada",
     "custo_orcado", "margem_orcada", "turnover_pct", "absenteismo_pct",
+    "impostos_orcado", "custo_indireto_orcado", "ebitda_orcado",
     "horas_normais", "he_total", "he_ineficiencia", "he_servico_extra",
     "he_sem_classificacao", "hora_escala", "hora_abono", "hora_desconto",
     "hora_noturna", "banco_horas_saldo",
+    "valor_realizado", "ajustes", "valor_orcado",
 })
 INTEIROS = frozenset({
     "ano", "mes", "nota", "percentual_concluido", "efetivo_ativo", "admissoes",
@@ -75,7 +77,28 @@ BOOLEANOS = frozenset({"bloqueado", "tratativa_aberta"})
 #: Campos que apontam para outro registro do espelho. O CSV traz o CÓDIGO, e o
 #: carregador precisa da instância — resolver aqui mantém o carregador ignorante
 #: de que existe um formato de arquivo.
-REFERENCIAS = {"contrato": "codigo", "projeto": "codigo"}
+#: `conta` aponta para `ContaContabil` pelo CÓDIGO contábil, e não por `codigo`
+#: como as outras duas — o campo se chama `codigo` lá também, mas a coluna do
+#: CSV é `conta` e o valor é o código de nove dígitos.
+REFERENCIAS = {"contrato": "codigo", "projeto": "codigo", "conta": "codigo"}
+
+#: Colunas em que VAZIO quer dizer `None`, e não "não mandei".
+#:
+#: A diferença decide o que fica gravado. Para o resto, coluna vazia some do
+#: payload e o valor anterior permanece — que é o certo para um CSV parcial.
+#: Aqui, vazio é uma AFIRMAÇÃO: "não sei quanto foi", e "sem orçado" e "orçado
+#: zero" são leituras opostas.
+#:
+#: `custo_direto` e `margem_contribuicao` entraram em 10/09/2026, quando os dois
+#: passaram a ser anuláveis no espelho. Antes o vazio virava `_IGNORAR`, o
+#: `default=0` do model preenchia, e o "custo ausente" chegava gravado como
+#: `0,00` — que a cascata da DRE lia como "não gastou nada".
+def _e_anulavel(coluna: str) -> bool:
+    return (
+        coluna in DATAS
+        or coluna.endswith(("_orcada", "_orcado"))
+        or coluna in {"custo_direto", "margem_contribuicao"}
+    )
 
 VERDADEIROS = frozenset({"1", "true", "sim", "s", "y", "yes", "verdadeiro"})
 
@@ -164,7 +187,7 @@ def _converter_valor(coluna: str, bruto):
         # resto. Quem decide é o model, e quem descobre é o carregador ao
         # gravar — aqui só não podemos inventar zero: "sem orçado" e "orçado
         # zero" são leituras opostas.
-        return None if coluna in DATAS or coluna.endswith("_orcada") or coluna.endswith("_orcado") else _IGNORAR
+        return None if _e_anulavel(coluna) else _IGNORAR
 
     if coluna in REFERENCIAS:
         return _resolver_referencia(coluna, texto)
@@ -192,9 +215,16 @@ def _resolver_referencia(coluna: str, codigo: str):
     caso normal quando os arquivos vêm em ordem qualquer. O carregador recusa
     depois, se a chave de negócio exigir — e aí a rejeição diz o que falta.
     """
-    from resultados.models import Contrato, Projeto
+    from resultados.models import ContaContabil, Contrato, Projeto
 
-    modelo = {"contrato": Contrato, "projeto": Projeto}[coluna]
+    modelo = {
+        "contrato": Contrato, "projeto": Projeto, "conta": ContaContabil,
+    }[coluna]
+    # `None` quando não existe, e a linha entra assim mesmo. Para `conta` isso
+    # é o comportamento CERTO e não uma tolerância: código fora do plano vira
+    # uma linha com `conta` nula e `codigo_origem` preenchido, que aparece na
+    # tela como "Conta não cadastrada" — descartar faria a despesa sumir do
+    # total sem deixar rastro.
     return modelo.objects.filter(codigo=codigo).first()
 
 

@@ -34,7 +34,7 @@ class Fonte(models.TextChoices):
     """As fontes conhecidas.
 
     Espelhada em `resultados.models.Fonte` de propósito — `resultados` não
-    importa este app, e a duplicação de cinco linhas é o preço de manter a
+    importa este app, e a duplicação de seis linhas é o preço de manter a
     direção. `test_as_duas_listas_de_fonte_batem` reprova a divergência.
     """
 
@@ -43,6 +43,8 @@ class Fonte(models.TextChoices):
     PLATFORM = "iconnect_platform", "iConnect Platform"
     CSV = "csv", "Carga por arquivo"
     MANUAL = "manual", "Lançamento manual"
+    #: A única PÚBLICA da lista, e a única sem credencial.
+    PNCP = "pncp", "PNCP · contratações públicas"
 
 
 class FonteDados(models.Model):

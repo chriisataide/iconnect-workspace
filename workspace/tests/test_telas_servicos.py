@@ -733,6 +733,11 @@ def test_contexto_do_rail_usa_pessoa_aberta_para_anonimo():
         # financeiro não é informação institucional, e a tela de
         # fontes conta quais sistemas a empresa usa.
         "ve_resultados": False,
+        # As duas telas irmãs da 10 seguem a MESMA regra, e por isso são três
+        # chaves e não uma: o quadro de pessoal é dado de gente, e a avaliação
+        # traz comentário de cliente. Nenhuma das duas é institucional.
+        "ve_quadro": False,
+        "ve_satisfacao": False,
         # §Onda 4 — o painel de exceções. `False` para anônimo pela
         # mesma razão dos outros dois: a lista de regras conta o que a
         # empresa vigia, e a grade nomeia gente.

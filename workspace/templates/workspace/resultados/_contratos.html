@@ -1,4 +1,4 @@
-{% load i18n wks %}
+{% load i18n wks graficos %}
 <div class="au-kpi-linha">
   <div class="au-kpi">
     <span class="au-kpi-rotulo">{% trans "contratos na carteira" %}</span>
@@ -28,7 +28,19 @@
     {% for c in faixa.conteudo.deficitarios %}
       <li class="au-contrato au-contrato--deficitario">
         <span class="au-contrato-codigo">{{ c.codigo }}</span>
-        <span class="au-contrato-cliente">{{ c.nome_cliente }}</span>
+        <span class="au-contrato-cliente">
+          {{ c.nome_cliente }}
+          {% comment %}
+            O ESCOPO — §H1. "800 câmeras, 30 switches" responde "que contrato é
+            este?" sem sair da tela, e é a pergunta seguinte a "por que ele está
+            deficitário?".
+
+            `au-procedencia` e não uma classe nova: é a mesma coisa — texto
+            pequeno e secundário sob o principal —, e uma classe a mais seria
+            uma regra a mais para manter em sincronia com aquela.
+          {% endcomment %}
+          {% if c.escopo %}<small class="au-procedencia">{{ c.escopo|truncatechars:90 }}</small>{% endif %}
+        </span>
         <span class="au-contrato-margem">{{ c.margem_contribuicao_pct }}%</span>
         <span class="au-contrato-valor">R$ {{ c.valor_mensal|moeda }}</span>
       </li>
@@ -42,12 +54,61 @@
     {% for c in faixa.conteudo.abaixo_da_margem %}
       <li class="au-contrato">
         <span class="au-contrato-codigo">{{ c.codigo }}</span>
-        <span class="au-contrato-cliente">{{ c.nome_cliente }}</span>
+        <span class="au-contrato-cliente">
+          {{ c.nome_cliente }}
+          {% comment %}
+            O ESCOPO — §H1. "800 câmeras, 30 switches" responde "que contrato é
+            este?" sem sair da tela, e é a pergunta seguinte a "por que ele está
+            deficitário?".
+
+            `au-procedencia` e não uma classe nova: é a mesma coisa — texto
+            pequeno e secundário sob o principal —, e uma classe a mais seria
+            uma regra a mais para manter em sincronia com aquela.
+          {% endcomment %}
+          {% if c.escopo %}<small class="au-procedencia">{{ c.escopo|truncatechars:90 }}</small>{% endif %}
+        </span>
         <span class="au-contrato-margem">{{ c.margem_contribuicao_pct }}%</span>
         <span class="au-etiqueta">{% trans "Layer" %} {{ c.layer }}</span>
       </li>
     {% endfor %}
   </ul>
+{% endif %}
+
+{% comment %}
+  A DISPERSÃO — o tipo 11, adição nossa ao catálogo.
+
+  Ela responde o que nenhuma tabela ordenada responde: quais contratos são
+  GRANDES e POUCO RENTÁVEIS. Ordenar por receita esconde a margem; ordenar por
+  margem esconde o tamanho. O quadrante direito-inferior mostra os dois.
+
+  A linha tracejada é o limiar de 10%. Sem ela, o quadrante existe e ninguém vê
+  onde começa.
+{% endcomment %}
+{% if faixa.conteudo.grafico %}
+  {% comment %}
+    COMO LER, na tela. Isto estava escrito só no comentário acima — que é o
+    único lugar da página onde o usuário nunca olha. Um gráfico que precisa de
+    explicação e não a traz junto é um gráfico que ninguém usa duas vezes.
+  {% endcomment %}
+  <p class="au-legenda-leitura">
+    {% blocktrans %}Cada bolha é um contrato. Para a <b>direita</b>, fatura mais;
+    para <b>baixo</b>, rende menos. O tamanho é o valor mensal, e a linha
+    tracejada é a margem mínima de 10%.{% endblocktrans %}
+    <b>{% blocktrans %}O que importa é o canto inferior direito: contratos
+    grandes que rendem pouco.{% endblocktrans %}</b>
+    {% blocktrans %}Eles estão em vermelho, e a tabela abaixo os repete por
+    escrito.{% endblocktrans %}
+  </p>
+  {% grafico faixa.conteudo.grafico %}
+  {% if faixa.conteudo.fora_do_grafico %}
+    <p class="au-vazio-dica">
+      {% blocktrans count n=faixa.conteudo.fora_do_grafico %}{{ n }} contrato ficou de fora do gráfico por não ter amostra suficiente — ele continua na tabela.{% plural %}{{ n }} contratos ficaram de fora do gráfico por não terem amostra suficiente — eles continuam na tabela.{% endblocktrans %}
+    </p>
+  {% endif %}
+{% endif %}
+
+{% if faixa.conteudo.grafico_mix %}
+  {% grafico faixa.conteudo.grafico_mix %}
 {% endif %}
 
 <h3 class="au-subsecao">{% trans "Mix por serviço" %}</h3>
@@ -71,6 +132,35 @@
     </tbody>
   </table>
 </div>
+
+{% comment %}
+  AS SAFRAS — C5.
+
+  Responde "as perdas de 2023 ainda estão pesando?". A safra é DERIVADA do ano
+  de entrada (`C`) ou de saída (`P`) — nenhum campo novo no espelho, porque a
+  data já está lá e um terceiro lugar guardando o mesmo fato divergiria dela.
+
+  A lista sai do que EXISTE na carteira: `C2016…C2026` fixo ofereceria safras
+  vazias, e um filtro que devolve vazio parece quebrado. Sem caixa de busca —
+  uma década de anos cabe na tela.
+{% endcomment %}
+{% if faixa.conteudo.safras %}
+  <h3 class="au-subsecao">{% trans "Por safra" %}</h3>
+  <div class="au-filtros-chips">
+    {% for s in faixa.conteudo.safras %}
+      <a class="au-chip {% if s.chave == faixa.conteudo.safra_escolhida %}au-chip--ativo{% endif %} {% if s.perda %}au-chip--perda{% endif %}"
+         href="{% querystring safra=s.chave %}">{{ s.chave }} <small>({{ s.quantos }})</small></a>
+    {% endfor %}
+    {% if faixa.conteudo.safra_escolhida %}
+      <a class="au-chip" href="{% querystring safra=None %}">{% trans "todas" %}</a>
+    {% endif %}
+  </div>
+  {% if faixa.conteudo.grafico_safra %}
+    {% grafico faixa.conteudo.grafico_safra %}
+  {% elif faixa.conteudo.safra_escolhida %}
+    <p class="au-ajuda">{% trans "Esta safra não tem receita lançada na janela escolhida." %}</p>
+  {% endif %}
+{% endif %}
 
 <h3 class="au-subsecao">{% trans "Movimentação no período" %}</h3>
 <div class="au-colunas">

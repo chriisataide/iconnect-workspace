@@ -1,0 +1,199 @@
+{% extends "workspace/_shell_modulo.html" %}
+{% load i18n wks graficos %}
+
+{% block titulo %}{% trans "Painel da empresa" %}{% endblock %}
+
+{% block rail %}
+  {% if not apresentacao %}{% include "workspace/_rail_servicos.html" with aba="painel" %}{% endif %}
+{% endblock %}
+
+{% block trilha %}<span>{% trans "Painel da empresa" %}</span>{% endblock %}
+{% block pagina_titulo %}{% trans "Painel da empresa" %}{% endblock %}
+{% block voltar_url %}{% url 'workspace:home' %}{% endblock %}
+
+{% block pagina_descricao %}
+  <p class="au-pagina-desc">
+    {% blocktrans with mes=painel.competencia|date:"m/Y" %}A empresa inteira em {{ mes }}. Cada bloco leva ao detalhe.{% endblocktrans %}
+  </p>
+{% endblock %}
+
+{% block conteudo %}
+{% comment %}
+  O PAINEL DA EMPRESA — §I1.
+
+  Nenhum bloco sem link para o detalhe: indicador que não leva a lugar nenhum é
+  decoração, e decoração numa tela executiva é o que faz ela parar de ser
+  aberta.
+
+  Toda comparação é DUPLA — mês anterior e mesmo mês do ano anterior. Uma só
+  induz a erro num negócio com sazonalidade.
+{% endcomment %}
+
+{% comment %} ── 1 · Os cinco números ──────────────────────────────── {% endcomment %}
+<section class="au-secao">
+  <ul class="au-painel-numeros">
+    {% for n in painel.numeros %}
+      <li class="au-painel-numero">
+        <a class="au-painel-numero-link" href="{{ n.url }}">
+          <span class="au-painel-numero-valor">{{ n.valor }}</span>
+          <span class="au-painel-numero-titulo">{{ n.titulo }}</span>
+          {% comment %}
+            AS DUAS comparações, rotuladas. "−3,2%" sozinho não diz contra o
+            quê, e a resposta muda a decisão: contra o mês pode ser calendário,
+            contra o ano é tendência.
+          {% endcomment %}
+          <span class="au-painel-numero-comparacoes">
+            {% if n.contra_mes is not None %}
+              <span class="au-painel-delta au-painel-delta--{% if n.contra_mes < 0 %}baixa{% else %}alta{% endif %}">
+                {% if n.contra_mes > 0 %}+{% endif %}{{ n.contra_mes|numero:1 }}{% if n.chave == "margem" %} p{% else %}%{% endif %}
+                <small>{% trans "vs mês" %}</small>
+              </span>
+            {% endif %}
+            {% if n.contra_ano is not None %}
+              <span class="au-painel-delta au-painel-delta--{% if n.contra_ano < 0 %}baixa{% else %}alta{% endif %}">
+                {% if n.contra_ano > 0 %}+{% endif %}{{ n.contra_ano|numero:1 }}{% if n.chave == "margem" %} p{% else %}%{% endif %}
+                <small>{% trans "vs ano" %}</small>
+              </span>
+            {% endif %}
+          </span>
+        </a>
+      </li>
+    {% endfor %}
+  </ul>
+</section>
+
+{% comment %} ── 2 · Semáforo por área ─────────────────────────────── {% endcomment %}
+<section class="au-secao">
+  <div class="au-secao-cabeca">
+    <h2 class="au-secao-titulo">{% trans "Por área" %}</h2>
+  </div>
+  {% if painel.areas %}
+    <div class="au-tabela">
+      <table>
+        <thead>
+          <tr>
+            <th scope="col">{% trans "Área" %}</th>
+            <th scope="col" class="num">{% trans "Contratos" %}</th>
+            <th scope="col" class="num">{% trans "Carteira mensal" %}</th>
+            <th scope="col" class="num">{% trans "Margem mediana" %}</th>
+            <th scope="col">{% trans "Situação" %}</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for a in painel.areas %}
+            <tr>
+              <th scope="row"><a href="{{ a.url }}">{{ a.nome }}</a></th>
+              <td class="num">{{ a.contratos }}</td>
+              <td class="num">R$ {{ a.receita|moeda }}</td>
+              <td class="num">{{ a.farol.valor }}</td>
+              {% comment %}
+                O farol com a PALAVRA ao lado — cor nunca sozinha, e num farol a
+                cor é a única coisa que existe.
+              {% endcomment %}
+              <td><span class="au-farol au-farol--{{ a.farol.situacao }}">{{ a.farol.rotulo }}</span></td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    <p class="au-ajuda">
+      {% trans "Margem MEDIANA e não média: uma área com um contrato muito grande teria a média puxada por ele, e o farol diria que ela está bem quando a maioria dos contratos não está." %}
+    </p>
+  {% else %}
+    <p class="au-ajuda">{% trans "Sem contrato na carteira desta competência." %}</p>
+  {% endif %}
+</section>
+
+{% comment %} ── 3 · A curva ───────────────────────────────────────── {% endcomment %}
+{% if painel.curva %}
+  <section class="au-secao">{% grafico painel.curva %}</section>
+{% endif %}
+
+{% comment %} ── 4 · Dependência de cliente ────────────────────────── {% endcomment %}
+{% if painel.dependencia %}
+  <section class="au-secao">
+    <div class="au-secao-cabeca">
+      <h2 class="au-secao-titulo">{% trans "Dependência de cliente" %}</h2>
+    </div>
+    {% comment %}
+      "Dependência" e não "concentração": `Concentracao` já é a curadoria da
+      diretoria na tela 10 — o que a empresa decidiu olhar. Duas coisas com o
+      mesmo nome nas duas telas que linkam uma para a outra é o defeito que
+      /marketing/ já pagou uma vez.
+    {% endcomment %}
+    <p class="au-painel-destaque">
+      <span class="au-farol au-farol--{{ painel.dependencia.farol.situacao }}">{{ painel.dependencia.farol.rotulo }}</span>
+      {% blocktrans with pct=painel.dependencia.percentual|numero:1 n=painel.dependencia.clientes|length %}{{ pct }}% da carteira está nos {{ n }} maiores clientes.{% endblocktrans %}
+    </p>
+    <ul class="au-painel-clientes">
+      {% for c in painel.dependencia.clientes %}
+        <li>{{ c.nome }} — R$ {{ c.valor|moeda }} ({{ c.pct|numero:1 }}%)</li>
+      {% endfor %}
+    </ul>
+  </section>
+{% endif %}
+
+{% comment %} ── 5 · Vencimentos ───────────────────────────────────── {% endcomment %}
+{% if painel.vencimentos %}
+  <section class="au-secao">
+    <div class="au-secao-cabeca">
+      <h2 class="au-secao-titulo">{% trans "O que pode ser perdido" %}</h2>
+    </div>
+    <ul class="au-painel-faixas">
+      {% for f in painel.vencimentos %}
+        <li>
+          <a href="{{ f.url }}">
+            <strong>{% blocktrans with d=f.dias %}até {{ d }} dias{% endblocktrans %}</strong>
+            {% blocktrans count n=f.quantos %}{{ n }} contrato{% plural %}{{ n }} contratos{% endblocktrans %}
+            · R$ {{ f.valor|moeda }}/mês
+          </a>
+        </li>
+      {% endfor %}
+    </ul>
+  </section>
+{% endif %}
+
+{% comment %} ── 6 a 8 · Pessoas, projetos e satisfação ────────────── {% endcomment %}
+<section class="au-secao au-painel-tres">
+  {% if painel.pessoas %}
+    <div class="au-painel-caixa">
+      <h3 class="au-mini-titulo"><a href="{{ painel.pessoas.url }}">{% trans "Pessoas" %}</a></h3>
+      <p>{% blocktrans with n=painel.pessoas.efetivo %}{{ n }} no efetivo{% endblocktrans %}</p>
+      <p>{% trans "Turnover" %}: {{ painel.pessoas.turnover|numero:1 }}%</p>
+      <p>{% trans "Absenteísmo" %}: {{ painel.pessoas.absenteismo|numero:1 }}%</p>
+      {% if painel.pessoas.he_ineficiencia is not None %}
+        <p>{% trans "HE de ineficiência" %}: {{ painel.pessoas.he_ineficiencia|numero:1 }}h</p>
+      {% endif %}
+    </div>
+  {% endif %}
+
+  {% if painel.projetos %}
+    <div class="au-painel-caixa">
+      <h3 class="au-mini-titulo"><a href="{{ painel.projetos.url }}">{% trans "Projetos" %}</a></h3>
+      <p>{% blocktrans with n=painel.projetos.total %}{{ n }} em execução{% endblocktrans %}</p>
+      <p>{% blocktrans with n=painel.projetos.atrasados %}{{ n }} atrasados{% endblocktrans %}</p>
+      <p>{% blocktrans with n=painel.projetos.bloqueados %}{{ n }} bloqueados{% endblocktrans %}</p>
+    </div>
+  {% endif %}
+
+  {% if painel.satisfacao %}
+    <div class="au-painel-caixa">
+      <h3 class="au-mini-titulo"><a href="{{ painel.satisfacao.url }}">{% trans "Cliente" %}</a></h3>
+      <p>{% trans "Nota média" %}: {{ painel.satisfacao.nota|numero:1 }}</p>
+      <p>{% blocktrans with n=painel.satisfacao.detratores %}{{ n }} detratores{% endblocktrans %}</p>
+      <p>{% blocktrans with n=painel.satisfacao.sem_tratativa %}{{ n }} sem tratativa{% endblocktrans %}</p>
+    </div>
+  {% endif %}
+</section>
+
+{% comment %}
+  ── 9 · As fontes, discretas no rodapé ──────────────────────────────
+
+  O carimbo de frescor de cada bloco vem do processador de contexto, como em
+  toda tela deste produto. Aqui ele é um link para a tela 99: quem abre o painel
+  quer o número, e quem duvida do número quer a procedência — nesta ordem.
+{% endcomment %}
+<p class="au-ajuda au-painel-fontes">
+  <a href="{% url 'workspace:fontes' %}">{% trans "De onde vêm estes números" %}</a>
+</p>
+{% endblock %}

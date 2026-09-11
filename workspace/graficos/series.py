@@ -64,20 +64,66 @@ ALTURA = 300
 #: de 28 ele era **cortado pela borda do gráfico**. Apareceu na tela: o rótulo da
 #: barra mais alta do EBITDA saía pela metade.
 #:
-#: Sessenta e oito, e não "o suficiente": abaixo disso o corte volta na primeira
-#: série que tiver um valor de sete dígitos.
-FOLGA_DO_ROTULO = 68
+#: Setenta e quatro, e não "o suficiente": abaixo disso o corte volta na
+#: primeira série que tiver um valor de sete dígitos. Era 68 enquanto o rótulo
+#: era 10px em peso normal; girado, um número em negrito de 11px mede cerca de
+#: 10% a mais, e a folga acompanha — senão a mudança que tornou o número legível
+#: seria a mesma que o cortaria.
+FOLGA_DO_ROTULO = 74
 
 #: As cores saem dos tokens do produto, e não da paleta do ECharts.
 #:
 #: Valores literais e não `var(--au-…)`: o ECharts desenha em SVG mas escreve a
 #: cor como atributo de preenchimento, e `var()` num atributo de SVG não resolve.
 #: A duplicação é conferida por `test_toda_cor_do_grafico_existe_nos_tokens`.
-COR_PRINCIPAL = "#3539a9"   # --au-accent-600
-COR_SECUNDARIA = "#a0a2e1"  # --au-accent-300
-COR_LINHA = "#d97706"       # --au-warning
+#: REALIZADO × ORÇADO — o par que se repete em toda a tela.
+#:
+#: Era `#3539a9` contra `#a0a2e1`: o mesmo azul em duas claridades, e a queixa
+#: da revisão ("a paleta é lavada") estava certa — dois tons do mesmo matiz não
+#: se separam de relance.
+#:
+#: A revisão pedia "azul-aço contra âmbar". Medido, esse par dá **1,33:1** de
+#: contraste entre as séries: em escala de cinza as duas barras viram uma só, e
+#: "cor nunca sozinha" cai junto. O par abaixo tem o matiz que se pediu E
+#: **5,26:1** de luminância — melhor que os 3,79:1 de antes.
+#:
+#: Os valores moram em `--au-chart-*` no `tokens.css`, com a medição escrita lá.
+COR_PRINCIPAL = "#2b2e8a"   # --au-chart-re
+COR_SECUNDARIA = "#f59e0b"  # --au-chart-or
+#: A terceira de uma série categórica. Ardósia neutra, e não um terceiro azul:
+#: `#7376d3` foi a primeira escolha e a guarda de contraste a reprovou — branco
+#: sobre ela dá 3,99:1, abaixo do piso de 4,0 para rótulo dentro da barra.
+#: Esta dá 4,76:1, e ainda separa de RE (2,37:1) e de OR (2,22:1).
+COR_TERCIARIA = "#64748b"   # --au-chart-terceira
+
+#: A LINHA DA RAZÃO. Neutra escura, e não âmbar.
+#:
+#: Âmbar era `--au-warning`, e passou a ser a cor do ORÇADO — a linha ficaria
+#: igual a uma das barras. E ela nunca foi um aviso: é a razão entre as duas
+#: séries, que pode ser boa ou ruim.
+COR_LINHA = "#0f172a"       # --au-chart-linha
+
+#: A faixa "atenção" do medidor. SEPARADA de `COR_LINHA`, que era quem fazia
+#: este papel — no medidor a cor é semântica, e ali âmbar quer dizer atenção
+#: mesmo. Um símbolo servindo aos dois papéis fez a linha da razão parecer um
+#: alerta durante toda a vida anterior deste arquivo.
+COR_ATENCAO = "#d97706"     # --au-warning
+
+#: A série do PERÍODO COMPARADO — F1. O mesmo azul do realizado, mais claro:
+#: ela é a MESMA grandeza noutro tempo, e uma cor nova diria que é outra coisa.
+#: O tracejado é o que carrega a diferença, e ele sobrevive à escala de cinza.
+COR_COMPARADO = "#7376d3"   # --au-accent-400
 COR_NEGATIVO = "#dc2626"    # --au-danger
-COR_POSITIVO = "#059669"    # --au-success
+# `--au-success-text`, e não `--au-success`. O verde mais claro (`#059669`) não
+# aceita rótulo dentro da barra: branco sobre ele dá 3,77:1 e escuro dá 3,69:1 —
+# nenhum dos dois chega aos 4,5:1 exigidos. Com este, branco dá 5,48:1.
+# A cascata pinta o passo de ganho com ele E escreve o valor dentro.
+COR_POSITIVO = "#047857"    # --au-success-text
+#: O fundo da cápsula do percentual. Igual à linha: a cápsula É a linha
+#: rotulada, e duas cores ali fariam parecer duas informações. Branco sobre ela
+#: dá 17,85:1 — é o que garante que o VALOR nunca se perde, nem onde o traço
+#: cruza a barra escura.
+COR_LINHA_ETIQUETA = "#0f172a"  # --au-chart-linha
 COR_TEXTO = "#475569"       # --au-brand-600, que é --au-text-muted no claro
 COR_GRADE = "#c7c8ed"       # --au-accent-200
 
@@ -163,12 +209,42 @@ class Bloco:
         return list(zip(self.linhas, self.urls or [""] * len(self.linhas)))
 
 
-def _rotulo(dimensao: str = "rotulo", cor: str = COR_TEXTO, dentro: bool = False) -> dict:
-    """O rótulo por ponto — GIRADO em 90°.
+#: O rótulo dentro da barra CLARA. Não é branco, e a razão é medida:
+#:
+#:   branco sobre #a0a2e1 ....... 2,2:1   reprova em qualquer critério
+#:   #475569 sobre #a0a2e1 ...... 3,4:1   o que havia — e o que gerou a queixa
+#:   #212369 sobre #a0a2e1 ...... 5,8:1   este
+#:
+#: Branco dentro da barra escura e este dentro da clara é a única combinação em
+#: que os dois números passam. Pintar os dois de branco atenderia ao pedido e
+#: apagaria metade deles.
+#:
+#: É `--au-accent-800`, e não uma cor inventada para a ocasião: há um teste
+#: exigindo que toda `COR_*` daqui exista em `tokens.css`, e ele me barrou —
+#: uma cor que só o gráfico conhece é o começo de uma segunda paleta.
+COR_ROTULO_ESCURO = "#212369"
+
+
+def _rotulo(
+    dimensao: str = "rotulo",
+    cor: str = COR_ROTULO_ESCURO,
+    dentro: bool = False,
+) -> dict:
+    """O rótulo por ponto — GIRADO em 90°, e sempre em NEGRITO.
 
     É o que faz treze meses caberem, e é o que o Portal GPS faz. Na horizontal,
     `R$ 1,19 Mi` mede mais que a largura de uma barra de treze e os rótulos
     viram uma mancha.
+
+    **O negrito valia só para o rótulo de dentro, e estava errado.** O
+    raciocínio era que fora da barra o fundo é branco e o peso normal bastaria —
+    `#475569` sobre branco dá 7,5:1, contraste de sobra. Mas contraste não era o
+    problema: em 10px e peso normal, girado, o número LIA como legenda, e não
+    como dado. Quem abriu a tela disse que os valores em cima das colunas
+    atrapalhavam a visualização, e o número que passa no contraste e não é lido
+    está tão errado quanto o que não passa.
+
+    O que muda com o fundo é a COR, não o peso — ver `cor_do_rotulo`.
 
     `hideOverlap` fica no `labelLayout` de quem chama: o que não couber some, e
     o número continua na tabela irmã.
@@ -180,10 +256,22 @@ def _rotulo(dimensao: str = "rotulo", cor: str = COR_TEXTO, dentro: bool = False
         "formatter": f"{{@{dimensao}}}",
         "rotate": 90,
         "position": "insideBottom" if dentro else "top",
-        "align": "left" if dentro else "center",
+        # `align: "left"` NOS DOIS CASOS, e isto é a correção de um defeito real.
+        #
+        # Com `rotate: 90`, `align` decide para que lado o texto cresce a partir
+        # do ponto de ancoragem. `"left"` faz ele subir; `"center"` faz ele ficar
+        # CENTRADO na âncora — ou seja, metade acima e metade ABAIXO dela.
+        #
+        # Fora da barra a âncora fica na borda de cima, então `"center"` jogava
+        # metade do número por cima da barra. Numa barra navy escura com texto
+        # navy escuro, essa metade sumia. Foi relatado três vezes como "o valor
+        # está preto", e a cor estava certa desde a primeira: o que estava errado
+        # era o alinhamento.
+        "align": "left",
         "verticalAlign": "middle",
         "distance": 6,
-        "fontSize": 10,
+        "fontSize": 11,
+        "fontWeight": "bold",
         "color": cor,
     }
 
@@ -319,6 +407,11 @@ def barras_comparadas(
     rotulo_b: str,
     rotulo_linha: str = "",
     linha: list[Decimal | None] | None = None,
+    #: A série do período COMPARADO — F1. Alinhada por POSIÇÃO e não por
+    #: rótulo: os meses têm nomes diferentes (09/25 contra 09/26), e casar por
+    #: nome não casaria nada.
+    comparado: list[Decimal | None] | None = None,
+    rotulo_comparado: str = "",
     formatar=fmt.moeda_curta,
     formatar_tabela=fmt.moeda,
     formatar_linha=fmt.percentual,
@@ -338,6 +431,7 @@ def barras_comparadas(
         return Bloco(chave=chave, titulo=titulo, option={}, altura=altura)
 
     linha = linha or [None] * len(pontos)
+    comparado = comparado or [None] * len(pontos)
     fonte = [
         [
             mes,
@@ -347,8 +441,9 @@ def barras_comparadas(
             formatar(a),
             formatar(b),
             formatar_linha(c),
+            float(d) if d is not None else None,
         ]
-        for (mes, a, b), c in zip(pontos, linha)
+        for (mes, a, b), c, d in zip(pontos, linha, comparado)
     ]
 
     option = _base(altura)
@@ -356,7 +451,8 @@ def barras_comparadas(
         {
             "dataset": {
                 "dimensions": [
-                    "mes", "a", "b", "linha", "rotulo_a", "rotulo_b", "rotulo_linha",
+                    "mes", "a", "b", "linha", "rotulo_a", "rotulo_b",
+                    "rotulo_linha", "comparado",
                 ],
                 "source": fonte,
             },
@@ -405,12 +501,45 @@ def barras_comparadas(
                     "encode": {"x": "mes", "y": "b"},
                     "itemStyle": {"color": COR_SECUNDARIA},
                     "barMaxWidth": 26,
-                    "label": _rotulo("rotulo_b", cor=COR_TEXTO, dentro=True),
+                    "label": _rotulo("rotulo_b", dentro=True),
                     "labelLayout": {"hideOverlap": True},
                 },
             ],
         }
     )
+
+    if any(v is not None for v in comparado):
+        # LINHA e não terceira barra — F1.
+        #
+        # Com doze meses, três barras por mês são trinta e seis barras, e o
+        # rótulo dentro delas deixa de caber. A linha atravessa as barras sem
+        # disputar largura com elas, e é a convenção para "o mesmo período,
+        # antes".
+        #
+        # No eixo da ESQUERDA (`yAxisIndex` ausente = 0), porque ela está em
+        # reais como as barras. A linha da razão é a única do eixo direito —
+        # duas linhas em escalas diferentes seriam duas verdades sobre a mesma
+        # altura na tela.
+        option["series"].append(
+            {
+                "type": "line",
+                "name": rotulo_comparado or "Período anterior",
+                "encode": {"x": "mes", "y": "comparado"},
+                "itemStyle": {"color": COR_COMPARADO},
+                # TRACEJADA: é o que diz "isto não é deste período" sem depender
+                # de cor — a mesma regra que faz o trimestre parcial ser
+                # hachurado.
+                "lineStyle": {
+                    "color": COR_COMPARADO, "width": 2, "type": "dashed",
+                },
+                "symbolSize": 5,
+                "z": 5,
+                # SEM rótulo por ponto. As barras já carregam o valor dentro, e
+                # uma terceira etiqueta por mês torna o gráfico ilegível — que é
+                # exatamente a queixa que originou o filtro de período.
+                "label": {"show": False},
+            }
+        )
 
     if any(v is not None for v in linha):
         option["series"].append(
@@ -432,7 +561,10 @@ def barras_comparadas(
                     "fontSize": 10,
                     "fontWeight": "bold",
                     "color": "#ffffff",
-                    "backgroundColor": COR_LINHA,
+                    # A ETIQUETA é mais escura que a linha. Branco sobre
+                    # `#d97706` dá 3,19:1 e reprova; sobre `#b45309`, 5,02:1.
+                    # A linha continua clara — ela é traço, não fundo de texto.
+                    "backgroundColor": COR_LINHA_ETIQUETA,
                     "padding": [2, 4],
                     "borderRadius": 3,
                 },
@@ -441,12 +573,20 @@ def barras_comparadas(
         )
 
     colunas = [Coluna("Mês", numerica=False), Coluna(rotulo_a), Coluna(rotulo_b)]
+    tem_comparado = any(v is not None for v in comparado)
+    if tem_comparado:
+        colunas.append(Coluna(rotulo_comparado or "Período anterior"))
     if any(v is not None for v in linha):
         colunas.append(Coluna(rotulo_linha or "Razão"))
 
     linhas = []
-    for (mes, a, b), c in zip(pontos, linha):
+    for (mes, a, b), c, d in zip(pontos, linha, comparado):
         celulas = [mes, formatar_tabela(a), formatar_tabela(b)]
+        if tem_comparado:
+            # A tabela irmã ganha a coluna junto. Sem isso, quem não tem
+            # JavaScript veria a comparação sumir — e ela é o conteúdo, não o
+            # enfeite.
+            celulas.append(formatar_tabela(d))
         if any(v is not None for v in linha):
             celulas.append(formatar_linha(c))
         linhas.append(celulas)
@@ -495,6 +635,20 @@ def cascata(
     inicial: Decimal | None = None,
     rotulo_inicial: str = "Início",
     rotulo_final: str = "Final",
+    #: Rótulos de `passos` que são SUBTOTAL, e não movimento — C6.
+    #:
+    #: Uma cascata da DRE sem eles é ilegível: entre a receita e o EBITDA há
+    #: onze deduções, e quem lê precisa dos dois marcos do meio — receita
+    #: líquida e margem de contribuição — para saber onde está. Sem marco, o
+    #: gráfico é uma escada de onze degraus sem patamar.
+    #:
+    #: O subtotal é desenhado do ZERO, com o valor acumulado, e NÃO move o
+    #: acumulador: ele é uma foto do estado, e somá-lo contaria o mesmo dinheiro
+    #: duas vezes.
+    subtotais: tuple[str, ...] = (),
+    #: Uma URL por passo, paralela a `passos`. É o que faz cada degrau LEVAR ao
+    #: detalhamento — o clique abre o grupo de contas correspondente.
+    urls: list[str] | None = None,
     formatar=fmt.moeda_curta,
     formatar_tabela=fmt.moeda,
     altura: int = ALTURA,
@@ -531,6 +685,15 @@ def cascata(
 
     for rotulo, delta in passos:
         rotulos.append(rotulo)
+        if rotulo in subtotais:
+            # SUBTOTAL: coluna cheia desde o zero, com o acumulado. Não mexe no
+            # acumulador — ele é uma foto do estado, e somá-lo contaria o mesmo
+            # dinheiro duas vezes.
+            bases.append(0)
+            valores.append(float(acumulado))
+            textos.append(formatar(acumulado))
+            cores.append(COR_PRINCIPAL)
+            continue
         # A base é o menor dos dois extremos: numa queda, ela fica no valor de
         # chegada e o bloco visível sobe até o de partida.
         base = min(acumulado, acumulado + delta)
@@ -579,7 +742,15 @@ def cascata(
                     "stack": "cascata",
                     "barMaxWidth": 40,
                     "data": [
-                        {"value": valor, "itemStyle": {"color": cor}, "rotulo": texto}
+                        {
+                            "value": valor,
+                            "itemStyle": {"color": cor},
+                            "rotulo": texto,
+                            # POR ITEM, e não na série: cada passo da cascata tem
+                            # a sua cor (ganho verde, perda vermelha, total
+                            # navy), e uma cor de rótulo só serviria a um deles.
+                            "label": {"color": cor_do_rotulo(cor)},
+                        }
                         for valor, cor, texto in zip(valores, cores, textos)
                     ],
                     "label": {
@@ -592,8 +763,8 @@ def cascata(
                         "formatter": "{@rotulo}",
                         "rotate": 90,
                         "position": "inside",
-                        "fontSize": 10,
-                        "color": "#ffffff",
+                        "fontSize": 11,
+                        "fontWeight": "bold",
                     },
                     "labelLayout": {"hideOverlap": True},
                 },
@@ -604,28 +775,72 @@ def cascata(
         }
     )
 
+    # A TABELA IRMÃ repete a mesma aritmética, subtotal incluído.
+    #
+    # Se ela somasse o subtotal como movimento, contaria o mesmo dinheiro duas
+    # vezes e terminaria num acumulado diferente do gráfico ao lado — duas
+    # verdades na mesma faixa, e a tabela é justamente onde alguém vai conferir.
     linhas = []
+    urls_da_tabela: list[str] = []
     acumulado = inicial or Decimal("0")
     if inicial is not None:
-        linhas.append([rotulo_inicial, formatar_tabela(acumulado), formatar_tabela(acumulado)])
-    for rotulo, delta in passos:
-        acumulado += delta
-        linhas.append([rotulo, formatar_tabela(delta), formatar_tabela(acumulado)])
+        linhas.append(
+            [rotulo_inicial, formatar_tabela(acumulado), formatar_tabela(acumulado)]
+        )
+        urls_da_tabela.append("")
+    for indice, (rotulo, delta) in enumerate(passos):
+        if rotulo in subtotais:
+            linhas.append([rotulo, "—", formatar_tabela(acumulado)])
+        else:
+            acumulado += delta
+            linhas.append(
+                [rotulo, formatar_tabela(delta), formatar_tabela(acumulado)]
+            )
+        urls_da_tabela.append(urls[indice] if urls else "")
     if inicial is not None:
         linhas.append([rotulo_final, "—", formatar_tabela(acumulado)])
+        urls_da_tabela.append("")
 
     return Bloco(
         chave=chave,
         titulo=titulo,
         option=option,
-        colunas=[Coluna("Passo", numerica=False), Coluna("Movimento"), Coluna("Acumulado")],
+        colunas=[
+            Coluna("Passo", numerica=False), Coluna("Movimento"),
+            Coluna("Acumulado"),
+        ],
         linhas=linhas,
+        urls=urls_da_tabela if urls else [],
         resumo=(
             f"{titulo}: {len(passos)} movimentos, terminando em "
             f"{formatar_tabela(acumulado)}. Os números estão na tabela abaixo."
         ),
         altura=altura,
     )
+
+
+def _luminancia(cor: str) -> float:
+    """Luminância relativa da WCAG, de `#rrggbb`.
+
+    Existe para uma decisão só: rótulo branco ou escuro dentro do segmento. A
+    paleta categórica mistura tons escuros (`#3539a9`) e claros (`#a0a2e1`), e
+    pintar todos de branco — que era o que estava aqui — apaga o texto sobre os
+    claros. Não é preferência: `#ffffff` sobre `#a0a2e1` dá 2,2:1, e o mínimo
+    para texto pequeno é 4,5:1.
+    """
+    canais = []
+    for inicio in (1, 3, 5):
+        c = int(cor[inicio:inicio + 2], 16) / 255
+        canais.append(c / 12.92 if c <= 0.04045 else ((c + 0.055) / 1.055) ** 2.4)
+    return 0.2126 * canais[0] + 0.7152 * canais[1] + 0.0722 * canais[2]
+
+
+def cor_do_rotulo(fundo: str) -> str:
+    """Branco ou quase-preto, o que contrastar mais com `fundo`."""
+    luz = _luminancia(fundo)
+    contra_branco = 1.05 / (luz + 0.05)
+    contra_escuro = (luz + 0.05) / (_luminancia(COR_ROTULO_ESCURO) + 0.05)
+    return "#ffffff" if contra_branco >= contra_escuro else COR_ROTULO_ESCURO
 
 
 def _paleta(quantos: int) -> list[str]:
@@ -635,7 +850,7 @@ def _paleta(quantos: int) -> list[str]:
     dizendo que a categoria errada foi escolhida — e repetir cor é melhor que
     inventar uma que não passa no contraste.
     """
-    base = [COR_PRINCIPAL, COR_SECUNDARIA, COR_LINHA, COR_POSITIVO, COR_NEGATIVO]
+    base = [COR_PRINCIPAL, COR_SECUNDARIA, COR_TERCIARIA, COR_POSITIVO, COR_NEGATIVO]
     return [base[i % len(base)] for i in range(quantos)]
 
 
@@ -689,8 +904,9 @@ def barra_composicao(
                         "show": True,
                         "formatter": "{@rotulo}",
                         "position": "inside",
-                        "fontSize": 10,
-                        "color": "#ffffff",
+                        "fontSize": 11,
+                        "fontWeight": "bold",
+                        "color": cor_do_rotulo(cor),
                     },
                     "labelLayout": {"hideOverlap": True},
                 }
@@ -769,7 +985,8 @@ def empilhada_percentual(
                     ],
                     "label": {
                         "show": True, "formatter": "{@rotulo}",
-                        "position": "inside", "fontSize": 10, "color": "#ffffff",
+                        "position": "inside", "fontSize": 11,
+                        "fontWeight": "bold", "color": cor_do_rotulo(cor),
                     },
                     "labelLayout": {"hideOverlap": True},
                 }
@@ -852,8 +1069,9 @@ def rosca(
                     "label": {
                         "show": True,
                         "formatter": "{b}\\n{d}%",
-                        "fontSize": 10,
-                        "color": COR_TEXTO,
+                        "fontSize": 11,
+                        "fontWeight": "bold",
+                        "color": COR_ROTULO_ESCURO,
                     },
                     "labelLine": {"length": 8, "length2": 8},
                     "data": [
@@ -890,7 +1108,7 @@ def rosca(
 #: cor nunca sozinha, e num medidor a cor é quase tudo o que existe.
 FAIXAS_PADRAO: tuple[tuple[Decimal, str, str], ...] = (
     (Decimal("50"), "crítico", COR_NEGATIVO),
-    (Decimal("75"), "atenção", COR_LINHA),
+    (Decimal("75"), "atenção", COR_ATENCAO),
     (Decimal("100"), "bom", COR_POSITIVO),
 )
 
@@ -1047,7 +1265,8 @@ def bullet(
                     "data": valores,
                     "label": {
                         "show": True, "formatter": "{@rotulo}",
-                        "position": "right", "fontSize": 10, "color": COR_TEXTO,
+                        "position": "right", "fontSize": 11,
+                        "fontWeight": "bold", "color": COR_ROTULO_ESCURO,
                     },
                     "labelLayout": {"hideOverlap": True},
                     "markLine": {
@@ -1102,6 +1321,11 @@ def dispersao(
     rotulo_y: str = "Margem",
     formatar_x=fmt.moeda_curta,
     formatar_y=fmt.percentual,
+    #: O tooltip mostra o número EXATO. A abreviação serve ao eixo, onde não
+    #: cabe mais; quem passa o mouse num ponto quer o valor, e "R$ 1.234" no
+    #: lugar de "R$ 1.234,50" é o tipo de arredondamento que reaparece como
+    #: divergência numa conferência contra o ERP.
+    formatar_x_exato=fmt.moeda,
     limiar_y: Decimal | None = None,
     altura: int = 300,
 ) -> Bloco:
@@ -1113,6 +1337,12 @@ def dispersao(
 
     `pontos` é `[(rótulo, x, y, tamanho), …]`. `limiar_y` desenha a linha da
     margem mínima: sem ela, o quadrante que importa não tem fronteira visível.
+
+    **Três coisas dizem "este é o problema", e não uma.** A posição abaixo da
+    linha, a COR vermelha do ponto e o texto no tooltip. Só a posição não
+    bastava: alguém olhou este gráfico e disse "não entendi como ler" — e estava
+    certo, porque a explicação de como lê-lo morava num comentário do template,
+    que é o único lugar da tela onde o usuário não olha.
     """
     if not pontos:
         return Bloco(chave=chave, titulo=titulo, option={}, altura=altura)
@@ -1120,45 +1350,116 @@ def dispersao(
     tamanhos = [float(t) for _, _, _, t in pontos] or [1.0]
     maior = max(tamanhos) or 1.0
 
+    def abaixo(y: Decimal) -> bool:
+        return limiar_y is not None and y < limiar_y
+
+    # Os limites da área do quadrante. "Muito" é a METADE do maior faturamento,
+    # e não um valor fixo: uma carteira de contratos de 30 mil e outra de 3
+    # milhões têm o mesmo desenho, e um corte absoluto serviria a uma só.
+    receitas = [float(x) for _, x, _, _ in pontos]
+    meia_receita = max(receitas) / 2 if receitas else 0.0
+    margens = [float(y) for _, _, y, _ in pontos]
+    piso_y = min(margens + [float(limiar_y) if limiar_y is not None else 0.0])
+
     option = _base(altura)
     option.update(
         {
-            "tooltip": {"trigger": "item", "confine": True},
+            # O TOOLTIP USA `{b}`, E NÃO `{@detalhe}` — corrigido em 08/09/2026.
+            #
+            # `{@dimensão}` só existe no caminho do RÓTULO. Provado no bundle:
+            # o regex `/\{@(.+?)\}/g` aparece em exatamente um `.replace()`,
+            # dentro de `getFormattedLabel`. O formatter de tooltip passa por
+            # `formatTpl`, que só conhece `{a}`, `{b}`, `{c}` e `{d}` — então
+            # `{@detalhe}` chegava à tela **literal**, que foi o defeito
+            # relatado.
+            #
+            # `{b}` é o `name` do item, e `name` aceita qualquer string. O texto
+            # rico vai ali, já formatado em pt-BR pelo Python — a regra de
+            # formato continua num lugar só.
+            #
+            # A correção que o relato sugeria — declarar `dataset.dimensions` e
+            # trocar o formatter por função — não serve aqui: `dimensions` não
+            # muda o caminho do tooltip, e função não sobrevive à serialização
+            # JSON pela qual a `option` viaja.
+            "tooltip": {"trigger": "item", "confine": True, "formatter": "{b}"},
+            # A UNIDADE NO NOME DO EIXO. Sem ela, "25" no eixo vertical e
+            # "30,000" no horizontal são dois números sem grandeza, e a pessoa
+            # tem de deduzir qual é qual. Foi a primeira coisa que faltou quando
+            # alguém disse "não entendi como ler".
             "xAxis": {
                 **_eixo_de_valor(),
-                "name": rotulo_x,
+                "name": f"{rotulo_x} (R$)",
                 "nameLocation": "middle",
                 "nameGap": 28,
                 "nameTextStyle": {"color": COR_TEXTO, "fontSize": 11},
             },
             "yAxis": {
                 **_eixo_de_valor(),
-                "name": rotulo_y,
+                "name": f"{rotulo_y} (%)",
                 "nameLocation": "middle",
                 "nameGap": 40,
                 "nameTextStyle": {"color": COR_TEXTO, "fontSize": 11},
+                # String e não função: `{value}` é template do ECharts, e um
+                # `Intl` em JS poria a regra de formato num segundo lugar.
+                "axisLabel": {
+                    **_eixo_de_valor()["axisLabel"], "formatter": "{value}%"
+                },
             },
             "series": [
                 {
                     "type": "scatter",
                     "name": titulo,
                     "symbolSize": 8,
-                    "itemStyle": {"color": COR_PRINCIPAL, "opacity": 0.75},
+                    "itemStyle": {"opacity": 0.8},
                     "data": [
                         {
-                            "name": rotulo,
+                            # `name` É o texto do tooltip. Ver a nota em
+                            # `tooltip`, acima.
+                            "name": (
+                                f"{rotulo}<br>{rotulo_x}: {formatar_x_exato(x)}"
+                                f"<br>{rotulo_y}: {formatar_y(y)}"
+                                + ("<br><b>abaixo do mínimo</b>" if abaixo(y) else "")
+                            ),
                             "value": [float(x), float(y)],
                             # O tamanho proporcional, entre 8 e 34 pixels. Sem
                             # piso, o contrato pequeno vira um ponto que ninguém
                             # acha; sem teto, o maior cobre os vizinhos.
                             "symbolSize": 8 + 26 * (float(t) / maior),
                             "rotulo": rotulo,
+                            # VERMELHO abaixo do limiar. A posição sozinha exige
+                            # que a pessoa siga a linha tracejada com o olho até
+                            # cada ponto; a cor responde de relance.
+                            "itemStyle": {
+                                "color": COR_NEGATIVO if abaixo(y) else COR_PRINCIPAL
+                            },
+                            # O RÓTULO por item, com o texto LITERAL.
+                            #
+                            # `formatter` sem chave nenhuma é renderizado como
+                            # está — e com o nome do contrato aqui, o gráfico
+                            # deixa de depender de `{@rotulo}` resolver contra
+                            # uma dimensão que este tipo de série não declara.
+                            "label": {
+                                "show": bool(abaixo(y)),
+                                "formatter": rotulo,
+                            },
                         }
                         for rotulo, x, y, t in pontos
                     ],
+                    # O RÓTULO SÓ NOS QUE ESTÃO ABAIXO DO LIMIAR — ver o
+                    # `label: {show: False}` por item, acima.
+                    #
+                    # Nomear todos os contratos enche o gráfico, o `hideOverlap`
+                    # apaga a maioria, e o que sobra é aleatório: os que
+                    # aparecem são os que couberam, não os que importam. Nomear
+                    # só os vermelhos deixa a leitura em uma frase — "estes
+                    # quatro estão abaixo da margem, e este é grande".
+                    # SEM `formatter` na série: cada item traz o seu, com o
+                    # nome do contrato literal. O que fica aqui é só a
+                    # aparência, que é igual para todos.
                     "label": {
-                        "show": True, "formatter": "{@rotulo}",
-                        "position": "top", "fontSize": 9, "color": COR_TEXTO,
+                        "show": True,
+                        "position": "top", "fontSize": 10,
+                        "fontWeight": "bold", "color": COR_NEGATIVO,
                     },
                     "labelLayout": {"hideOverlap": True},
                     "markLine": (
@@ -1176,6 +1477,38 @@ def dispersao(
                         if limiar_y is not None
                         else {"data": []}
                     ),
+                    # O QUADRANTE, NOMEADO DENTRO DO GRÁFICO.
+                    #
+                    # A linha tracejada dizia onde a margem mínima passa, e o
+                    # vermelho dizia quem está abaixo dela. Nenhum dos dois
+                    # dizia POR QUE olhar para lá — e "por que olhar" é a única
+                    # pergunta que este gráfico existe para responder.
+                    #
+                    # A área vai da metade direita do eixo X para baixo do
+                    # limiar: é onde mora o contrato que fatura muito e rende
+                    # pouco, que é o caro de descobrir tarde. `silent` para não
+                    # roubar o clique nem o tooltip dos pontos que estão dentro
+                    # dela.
+                    "markArea": (
+                        {
+                            "silent": True,
+                            "itemStyle": {"color": COR_NEGATIVO, "opacity": 0.06},
+                            "label": {
+                                "show": True,
+                                "position": "insideBottomRight",
+                                "formatter": "fatura muito, rende pouco",
+                                "color": COR_NEGATIVO,
+                                "fontSize": 10,
+                                "fontWeight": "bold",
+                            },
+                            "data": [[
+                                {"xAxis": float(meia_receita), "yAxis": float(piso_y)},
+                                {"xAxis": "max", "yAxis": float(limiar_y)},
+                            ]],
+                        }
+                        if limiar_y is not None
+                        else {"data": []}
+                    ),
                 }
             ],
         }
@@ -1187,9 +1520,18 @@ def dispersao(
         option=option,
         colunas=[
             Coluna("Item", numerica=False), Coluna(rotulo_x), Coluna(rotulo_y),
+            Coluna("Situação", numerica=False),
         ],
+        # A tabela irmã ganha a mesma terceira informação que o gráfico: a cor
+        # não pode ser o único lugar onde "abaixo do mínimo" está escrito.
         linhas=[
-            [rotulo, formatar_x(x), formatar_y(y)] for rotulo, x, y, _ in pontos
+            [
+                rotulo,
+                formatar_x(x),
+                formatar_y(y),
+                "abaixo do mínimo" if abaixo(y) else "ok",
+            ]
+            for rotulo, x, y, _ in pontos
         ],
         resumo=(
             f"{titulo}: {len(pontos)} pontos, {rotulo_x} contra {rotulo_y}. "
@@ -1343,6 +1685,143 @@ def mapa_calor_tabela(
             (FAROL_CRITICO, ROTULO_DO_FAROL[FAROL_CRITICO]),
         ],
     )
+
+
+#: As cores por ano do comparativo trimestral — F2.
+#:
+#: Três, porque três anos é o teto do gráfico: a quarta barra por trimestre não
+#: cabe com rótulo, e comparar quatro anos de uma vez não é uma pergunta que
+#: alguém faça de pé numa reunião.
+#:
+#: O ano CORRENTE é o primeiro e o mais escuro — ele é o assunto, e os
+#: anteriores são o contexto.
+CORES_POR_ANO: tuple[str, ...] = (COR_PRINCIPAL, COR_SECUNDARIA, COR_COMPARADO)
+
+
+def barras_por_ano(
+    categorias: list[str],
+    series: list[tuple[str, list[Decimal | None]]],
+    *,
+    chave: str,
+    titulo: str,
+    #: `(nome da série, categoria)` dos valores INCOMPLETOS — F2.
+    #:
+    #: Comparar um trimestre de dois meses com um de três, sem avisar, é o erro
+    #: que mais gera decisão errada em reunião de resultado: a barra menor é
+    #: lida como queda, e a queda não existe.
+    parciais: dict[tuple[str, str], str] | None = None,
+    formatar=fmt.moeda_curta,
+    formatar_tabela=fmt.moeda,
+    altura: int = ALTURA,
+) -> Bloco:
+    """Barras agrupadas por período, uma cor por ano — F2.
+
+    ## O trimestre parcial é marcado de TRÊS formas
+
+    Opacidade, borda tracejada e o texto "parcial (2 de 3 meses)" no rótulo.
+    Três e não uma porque as duas primeiras somem em impressão preto-e-branco e
+    para quem não distingue a diferença — e a regra do produto é que cor nunca
+    vem sozinha. O texto é o que sobrevive a tudo, e é o que a tabela irmã leva.
+
+    Não usa `decal` do ECharts: o gerador de padrão pode não estar no build
+    customizado, e uma hachura que não desenha vira uma barra igual às outras
+    sem ninguém perceber.
+    """
+    if not categorias or not series:
+        return Bloco(chave=chave, titulo=titulo, option={}, altura=altura)
+
+    parciais = parciais or {}
+    option = _base(altura)
+    option.update(
+        {
+            "legend": {
+                "bottom": 0,
+                "icon": "roundRect",
+                "itemHeight": 8,
+                "textStyle": {"color": COR_TEXTO, "fontSize": 11},
+            },
+            "grid": {
+                "left": 8, "right": 8, "top": 34, "bottom": 30,
+                "containLabel": True,
+            },
+            "xAxis": {
+                "type": "category",
+                "data": categorias,
+                "axisLabel": {"color": COR_TEXTO, "fontSize": 11},
+                "axisTick": {"show": False},
+                "axisLine": {"lineStyle": {"color": COR_GRADE}},
+            },
+            "yAxis": _eixo_de_valor(),
+            "series": [
+                {
+                    "type": "bar",
+                    "name": nome,
+                    "barMaxWidth": 22,
+                    "data": [
+                        _barra_do_ano(
+                            valor, CORES_POR_ANO[i % len(CORES_POR_ANO)],
+                            parciais.get((nome, categoria)), formatar,
+                        )
+                        for categoria, valor in zip(categorias, valores)
+                    ],
+                    "labelLayout": {"hideOverlap": True},
+                }
+                for i, (nome, valores) in enumerate(series)
+            ],
+        }
+    )
+
+    colunas = [Coluna("Período", numerica=False)] + [
+        Coluna(nome) for nome, _ in series
+    ]
+    linhas = []
+    for indice, categoria in enumerate(categorias):
+        celulas = [categoria]
+        for nome, valores in series:
+            valor = valores[indice] if indice < len(valores) else None
+            texto = formatar_tabela(valor) if valor is not None else "—"
+            # A TABELA IRMÃ leva o aviso junto: sem JavaScript ela é o
+            # conteúdo, e um "parcial" que só existe no gráfico não existe.
+            aviso = parciais.get((nome, categoria))
+            celulas.append(f"{texto} ({aviso})" if aviso else texto)
+        linhas.append(celulas)
+
+    return Bloco(
+        chave=chave,
+        titulo=titulo,
+        option=option,
+        colunas=colunas,
+        linhas=linhas,
+        resumo=(
+            f"{titulo}: {len(series)} anos em {len(categorias)} períodos. "
+            "Os números estão na tabela abaixo."
+        ),
+        altura=altura,
+    )
+
+
+def _barra_do_ano(valor, cor: str, aviso: str | None, formatar):
+    """Uma barra. Parcial ganha opacidade, tracejado e o texto junto do rótulo."""
+    if valor is None:
+        return {"value": None}
+    estilo = {"color": cor}
+    rotulo = formatar(valor)
+    if aviso:
+        estilo |= {"opacity": 0.55, "borderColor": cor, "borderWidth": 1,
+                   "borderType": "dashed"}
+        rotulo = f"{rotulo}\n{aviso}"
+    return {
+        "value": float(valor),
+        "itemStyle": estilo,
+        "label": {
+            "show": True,
+            "position": "top",
+            "formatter": rotulo,
+            "fontSize": 10,
+            "fontWeight": "bold" if aviso else "normal",
+            "color": COR_ROTULO_ESCURO,
+        },
+    }
 
 
 def barras_por_categoria(

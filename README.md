@@ -1,11 +1,25 @@
-# iConnect Workspace
+# Portal ADB360
 
 **A vida corporativa da empresa em um lugar.**
 
-> O iConnect Workspace organiza a vida corporativa da empresa.
+> O Portal ADB360 organiza a vida corporativa da Autodefesa Brasil.
 > O iConnect Platform organiza toda a operação de atendimento aos clientes.
 
 São **dois produtos**. Este repositório é o primeiro.
+
+> **Sobre o nome.** Chamou-se *Portal* até 12/08/2026, *iConnect Workspace* até
+> 04/09/2026, e agora é **Portal ADB360**. Três coisas continuam com o nome
+> antigo, e as três de propósito:
+>
+> - **a rota `/workspace/…`** — endereço é endereço, e link antigo que dá 404 é
+>   pior que link com nome antigo;
+> - **o app Django `workspace`** — renomeá-lo renomearia a tabela de todo model;
+> - **os documentos `EXEC_*`**, que são registro datado. O EXEC 10 conta por que
+>   o produto deixou de se chamar Portal; reescrevê-lo apagaria a decisão em vez
+>   de mostrar que ela foi revista.
+>
+> O nome que a pessoa lê vive em `settings.PRODUTO_NOME`, e em lugar nenhum
+> além dele — há dois testes cobrando isso.
 
 ---
 
@@ -226,6 +240,7 @@ justificativa no PR.
 | [Gestão e stakeholders](docs/GESTAO_STAKEHOLDERS.md) | Status, custos, indicadores e apresentações executivas |
 | [Conhecimento organizacional](docs/CONHECIMENTO_ORGANIZACIONAL.md) | Onboarding, wiki interna, decisões e licença |
 | [Guia de QA](docs/GUIA_QA_WORKSPACE.md) | O contrato de cada tela: para que serve, quando é útil, o que é defeito e o que é decisão |
+| [Pendências](docs/PENDENCIAS.md) | As onze coisas que faltam — e **nenhuma delas é código**: são acessos, decisões e infraestrutura, separados por de quem dependem |
 | [Blueprint](docs/BLUEPRINT_ICONNECT_WORKSPACE.md) | A visão do produto |
 | [EXEC 01–10](docs/) | As dez etapas de planejamento, da arquitetura ao reposicionamento |
 | [EXEC 10](docs/EXEC_10_REPOSICIONAMENTO.md) | Onde "Portal" virou "iConnect Workspace", com os ADRs 010–014 |
@@ -240,6 +255,7 @@ justificativa no PR.
 | [EXEC 22](docs/EXEC_22_ORCAMENTO.md) | Orçamento anual e revisão: a onda que começou decidindo a posse, com os ADRs 036–037 |
 | [EXEC 23](docs/EXEC_23_PUBLICOS.md) | Segmentação de público: um ADR e um tile, não um módulo, com os ADRs 038–039 |
 | [EXEC 24](docs/EXEC_24_LIGAR_AS_FONTES.md) | O roteiro de ligar as três fontes e instalar o agendamento — o que falta é acesso, não código |
+| [EXEC 26](docs/EXEC_26_RADAR_EXTERNO.md) | Levantamento: trazer oportunidades de fora. Raspagem não; **edital público por API oficial, sim** — e o que precisa ser decidido antes do código |
 | [EXEC 25](docs/EXEC_25_GRAFICOS.md) | Gráficos com biblioteca: a CSP que abriu, o ECharts e o PDF sem gráfico, com os ADRs 040–041 |
 
 ---
@@ -259,3 +275,10 @@ mantidos de verdade — em vez de um CSV importado à mão.
 **Assistente de conhecimento.** Depende dos POPs e normativos reais. Com o SSO
 ligado, o mesmo token lê a biblioteca do SharePoint e a ingestão deixa de exigir
 upload manual.
+
+**E, antes de qualquer coisa nova: as onze pendências.** Nenhuma é código — são
+sete variáveis de ambiente, um `crontab` que não foi instalado, três garantias de
+infraestrutura e algumas decisões que só o dono do produto toma. Estão em
+[docs/PENDENCIAS.md](docs/PENDENCIAS.md), separadas por **de quem dependem**,
+porque misturar "falta programar" com "falta pedir a senha" é como uma pendência
+de dez minutos fica seis semanas esperando um sprint.

@@ -1,4 +1,4 @@
-# Guia do iConnect Workspace — para quem vai testar
+# Guia do Portal ADB360 — para quem vai testar
 
 > **Para quem é este documento.** Para o QA que precisa entender *o que cada tela
 > promete* antes de decidir se ela cumpriu. Não é um roteiro de cliques: é o
@@ -11,16 +11,80 @@
 
 ---
 
+## O que mudou nesta rodada (setembro/2026)
+
+Se você já testou o Workspace antes, **estas são as telas novas**. Elas foram
+construídas juntas e nunca passaram por QA de gente — é aqui que o retorno vale
+mais.
+
+| Tela | Onde está | O teste que mais protege |
+|---|---|---|
+| Apresentação de Resultados | 3.18 | 403 para quem não tem escopo — **nunca** tela zerada |
+| Perfurar / cruzar / pivotar / detalhar | **3.18.1** | o número **encolhe** ao descer, e o estado sobrevive a copiar-e-colar a URL |
+| Fontes de dados | 3.19 | `eco.carga` ≠ `eco.ler`: o T.I. não vê a margem |
+| Painel de exceções | 3.20 | nenhum cartão que não disparou |
+| Ciclos e ATA | 3.21 | ler a pauta ≠ conduzir a reunião |
+| Planos de ação | 3.22 | fonte fora do ar **não fecha** plano |
+| Metas, avaliação e PDI | 3.23 | a meta guarda a fórmula, não o número |
+| Orçamento anual e revisão | 3.24 | revisão não apaga a versão anterior |
+| Os outros públicos da marca | 3.25 | nenhum link para fora que aponte para dentro |
+| Gráficos com biblioteca | **2.8** | tabela irmã em todos, e console limpo |
+| **Quadro e jornada** (16) | **3.18.2** | `vendas` NÃO abre; R.H. abre sem ver dinheiro |
+| **Satisfação do cliente** (17) | **3.18.3** | `vendas` abre — e não vê a 10 |
+| Trilho em grupos recolhíveis | **1.6** | só o grupo da tela atual nasce aberto |
+
+**Comece por aqui, nesta ordem:**
+
+1. A **seção 1 inteira** — em especial o bloco de semeadoras da § 1.2, que
+   cresceu. **Sem ele, as telas 10 a 15 abrem vazias**, e isso não é bug.
+2. A **seção 2.8** (gráficos) e a **4** (matriz de permissão), que valem para
+   várias telas de uma vez.
+3. O **Roteiro H** (seção 5). É o mais denso do produto: sozinho ele cobre seis
+   das armadilhas já corridas da seção 7.
+
+**As três coisas que são achado de segurança, e não bug de tela:** dado pessoal
+em grade ou em query string; endpoint que aceita um recorte que a tela recusa; e
+tela de dado agregado que abre zerada em vez de recusar.
+
+---
+
 ## 0. Antes de tudo: são dois produtos, não um
 
 Isto é a coisa mais importante do documento e a que mais gera falso-positivo.
 
-| | **iConnect Workspace** | **iConnect Platform** |
+| | **Portal ADB360** | **iConnect Platform** |
 |---|---|---|
 | Organiza | a vida corporativa da **empresa** | a operação de **atendimento aos clientes** |
-| Usuário | o colaborador da icodev | o técnico, o operador, o cliente |
+| Usuário | o colaborador da Autodefesa Brasil | o técnico, o operador, o cliente |
 | Onde vive | `/workspace/…` | `/login/`, `/dashboard/…`, `/fsm/…` |
 | Pessoas | organograma (`identidade.Lotacao`) | papéis do iConnect (`UserRole`, ~1.432 registros) |
+
+> **O produto foi rebatizado em 04/09/2026.** Chamava-se *iConnect Workspace* e
+> agora é **Portal ADB360**. Duas coisas **não** mudaram, e as duas geram
+> falso-positivo se você esperar o contrário:
+>
+> - **A rota continua `/workspace/…`.** Endereço é endereço: mudar quebraria
+>   todo link já colado em e-mail, ata e chamado, e link antigo que dá 404 é
+>   pior que link com nome antigo.
+> - **O app Django continua se chamando `workspace`**, e o `/admin/` mostra o
+>   nome novo. Se você vir "iConnect Workspace" em alguma tela, **é bug** — há
+>   um teste varrendo todos os templates atrás disso.
+>
+> O selo com o número da tela **saiu da topbar** na mesma data (ver 3.2.1).
+>
+> **O logo é o da Autodefesa Brasil**, e o favicon é a águia. Confira nas duas
+> cascas — `/workspace/` e `/entrar/`, que têm cascas DIFERENTES — e na aba do
+> navegador. Logo quebrado **não derruba tela nenhuma**: o navegador desenha o
+> ícone de imagem faltando e segue, e quem testa olha o conteúdo. Se aparecer o
+> retângulo vazio no alto, é bug.
+>
+> O `alt` do logo diz **"Autodefesa Brasil"** e não "Portal ADB360" — o nome do
+> produto já está escrito ao lado, em texto, e repetir faria o leitor de tela
+> dizer o nome duas vezes sem nunca dizer de quem é o portal.
+>
+> **A cor da barra do navegador continua azul-marinho**, e é deliberado: o
+> `theme-color` acompanha o sistema de design, que é navy em todas as telas. O
+> vermelho da marca é do logo, não da interface.
 
 **Consequência prática para o teste:** as pessoas dos dois produtos **não são as
 mesmas**. Um usuário do iConnect não é colaborador do Workspace, e vice-versa. Se
@@ -47,6 +111,18 @@ python manage.py migrate
 python manage.py showmigrations workspace   # tudo com [X]
 ```
 
+**E o banco precisa de um superusuário ANTES de semear.**
+
+```bash
+python manage.py createsuperuser
+```
+
+Não é formalidade: `semear_acessos` e `semear_perfis` **abortam** sem ele, com
+*"Nenhum superusuário no banco. Toda concessão precisa de autor"*. É de
+propósito — dar papel a alguém é um ato que fica registrado, e registro sem autor
+não serve para auditar nada. Sem esse passo você fica sem **os 17 perfis de
+teste da § 1.2.1**, que é metade deste guia.
+
 ### 1.2 Semear o que tem semeadora
 
 ```bash
@@ -62,8 +138,49 @@ python manage.py semear_estoque --aplicar             # materiais e saldo inicia
 python manage.py semear_frota --aplicar               # veículos, ligados aos recursos
 python manage.py semear_cursos --aplicar              # NRs e treinamentos
 python manage.py semear_faq --aplicar                 # a base do assistente
+python manage.py semear_orcamento --aplicar           # o teto por centro de custo vira orçamento anual
+
+# As telas 10 a 15 (§ 3.18 a 3.24) NÃO EXISTEM sem estas linhas.
+#
+# A ORDEM importa, e cada passo tem uma razão:
+#
+#   semear_fontes            o carregador RECUSA começar sem registro de fonte —
+#                            carga sem procedência é boato com aparência de
+#                            relatório.
+#   semear_areas             as cinco áreas comerciais. Sem elas o filtro por
+#                            área da tela 10 fica vazio, e todo contrato cai em
+#                            "Sem área".
+#   semear_plano_de_contas   as 149 contas. Sem elas o razão por conta NÃO é
+#                            gerado — o seeder avisa e segue —, e a tabela
+#                            contábil (bloco D) diz que falta lançamento.
+#   semear_resultados        o espelho: 24 meses de competência e 6 de razão.
+python manage.py semear_fontes --aplicar              # as 4 fontes e a precedência entre elas
+python manage.py semear_areas --aplicar               # as 5 áreas comerciais
+python manage.py semear_plano_de_contas --aplicar     # as 149 contas contábeis
+python manage.py semear_resultados --aplicar          # o espelho, pelas 3 fontes
+python manage.py semear_regras_excecao --aplicar      # as 18 regras + as 5 desligadas
+python manage.py semear_ciclos --aplicar              # a pauta mensal (12 etapas)
+python manage.py semear_ciclo_metas --aplicar         # o ciclo de metas do ano corrente
+
 python manage.py reindexar_busca                      # popula o índice da ⌘K
 ```
+
+**Um passo à mão, e só um: o teto de cada centro de custo.**
+`semear_centros_custo` cria os centros **sem** orçamento mensal, de propósito —
+vazio significa *não definido*, que é diferente de zero (zero o aprovador leria
+como "tem folga"). Consequência prática: `semear_orcamento` termina com *"0
+orçamentos criados, 3 centros sem teto definido"*, e **a tela 15 (§ 3.24) abre
+com estado vazio**.
+
+Para testá-la, preencha o **orçamento mensal** dos três centros em
+`/admin/financas/centrocusto/` e rode `semear_orcamento --aplicar` de novo. Isso
+não é defeito: é a mesma distinção entre "não definido" e "zero" que a bandeja de
+aprovação usa.
+
+> **Se as telas de resultado abrirem vazias, é porque faltou este bloco** — e
+> não é bug. Toda semeadora é idempotente e roda em simulação **sem**
+> `--aplicar`: sem a flag ela mostra o que faria e desfaz a transação, o que é o
+> jeito seguro de conferir antes de gravar.
 
 > **`semear_centros_custo` não é enfeite.** Sem ele toda pessoa tem um código de
 > centro de custo e nenhum código existe — e a bandeja de aprovação diz "CC sem
@@ -211,6 +328,36 @@ Em **toda** tela do Workspace, no canto superior direito:
 
 ---
 
+### 1.6 O trilho abre um grupo, e não todos
+
+Os grupos do trilho são `<details>`: só o da tela em que você está nasce aberto.
+Antes todos ficavam abertos, e para quem tem todas as permissões isso eram 28
+itens de uma vez.
+
+**O que testar:**
+
+- **Abra `/workspace/resultados/`** — "Resultados da empresa" está aberto e os
+  outros fechados. Vá para `/workspace/pessoas/` — agora "Gestão" abre e o
+  anterior fecha.
+- **Clique num título de grupo.** Ele abre e fecha. Se não fechar, alguém trocou
+  o `<details>` por JavaScript — e a CSP bloqueia `onclick` **em silêncio**.
+- **Desligue o JavaScript.** Os grupos continuam abrindo. É o teste que separa
+  disclosure nativo de gambiarra.
+- **Conte os itens de cada grupo: no máximo oito.** Acima disso a lista deixa de
+  ser lida de relance e passa a ser varrida item a item.
+- **"Acompanhar" não existe mais.** Ele virou "Resultados da empresa" e
+  "Gestão". Se você vir o antigo, é regressão.
+
+**Quantos itens cada perfil vê** — use como gabarito:
+
+```
+colaborador    11 itens   3 grupos: Hoje, Consultar, Pedir
+gestor         15 itens   5 grupos
+diretoria      28 itens   7 grupos
+```
+
+---
+
 ## 2. As regras que valem em TODA tela
 
 Antes das telas, sete invariantes. Cada uma delas já foi quebrada uma vez, e cada
@@ -323,6 +470,33 @@ na tela. O que a biblioteca injeta é aceito. E `script-src` continua sem
 zero aviso de recurso bloqueado. O console é fonte de verdade aqui — ele já
 pegou uma barra SVG que não desenhava por causa de vírgula decimal, e uma tabela
 inteira sem CSS.
+
+---
+
+### 2.8 Todo gráfico tem tabela irmã, e ela vem do mesmo lugar
+
+Os gráficos são desenhados por uma biblioteca (Apache ECharts, servida **pelo
+projeto** — nunca por CDN). Isso significa que **sem JavaScript não há gráfico**,
+e por isso todo gráfico traz abaixo um `<details>` com os mesmos números em
+tabela.
+
+**Como testar, em quatro passos:**
+
+1. **Abra a tabela de cada gráfico.** Os números têm de ser **os mesmos**, e em
+   pt-BR (`1.234,56`, `840 Mil`, `1,23 Mi`). Se um deles vier com ponto decimal,
+   o formatador foi contornado — os dois desenham do mesmo objeto, então divergir
+   é sempre bug.
+2. **Desligue o JavaScript e recarregue.** A tabela tem de aparecer **já aberta**.
+   Se ela vier fechada, quem depende dela é exatamente quem não consegue abri-la.
+3. **Console limpo.** Zero erro de CSP. Um bloqueio aqui deixa o gráfico
+   **em branco, sem erro visível na tela** — o console é a única testemunha.
+4. **Cor nunca sozinha.** Todo estado colorido tem rótulo ou texto ao lado.
+   Verde e vermelho como única diferença exclui quem não distingue os dois, e é
+   bug de acessibilidade, não preferência.
+
+**No PDF não há gráfico, de propósito** — ele leva as tabelas, e o rodapé diz
+isso e onde ver os desenhos. Gráfico em PDF exigiria um navegador inteiro rodando
+no servidor. **Não abra bug por isso** (ADR-041).
 
 ---
 
@@ -451,11 +625,17 @@ justamente quando a pessoa ainda está decidindo como buscar.
 - A legenda embaixo do campo **não deve mostrar `p:`** para quem não administra
   papéis. Atalho anunciado que devolve vazio é pior do que atalho nenhum.
 
-**O código da tela** aparece discreto ao lado da marca, no topo, e é o mesmo que
-funciona na busca e em `/workspace/ir/<código>/`. Confira que a tela aberta e o
-código no topo batem — e que uma rota que **não é lugar** (o formulário de um
-serviço, a página de decidir uma aprovação) **não mostra código nenhum**. A
-lista viva sai do próprio produto:
+**O código da tela NÃO aparece mais na topbar** — saiu em 04/09/2026. Ele ficava
+ao lado do nome do produto e, lido ali, virava número de página; com a contagem
+do sino do outro lado, a barra tinha duas numerações que não conversavam.
+
+**O endereçamento continua inteiro**, e é isso que se testa agora: digite `02` na
+busca, e abra `/workspace/ir/02/`. Os dois têm de levar ao catálogo de serviços.
+Se pararem de funcionar, **abra bug** — o selo era a etiqueta, não o mecanismo, e
+"abra a 10" numa ata precisa continuar abrindo alguma coisa.
+
+O que se perdeu é a **descoberta**: quem estava numa tela via o código dela sem
+procurar. A lista viva sai do próprio produto:
 
 ```bash
 python manage.py shell -c "from workspace import enderecamento as e; [print(t.codigo, t.nome, t.url) for t in e.todas()]"
@@ -1083,14 +1263,18 @@ problema**. São dois caminhos para o mesmo lugar, de propósito.
 
 **Um módulo não é um sistema novo** — é uma vista sobre o que já existe.
 
+São **doze**, e nenhum deles é "Em breve" (conferido em 03/09/2026):
+
 | Módulo | Domínios | Tela |
 |---|---|---|
 | RH | `rh.*` | catálogo |
 | Financeiro | `fin.*` | catálogo |
 | Operações | `ops.*` | catálogo |
-| Logística | `log.*` | catálogo |
+| Suprimentos | `log.*` | catálogo |
 | Redes | `ti.acesso` | catálogo |
-| Compras | `com.*` | catálogo |
+| Vendas | `ven.*` | catálogo |
+| Marketing | `mkt.*` | catálogo |
+| Jurídico | `jur.*` | catálogo |
 | Universidade | `hab.*` | catálogo |
 | Reservas | — | **própria** |
 | Correspondências | — | **própria** |
@@ -1100,8 +1284,9 @@ problema**. São dois caminhos para o mesmo lugar, de propósito.
 
 - Cada módulo lista **só** os serviços dos seus domínios.
 - Anônimo vê a vitrine e, no lugar de "Pedir", vê "Entrar".
-- Módulo sem domínio e sem tela própria fica **"Em breve"** — e não abre página
-  vazia. O honesto é dizer "em breve".
+- **Nenhum módulo abre "Em breve" hoje**, e o selo não aparece na home. Se ele
+  voltar a aparecer, é regressão: "em breve" é uma promessa, e uma promessa que
+  ninguém assinou é pior que a ausência (ADR-039).
 - A navegação por intenção cobre 100% do catálogo; a por departamento **não**.
   `jur.analise` (Análise de contrato) não tem tile nenhum hoje. **Isso é
   conhecido, não é bug.**
@@ -1417,9 +1602,19 @@ ver [EXEC 16 § 16.7](EXEC_16_INGESTAO.md).
 
 ### 3.18 Apresentação de Resultados — `/workspace/resultados/` (código 10)
 
-**Para que serve.** É a tela que a diretoria pediu: o dinheiro, os contratos, o
-que vence, os projetos, as pessoas, a jornada e a avaliação do cliente — sete
-faixas, na competência escolhida.
+**Para que serve.** É a tela que a diretoria pediu: o dinheiro, **com o que foi
+gasto**, os contratos, o que vence e os projetos — **cinco** faixas, no mês
+escolhido.
+
+> **A tabela contábil entrou em 09/09/2026** (§ 3.18.4). Ela responde a pergunta
+> que faltava — *"sei que meu contrato vale 30 milhões, mas com o que gastei?"*
+> — e fica logo abaixo do dinheiro, porque quem lê "com o que foi gasto" sem
+> "quanto entrou" não tem denominador.
+
+> **Eram sete até 04/09/2026.** Quadro/jornada e avaliação do cliente saíram
+> para as telas **16** e **17** (§ 3.18.2 e § 3.18.3): eram perguntas de outra
+> gente presas atrás da permissão do dinheiro. Se você as procurar aqui e não
+> achar, **não é bug** — e nenhum papel perdeu acesso na mudança.
 
 **Quando é útil.** Na reunião mensal, com `?apresentacao=1`.
 
@@ -1432,8 +1627,11 @@ python manage.py semear_resultados --aplicar
 
 **O que testar, em ordem de importância:**
 
-- **Anônimo recebe 403 no GET** — e não só no POST. O Workspace é aberto para
-  quase tudo; esta tela não. Se ela abrir sem login, **abra bug de segurança**.
+- **Anônimo é mandado para o login (302)**, e não entra. O Workspace é aberto
+  para quase tudo; esta tela não. Se ela **abrir** sem login, é bug de
+  segurança — mas 302 para `/entrar/` é o comportamento certo, e não achado.
+- **O 403 é para quem ESTÁ logado e não tem escopo** — é aí que a distinção
+  importa, porque é aí que a alternativa errada (tela zerada) seria plausível.
 - **`colaborador@icodev.com.br` recebe 403**, e não um painel de zeros. Zero
   para quem nunca vai ter dado faz a pessoa achar que a empresa parou.
 - **Gerente vê só o dele.** Entre com um perfil de `eco.ler.departamento` e
@@ -1461,6 +1659,21 @@ python manage.py semear_resultados --aplicar
 - **Console limpo.** A CSP é estrita: se algum `style=` escapar, o gráfico sai
   torto **sem erro nenhum** no console — confira que as barras existem e têm
   altura diferente entre si.
+- **Nove gráficos e um mapa de calor.** Receita, EBITDA, exceções, carteira,
+  mix, vencimentos, projetos (**dois**: situação e marcos) e satisfação, mais o
+  mapa do quadro de pessoas. Faixa com número e sem desenho é regressão.
+- **Toda tabela irmã abre.** Clique no `<details>` abaixo de cada gráfico: os
+  números da tabela têm de ser os mesmos do desenho, em pt-BR. Se um deles vier
+  com ponto decimal, o formatador foi contornado em algum lugar.
+- **O mapa do quadro pinta turnover alto de VERMELHO.** Menor é melhor nessas
+  duas métricas. Se o centro de custo que mais perdeu gente estiver em verde,
+  **abra bug**: é o modo mais caro do painel estar errado, porque ninguém
+  desconfia de verde.
+- **A dispersão da carteira diz quantos ficaram de fora.** Contrato com menos de
+  três meses de histórico sai do gráfico e é contado por escrito. Se o texto
+  disser zero e a carteira tiver contrato novo, a exclusão parou de funcionar.
+- **A barra da satisfação mostra a CONTAGEM dentro do segmento.** Uma barra de
+  100% sobre doze respostas e outra sobre mil desenham igual.
 
 **Modo apresentação** (`?apresentacao=1`): sem trilho, sem filtros, tipografia
 maior. Confira no *view-source* que `au-rail-item` **não está no HTML** — e não
@@ -1470,6 +1683,141 @@ ninguém pode ver.
 **PDF** (`/workspace/resultados/pdf/`): abre no navegador, com o mesmo recorte
 da tela. **Não pode conter comentário de cliente nem nome de colaborador** — se
 contiver, é achado de segurança. O PDF sai do prédio.
+
+---
+
+### 3.18.1 Os quatro movimentos do painel — perfurar, cruzar, pivotar, detalhar
+
+**Para que serve.** É o que separa um painel de um relatório impresso: a pergunta
+que nasce olhando o número tem de ser respondível na mesma tela.
+
+Tudo vive na **query string**, e essa é a primeira coisa a testar: copie a URL
+depois de três cliques, cole em outra aba, e a tela tem de voltar igual. Painel
+cujo estado não sobrevive a um copiar-e-colar não é usável em reunião.
+
+**1 · Perfurar — clicar na barra desce um nível**
+
+A hierarquia tem três degraus: **Regional → Centro de custo → Contrato**.
+
+- Clique numa barra do gráfico da faixa 2. A URL ganha `?regional=…` e a trilha
+  de migalhas aparece no topo.
+- Clique de novo, e de novo. Três degraus, e só três.
+- **No quarto clique tem de aparecer a fronteira**, com o texto explicando que
+  ocorrência, medição e ticket moram no iConnect Platform. **Se o painel abrir
+  uma tela do Platform, abra bug de arquitetura** — é o acoplamento que este
+  produto existe para desfazer.
+- **A migalha volta.** Clicar em "Centro de custo" na trilha tem de LIMPAR o
+  contrato. Se o filtro de baixo sobreviver, o número mostrado não corresponde à
+  migalha em que a pessoa está — e ela não tem como perceber.
+
+**O teste que mais importa aqui:** descendo um nível, o número **encolhe ou fica
+igual**, nunca cresce. Já houve um defeito exatamente assim — descer para o
+centro de custo 1042 trazia contratos do 1055, e a lista **aumentava** ao
+descer. Some dentro de um total plausível.
+
+**2 · Cruzar — no máximo três recortes**
+
+Serviço, Layer e "só deficitários" são **atributos**: eles recortam sem descer.
+
+- Aplique três. Ao aplicar o quarto, o mais antigo **sai** e a tela **avisa** que
+  saiu. Se ele sair calado, abra bug: um recorte que desapareceu sem aviso
+  produz um número que ninguém consegue explicar de cabeça.
+- **Todo recorte ativo tem tarja.** Conte as tarjas e compare com a URL: filtro
+  na query string sem tarja na tela é o defeito mais perigoso desta tela.
+- **"Limpar" some com todas** e volta para a empresa inteira.
+
+**3 · Pivotar — reagrupar sem mudar o recorte**
+
+O seletor de dimensão troca **como o mesmo conjunto é agrupado**. Regional, CC e
+contrato mudam o nível; serviço e layer reagrupam sem descer.
+
+- **O total do rodapé não pode mudar ao pivotar.** É a mesma massa, somada de
+  outro jeito. Total que muda ao trocar o agrupamento é bug de soma.
+- A opção atual fica destacada.
+
+**4 · Detalhar — `/workspace/resultados/detalhe/`**
+
+O nível mais fundo da tela, linha a linha, com a **procedência** de cada uma
+(`sankhya:snk-CT-100-202609`). É aqui que alguém confere contra o ERP.
+
+**Sem dado pessoal, em nenhuma hipótese** — nem na tabela, nem na query string.
+CPF, documento ou dado de saúde aparecendo aqui é achado de segurança, e a URL
+é copiada e colada em conversa de WhatsApp o tempo todo.
+
+**Modo apresentação e PDF carregam o recorte**
+
+`?apresentacao=1` esconde o trilho, **mas as tarjas continuam**. E o PDF traz os
+filtros no rodapé — ele é lido dias depois, longe da tela, por gente que não
+escolheu o recorte. Sem filtro, ele diz "Sem recorte: a empresa inteira", porque
+o silêncio seria ambíguo.
+
+**O endpoint tem o mesmo escopo da tela**
+
+`/workspace/resultados/dados/` alimenta os gráficos. Entre com o perfil de
+gerente e chame o endereço direto, com `?regional=` de outra regional: ele tem de
+recusar igual à tela. **Endpoint mais frouxo que a tela é achado de segurança** —
+é a porta que ninguém olha porque não tem botão.
+
+---
+
+### 3.18.2 Quadro e jornada — `/workspace/quadro/` (código 16)
+
+**Para que serve.** Efetivo, turnover, absenteísmo e horas por centro de custo.
+Era a faixa 6 da tela 10 até 04/09/2026.
+
+**Por que virou tela.** Enquanto morava dentro dos Resultados, ela exigia
+`eco.ler` — a mesma permissão que mostra a margem de cada contrato com o nome do
+cliente. Dar o turnover a quem responde por gente significava dar junto o
+resultado financeiro da empresa.
+
+**O teste que mais importa:** entre com **`rh@icodev.com.br`** e depois com
+**`vendas@icodev.com.br`**.
+
+- `rh` → **200** aqui, e **200** na tela 10 (ele já tinha as duas).
+- `vendas` → **403** aqui, e **403** na 10.
+
+Se algum papel que abria a tela 10 **perdeu** alguma coisa nesta mudança, **abra
+bug**: a separação foi feita para somar público, não para tirar.
+
+**O que mais testar:**
+
+- **O mapa de calor pinta turnover alto de VERMELHO.** Menor é melhor nessas
+  duas métricas — ver 3.18.
+- **O centro de custo que destoa aparece.** A média esconde: 8,4% num centro
+  contra 2,1% nos outros vira 2,6%.
+- **Nenhum nome de colaborador.** O quadro é agregado por centro de custo. Nome
+  em grade aqui é achado de segurança.
+- **Não há filtro de Serviço, Layer nem "Só deficitários"**, e não há botão de
+  PDF nem de Detalhamento. Os cinco são de CONTRATO, e aqui não há contrato por
+  trás do número. Se aparecerem, **abra bug** — filtro que não muda nada faz a
+  pessoa concluir que a tela quebrou.
+- **Competência e Regional continuam.** Esses recortam.
+
+---
+
+### 3.18.3 Satisfação do cliente — `/workspace/satisfacao/` (código 17)
+
+**Para que serve.** Promotores, neutros, detratores — e o **detrator sem
+tratativa** em destaque. Era a faixa 7 da tela 10.
+
+**A linha que prova que a separação serviu para alguma coisa:**
+
+- **`vendas@icodev.com.br` → 200 aqui, e 403 em `/workspace/resultados/`.**
+
+Antes isso era impossível: a única permissão que abria o NPS abria junto a
+margem de todo contrato. Na prática o comercial não via o NPS.
+
+**O que mais testar:**
+
+- **O detrator sem tratativa é DESTAQUE, não linha de tabela.** Com tratativa é
+  trabalho em andamento; sem tratativa é uma pessoa esperando.
+- **A barra mostra a CONTAGEM dentro do segmento.** 100% sobre doze respostas e
+  sobre mil desenham igual.
+- **Não existe botão de PDF nesta tela**, e é deliberado: o comentário do
+  cliente não sai daqui. Se aparecer um, **abra bug de segurança** — o PDF sai
+  do prédio.
+- **Nenhum nome de quem respondeu.** O provedor recusa esses campos; se um
+  aparecer, é achado de segurança.
 
 ---
 
@@ -1505,6 +1853,51 @@ Se o T.I. enxergar a margem dos contratos, **abra bug**: ligar alguém no suport
 
 **O mapa faixa → fonte** no meio da tela não depende de carga nenhuma: ele
 aparece mesmo num ambiente onde nada foi configurado.
+
+---
+
+### 3.18.4 Com o que foi gasto — a tabela contábil (bloco D)
+
+**Para que serve.** Responde a pergunta que faltava: *"sei que meu contrato vale
+30 milhões, mas preciso saber com o que gastei."* Ela fica dentro da tela 10,
+logo abaixo do dinheiro.
+
+**Antes de testar:** `semear_plano_de_contas --aplicar` **antes** de
+`semear_resultados --aplicar`. Sem o plano, o razão não é gerado — o seeder
+avisa em amarelo — e esta faixa diz que falta lançamento. Isso é o
+comportamento certo, e não um bug.
+
+**O que conferir:**
+
+- **A última linha é o RESULTADO, e ela fecha.** Some receita, subtraia
+  impostos e custos: tem de dar exatamente o total. Se não der, pare e abra um
+  chamado — é a única coisa que este bloco não pode errar.
+- **Despesa aparece com SINAL**, e não só em vermelho. Um número positivo numa
+  linha de custo é bug.
+- **O "+" abre o grupo e a URL MUDA** (`?expandir=41101`). Copie a URL aberta,
+  cole noutra aba: tem de chegar **já aberta no mesmo grupo**. É o que faz a
+  reunião andar.
+- **Abrir um grupo não perde o recorte.** Com `?area=area-01&periodo=6m`
+  ativos, clique no "+": os dois têm de continuar na URL.
+- **A soma das contas é o grupo.** Expanda "PESSOAL" e some as analíticas — tem
+  de bater com a linha fechada.
+- **A tabela é do MÊS, não do período.** Troque o período de 12m para 3m: os
+  gráficos mudam, esta tabela não.
+- **Mês antigo diz o que falta.** A massa gera seis meses de razão. Abra
+  `?mes=` num mês anterior a isso: a faixa tem de dizer "sem lançamento por
+  conta contábil", com os gráficos acima mostrando números normalmente.
+- **`% da receita líquida` é positivo mesmo na despesa.** O sinal está no valor
+  ao lado; repeti-lo no percentual faria a coluna deixar de somar 100%.
+- **Conta fora do plano NÃO some.** Se aparecer o aviso amarelo "vieram com
+  códigos que não estão no plano de contas", a linha correspondente tem de
+  estar na tabela, nomeada como "Conta não cadastrada", e **somada no total**.
+
+**Os dois defeitos plantados para você achar aqui:**
+
+| Contrato | O que procurar |
+|---|---|
+| **CT-101** (turnkey) | estouro em `41504` EQUIPAMENTOS — o contrato fecha no total e essa conta sozinha explica o buraco |
+| **CT-107** (manutenção) | `41505` GARANTIA E RETRABALHO acima do normal — é o contrato que **parece rentável e não é** |
 
 ---
 
@@ -1916,6 +2309,12 @@ esconde defeito** — nos dois sentidos.
 | **Bandeja de aprovação** | ➜ login | ✅ **vazia** | ✅ **com itens** | ✅ vazia |
 | Reservar / Minhas reservas | ➜ login | ✅ | ✅ | ✅ + cancelar de terceiros |
 | Correspondências | ➜ login | ✅ **só as minhas** | ✅ **só as minhas** | ✅ **fila completa** |
+| **Resultados** (10) | ➜ login | **403** | ✅ **só o escopo dele** | **403** |
+| **Quadro e jornada** (16) | ➜ login | **403** | ✅ só o escopo dele | **403** |
+| **Satisfação** (17) | ➜ login | **403** | ✅ (Vendas também) | **403** |
+| **Fontes de dados** (99) | ➜ login | **403** | **403** — é `eco.carga`, e não `eco.ler` | **403** |
+| **Exceções** (11) | ➜ login | **403** | ✅ só as do escopo | **403** |
+| Indicadores | ➜ login | **403** | ✅ | **403** |
 | **Ciclos de planejamento** | ➜ login | **403** | ✅ lê; só Diretoria **conduz** | **403** |
 | **Planos de ação** | ➜ login | **403** | ✅ lê; só o papel da regra **fecha** | **403** |
 | **Metas e PDI** | ➜ login | ✅ **só o próprio** | ✅ os liderados; só o gestor **aprova** | ✅ só o próprio |
@@ -1925,6 +2324,30 @@ As células em negrito são os testes de autorização que valem mais: bandeja v
 para colaborador, fila invisível para gestor, cancelamento de terceiros só para
 quem administra recurso — e, nos ciclos, a diferença entre **ler a pauta** e
 **conduzir a reunião**, que é onde passa a fronteira entre o GET e o POST.
+
+**Repare na diferença entre as duas colunas da esquerda, nas linhas de dado
+agregado.** O anônimo é mandado para o login — comportamento normal, e **não é
+achado**. Quem está **logado e sem escopo** recebe **403**, e é aqui que mora a
+regra: tela de dado agregado nega, nunca mostra zero. Se alguma delas abrir
+zerada em vez de recusar, é bug — e um dos piores, porque parece que funcionou.
+
+Conferido num banco recém-semeado, e vale como gabarito:
+
+```
+                resultados  fontes  exceções  metas  orçamento  indicadores
+anônimo            302       302      302      302     302         302
+colaborador        403       403      403      200     403         403
+ti                 403       200      403      200     403         200
+diretoria          200       200      200      200     200         200
+```
+
+As duas células que mais surpreendem: `colaborador` recebe **200 em metas**
+(ele vê as **próprias**, e só elas), e `ti` recebe **200 em fontes** e **403 em
+resultados** — a mesma pessoa opera as cargas e não enxerga a margem.
+
+**A linha das Fontes é a que mais pega gente.** `eco.carga` abre a tela 99;
+`eco.ler` abre os números. São permissões **diferentes** de propósito: o T.I.
+opera as cargas sem enxergar a margem dos contratos.
 
 ---
 
@@ -2018,6 +2441,41 @@ Para o outro lado, refaça com uma compra de **R$ 1.160**: a tela pede a conta
    a primeira tentativa
 8. Tente reabrir o pedido **de outra pessoa** pelo POST direto → **404**
 
+### Roteiro H — o painel da diretoria (o roteiro que protege o número da reunião)
+
+Pré-requisito: o bloco das cinco semeadoras da § 1.2 rodado com `--aplicar`.
+
+1. **Anônimo** abre `/workspace/resultados/` → **302 para o login**. Se a tela
+   abrir, é bug de segurança; se redirecionar, está certo.
+2. **`colaborador@icodev.com.br`** → **403** também. Zero para quem nunca vai ter
+   dado faz a pessoa achar que a empresa parou.
+3. **`ti@icodev.com.br`** → `/workspace/resultados/fontes/` dá **200**, e
+   `/workspace/resultados/` dá **403**. Ligar alguém ao suporte das cargas não
+   pode dar a ele o resultado financeiro da empresa.
+4. Entre com a **diretoria**. Anote o total da faixa 2 — este é o número da
+   empresa inteira, e ele é a referência de tudo que vem a seguir.
+5. **Conte os gráficos: nove**, cada um com tabela irmã, mais o mapa de calor do
+   quadro. Abra três tabelas e confira que os números batem com o desenho.
+6. **Perfure três vezes** (regional → CC → contrato). A cada degrau, o total
+   **encolhe ou fica igual** — nunca cresce. No quarto clique, a fronteira.
+7. **Volte pela migalha do meio.** O contrato tem de sumir do recorte.
+8. **Cruze quatro filtros.** O quarto derruba o primeiro **com aviso**. Conte as
+   tarjas: uma por filtro na URL, sem exceção.
+9. **Pivote.** O total do rodapé **não muda** — é a mesma massa, agrupada de
+   outro jeito.
+10. **Copie a URL e cole em outra aba.** Tela idêntica. Se não for, o estado não
+    está na URL, e a tela não serve para mandar por e-mail.
+11. **`?apresentacao=1`** com os filtros ativos: as tarjas **continuam** e o
+    trilho some do *view-source* — não apenas da tela.
+12. **Baixe o PDF.** Os filtros no rodapé; as tabelas presentes; **nenhum nome de
+    colaborador e nenhum comentário de cliente**. O PDF sai do prédio.
+13. **Entre com um gerente** (`eco.ler.departamento`) e digite `?regional=Sul` na
+    barra de endereço. O número **não muda**. Depois chame
+    `/workspace/resultados/dados/?regional=Sul` direto: tem de recusar igual.
+
+Achado em qualquer um dos passos 2, 3, 6, 12 ou 13 é **bug de segurança**, e não
+bug de tela.
+
 ---
 
 ## 6. O que ainda NÃO existe — não abra bug
@@ -2030,11 +2488,15 @@ Para o outro lado, refaça com uma compra de **R$ 1.160**: a tela pede a conta
 | Integração com M365 / HRIS | Suíte definida, integração não construída. |
 | `semear_workspace` | Não existe. Documentos, comunicados e correspondências se criam dentro do produto (ver 1.3); recursos têm `semear_recursos`. |
 | Monitor de rede (viabilidade do módulo TI) | Pergunta aberta ao dono do produto. |
-| 14 dos 24 módulos previstos | Marcados "Em breve" de propósito — ver 3.10. |
+| Os módulos previstos além dos 12 | Não estão marcados "Em breve": simplesmente **não existem na lista**. Ausência é honesta; promessa não é (ADR-039). |
+| **Fonte externa "não configurada"** | Nenhuma credencial de Sankhya, monday ou Platform existe em desenvolvimento — e **nunca** existirá no repositório (ela vive em variável de ambiente). "Não configurada" é estado **normal**, e é diferente de "atrasada" e de "desativada". O espelho é enchido por CSV via `semear_resultados`. |
+| Gráfico dentro do PDF | Decisão registrada (ADR-041) — ver 2.8. |
+| Carga automática de madrugada | O `deploy/crontab` existe no repositório e **não está instalado** em nenhuma máquina. Carga só roda por comando à mão. |
+| Perfurar até ocorrência, medição ou ticket | Fronteira de arquitetura, não falta de tela — ver 3.18.1. |
 
 ---
 
-## 7. Lista de regressão — as 20 armadilhas já corridas
+## 7. Lista de regressão — as 26 armadilhas já corridas
 
 Cada linha abaixo é um defeito **real**, encontrado e corrigido. Elas são a
 melhor lista de regressão que este produto tem, porque cada uma passou por uma
@@ -2062,10 +2524,21 @@ suíte verde uma vez.
 | 18 | Catálogo fazia **28 consultas** de prazo, uma por item | Cada uma lia todo o histórico do item; a tela mais visitada do produto |
 | 19 | Taxa de reabertura deu **200%** | Pedido reaberto sai do denominador e fica no numerador — número impossível num painel |
 | 20 | 3º flake por hora do dia (`daqui(4)` cruzava a meia-noite) | Suíte reprovava depois das 20h e passava o resto do dia |
+| 21 | **106 atributos de SVG com vírgula decimal** — a mesma classe da linha 8, semanas depois | Gráfico em branco, console limpo. `LANGUAGE_CODE = pt-br` localiza `{{ 10.52 }}` para `10,52`, que é inválido em atributo de SVG, e o navegador **descarta o elemento em silêncio** |
+| 22 | Descer para o CC 1042 trazia contratos do CC 1055 | A lista **cresce** ao descer um nível. Os escopos eram combinados com OU; o certo é o mais específico vencer |
+| 23 | "Apresentar" descartava todos os filtros menos a competência | O número da reunião não é o número que a pessoa estava olhando — e ninguém percebe, porque a tela ficou bonita |
+| 24 | Dois filtros ativos **sem tarja** na tela | Recorte aplicado e invisível: o total parece o da empresa inteira |
+| 25 | Rótulo girado cortado no topo do gráfico | O número da barra mais alta some — justamente a que interessa |
+| 26 | Redirect do PDI escrito à mão (`/workspace/desenvolvimento/`) em vez de `reverse()` | 404 no lugar da mensagem de erro que deveria aparecer |
 
 **Se você só tiver uma hora**, teste: o Roteiro B (linha 1), a passagem pelas 6
 telas logado (linha 3), ⌘K + Esc em três telas (linhas 4 e 5), e o console aberto
 em todas (linhas 7, 8 e 11).
+
+**Se você tiver mais uma hora**, gaste-a no painel de resultados: o Roteiro H
+inteiro. Ele cobre sozinho seis das armadilhas acima (21 a 26), e é a tela onde
+um erro custa mais caro — porque ela é lida em reunião de diretoria, por gente
+que não tem como conferir o número.
 
 ---
 
@@ -2078,6 +2551,11 @@ em todas (linhas 7, 8 e 11).
 | `no such column` / `OperationalError` | migração pendente (seção 1.1) |
 | Tela vazia sem dado | massa de teste faltando (seção 1.2 e 1.3) |
 | "Você não tem acesso" | papel/lotação faltando (seção 1.4) |
-| Módulo "Em breve" | decisão de produto (seção 6) |
+| Módulo que você esperava e não está na lista | decisão de produto (seção 6) — são 12, e a lista está na 3.10 |
 | iConnect não é o tile principal | decisão de produto (seção 3.1) |
 | Pedido não pré-preenchido pela frase da busca | decisão de produto (seção 3.2) |
+| Gráfico em branco, mas a tabela abaixo tem os números | **Workspace** — abra o bug **com o console anexado**. É sempre CSP ou número mal formatado, e a tela não mostra erro nenhum (seção 2.8) |
+| Faixa de resultado vazia dizendo qual fonte falta | comportamento correto (seção 6) — zerar seria dizer que a empresa parou |
+| Fonte "não configurada" | estado normal em desenvolvimento (seção 6) |
+| Número que **cresce** ao descer um nível | **Workspace** — bug de escopo, prioridade máxima (seção 3.18.1) |
+| Telas 10 a 15 vazias | faltou o bloco das cinco semeadoras (seção 1.2) |

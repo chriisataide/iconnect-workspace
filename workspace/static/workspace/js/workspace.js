@@ -722,3 +722,120 @@
     if (e.target.closest('[data-imprimir]')) window.print();
   });
 })();
+
+/* Nome do arquivo escolhido, ao lado do botão.
+ *
+ * O `<input type="file">` fica escondido em `.au-sr` e o `<label>` é o controle
+ * visível — ver `.au-arquivo` no CSS. O que se perde escondendo o input é o
+ * nome do arquivo, que o navegador desenha ao lado do botão nativo; isto o
+ * devolve.
+ *
+ * PROGRESSIVO de propósito: sem JavaScript o campo continua funcionando — o
+ * label abre o seletor, o input envia o arquivo, e o que falta é só o texto
+ * dizendo qual. Escrever o controle inteiro em JS trocaria um campo feio por
+ * um campo que não existe. */
+(function () {
+  'use strict';
+  document.addEventListener('change', function (e) {
+    var entrada = e.target;
+    if (!entrada.matches || !entrada.matches('input[type="file"][data-nome-em]')) return;
+
+    var campo = entrada.closest('.au-campo');
+    var destino = campo && campo.querySelector(entrada.getAttribute('data-nome-em'));
+    if (!destino) return;
+
+    var arquivos = entrada.files;
+    if (!arquivos || !arquivos.length) {
+      destino.textContent = destino.getAttribute('data-vazio') || '';
+      return;
+    }
+    /* `textContent` e nunca `innerHTML`: o nome do arquivo é escolhido pela
+     * pessoa, e um arquivo chamado `<img onerror=…>.png` é conteúdo de usuário
+     * como qualquer outro. */
+    destino.textContent = arquivos.length === 1
+      ? arquivos[0].name
+      : arquivos.length + ' arquivos';
+  });
+})();
+
+/* O TRILHO LEMBRA ONDE ESTAVA.
+ *
+ * Ele tem rolagem PRÓPRIA (`overflow-y: auto`, ver `.au-rail` no CSS). Cada
+ * navegação recarrega a página, e o navegador restaura a rolagem do documento —
+ * mas não a de um elemento interno. Resultado: quem estava lendo o fim de uma
+ * lista de vinte e oito itens voltava ao topo a cada clique, e tinha de
+ * procurar de novo onde parou.
+ *
+ * Duas coisas são lembradas, e uma NÃO é:
+ *
+ *   1. a posição da rolagem;
+ *   2. os grupos que a pessoa abriu ou fechou À MÃO;
+ *   3. o grupo da tela atual — este NÃO se lembra, ele obedece ao servidor.
+ *
+ * O item 3 é a decisão que importa. Se a pessoa fechou "Gestão" ontem e hoje
+ * abre uma tela de Gestão, o grupo abre: saber onde se está vale mais que a
+ * preferência anterior, e é a única pista que o trilho dá disso.
+ *
+ * `sessionStorage` e não `localStorage`: é memória de sessão de navegação, e
+ * não configuração. Fechar a aba zera, que é o comportamento esperado de "onde
+ * eu estava". E tudo em `try/catch` — em janela anônima o acesso ESTOURA, e um
+ * trilho que quebra porque a pessoa abriu uma aba privada é pior do que um
+ * trilho que esquece.
+ */
+(function () {
+  'use strict';
+  var trilho = document.querySelector('.au-rail');
+  if (!trilho) return;
+
+  var CHAVE_ROLAGEM = 'au-rail-rolagem';
+  var CHAVE_GRUPOS = 'au-rail-grupos';
+
+  function ler(chave, padrao) {
+    try {
+      var bruto = window.sessionStorage.getItem(chave);
+      return bruto === null ? padrao : JSON.parse(bruto);
+    } catch (e) {
+      return padrao;
+    }
+  }
+  function gravar(chave, valor) {
+    try {
+      window.sessionStorage.setItem(chave, JSON.stringify(valor));
+    } catch (e) {
+      /* Cota cheia ou armazenamento bloqueado: esquecer é aceitável. */
+    }
+  }
+
+  var lembrados = ler(CHAVE_GRUPOS, {});
+  var grupos = trilho.querySelectorAll('.au-rail-secao[data-grupo]');
+
+  Array.prototype.forEach.call(grupos, function (grupo) {
+    var chave = grupo.getAttribute('data-grupo');
+    /* O grupo que o SERVIDOR abriu é o da tela atual: ele manda, e não entra
+     * no que se lembra. Os outros seguem o que a pessoa escolheu. */
+    if (!grupo.open && Object.prototype.hasOwnProperty.call(lembrados, chave)) {
+      grupo.open = lembrados[chave];
+    }
+    grupo.addEventListener('toggle', function () {
+      lembrados[chave] = grupo.open;
+      gravar(CHAVE_GRUPOS, lembrados);
+    });
+  });
+
+  /* A rolagem é restaurada DEPOIS dos grupos: abrir um grupo muda a altura do
+   * conteúdo, e restaurar antes daria uma posição calculada sobre outra lista. */
+  var posicao = ler(CHAVE_ROLAGEM, 0);
+  if (typeof posicao === 'number' && posicao > 0) trilho.scrollTop = posicao;
+
+  /* `requestAnimationFrame` no `scroll` para não gravar a cada pixel: o evento
+   * dispara dezenas de vezes por gesto, e `sessionStorage` é síncrono. */
+  var agendado = false;
+  trilho.addEventListener('scroll', function () {
+    if (agendado) return;
+    agendado = true;
+    window.requestAnimationFrame(function () {
+      agendado = false;
+      gravar(CHAVE_ROLAGEM, trilho.scrollTop);
+    });
+  }, { passive: true });
+})();

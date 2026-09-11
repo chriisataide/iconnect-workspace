@@ -171,7 +171,9 @@ def test_anonimo_ve_saudacao_neutra(client, django_user_model):
 
     corpo = client.get(reverse("workspace:home")).content.decode()
 
-    assert "Bem-vindo ao Workspace." in corpo
+    # Pelo settings, e não pelo nome: a saudação neutra é o que este teste
+    # guarda, e ela não muda quando o produto é rebatizado.
+    assert f"Bem-vindo ao {settings.PRODUTO_NOME}." in corpo
     assert alguem.get_short_name() not in corpo
 
 
@@ -179,11 +181,14 @@ def test_anonimo_ve_saudacao_neutra(client, django_user_model):
 
 
 @pytest.mark.django_db
-def test_pagina_usa_a_marca_icodev(client):
+def test_pagina_usa_a_marca_da_empresa(client):
+    """Os arquivos, pelo nome, ficam em `test_posicionamento.py` — lá eles são
+    conferidos CONTRA O DISCO, que é a única forma de pegar um logo quebrado
+    (ele não derruba tela nenhuma). Aqui basta que a casca traga a marca."""
     corpo = client.get(reverse("workspace:home")).content.decode()
-    assert "icodev-wordmark.png" in corpo
-    assert "favicon.ico" in corpo
-    assert "icodev-apple-touch.png" in corpo
+
+    assert "adb-wordmark.png" in corpo
+    assert "icodev" not in corpo
 
 
 @pytest.mark.django_db

@@ -21,6 +21,9 @@ Já existe (Etapa 5 §5.2):
     estoque.py     EST  Material, SaldoEstoque, MovimentoEstoque — o razão do
                         que a empresa tem, e o saldo por unidade
     custodia.py    EST  Custodia — quem está com o quê, e o que falta devolver
+    concentracao.py     ECO  Concentracao — o que a empresa DECIDIU olhar. A
+                             terceira categoria da faixa de destaques, e a
+                             única que uma pessoa escreve.
     marketing.py   MKT  Oportunidade — a feira que existe e o dia em que é
                         preciso responder; NÃO aprova nada, o catálogo aprova
     frota.py       FRT  Veiculo, DespesaVeiculo — a frota, seus prazos e o que
@@ -55,6 +58,7 @@ from .relatorio import (
     TipoRelatorio,
 )
 from .custodia import Custodia
+from .concentracao import Concentracao, OrigemConcentracao
 from .marketing import Oportunidade, SituacaoOportunidade, TipoOportunidade
 from .frota import (
     DespesaVeiculo,
@@ -130,6 +134,8 @@ from .orcamento import Compromisso, SituacaoCompromisso, competencia_de
 
 __all__ = [
     "AcaoDesenvolvimento",
+    "Concentracao",
+    "OrigemConcentracao",
     "AnotacaoEtapa",
     "CicloMetas",
     "GrupoMeta",

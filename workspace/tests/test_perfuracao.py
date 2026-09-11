@@ -40,7 +40,7 @@ def espelho(db):
     com uma regional só, o teste de "descer um degrau" passa sem descer nada.
     """
 
-    def _contrato(codigo, regional, cc, servico="cftv", valor="100000"):
+    def _contrato(codigo, regional, cc, servico="monitoramento", valor="100000"):
         contrato = Contrato.objects.create(
             fonte=Fonte.PLATFORM, chave_externa=f"plt-{codigo}", codigo=codigo,
             nome_cliente=f"Cliente {codigo}", servico=servico,
@@ -112,15 +112,21 @@ def test_o_nivel_e_derivado_dos_filtros_e_nao_lido_da_url(client, espelho, diret
 
 
 def test_descer_preserva_os_outros_filtros(client, espelho, diretoria):
-    """Perder a janela de seis meses ao descer um nível é como alguém conclui
-    que o filtro "não funciona"."""
+    """Perder o período de seis meses ao descer um nível é como alguém conclui
+    que o filtro "não funciona".
+
+    O parâmetro virou `?periodo=6m` em 08/09/2026 — `?janela=6` continua sendo
+    LIDO, e é o que esta URL de entrada usa, provando a compatibilidade de
+    caminho. A URL GERADA usa o nome novo, senão a compatibilidade nunca
+    envelhece e nunca sai.
+    """
     client.force_login(diretoria)
 
-    _, faixa = _faixa(client, "?janela=6&servico=cftv")
+    _, faixa = _faixa(client, "?janela=6&servico=monitoramento")
     destino = parse_qs(urlparse(faixa["perfuracao"].urls[0]).query)
 
-    assert destino["janela"] == ["6"]
-    assert destino["servico"] == ["cftv"]
+    assert destino["periodo"] == ["6m"]
+    assert destino["servico"] == ["monitoramento"]
     assert destino["regional"] == ["Sudeste"]
 
 
@@ -316,11 +322,11 @@ def test_o_filtro_ativo_aparece_em_tarja_com_o_x_para_remover(client, espelho, d
     não está."" """
     client.force_login(diretoria)
 
-    resposta = client.get(reverse("workspace:resultados") + "?servico=cftv")
+    resposta = client.get(reverse("workspace:resultados") + "?servico=monitoramento")
     html = resposta.content.decode()
 
     assert "Filtrado por:" in html
-    assert "Serviço" in html and "cftv" in html
+    assert "Serviço" in html and "monitoramento" in html
     assert "au-tarja-x" in html, "sem o X, a tarja informa e não deixa desfazer"
     assert "Limpar tudo" in html
 
@@ -334,7 +340,7 @@ def test_a_tarja_aparece_no_modo_apresentacao(client, espelho, diretoria):
     client.force_login(diretoria)
 
     html = client.get(
-        reverse("workspace:resultados") + "?apresentacao=1&servico=cftv"
+        reverse("workspace:resultados") + "?apresentacao=1&servico=monitoramento"
     ).content.decode()
 
     assert "Filtrado por:" in html, "em apresentação o filtro ficava invisível"
@@ -355,7 +361,7 @@ def test_o_x_da_tarja_e_um_link_e_funciona_sem_javascript(client, espelho, diret
     """Remover um filtro é navegar para a mesma tela sem ele."""
     client.force_login(diretoria)
 
-    resposta = client.get(reverse("workspace:resultados") + "?servico=cftv")
+    resposta = client.get(reverse("workspace:resultados") + "?servico=monitoramento")
     tarja = resposta.context["filtros_ativos"][0]
 
     assert "servico" not in parse_qs(urlparse(tarja.url_remover).query)
@@ -380,17 +386,17 @@ def test_remover_a_regional_limpa_os_niveis_de_baixo(client, espelho, diretoria)
 
 
 def test_limpar_tudo_preserva_competencia_e_janela(client, espelho, diretoria):
-    """Competência não é filtro: é o assunto da tela. E limpar a janela
-    devolveria treze meses a quem escolheu seis — surpresa, não limpeza."""
+    """O mês não é filtro: é o assunto da tela. E limpar o período devolveria
+    doze meses a quem escolheu seis — surpresa, não limpeza."""
     client.force_login(diretoria)
 
     resposta = client.get(
-        reverse("workspace:resultados") + "?servico=cftv&janela=6&regional=Sudeste"
+        reverse("workspace:resultados") + "?servico=monitoramento&periodo=6m&regional=Sudeste"
     )
     limpa = parse_qs(urlparse(resposta.context["url_limpar"]).query)
 
-    assert limpa["janela"] == ["6"]
-    assert "competencia" in limpa
+    assert limpa["periodo"] == ["6m"]
+    assert "mes" in limpa
     assert "servico" not in limpa
     assert "regional" not in limpa
 
@@ -402,24 +408,27 @@ def test_o_quarto_filtro_cruzado_substitui_o_mais_antigo_e_avisa(
     cabeça — e recusar o clique seria pior: a pessoa clicaria de novo achando
     que não pegou."""
     filtros = svc.ler_filtros(
-        {"servico": "cftv", "layer": "1", "deficitario": "1"}
+        {"servico": "monitoramento", "layer": "1", "deficitario": "1"}
     )
     base = reverse("workspace:resultados")
 
     # Já há três cruzados; um QUARTO parâmetro cruzável não existe, então
     # trocar um dos três não substitui nada.
-    _, trocou = svc.cruzar(filtros, base, "servico", "alarme")
+    _, trocou = svc.cruzar(filtros, base, "servico", "manutencao")
     assert trocou is False, "trocar um filtro que já está ativo não substitui"
 
     # Com apenas dois ativos, o terceiro entra sem substituir.
-    dois = svc.ler_filtros({"servico": "cftv", "layer": "1"})
+    dois = svc.ler_filtros({"servico": "monitoramento", "layer": "1"})
     _, trocou = svc.cruzar(dois, base, "deficitario", "1")
     assert trocou is False
 
 
 def test_o_limite_de_cruzados_e_declarado_e_nao_magico():
+    # "area" entrou em 08/09/2026 e o TETO não subiu junto, de propósito: o
+    # limite é sobre quantos recortes a cabeça acompanha ao mesmo tempo, e ele
+    # não muda porque passou a haver uma opção a mais para escolher.
     assert svc.MAXIMO_DE_CRUZADOS == 3
-    assert set(svc.CRUZAVEIS) == {"servico", "layer", "deficitario"}
+    assert set(svc.CRUZAVEIS) == {"area", "servico", "layer", "deficitario"}
 
 
 # ── Mecanismo 3: pivotar ────────────────────────────────────────────
@@ -432,7 +441,11 @@ def test_pivotar_reagrupa_sem_mudar_de_nivel(client, espelho, diretoria):
     _, por_regional = _faixa(client)
     _, por_servico = _faixa(client, "?dim=servico")
 
-    assert "regional" in por_regional["perfuracao"].titulo
+    # "unidade" e não "regional": o degrau é o nome da unidade do organograma,
+    # que é o que a permissão usa. O rótulo mudou em 08/09/2026 para não
+    # convidar alguém a trocá-lo pela área comercial e quebrar o acesso do
+    # gerente — o comportamento é o mesmo.
+    assert "unidade" in por_regional["perfuracao"].titulo
     assert "serviço" in por_servico["perfuracao"].titulo
     # Pivotar NÃO desce: a trilha continua na empresa.
     assert [m.rotulo for m in por_servico["migalhas"]] == ["Empresa"]
@@ -456,7 +469,7 @@ def test_a_dimensao_desconhecida_cai_na_hierarquia(client, espelho, diretoria):
 
     _, faixa = _faixa(client, "?dim=abacaxi")
 
-    assert "regional" in faixa["perfuracao"].titulo
+    assert "unidade" in faixa["perfuracao"].titulo
 
 
 def test_pivotar_para_atributo_cruza_em_vez_de_descer(client, espelho, diretoria):
@@ -497,11 +510,16 @@ def test_o_detalhe_herda_os_filtros_e_mostra_quais(client, espelho, diretoria):
     client.force_login(diretoria)
 
     resposta = client.get(
-        reverse("workspace:resultados_detalhe") + "?regional=Sudeste&servico=cftv"
+        reverse("workspace:resultados_detalhe") + "?regional=Sudeste&servico=monitoramento"
     )
 
+    # `servico:monitoramento` e não `servico`: desde 08/09/2026 cada valor de um filtro
+    # multivalor ganha a PRÓPRIA tarja, com o próprio X. Uma tarja só para
+    # "Serviço: monitoramento, manutencao" obrigaria a pessoa a limpar tudo e remarcar
+    # para tirar um dos dois — ela faz isso uma vez e passa a não usar mais de
+    # um valor.
     assert {t.chave for t in resposta.context["filtros_ativos"]} == {
-        "regional", "servico"
+        "regional", "servico:monitoramento"
     }
     assert "Filtrado por:" in resposta.content.decode()
 
@@ -510,7 +528,7 @@ def test_o_detalhe_e_link_explicito_e_nao_clique_no_grafico(client, espelho, dir
     """Descer para as linhas é outra pergunta, e não uma variação da mesma."""
     client.force_login(diretoria)
 
-    html = client.get(reverse("workspace:resultados") + "?servico=cftv").content.decode()
+    html = client.get(reverse("workspace:resultados") + "?servico=monitoramento").content.decode()
 
     assert "Detalhamento" in html
     assert "/workspace/resultados/detalhe/" in html
@@ -620,14 +638,14 @@ def test_apresentar_preserva_os_filtros(client, espelho, diretoria):
     client.force_login(diretoria)
 
     resposta = client.get(
-        reverse("workspace:resultados") + "?servico=cftv&janela=6&regional=Sudeste"
+        reverse("workspace:resultados") + "?servico=monitoramento&periodo=6m&regional=Sudeste"
     )
     destino = parse_qs(urlparse(resposta.context["url_apresentar"]).query)
 
     assert destino["apresentacao"] == ["1"]
-    assert destino["servico"] == ["cftv"]
+    assert destino["servico"] == ["monitoramento"]
     assert destino["regional"] == ["Sudeste"]
-    assert destino["janela"] == ["6"]
+    assert destino["periodo"] == ["6m"]
 
 
 def test_o_pdf_carrega_os_filtros_ativos_no_rodape(client, espelho, diretoria, monkeypatch):
@@ -650,7 +668,7 @@ def test_o_pdf_carrega_os_filtros_ativos_no_rodape(client, espelho, diretoria, m
     monkeypatch.setattr(pdf_resultados, "Paragraph", espiao)
     client.force_login(diretoria)
 
-    client.get(reverse("workspace:resultados_pdf") + "?servico=cftv&regional=Sudeste")
+    client.get(reverse("workspace:resultados_pdf") + "?servico=monitoramento&regional=Sudeste")
     com_recorte = " ".join(capturado["textos"])
 
     capturado.clear()
@@ -658,5 +676,5 @@ def test_o_pdf_carrega_os_filtros_ativos_no_rodape(client, espelho, diretoria, m
     sem_recorte = " ".join(capturado["textos"])
 
     assert "Recorte aplicado" in com_recorte
-    assert "Serviço: cftv" in com_recorte
+    assert "Serviço: monitoramento" in com_recorte
     assert "Sem recorte" in sem_recorte

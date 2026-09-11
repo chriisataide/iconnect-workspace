@@ -39,6 +39,18 @@ FONTES = (
         "observacao": "Contratos, vigência e satisfação. Consolidado, nunca detalhe.",
     },
     {
+        "chave": Fonte.PNCP,
+        "nome": "PNCP · contratações públicas",
+        "cadencia_esperada": "diária, madrugada",
+        # Vinte e seis horas, e não seis. O prazo de um edital é contado em
+        # semanas: um dia de atraso na carga não muda decisão nenhuma, e um
+        # alarme que dispara por isso seria o alarme que se aprende a ignorar.
+        "idade_maxima_aceitavel": timedelta(hours=26),
+        "observacao": "Editais com proposta aberta. Fonte PÚBLICA — não tem "
+                      "credencial a configurar. A triagem por palavra é nossa: "
+                      "ver PNCP_TERMOS.",
+    },
+    {
         "chave": Fonte.CSV,
         "nome": "Carga por arquivo",
         "cadencia_esperada": "sob demanda",

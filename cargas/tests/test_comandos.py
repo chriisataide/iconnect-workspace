@@ -30,10 +30,10 @@ def test_semear_fontes_simula_por_padrao(db):
     assert not FonteDados.objects.exists()
 
 
-def test_semear_fontes_cria_as_quatro_e_as_regras(db):
+def test_semear_fontes_cria_as_cinco_e_as_regras(db):
     _rodar("semear_fontes", "--aplicar")
 
-    assert FonteDados.objects.count() == 4
+    assert FonteDados.objects.count() == 5
     assert RegraPrecedencia.objects.count() == 4
 
 
@@ -41,7 +41,7 @@ def test_semear_de_novo_nao_duplica(db):
     _rodar("semear_fontes", "--aplicar")
     _rodar("semear_fontes", "--aplicar")
 
-    assert FonteDados.objects.count() == 4
+    assert FonteDados.objects.count() == 5
     assert RegraPrecedencia.objects.count() == 4
 
 

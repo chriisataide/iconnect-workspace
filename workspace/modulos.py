@@ -53,6 +53,22 @@ class Modulo:
     # primeiro caso: um acervo normativo não é uma fila de pedidos, e forçá-lo na
     # tela de catálogo produziria uma vitrine de coisas que não se pedem.
     rota: str = ""
+    # A TELA DE VERDADE do departamento, quando ela existe ALÉM do catálogo.
+    #
+    # Diferente de `rota`: `rota` SUBSTITUI a vista de catálogo (Reservas não tem
+    # itens pedíveis); `tela_propria` CONVIVE com ela.
+    #
+    # Marketing é o caso que revelou isto. `/workspace/m/marketing/` mostra a
+    # fatia do catálogo — UM item, "Evento ou patrocínio" — e
+    # `/workspace/marketing/` mostra o radar de oportunidades, que é o que a
+    # palavra "Marketing" significa para quem trabalha nela. Duas portas com o
+    # mesmo nome, nenhuma apontando para a outra, e o tile levava à quase vazia.
+    #
+    # Não fundimos as duas: são perguntas diferentes — o radar diz o que existe
+    # e até quando responder; o catálogo é por onde se gasta o dinheiro depois.
+    # O que faltava era o elo.
+    tela_propria: str = ""
+    tela_propria_rotulo: str = ""
 
     @property
     def tem_catalogo(self) -> bool:
@@ -122,6 +138,8 @@ MODULOS: tuple[Modulo, ...] = (
         # que a empresa usa muda; a chave interna não precisa mudar junto, e
         # amarrar as duas é como um rename vira incidente.
         dominios=("log.",),
+        tela_propria="workspace:estoque",
+        tela_propria_rotulo="Estoque e movimentações",
         ordem=60,
     ),
     Modulo(
@@ -152,6 +170,8 @@ MODULOS: tuple[Modulo, ...] = (
         descricao="Material, evento e presença de marca",
         icone="megafone",
         dominios=("mkt.",),
+        tela_propria="workspace:marketing",
+        tela_propria_rotulo="Radar de oportunidades",
         ordem=87,
     ),
     Modulo(
@@ -174,6 +194,8 @@ MODULOS: tuple[Modulo, ...] = (
         descricao="Trilhas, cursos e certificações",
         icone="book",
         dominios=("hab.",),
+        tela_propria="workspace:universidade",
+        tela_propria_rotulo="Minhas habilitações e trilhas",
         ordem=90,
     ),
     Modulo(

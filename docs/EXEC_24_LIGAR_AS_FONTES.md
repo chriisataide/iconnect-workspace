@@ -1,7 +1,8 @@
 # EXEC 24 · Ligar as fontes e o agendamento
 
-> O roteiro de quem tem os acessos. Não há código pendente nas nove ondas — o
-> que falta são **onze variáveis de ambiente, dois dicionários e um `crontab`**.
+> O roteiro de quem tem os acessos. Não há código pendente — o que falta são
+> **sete variáveis de ambiente, um dicionário e um `crontab`**. Conferido com
+> `conferir_integracoes` em 03/09/2026: **0 de 3 fontes configuradas**.
 
 ---
 
@@ -38,6 +39,19 @@ python manage.py conferir_integracoes        # o que falta, e de quem pedir
 nem mascarada, porque segredo mascarado em log é segredo em log com uma falsa
 sensação de cuidado. O que sai é `definida` ou `FALTA`, mais onde se consegue
 cada uma.
+
+A foto de hoje, para você saber que a saída abaixo é a esperada e não um erro:
+
+```
+── sankhya ──            4 FALTA
+── monday ──             2 FALTA   (1 variável + o dicionário MONDAY_BOARDS)
+── iconnect_platform ──  2 FALTA
+0 de 3 fonte(s) configurada(s).
+```
+
+São **oito linhas** e **sete variáveis** — `MONDAY_BOARDS` é dicionário no
+settings, e não variável de ambiente, porque id de board não é segredo: é
+inventário, e inventário em `.env` não sobrevive à primeira coluna renomeada.
 
 ---
 

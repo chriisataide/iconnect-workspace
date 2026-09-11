@@ -54,6 +54,18 @@ def marketing(request: HttpRequest) -> HttpResponse:
         "workspace/marketing.html",
         {
             "oportunidades": list(mkt.radar(situacao)),
+            # Os editais do PNCP, em bloco PRÓPRIO — ver
+            # `mkt.editais_publicos` para por que não são misturados com as
+            # oportunidades cadastradas à mão.
+            #
+            # Nomes curtos e SEM prefixo (`uf`, e não `edital_uf`): não colidem
+            # com `situacao`, que é o filtro do outro bloco, e são o que a
+            # pessoa lê na barra de endereço quando manda o link para alguém.
+            "editais": mkt.editais_publicos(
+                uf=request.GET.get("uf", ""),
+                termo=request.GET.get("termo", ""),
+                busca=request.GET.get("busca", ""),
+            ),
             "prazos": mkt.com_prazo_estourando(),
             "resumo": mkt.resumo(),
             "situacao_atual": situacao,
@@ -96,7 +108,7 @@ def oportunidade_registrar(request: HttpRequest, pk: int | None = None) -> HttpR
     except MarketingError as erro:
         messages.error(request, str(erro))
     else:
-        messages.success(request, "Oportunidade registrada.")
+        messages.success(request, "Evento registrado.")
 
     return redirect(reverse("workspace:marketing"))
 

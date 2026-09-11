@@ -24,7 +24,9 @@ from workspace.providers.resultados import (
     AvaliacaoDTO,
     CompetenciaDTO,
     ConsolidadoDTO,
+    ContaDTO,
     ContratoDTO,
+    EditalDTO,
     Escopo,
     MarcoDTO,
     MovimentacaoDTO,
@@ -32,6 +34,7 @@ from workspace.providers.resultados import (
     Procedencia,
     ProjetoDTO,
     ProvedorCarteira,
+    ProvedorEditais,
     ProvedorJornada,
     ProvedorPessoas,
     ProvedorProjetos,
@@ -42,6 +45,7 @@ from workspace.providers.resultados import (
 
 from . import services as svc
 from .models import (
+    EditalPublico,
     Apontamento,
     AvaliacaoCliente,
     CompetenciaResultado,
@@ -49,6 +53,8 @@ from .models import (
     MarcoProjeto,
     Projeto,
     QuadroPessoas,
+    ResultadoPorConta,
+    SEM_AREA,
     StatusContrato,
 )
 
@@ -86,13 +92,59 @@ def _recortar(consulta, escopo: Escopo | None, *, ate_o_contrato: str = ""):
     """
     if escopo is None or escopo.tudo:
         return consulta
+
+    # O NÍVEL — a mais específica das três vence, e as outras estão implícitas.
     if escopo.contratos:
-        campo, valores = "codigo", escopo.contratos
+        consulta = consulta.filter(
+            Q(**{f"{ate_o_contrato}codigo__in": escopo.contratos})
+        )
     elif escopo.centros_custo:
-        campo, valores = "centro_custo", escopo.centros_custo
-    else:
-        campo, valores = "regional", escopo.regionais
-    return consulta.filter(Q(**{f"{ate_o_contrato}{campo}__in": valores}))
+        consulta = consulta.filter(
+            Q(**{f"{ate_o_contrato}centro_custo__in": escopo.centros_custo})
+        )
+    elif escopo.regionais:
+        consulta = consulta.filter(
+            Q(**{f"{ate_o_contrato}regional__in": escopo.regionais})
+        )
+
+    # OS ATRIBUTOS — com **E** contra o nível, e não na precedência acima.
+    #
+    # Área e serviço não CONTÊM nem são contidos por centro de custo: o mesmo CC
+    # atende contratos de áreas diferentes. Se entrassem na precedência,
+    # escolher uma área substituiria o centro de custo e a lista CRESCERIA ao
+    # estreitar — o defeito que o `OU` da hierarquia produzia antes da Onda 11,
+    # de volta por outra porta.
+    consulta = _por_area(consulta, escopo.areas, ate_o_contrato)
+    if escopo.servicos:
+        consulta = consulta.filter(
+            Q(**{f"{ate_o_contrato}servico__in": escopo.servicos})
+        )
+    return consulta
+
+
+def _por_area(consulta, areas: tuple[str, ...], ate_o_contrato: str):
+    """O filtro de área, com "Sem área" sendo uma escolha e não uma ausência.
+
+    `SEM_AREA` é código reservado. Sem ele, contrato sem área só apareceria
+    quando ninguém filtrasse — e some da soma no instante em que alguém marca
+    qualquer área. Número que desaparece ao filtrar é a forma mais rápida de a
+    diretoria parar de acreditar na tela.
+
+    As duas coisas podem ser pedidas juntas: "Área 01 e os sem área" é uma
+    pergunta legítima de quem está reagrupando a carteira.
+    """
+    if not areas:
+        return consulta
+
+    codigos = tuple(a for a in areas if a != SEM_AREA)
+    quer_sem_area = SEM_AREA in areas
+
+    filtro = Q()
+    if codigos:
+        filtro |= Q(**{f"{ate_o_contrato}area__codigo__in": codigos})
+    if quer_sem_area:
+        filtro |= Q(**{f"{ate_o_contrato}area__isnull": True})
+    return consulta.filter(filtro)
 
 
 def _proc(registro) -> Procedencia:
@@ -106,10 +158,11 @@ class EspelhoLocal(
     ProvedorPessoas,
     ProvedorJornada,
     ProvedorSatisfacao,
+    ProvedorEditais,
 ):
-    """Uma classe para os seis contratos.
+    """Uma classe para os sete contratos.
 
-    Seis classes seriam seis arquivos com o mesmo import e o mesmo `_escopo`.
+    Sete classes seriam sete arquivos com o mesmo import e o mesmo `_escopo`.
     O que justifica separar os CONTRATOS — cada um é uma pergunta com dono
     possivelmente diferente — não justifica separar a implementação enquanto o
     dono é o mesmo espelho.
@@ -130,6 +183,51 @@ class EspelhoLocal(
         # de fora do recorte regional, e é o certo — ela é da empresa.
         consulta = self._competencias_no_escopo(consulta, escopo)
         return [self._competencia_dto(linha) for linha in consulta.order_by("ano", "mes")]
+
+    def por_conta(self, escopo, de: date, ate: date) -> list[ContaDTO]:
+        """O razão por conta — o bloco D.
+
+        `select_related("conta__pai", "contrato")` e não uma consulta por linha:
+        são cento e quarenta e nove contas no plano, e um `N+1` aqui seria
+        centenas de consultas para montar uma tabela.
+
+        O recorte usa `_competencias_no_escopo` — o MESMO da série agregada — e
+        não o `_recortar`. É deliberado: esta tabela também tem linha de centro
+        de custo sem contrato, e as duas precisam recortar igual, senão o
+        detalhe não fecha com o total logo acima dele na tela.
+        """
+        consulta = ResultadoPorConta.objects.select_related(
+            "conta", "conta__pai", "contrato"
+        ).filter(
+            Q(ano__gt=de.year) | Q(ano=de.year, mes__gte=de.month),
+            Q(ano__lt=ate.year) | Q(ano=ate.year, mes__lte=ate.month),
+        )
+        consulta = self._competencias_no_escopo(consulta, escopo)
+        return [self._conta_dto(linha) for linha in consulta]
+
+    def _conta_dto(self, linha) -> ContaDTO:
+        conta = linha.conta
+        grupo = conta.pai if (conta and conta.pai_id) else conta
+        return ContaDTO(
+            procedencia=_proc(linha),
+            # Sem conta no plano, o CÓDIGO da origem é o que a tela mostra —
+            # com o nome dizendo que ele não foi reconhecido. A linha nunca
+            # desaparece do total.
+            codigo=conta.codigo if conta else linha.codigo_origem,
+            nome=conta.nome if conta else "Conta não cadastrada",
+            grupo_codigo=grupo.codigo if grupo else linha.codigo_origem,
+            grupo_nome=grupo.nome if grupo else "Conta não cadastrada",
+            degrau=conta.degrau if conta else "",
+            natureza=conta.natureza if conta else "",
+            contrato=linha.contrato.codigo if linha.contrato_id else "",
+            centro_custo=linha.centro_custo,
+            ano=linha.ano,
+            mes=linha.mes,
+            realizado=linha.valor_realizado,
+            ajustes=linha.ajustes,
+            orcado=linha.valor_orcado,
+            desconhecida=conta is None,
+        )
 
     def consolidado(self, escopo, competencia: date) -> ConsolidadoDTO | None:
         consulta = self._competencias_no_escopo(
@@ -157,17 +255,60 @@ class EspelhoLocal(
         a cliente algum. Filtrar por `contrato__centro_custo` a deixaria de fora
         de todo recorte, e o total do centro de custo passaria a ser menor que a
         soma dos seus contratos.
+
+        ## O `OU` que ficou para trás — corrigido em 08/09/2026
+
+        Esta função combinava os três níveis com **OU** enquanto o `_recortar`
+        já usava PRECEDÊNCIA desde a Onda 11. Não era diferença de estilo: era
+        um vazamento, e ele foi reproduzido antes de ser corrigido.
+
+        `escopo_de` monta, para um gerente, as DUAS coisas ao mesmo tempo —
+        `regionais=("Sudeste",)` e `centros_custo=("1042",)`. Com `OU`, isso é
+        "o Sudeste inteiro OU o CC 1042", ou seja, o Sudeste inteiro. O
+        resultado, medido:
+
+            carteira      → C-MEU                  (via `_recortar`)
+            dinheiro      → C-MEU, C-VIZINHO       (via este método)
+
+        A mesma tela mostrando a carteira de um centro de custo e a receita da
+        regional toda, sem erro, sem log e sem ninguém notar — porque os dois
+        números nunca aparecem lado a lado.
+
+        A precedência resolve sem custar a linha sem contrato: no nível de
+        centro de custo o filtro é `centro_custo__in`, que é campo PRÓPRIO desta
+        tabela e pega tanto as linhas de contrato quanto o rateio do CC. É só no
+        nível de regional que a linha sem contrato sai — e sai certo: rateio que
+        não pertence a cliente nenhum não pertence a regional nenhuma.
         """
         if escopo is None or escopo.tudo:
             return consulta
-        condicao = Q()
-        if escopo.regionais:
-            condicao |= Q(contrato__regional__in=escopo.regionais)
-        if escopo.centros_custo:
-            condicao |= Q(centro_custo__in=escopo.centros_custo)
+
+        # A mais específica vence, como em `_recortar`.
         if escopo.contratos:
-            condicao |= Q(contrato__codigo__in=escopo.contratos)
-        return consulta.filter(condicao)
+            consulta = consulta.filter(contrato__codigo__in=escopo.contratos)
+        elif escopo.centros_custo:
+            consulta = consulta.filter(centro_custo__in=escopo.centros_custo)
+        elif escopo.regionais:
+            consulta = consulta.filter(contrato__regional__in=escopo.regionais)
+
+        # ÁREA E SERVIÇO, com **E** — e eles excluem a linha sem contrato.
+        #
+        # A linha de centro de custo não pertence a contrato nenhum, e por isso
+        # não tem área nem serviço. Quando alguém pergunta "quanto rende
+        # monitoramento", essa linha não é uma resposta parcial: ela não é
+        # monitoramento, e somá-la inflaria o número do serviço com rateio que
+        # não é dele.
+        #
+        # Isto NÃO pode ficar dentro do `if condicao` acima: um escopo que só
+        # tem área — o caso da diretoria filtrando por Área 03 — tem `condicao`
+        # vazia, e um `Q()` vazio em `filter()` devolve a tabela inteira. Foi
+        # exatamente assim que a primeira versão deste trecho passou a mostrar
+        # todas as linhas para um filtro que não casava com nada, e o teste do
+        # detalhe vazio pegou.
+        consulta = _por_area(consulta, escopo.areas, "contrato__")
+        if escopo.servicos:
+            consulta = consulta.filter(contrato__servico__in=escopo.servicos)
+        return consulta
 
     def _competencia_dto(self, linha) -> CompetenciaDTO:
         return CompetenciaDTO(
@@ -184,6 +325,9 @@ class EspelhoLocal(
             ajuste_potencial=linha.ajuste_potencial,
             receita_orcada=linha.receita_orcada,
             custo_orcado=linha.custo_orcado,
+            impostos_orcado=linha.impostos_orcado,
+            custo_indireto_orcado=linha.custo_indireto_orcado,
+            ebitda_orcado=linha.ebitda_orcado,
             margem_orcada=linha.margem_orcada,
             contrato=linha.contrato.codigo if linha.contrato_id else "",
         )
@@ -209,13 +353,13 @@ class EspelhoLocal(
     # ── Carteira ────────────────────────────────────────────────────
 
     def contratos(self, escopo, competencia: date | None = None) -> list[ContratoDTO]:
-        consulta = _recortar(Contrato.objects.all(), escopo)
+        consulta = _recortar(Contrato.objects.select_related("area"), escopo)
         return [self._contrato_dto(c, competencia) for c in consulta]
 
     def vencimentos(self, escopo, dias: int) -> list[ContratoDTO]:
         hoje = timezone.localdate()
         consulta = _recortar(
-            Contrato.objects.filter(
+            Contrato.objects.select_related("area").filter(
                 status__in=(StatusContrato.ATIVO, StatusContrato.EM_RENOVACAO),
                 fim_vigencia__isnull=False,
                 fim_vigencia__gte=hoje,
@@ -226,7 +370,7 @@ class EspelhoLocal(
         return [self._contrato_dto(c) for c in consulta.order_by("fim_vigencia")]
 
     def movimentacoes(self, escopo, de: date, ate: date) -> MovimentacaoDTO:
-        base = _recortar(Contrato.objects.all(), escopo)
+        base = _recortar(Contrato.objects.select_related("area"), escopo)
         conquistas = base.filter(inicio_vigencia__gte=de, inicio_vigencia__lte=ate)
         perdas = base.filter(
             status=StatusContrato.ENCERRADO,
@@ -254,6 +398,13 @@ class EspelhoLocal(
             servico=contrato.servico,
             centro_custo=contrato.centro_custo,
             regional=contrato.regional,
+            # `contrato.area` é FK opcional. O `select_related("area")` de quem
+            # monta a lista evita a consulta por linha; sem ele isto seria um
+            # N+1 numa carteira de dezoito contratos — e de cento e oitenta no
+            # dia em que a empresa crescer.
+            area=contrato.area.codigo if contrato.area_id else "",
+            area_nome=contrato.area.nome if contrato.area_id else "",
+            escopo=contrato.escopo,
             inicio_vigencia=contrato.inicio_vigencia,
             fim_vigencia=contrato.fim_vigencia,
             valor_mensal=contrato.valor_mensal,
@@ -428,6 +579,47 @@ class EspelhoLocal(
         ]
 
 
+    # ── Editais ─────────────────────────────────────────────────────
+
+    def editais(self, ate=None) -> list[EditalDTO]:
+        """O que está aberto AGORA, do que encerra antes para o que encerra
+        depois.
+
+        SEM `_recortar`, e é o único método assim. Os outros seis recortam pelo
+        que a pessoa responde; um edital ainda não é de ninguém, e filtrá-lo por
+        centro de custo esconderia o da regional vizinha que valeria a pena.
+
+        Encerrado NÃO aparece: um edital cujo prazo passou é ruído numa tela
+        cuja pergunta inteira é "o que ainda dá para disputar". Ele continua no
+        espelho — a linha é histórico, e apagá-la faria a mesma disputa voltar
+        do zero no ano seguinte.
+        """
+        from django.utils import timezone
+
+        consulta = EditalPublico.objects.filter(
+            encerramento_proposta__gte=timezone.now()
+        )
+        if ate is not None:
+            consulta = consulta.filter(encerramento_proposta__date__lte=ate)
+        return [
+            EditalDTO(
+                procedencia=_proc(e),
+                numero_controle=e.numero_controle,
+                objeto=e.objeto,
+                orgao=e.orgao,
+                unidade=e.unidade,
+                uf=e.uf,
+                municipio=e.municipio,
+                modalidade=e.modalidade,
+                valor_estimado=e.valor_estimado,
+                encerramento=e.encerramento_proposta,
+                termo_casado=e.termo_casado,
+                link=e.link,
+            )
+            for e in consulta.order_by("encerramento_proposta")
+        ]
+
+
 def _ponderado(linhas, campo: str, efetivo: int) -> Decimal:
     """Média ponderada pelo efetivo, com uma casa.
 
@@ -465,7 +657,12 @@ SOMAVEIS = (
 
 
 def _somar_apontamentos(linhas):
-    valores = {campo: sum(getattr(l, campo) for l in linhas) for campo in SOMAVEIS}
+    valores = {
+        campo: sum(
+            v for v in (getattr(x, campo) for x in linhas) if v is not None
+        )
+        for campo in SOMAVEIS
+    }
     valores["centro_custo"] = "" if len(linhas) > 1 else linhas[0].centro_custo
     valores["ano"] = linhas[0].ano
     valores["mes"] = linhas[0].mes

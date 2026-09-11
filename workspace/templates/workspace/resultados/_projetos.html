@@ -1,4 +1,16 @@
-{% load i18n wks %}
+{% load i18n wks graficos %}
+{% comment %}
+  DOIS gráficos, e não um: a rosca responde "como está a carteira de projetos" e
+  o bullet responde "o que vence antes do quê". São perguntas diferentes, e
+  espremê-las num gráfico só produziria um que não responde nenhuma.
+{% endcomment %}
+{% if faixa.conteudo.grafico %}
+  <div class="au-graficos">
+    {% grafico faixa.conteudo.grafico %}
+    {% if faixa.conteudo.grafico_marcos %}{% grafico faixa.conteudo.grafico_marcos %}{% endif %}
+  </div>
+{% endif %}
+
 <div class="au-kpi-linha">
   {% for item in faixa.conteudo.por_situacao %}
     <div class="au-kpi">

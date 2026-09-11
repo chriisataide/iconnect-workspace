@@ -130,3 +130,40 @@ def codigo_da_tela(context) -> str:
     caminho = getattr(context.get("request"), "path", "")
     tela = end.por_caminho(caminho)
     return tela.codigo if tela else ""
+
+
+@register.filter
+def numero(valor, casas: int = 0) -> str:
+    """`6338` → `6.338`. O milhar com ponto, como no resto do produto.
+
+    `floatformat:"0"` do Django NÃO põe separador sem `USE_THOUSAND_SEPARATOR`,
+    e ligar essa flag globalmente mudaria todo número do produto — inclusive os
+    que já saem formatados do Python. A tabela de horas mostrava `6338`, e
+    quatro dígitos sem separador ao lado de `1.124` na coluna vizinha é o tipo
+    de inconsistência que faz alguém ler o número errado numa reunião.
+    """
+    from workspace.graficos import formato as fmt
+
+    return fmt.numero(valor, casas)
+
+
+@register.simple_tag
+def produto() -> str:
+    """O nome do produto, de `settings.PRODUTO_NOME`.
+
+    Tag e não context processor porque `500.html` é renderizada **sem contexto**
+    pelo handler padrão do Django — um `{{ produto_nome }}` sairia vazio
+    justamente na tela que a pessoa vê quando tudo deu errado, e ela ficaria
+    sem saber de que sistema é o erro.
+    """
+    from django.conf import settings
+
+    return settings.PRODUTO_NOME
+
+
+@register.simple_tag
+def marca() -> str:
+    """A empresa dona da marca — o `alt` do logo. Ver `PRODUTO_MARCA`."""
+    from django.conf import settings
+
+    return settings.PRODUTO_MARCA

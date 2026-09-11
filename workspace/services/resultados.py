@@ -28,6 +28,7 @@ mesma regra de `/workspace/indicadores/`.
 from __future__ import annotations
 
 import calendar
+import logging
 from dataclasses import dataclass, field
 from datetime import date, timedelta
 from decimal import Decimal
@@ -40,9 +41,23 @@ from identidade.services.autorizacao import (
 )
 from workspace.providers import resultados as contrato
 from workspace.providers.frescor import NATIVO
+from workspace.graficos import formato as fmt
+from workspace.models.concentracao import OrigemConcentracao
 from workspace.services import frescor as frs
 
+logger = logging.getLogger("workspace")
+
 PERMISSAO = "eco.ler"
+
+#: As duas telas irmãs, com permissão PRÓPRIA — ver ADR-042.
+#:
+#: Quadro e jornada e Satisfação do cliente eram faixas da tela 10. São
+#: perguntas de outra gente: o turnover de um centro de custo é conversa de
+#: R.H., e o NPS é do comercial. Enquanto exigiam `eco.ler`, dar qualquer uma
+#: das duas a essa gente significava dar junto a margem de todo contrato — e por
+#: isso ninguém dava, e as duas ficavam sendo lidas só pela diretoria.
+PERMISSAO_PESSOAS = "eco.pessoas"
+PERMISSAO_SATISFACAO = "eco.satisfacao"
 
 #: Treze meses: doze para comparar com o mesmo mês do ano passado, mais o atual.
 #: Doze não bastam — a comparação anual é a única que separa crescimento de
@@ -80,7 +95,12 @@ class SemResultados(Exception):
 # ── Escopo ──────────────────────────────────────────────────────────
 
 
-def escopo_de(pessoa, cache: dict | None = None) -> contrato.Escopo:
+def escopo_de(
+    pessoa,
+    permissao: str = PERMISSAO,
+    cache: dict | None = None,
+    recusa: str = "Esta tela é de quem responde por resultado.",
+) -> contrato.Escopo:
     """O recorte desta pessoa, traduzido do que `pode()` respondeu.
 
     Três respostas possíveis, e a terceira é 403:
@@ -90,10 +110,15 @@ def escopo_de(pessoa, cache: dict | None = None) -> contrato.Escopo:
       a lotação tem unidade. É o gerente, que precisa dos números da operação
       dele sem ver os da empresa.
     - **nada** — 403. Resultado financeiro não é informação institucional.
+
+    `permissao` é parâmetro porque as três telas — 10, 16 e 17 — recortam
+    IGUAL e autorizam DIFERENTE. Copiar esta função para cada uma criaria três
+    lugares onde "o gerente vê só o centro de custo dele" está escrito, e o dia
+    em que discordassem uma delas vazaria sem deixar rastro.
     """
-    escopo = escopo_da_permissao(pessoa, PERMISSAO, cache=cache)
+    escopo = escopo_da_permissao(pessoa, permissao, cache=cache)
     if escopo is None:
-        raise SemResultados("Esta tela é de quem responde por resultado.")
+        raise SemResultados(recusa)
     if escopo == ESCOPO_GLOBAL:
         return contrato.Escopo()
 
@@ -117,13 +142,23 @@ def escopo_de(pessoa, cache: dict | None = None) -> contrato.Escopo:
     return contrato.Escopo(regionais=regionais, centros_custo=centros)
 
 
-def tem_acesso(pessoa, cache: dict | None = None) -> bool:
+def tem_acesso(
+    pessoa, permissao: str = PERMISSAO, cache: dict | None = None
+) -> bool:
     """Se o trilho mostra o item. Exceção é para o caminho errado, não para um `if`."""
     try:
-        escopo_de(pessoa, cache=cache)
+        escopo_de(pessoa, permissao, cache=cache)
     except SemResultados:
         return False
     return True
+
+
+def tem_acesso_a_pessoas(pessoa, cache: dict | None = None) -> bool:
+    return tem_acesso(pessoa, PERMISSAO_PESSOAS, cache=cache)
+
+
+def tem_acesso_a_satisfacao(pessoa, cache: dict | None = None) -> bool:
+    return tem_acesso(pessoa, PERMISSAO_SATISFACAO, cache=cache)
 
 
 def _lotacao(pessoa):
@@ -137,6 +172,32 @@ def _lotacao(pessoa):
 
 
 # ── Filtros ─────────────────────────────────────────────────────────
+
+
+#: O valor que abre TODOS os grupos — D3.
+#:
+#: Sentinela e não uma lista com os vinte e oito códigos: a lista tem teto de
+#: oito (`MAXIMO_EXPANDIDO`), e "expandir tudo" precisa passar por cima dele sem
+#: afrouxá-lo para uma URL forjada. E `?expandir=tudo` é legível no link que
+#: alguém cola num e-mail, o que `?expandir=31101,31201,41101,…` não é.
+TUDO = "tudo"
+
+#: Como a tabela mostra os números — D3.
+#:
+#: `%` responde "quanto do meu contrato foi para pessoal?", que é a pergunta em
+#: que a tabela é usada de verdade. O absoluto é o padrão porque é contra ele
+#: que se confere o fechamento contábil.
+MODO_ABSOLUTO = "reais"
+MODO_PERCENTUAL = "pct"
+MODOS: tuple[tuple[str, str], ...] = (
+    (MODO_ABSOLUTO, "Em reais"),
+    (MODO_PERCENTUAL, "Em % da receita líquida"),
+)
+
+
+def _modo_dos_numeros(parametros) -> str:
+    pedido = (parametros.get("numeros") or "").strip().lower()
+    return pedido if pedido in dict(MODOS) else MODO_ABSOLUTO
 
 
 @dataclass(frozen=True)
@@ -153,23 +214,53 @@ class Filtros:
     """
 
     competencia: date
+    #: A UNIDADE do organograma. NÃO é campo de formulário: ela é a ponte entre
+    #: a permissão e o espelho (`Escopo.regionais` vem de `lotacao.unidade.nome`),
+    #: e continua existindo como nível da perfuração. Quem quer recortar a
+    #: carteira usa `area` — ver `resultados.models.Area`.
     regional: str = ""
     centro_custo: str = ""
     contrato: str = ""
-    servico: str = ""
+    #: ÁREA e SERVIÇO aceitam vários valores; os três acima, um só.
+    #:
+    #: A diferença não é de gosto: os três acima são uma hierarquia, e "desça
+    #: para dois lugares ao mesmo tempo" não é uma pergunta. Área e serviço são
+    #: atributos — comparar a Área 01 com a 03 é exatamente o que se quer.
+    area: tuple[str, ...] = ()
+    servico: tuple[str, ...] = ()
     status: str = ""
     #: `"1"`, `"2"`, `"3"` — o porte do contrato. String e não inteiro porque
     #: `sem_amostra` é uma resposta legítima do espelho, e não um número.
     layer: str = ""
     deficitario: bool = False
-    #: Quantos meses a série mostra. É filtro de LEITURA e não de dado: treze
-    #: meses num gráfico com rótulo por ponto é o limite do que cabe, e seis é
-    #: o que se olha numa reunião mensal.
+    #: O período da leitura: `mes`, `3m`, `6m`, `9m` ou `12m`.
     #:
-    #: Nasceu de uma reclamação concreta — "os números ficam um em cima do
-    #: outro". Girar o rótulo resolveu metade; poder estreitar a janela é a
-    #: outra metade, e é a que a pessoa controla.
-    janela: int = MESES_DA_SERIE
+    #: Filtro de LEITURA e não de dado. Nasceu de uma reclamação concreta — "os
+    #: números ficam um em cima do outro". Girar o rótulo resolveu metade; poder
+    #: estreitar o período é a outra metade, e é a que a pessoa controla.
+    #:
+    #: Era `janela: int` até 08/09/2026, com o número de meses direto na URL.
+    #: Virou nome por dois motivos: `?janela=9` não diz o que significa a quem
+    #: lê o link, e o inteiro livre aceitava `?janela=7`, um recorte que a tela
+    #: oferece sem oferecer — e que ninguém sabe interpretar.
+    periodo: str = ""
+    #: COM QUE COMPARAR — F1. Vazio é "com nada", e é o padrão.
+    #:
+    #: Separado do período de propósito: "quero ver seis meses" e "quero ver
+    #: contra o ano passado" são duas perguntas, e um seletor só para as duas
+    #: obrigaria a escolher entre elas.
+    comparar: str = ""
+    #: Os grupos abertos na tabela contábil — D1. Na URL para o link chegar
+    #: aberto no ponto certo do outro lado. `("tudo",)` abre todos.
+    expandidos: tuple[str, ...] = ()
+    #: Como a tabela contábil mostra os números — D3.
+    numeros: str = MODO_ABSOLUTO
+    #: A safra escolhida — `C2023` ou `P2019`. Vazio mostra a lista.
+    safra: str = ""
+
+    @property
+    def tudo_aberto(self) -> bool:
+        return TUDO in self.expandidos
     #: Por qual dimensão o bloco de perfuração agrupa. Vazio = a do nível
     #: seguinte na hierarquia, que é o que quem não escolheu nada quer.
     dimensao: str = ""
@@ -183,30 +274,89 @@ class Filtros:
 
     @property
     def meses(self) -> int:
-        """A janela, presa entre 3 e o teto da série.
+        """Quantos meses a série cobre, do período escolhido.
 
-        Três é o mínimo em que uma tendência existe; abaixo disso o gráfico é
-        uma comparação, e comparação se lê melhor em tabela.
+        Preso ao teto da série. O PISO deixou de ser três em 08/09/2026, com a
+        entrada de "Mês atual" — ver `PERIODOS` para o que isso custa e por que
+        vale.
         """
-        return max(3, min(int(self.janela or MESES_DA_SERIE), MESES_DA_SERIE))
+        return max(1, min(MESES_POR_PERIODO.get(self.periodo, PERIODO_PADRAO_MESES),
+                          MESES_DA_SERIE))
+
+    @property
+    def so_o_mes(self) -> bool:
+        """"Mês atual" — o único período em que NÃO há série para desenhar.
+
+        A tela usa isto para trocar o gráfico pela tabela do mês em vez de
+        desenhar uma barra sozinha. Uma barra sem vizinha não mostra tendência
+        nenhuma e ocupa o espaço de quem mostraria.
+        """
+        return self.meses == 1
+
+    @property
+    def rotulo_do_periodo(self) -> str:
+        """"últimos 12 meses" — o texto que entra no título de cada gráfico.
+
+        No título e não só na barra de filtros: o gráfico é o que a pessoa
+        fotografa e cola numa mensagem, e fora da tela ele perde o recorte.
+        """
+        return ROTULO_DO_PERIODO.get(self.periodo, "")
 
     @property
     def ate(self) -> date:
         ultimo = calendar.monthrange(self.competencia.year, self.competencia.month)[1]
         return date(self.competencia.year, self.competencia.month, ultimo)
 
+    @property
+    def meses_atras(self) -> int:
+        """Quantos meses a comparação recua. `0` = não há comparação."""
+        return MESES_DA_COMPARACAO.get(self.comparar, 0)
+
+    @property
+    def de_comparado(self) -> date | None:
+        """O início da janela comparada, ou `None`.
+
+        Recua a janela INTEIRA, e não só o mês: comparar seis meses de 2026 com
+        um mês de 2025 seria comparar coisas diferentes com a mesma altura na
+        tela — o erro que mais gera decisão errada em reunião.
+        """
+        return _recuar(self.de, self.meses_atras) if self.meses_atras else None
+
+    @property
+    def ate_comparado(self) -> date | None:
+        if not self.meses_atras:
+            return None
+        fim = _recuar(self.competencia, self.meses_atras)
+        ultimo = calendar.monthrange(fim.year, fim.month)[1]
+        return date(fim.year, fim.month, ultimo)
+
+    @property
+    def rotulo_do_comparado(self) -> str:
+        return ROTULO_DA_COMPARACAO.get(self.comparar, "")
+
     def aplicar(self, escopo: contrato.Escopo) -> contrato.Escopo:
         """O filtro ESTREITA o escopo; nunca o alarga.
 
-        Um gerente que digitasse `?regional=Sul` na URL continua vendo só o
-        dela — o filtro entra por interseção, e o que ele não pode ver não volta
-        por uma query string.
+        Um gerente que digitasse `?cc=1055` na URL continua vendo só o dele — o
+        filtro entra por INTERSEÇÃO, e o que ele não pode ver não volta por uma
+        query string.
+
+        **Área e serviço não passam por `_estreitar`, e a razão importa:**
+        `_estreitar` existe para o caso em que a permissão já limitou o
+        conjunto. Ninguém é lotado numa área comercial nem num tipo de serviço —
+        a permissão nunca preenche esses dois. Eles só podem ESTREITAR, porque
+        entram com **E** contra o nível no `_recortar` do espelho: pedir uma
+        área que a pessoa não alcança devolve vazio, e não a área.
         """
         regionais = _estreitar(escopo.regionais, self.regional)
         centros = _estreitar(escopo.centros_custo, self.centro_custo)
         contratos = _estreitar(escopo.contratos, self.contrato)
         return contrato.Escopo(
-            regionais=regionais, centros_custo=centros, contratos=contratos
+            regionais=regionais,
+            centros_custo=centros,
+            contratos=contratos,
+            areas=self.area,
+            servicos=self.servico,
         )
 
 
@@ -227,17 +377,106 @@ def ler_filtros(parametros, hoje: date | None = None) -> Filtros:
     """
     hoje = hoje or timezone.localdate()
     return Filtros(
-        competencia=_competencia(parametros.get("competencia"), hoje),
+        competencia=_competencia(_mes_pedido(parametros), hoje),
         regional=(parametros.get("regional") or "").strip()[:60],
         centro_custo=(parametros.get("cc") or "").strip()[:20],
         contrato=(parametros.get("contrato") or "").strip()[:40],
-        servico=(parametros.get("servico") or "").strip()[:20],
+        area=_lista(parametros, "area", 20),
+        servico=_lista(parametros, "servico", 20),
         status=(parametros.get("status") or "").strip()[:20],
         layer=(parametros.get("layer") or "").strip()[:12],
         deficitario=parametros.get("deficitario") in ("1", "true", "sim"),
-        janela=_inteiro(parametros.get("janela"), MESES_DA_SERIE),
+        periodo=_periodo(parametros),
+        comparar=_comparacao(parametros),
+        expandidos=_expandidos(parametros),
+        numeros=_modo_dos_numeros(parametros),
+        safra=(parametros.get("safra") or "").strip().upper()[:6],
         dimensao=(parametros.get("dim") or "").strip()[:20],
     )
+
+
+#: Quantos valores um filtro multi aceita. Doze é mais que as cinco áreas e os
+#: cinco serviços somados — o teto existe para uma URL forjada com duzentos
+#: valores não virar um `IN` de duzentos itens no banco.
+MAXIMO_MULTI = 12
+
+
+def _lista(parametros, nome: str, tamanho: int) -> tuple[str, ...]:
+    """Os valores de um filtro multi, sem repetição e na ordem em que vieram.
+
+    `getlist` quando existe (é um `QueryDict`) e `get` quando não (é um dict
+    comum, como os testes passam). Sem esse cuidado, a mesma função devolveria
+    coisas diferentes conforme quem chama — e o teste passaria enquanto a tela
+    não funcionaria.
+
+    Ordem preservada porque ela aparece na frase do recorte: "Área 01 e Área 03"
+    tem de sair na ordem em que a pessoa marcou, senão o texto muda sozinho a
+    cada recarga.
+    """
+    if hasattr(parametros, "getlist"):
+        crus = parametros.getlist(nome)
+    else:
+        bruto = parametros.get(nome)
+        crus = bruto if isinstance(bruto, (list, tuple)) else [bruto]
+
+    vistos: list[str] = []
+    for valor in crus:
+        limpo = (str(valor) if valor is not None else "").strip()[:tamanho]
+        if limpo and limpo not in vistos:
+            vistos.append(limpo)
+    return tuple(vistos[:MAXIMO_MULTI])
+
+
+def _mes_pedido(parametros) -> str | None:
+    """`?mes=` é o nome; `?competencia=` continua sendo lido — A1.
+
+    O nome mudou porque "competência" é palavra de contabilidade e a barra é
+    lida por quem não é do financeiro. O antigo continua valendo por uma versão
+    porque links já foram compartilhados: quebrá-los faria alguém abrir a tela
+    no mês errado sem perceber, que é pior que o nome ruim.
+
+    O NOVO tem precedência quando os dois vêm — se alguém montar a URL com os
+    dois, quis o que digitou por último, e o que digitou por último é `mes`.
+
+    Remover em: qualquer momento depois de 03/2027, quando os links de 2026
+    tiverem envelhecido.
+    """
+    return parametros.get("mes") or parametros.get("competencia")
+
+
+def _recuar(momento: date, meses: int) -> date:
+    """`date` deslocada `meses` para trás, no dia 1º."""
+    total = momento.year * 12 + (momento.month - 1) - meses
+    return date(total // 12, total % 12 + 1, 1)
+
+
+def _comparacao(parametros) -> str:
+    """`?comparar=` — valor fora da lista vira "nenhum", e não erro."""
+    pedido = (parametros.get("comparar") or "").strip().lower()
+    return pedido if pedido in MESES_DA_COMPARACAO else ""
+
+
+def _periodo(parametros) -> str:
+    """O período pedido, ou o padrão. Valor fora da lista NÃO é erro.
+
+    `?periodo=abacaxi` é uma URL digitada errada, e responder 500 a ela
+    ensinaria a não brincar com a barra de endereço — que é justamente o que a
+    tela quer que as pessoas façam.
+
+    Lê `?janela=` também, pelo mesmo motivo de `_mes_pedido`: `?janela=6` já
+    circulou em links, e o número traduz direto para o período equivalente.
+    """
+    pedido = (parametros.get("periodo") or "").strip().lower()
+    if pedido in MESES_POR_PERIODO:
+        return pedido
+
+    antigo = _inteiro(parametros.get("janela"), 0)
+    if antigo:
+        # O período cujo tamanho mais se aproxima, sem passar do teto.
+        cabe = [v for v, _, m in PERIODOS if m <= antigo]
+        if cabe:
+            return cabe[-1]
+    return PERIODO_PADRAO
 
 
 def _inteiro(texto, padrao: int) -> int:
@@ -275,6 +514,9 @@ class Faixa:
     #: diferentes de quem lê.
     motivo: str = ""
     conteudo: dict = field(default_factory=dict)
+    #: A FRASE DE LEITURA — B2. Vazia quando não há afirmação verdadeira a
+    #: fazer, e vazia é o estado normal: frase genérica é pior que ausência.
+    leitura: str = ""
     #: A competência pedida. Entra no carimbo como janela — "competência
     #: AGO/2026" diz mais sobre o número do que qualquer descrição de cadência.
     competencia: date | None = None
@@ -291,6 +533,7 @@ class Faixa:
 DEFINICOES: dict[str, tuple[str, str]] = {
     "destaques": ("Destaques e pontos de atenção", NATIVO),
     "dinheiro": ("O dinheiro", "sankhya"),
+    "contabil": ("Com o que foi gasto", "sankhya"),
     "contratos": ("Os contratos", "iconnect_platform"),
     "vencimentos": ("O que está prestes a vencer", "iconnect_platform"),
     "projetos": ("Os projetos", "monday"),
@@ -341,8 +584,30 @@ def dinheiro(escopo: contrato.Escopo, filtros: Filtros) -> Faixa:
 
     do_mes = [linha for linha in serie if _no_mes(linha, filtros.competencia)]
 
+    # A JANELA COMPARADA — F1. Segunda consulta e não um recorte da primeira:
+    # ela está fora do intervalo que a primeira pediu, e reaproveitar seria
+    # buscar treze meses para mostrar doze, que foi exatamente o que o período
+    # nomeado veio desfazer.
+    comparada = []
+    if filtros.de_comparado is not None:
+        comparada = provedor.serie_competencia(
+            escopo, filtros.de_comparado, filtros.ate_comparado
+        )
+
+    # A SÉRIE LONGA — 24 meses, buscada UMA vez e lida por dois blocos.
+    #
+    # O comparativo trimestral (F2) e a tendência da safra (C5) comparam com o
+    # MESMO MÊS do ano anterior, e a série do seletor de período tem doze meses:
+    # nenhum dos dois encontrava par. Antes disso o trimestral buscava sozinho,
+    # e a safra mostrava "—" em toda linha.
+    serie_longa = provedor.serie_competencia(
+        escopo, _recuar(filtros.competencia, MESES_DO_TRIMESTRAL - 1), filtros.ate
+    )
+
     faixa.conteudo = {
         "serie": serie,
+        "serie_longa": serie_longa,
+        "comparacao": _comparacao_em_texto(serie, comparada, filtros),
         "linhas": [_linha_de_dinamica(linha) for linha in do_mes],
         "totais": _totais(do_mes),
         "consolidado": provedor.consolidado(escopo, filtros.competencia),
@@ -355,16 +620,291 @@ def dinheiro(escopo: contrato.Escopo, filtros: Filtros) -> Faixa:
         # fechou onde deveria" numa olhada, e a razão de a linha existir.
         "grafico_receita": _bloco_comparado(
             serie, "receita_bruta", "receita_orcada", "receita",
-            f"Receita bruta, {filtros.meses} meses",
+            _titulo("Receita bruta", filtros),
+            comparada=comparada,
+            rotulo_comparado=filtros.rotulo_do_comparado,
         ),
-        # EBITDA fica SEM par: o espelho não traz EBITDA orçado. Inventar um
-        # denominador para ter a linha seria a pior forma de completar um
-        # gráfico — o bloco diz o que tem, e a razão fica de fora.
-        "grafico_ebitda": _bloco_mensal(
-            serie, "ebitda", "ebitda", f"EBITDA, {filtros.meses} meses"
+        # C2 · IMPOSTOS, agora com par. A coluna `impostos_orcado` chegou em
+        # 10/09/2026 e destravou este gráfico e o de indireto.
+        "grafico_impostos": _bloco_comparado(
+            serie, "impostos", "impostos_orcado", "impostos",
+            _titulo("Impostos", filtros),
+        ),
+        # C3 · INDIRETO. O orçado dele mora nas linhas de RATEIO — é o que ele
+        # é. Nos contratos vem vazio, e a tela diz "sem orçado" em vez de
+        # mostrar variação de 100%.
+        "grafico_indireto": _bloco_comparado(
+            serie, "custo_indireto", "custo_indireto_orcado", "indireto",
+            _titulo("Custo indireto", filtros),
+        ),
+        # O COMPARATIVO TRIMESTRAL — F2. Sai da mesma série: uma consulta
+        # própria daria um quarto caminho para o mesmo número.
+        "grafico_trimestral": trimestral(serie_longa, filtros),
+        # O EBITDA GANHOU PAR. Ele ficava sem porque o espelho não trazia
+        # `ebitda_orcado`, e a nota anterior dizia que inventar um denominador
+        # para completar o gráfico seria a pior forma de fazê-lo. A coluna
+        # chegou, e a linha passou a ser calculada em vez de inventada.
+        "grafico_ebitda": _bloco_comparado(
+            serie, "ebitda", "ebitda_orcado", "ebitda",
+            _titulo("EBITDA", filtros),
         ),
     }
     return faixa
+
+
+# ── B2 · a frase de leitura ─────────────────────────────────────────
+#
+# Regra em Python, com número real. Nunca texto fixo — que não diz nada — e
+# nunca modelo de linguagem, que inventaria com confiança.
+#
+# TRÊS regras, e não onze. Cada uma é uma afirmação que pode ficar falsa, e onze
+# afirmações que ninguém revisa é como um painel passa a mentir devagar. Cada
+# uma tem teste do caso em que ela NÃO deve falar, que é o caso difícil.
+
+
+#: Quanto um contrato precisa explicar da variação para ser nomeado na frase.
+#:
+#: MAIS DA METADE — ele tem de pesar mais que todos os outros somados.
+#:
+#: Era quarenta por cento, e um teste mostrou por que não servia: com DOIS
+#: contratos caindo igual, cada um pesa 50% e passa no limiar — e a frase
+#: nomearia um dos dois arbitrariamente, mandando alguém cobrar a pessoa errada
+#: na reunião. "Puxada por" só é verdade quando um explica mais que o resto.
+PESO_PARA_CULPAR = Decimal("50")
+
+
+def _leitura_do_dinheiro(conteudo: dict, filtros: Filtros) -> str:
+    """"A margem caiu 2,3 pontos contra o mês anterior."
+
+    ## Por que em PONTOS e não em percentual
+
+    A margem já é um percentual. "Caiu 12%" sobre 19% é ambíguo — pode ser 7 ou
+    16,7 —, e as duas leituras levam a decisões diferentes. Ponto percentual é a
+    unidade em que se fala de margem.
+
+    Silencia quando não há mês anterior na série: comparar com nada e chamar de
+    variação seria inventar o número mais importante da frase.
+    """
+    serie = conteudo.get("serie") or []
+    atual = [l for l in serie if _no_mes(l, filtros.competencia)]
+    if not atual:
+        return ""
+
+    anterior_mes = _recuar(filtros.competencia, 1)
+    anterior = [l for l in serie if _no_mes(l, anterior_mes)]
+    if not anterior:
+        return ""
+
+    def margem(linhas) -> Decimal | None:
+        """A MESMA definição do cartão logo acima — só as linhas com contrato.
+
+        Somar o rateio daria margem depois do indireto, e a frase diria um
+        número diferente do cartão que ela está explicando. Duas leituras da
+        mesma coisa a um centímetro de distância é como alguém deixa de
+        confiar nas duas.
+        """
+        com_contrato = [l for l in linhas if l.contrato]
+        receita = sum((l.receita_bruta or Decimal("0")) for l in com_contrato)
+        if not receita:
+            return None
+        mc = sum((l.margem_contribuicao or Decimal("0")) for l in com_contrato)
+        return mc / receita * Decimal("100")
+
+    agora, antes = margem(atual), margem(anterior)
+    if agora is None or antes is None:
+        return ""
+
+    delta = (agora - antes).quantize(Decimal("0.1"))
+    if not delta:
+        return (
+            f"A margem ficou estável em {fmt.percentual(agora)} contra "
+            f"{anterior_mes:%m/%Y}."
+        )
+
+    direcao = "subiu" if delta > 0 else "caiu"
+    frase = (
+        f"A margem {direcao} {fmt.numero(abs(delta), 1)} "
+        f"{'ponto' if abs(delta) == 1 else 'pontos'} contra {anterior_mes:%m/%Y}, "
+        f"para {fmt.percentual(agora)}"
+    )
+    culpado = _quem_explica(atual, anterior)
+    return f"{frase}{culpado}."
+
+
+def _quem_explica(atual, anterior) -> str:
+    """", puxada por CT-101" — só quando UM contrato explica o bastante.
+
+    Sem isto a frase diz o que aconteceu e não onde olhar. Com um limiar baixo
+    ela nomearia um contrato entre vários de peso parecido, e alguém cobraria a
+    pessoa errada na reunião.
+    """
+    def por_contrato(linhas) -> dict[str, Decimal]:
+        soma: dict[str, Decimal] = {}
+        for linha in linhas:
+            chave = linha.contrato or ""
+            if not chave:
+                continue
+            soma[chave] = soma.get(chave, Decimal("0")) + (
+                linha.margem_contribuicao or Decimal("0")
+            )
+        return soma
+
+    agora, antes = por_contrato(atual), por_contrato(anterior)
+    variacoes = {
+        codigo: agora.get(codigo, Decimal("0")) - antes.get(codigo, Decimal("0"))
+        for codigo in set(agora) | set(antes)
+    }
+    total = sum((abs(v) for v in variacoes.values()), Decimal("0"))
+    if not total:
+        return ""
+
+    codigo, delta = max(variacoes.items(), key=lambda par: abs(par[1]))
+    peso = abs(delta) / total * Decimal("100")
+    # ESTRITAMENTE maior: no empate de dois, cada um dá exatamente 50% e
+    # nenhum explica mais que o outro.
+    return f", puxada por {codigo}" if peso > PESO_PARA_CULPAR else ""
+
+
+def _leitura_do_contabil(conteudo: dict) -> str:
+    """"Pessoal consumiu 18,9% da receita líquida, e estourou o orçado em X."
+
+    O grupo de MAIOR consumo, e não uma lista: a frase existe para dizer onde
+    olhar primeiro, e três nomes numa frase não priorizam nada.
+    """
+    grupos = [
+        g for g in (conteudo.get("grupos") or [])
+        if g.get("natureza") == "custo" and g.get("pct_da_receita") is not None
+    ]
+    if not grupos:
+        return ""
+
+    maior = max(grupos, key=lambda g: g["pct_da_receita"])
+    frase = (
+        f"{maior['nome'].capitalize()} consumiu "
+        f"{fmt.percentual(maior['pct_da_receita'])} da receita líquida"
+    )
+    folga = maior.get("dif_or_re")
+    if folga is not None and folga < 0:
+        frase += f", e estourou o orçado em {fmt.moeda(abs(folga))}"
+    return f"{frase}."
+
+
+def _leitura_dos_contratos(conteudo: dict) -> str:
+    """"Três contratos estão abaixo da margem mínima, e são 22% da receita."
+
+    O PESO junto da contagem: três contratos pequenos e três grandes pedem
+    reações diferentes, e a contagem sozinha não separa os casos.
+    """
+    carteira = conteudo.get("carteira") or []
+    abaixo = [
+        c for c in carteira
+        if c.margem_contribuicao_pct is not None
+        and c.margem_contribuicao_pct < MARGEM_MINIMA
+    ]
+    if not abaixo:
+        return ""
+
+    total = sum((c.valor_mensal for c in carteira), Decimal("0"))
+    frase = (
+        f"{len(abaixo)} contrato está" if len(abaixo) == 1
+        else f"{len(abaixo)} contratos estão"
+    )
+    frase += f" abaixo da margem mínima de {fmt.percentual(MARGEM_MINIMA)}"
+    if total:
+        peso = sum((c.valor_mensal for c in abaixo), Decimal("0")) / total * 100
+        frase += f", e são {fmt.percentual(peso)} da carteira"
+    return f"{frase}."
+
+
+#: `chave da faixa → a regra que escreve a frase`.
+#:
+#: Dicionário e não `if` em cadeia: faixa sem regra simplesmente não ganha
+#: frase, e acrescentar uma é uma linha aqui — não um ramo novo num `elif` de
+#: onze braços.
+LEITURAS = {
+    "dinheiro": lambda conteudo, filtros: _leitura_do_dinheiro(conteudo, filtros),
+    "contabil": lambda conteudo, filtros: _leitura_do_contabil(conteudo),
+    "contratos": lambda conteudo, filtros: _leitura_dos_contratos(conteudo),
+}
+
+
+def _com_leitura(faixas: dict, filtros: Filtros) -> None:
+    """Acrescenta a frase a cada faixa que tem regra.
+
+    Fora dos montadores, como os gráficos: eles são a leitura do espelho, e
+    escrever uma frase é outra coisa. E dentro de um `try` porque uma regra que
+    estoura não pode derrubar a tela — a frase é o acessório, e o número é o
+    conteúdo.
+    """
+    for chave, regra in LEITURAS.items():
+        faixa = faixas.get(chave)
+        if faixa is None or not faixa.disponivel or not faixa.conteudo:
+            continue
+        try:
+            faixa.leitura = regra(faixa.conteudo, filtros)
+        except (TypeError, ValueError, ArithmeticError, AttributeError):
+            # Silêncio e não erro: a frase some, o número fica. Uma regra de
+            # leitura que derruba a Apresentação de Resultados no meio de uma
+            # reunião seria o pior troco possível por uma linha de texto.
+            logger.warning("leitura da faixa %s falhou", chave, exc_info=True)
+            faixa.leitura = ""
+
+
+def _com_graficos(faixas: dict, filtros: Filtros | None = None) -> None:
+    """Acrescenta o gráfico de cada faixa — passo 6.
+
+    Fora dos montadores de propósito: eles são a leitura do espelho, e desenhar
+    é outra coisa. Misturar as duas faria cada montador precisar do catálogo de
+    gráficos para responder quantos contratos existem.
+    """
+    contratos_ = faixas.get("contratos")
+    if contratos_ is not None and contratos_.disponivel and contratos_.conteudo:
+        contratos_.conteudo["grafico"] = _grafico_da_carteira(contratos_.conteudo)
+        contratos_.conteudo["grafico_mix"] = _grafico_do_mix(contratos_.conteudo)
+        contratos_.conteudo["fora_do_grafico"] = sum(
+            1
+            for c in contratos_.conteudo.get("carteira", [])
+            if c.margem_contribuicao_pct is None or c.layer == SEM_AMOSTRA
+        )
+
+    # C5 · AS SAFRAS. Aqui e não dentro de um montador porque o bloco precisa
+    # de DUAS faixas: a série mensal está no dinheiro e a carteira está nos
+    # contratos. Montá-lo em qualquer uma das duas custaria uma consulta que a
+    # outra já pagou.
+    dinheiro_ = faixas.get("dinheiro")
+    if contratos_ is not None and contratos_.disponivel and contratos_.conteudo:
+        carteira = contratos_.conteudo.get("carteira", [])
+        contratos_.conteudo["safras"] = safras_da_carteira(carteira)
+        escolhida = getattr(filtros, "safra", "")
+        contratos_.conteudo["safra_escolhida"] = escolhida
+        # A SÉRIE LONGA: a tendência é contra o mesmo mês do ano anterior, e
+        # com doze meses ela era "—" em toda linha.
+        serie = (getattr(dinheiro_, "conteudo", None) or {}).get("serie_longa") or []
+        contratos_.conteudo["grafico_safra"] = (
+            grafico_da_safra(serie, carteira, escolhida, filtros)
+            if escolhida and filtros
+            else None
+        )
+
+    vencimentos_ = faixas.get("vencimentos")
+    if vencimentos_ is not None and vencimentos_.disponivel and vencimentos_.conteudo:
+        vencimentos_.conteudo["grafico"] = _grafico_dos_vencimentos(
+            vencimentos_.conteudo
+        )
+
+    projetos_ = faixas.get("projetos")
+    if projetos_ is not None and projetos_.disponivel and projetos_.conteudo:
+        rosca, bullet = _grafico_dos_projetos(projetos_.conteudo)
+        projetos_.conteudo["grafico"] = rosca
+        projetos_.conteudo["grafico_marcos"] = bullet
+
+    pessoas_ = faixas.get("pessoas")
+    if pessoas_ is not None and pessoas_.disponivel and pessoas_.conteudo:
+        pessoas_.conteudo["mapa"] = _mapa_do_quadro(pessoas_.conteudo)
+
+    satisfacao_ = faixas.get("satisfacao")
+    if satisfacao_ is not None and satisfacao_.disponivel and satisfacao_.conteudo:
+        satisfacao_.conteudo["grafico"] = _grafico_da_satisfacao(satisfacao_.conteudo)
 
 
 def _com_perfuracao(faixa, escopo, filtros: Filtros):
@@ -430,8 +970,88 @@ def _bloco_mensal(linhas, campo: str, chave: str, titulo: str):
     )
 
 
-def _bloco_comparado(linhas, campo_re: str, campo_or: str, chave: str, titulo: str):
-    """Realizado × orçado, com `%RExOR` na linha do eixo direito.
+def _titulo(assunto: str, filtros: Filtros) -> str:
+    """"Receita bruta — últimos 12 meses" — A2.
+
+    O recorte vai no TÍTULO, e não só na barra de filtros: o gráfico é o que a
+    pessoa fotografa e cola numa mensagem, e fora da tela ele perde o recorte.
+    Um gráfico de seis meses lido como se fosse de doze é o tipo de erro que
+    ninguém percebe porque nada parece errado.
+    """
+    recorte = filtros.rotulo_do_periodo
+    return f"{assunto} — {recorte}" if recorte else assunto
+
+
+def _comparacao_em_texto(serie, comparada, filtros: Filtros) -> dict | None:
+    """Período atual, período comparado e a VARIAÇÃO — F1.
+
+    "Nunca deixar a comparação implícita": o gráfico mostra duas curvas, e duas
+    curvas não dizem de quanto foi a diferença. Sem o número escrito, cada
+    pessoa na reunião estima uma coisa olhando a mesma tela.
+
+    Devolve `None` quando não há comparação pedida OU quando o período anterior
+    não tem dado. A segunda é importante: uma variação contra zero é sempre
+    "+∞%", e mostrá-la seria pior que não mostrar nada.
+    """
+    if not comparada:
+        return None
+
+    atual = sum((linha.receita_bruta or Decimal("0")) for linha in serie)
+    antes = sum((linha.receita_bruta or Decimal("0")) for linha in comparada)
+    if not antes:
+        return None
+
+    variacao = ((atual - antes) / antes * Decimal("100")).quantize(Decimal("0.1"))
+    return {
+        "rotulo": filtros.rotulo_do_comparado,
+        "atual": atual,
+        "anterior": antes,
+        "variacao": variacao,
+        # FORMATADO AQUI, e não no template. A regra de pt-BR mora num lugar
+        # só; um filtro novo para isto seria o segundo, e o dia em que os dois
+        # arredondassem diferente ninguém saberia qual está certo.
+        #
+        # `com_sinal` porque em variação a DIREÇÃO é a informação — é o que
+        # separa "+2,3%" de "2,3%", que sozinho não diz nada.
+        "variacao_texto": fmt.percentual(variacao, com_sinal=True),
+        "atual_texto": fmt.moeda(atual),
+        "anterior_texto": fmt.moeda(antes),
+        "de": filtros.de_comparado,
+        "ate": filtros.ate_comparado,
+        # `subiu` e não só o sinal: a tela precisa escolher a palavra e a cor, e
+        # `variacao > 0` espalhado por template é a regra em dois lugares.
+        "subiu": variacao > 0,
+    }
+
+
+def _alinhar_por_posicao(serie, comparada, campo: str) -> list:
+    """A série comparada, na ordem dos meses da série atual.
+
+    Por POSIÇÃO e não por rótulo: os meses têm nomes diferentes — 09/25 contra
+    09/26 —, e casar por nome não casaria nada. A posição é o que faz "o
+    primeiro mês da janela" encontrar "o primeiro mês da janela anterior".
+
+    Sobra vira `None` em vez de erro: janelas de tamanhos diferentes acontecem
+    quando o espelho não tem todos os meses do período anterior, e um mês sem
+    par é um ponto ausente na linha — não uma tela quebrada.
+    """
+    _, atual = _por_mes(serie, campo)
+    ordem_antes, antes = _por_mes(comparada, campo)
+    valores = [antes[rotulo] for rotulo in ordem_antes]
+    faltam = len(atual) - len(valores)
+    return valores + [None] * faltam if faltam > 0 else valores[: len(atual)]
+
+
+def _bloco_comparado(
+    linhas,
+    campo_re: str,
+    campo_or: str,
+    chave: str,
+    titulo: str,
+    comparada=(),
+    rotulo_comparado: str = "",
+):
+    """Realizado × orçado, com o `% do orçado` na linha do eixo direito.
 
     A linha é o que a faixa existe para mostrar: dois números lado a lado dizem
     quanto; a razão entre eles diz se está onde deveria. É a leitura que o
@@ -458,9 +1078,15 @@ def _bloco_comparado(linhas, campo_re: str, campo_or: str, chave: str, titulo: s
         pontos,
         chave=chave,
         titulo=titulo,
+        comparado=(
+            _alinhar_por_posicao(linhas, comparada, campo_re) if comparada else None
+        ),
+        rotulo_comparado=rotulo_comparado,
         rotulo_a="Realizado",
         rotulo_b="Orçado",
-        rotulo_linha="%RExOR",
+        # "%RExOR" era a sigla do benchmark, e ela ia para a LEGENDA — onde o
+        # "x" no meio faz parecer multiplicação. É divisão.
+        rotulo_linha="% do orçado",
         linha=razao,
     )
 
@@ -497,21 +1123,47 @@ def _percentual(realizado: Decimal, orcado: Decimal | None) -> Decimal | None:
 
 
 def _totais(linhas) -> dict:
-    def soma(campo):
-        return sum((getattr(l, campo) for l in linhas), Decimal("0"))
+    def soma(campo, apenas=None):
+        alvo = [l for l in linhas if apenas(l)] if apenas else linhas
+        # `None` é DESCONHECIDO e sai da soma — somá-lo como zero faria o
+        # total de um mês com custo ausente parecer completo. O aviso de
+        # `_contratos_sem_custo` é quem diz que falta linha.
+        return sum(
+            (v for v in (getattr(x, campo) for x in alvo) if v is not None),
+            Decimal("0"),
+        )
 
     receita = soma("receita_bruta")
+
+    # A MARGEM DE CONTRIBUIÇÃO soma só as linhas COM contrato — corrigido em
+    # 09/09/2026, quando a cascata da DRE apareceu na faixa logo abaixo e
+    # mostrou outro número com o mesmo nome.
+    #
+    # Margem de contribuição é receita menos custo DIRETO, por definição: ela é
+    # o que sobra antes de a estrutura ser paga. A linha de rateio de centro de
+    # custo não tem contrato nem receita, e o espelho guarda nela a margem como
+    # o custo indireto negativado — somá-la aqui produzia margem DEPOIS do
+    # indireto, que é outra coisa e tem outro nome.
+    #
+    # Medido: o cartão mostrava -R$ 38.132,23 enquanto a cascata mostrava
+    # R$ 335.428,65. A diferença era o rateio (R$ 234.000) mais o contrato com
+    # custo desconhecido — ver `_contratos_sem_custo`.
+    #
+    # `ebitda` continua somando TUDO, e está certo: EBITDA é depois do
+    # indireto, e a linha de rateio pertence a ele.
+    com_contrato = soma("margem_contribuicao", apenas=lambda l: bool(l.contrato))
+
     return {
         "receita_bruta": receita,
         "impostos": soma("impostos"),
         "custo_direto": soma("custo_direto"),
         "custo_indireto": soma("custo_indireto"),
-        "margem_contribuicao": soma("margem_contribuicao"),
+        "margem_contribuicao": com_contrato,
         "ebitda": soma("ebitda"),
         # Percentual sobre receita, como o benchmark mostra. `None` sem receita:
         # dividir por zero para exibir "0%" faria um mês sem lançamento parecer
         # um mês de margem zero.
-        "margem_pct": _sobre(soma("margem_contribuicao"), receita),
+        "margem_pct": _sobre(com_contrato, receita),
         "ebitda_pct": _sobre(soma("ebitda"), receita),
     }
 
@@ -520,6 +1172,621 @@ def _sobre(valor: Decimal, base: Decimal) -> Decimal | None:
     if base <= 0:
         return None
     return (valor / base * 100).quantize(Decimal("0.1"))
+
+
+# ── O bloco D · a tabela contábil ───────────────────────────────────
+
+
+#: Quantos grupos podem estar abertos ao mesmo tempo. Não é limite técnico: é o
+#: que cabe numa tela sem a linha de total sair de vista, e a linha de total é o
+#: que faz a tabela ser conferível.
+MAXIMO_EXPANDIDO = 8
+
+
+def _expandidos(parametros) -> tuple[str, ...]:
+    """Os grupos abertos, de `?expandir=41101,41106` — ou `?expandir=tudo`.
+
+    Na URL e não em `sessionStorage`: mandar o link **já aberto no ponto certo**
+    é o que faz a reunião andar. Guardado no navegador, o link chegaria fechado
+    do outro lado e a pessoa teria de procurar de novo o que já foi mostrado.
+    """
+    bruto = (parametros.get("expandir") or "").strip()
+    if bruto.lower() == TUDO:
+        return (TUDO,)
+    if not bruto:
+        return ()
+    vistos: list[str] = []
+    for codigo in bruto.split(","):
+        limpo = codigo.strip()[:20]
+        if limpo and limpo not in vistos:
+            vistos.append(limpo)
+    return tuple(vistos[:MAXIMO_EXPANDIDO])
+
+
+def contabil(escopo: contrato.Escopo, filtros: Filtros) -> Faixa:
+    """"Sei que meu contrato vale 30 milhões, mas preciso saber com o que
+    gastei."
+
+    ## A tabela é do MÊS, e não do período
+
+    O período move os gráficos; esta tabela responde "onde foi o dinheiro DESTE
+    mês". Somar doze meses por conta produziria um número que não bate com
+    nenhum fechamento contábil, e é contra o fechamento que alguém confere.
+
+    ## Os totais saem das MESMAS linhas que a tabela mostra
+
+    Um total calculado à parte pode discordar da soma visível — e detalhe que
+    não bate com o total destrói a confiança na tela inteira. É a mesma regra
+    que a perfuração já segue.
+    """
+    faixa = _faixa("contabil", filtros.competencia)
+    provedor = contrato.obter(contrato.ProvedorResultadoFinanceiro)
+    if provedor is None:
+        return _sem_fonte(faixa, "Sankhya")
+
+    inicio = date(filtros.competencia.year, filtros.competencia.month, 1)
+    linhas = provedor.por_conta(escopo, inicio, filtros.ate)
+    if not linhas:
+        return _sem_dado(faixa, "lançamento por conta contábil")
+
+    receita_liquida = _receita_liquida(linhas)
+    sem_custo = _contratos_sem_custo(provedor, escopo, inicio, filtros)
+    faixa.conteudo = {
+        "sem_custo": sem_custo,
+        "cascata": cascata_da_dre(linhas, filtros, receita_liquida),
+        "grupos": _agrupar_por_conta(linhas, receita_liquida, filtros),
+        "totais": _totais_contabeis(linhas, receita_liquida),
+        "receita_liquida": receita_liquida,
+        "expandidos": filtros.expandidos,
+        "modo": filtros.numeros,
+        "percentual": filtros.numeros == MODO_PERCENTUAL,
+        "tudo_aberto": filtros.tudo_aberto,
+        **_controles_da_tabela(filtros),
+        # Quantas linhas a fonte mandou com código fora do plano. Zero é o
+        # normal; qualquer outra coisa é um aviso na tela, e não um silêncio.
+        "desconhecidas": sum(1 for linha in linhas if linha.desconhecida),
+    }
+    return faixa
+
+
+#: As naturezas que SAEM do caixa. Elas entram na tabela com sinal negativo.
+NATUREZAS_NEGATIVAS = frozenset({"imposto", "custo", "indireto"})
+
+
+def _sinal(natureza: str) -> int:
+    """`+1` para o que entra, `-1` para o que sai.
+
+    O SINAL e não só a cor. Duas razões, e a segunda é a que decide:
+
+    A regra do produto é "cor nunca sozinha" — e aqui ela seria pior que o
+    normal, porque a tabela tem linha de receita e linha de despesa: vermelho
+    sobre um número que já é negativo diria a mesma coisa duas vezes enquanto
+    deixa o positivo mudo.
+
+    E sem sinal o TOTAL não significa nada. Somando receita, imposto e custo
+    como números positivos, a última linha da tabela dá dois milhões e duzentos
+    mil de coisa nenhuma. Com sinal, ela é o resultado — que é justamente o
+    número contra o qual alguém confere a tabela inteira.
+    """
+    return -1 if natureza in NATUREZAS_NEGATIVAS else 1
+
+
+#: A CASCATA DA DRE — `(degrau, rótulo)` na ordem contábil. C6.
+#:
+#: A ordem é a da leitura, e não a dos códigos: é ela que faz a cascata contar a
+#: história do faturamento até o EBITDA. Um dicionário perderia a ordem, e uma
+#: ordenação por código poria "Indireto" no meio das deduções diretas.
+#:
+#: `receita_bruta` NÃO está aqui: ela é a coluna INICIAL da cascata, e listá-la
+#: como movimento a somaria duas vezes.
+DEGRAUS_DA_DRE: tuple[tuple[str, str], ...] = (
+    ("impostos", "Impostos"),
+    ("pessoal", "Pessoal"),
+    ("encargos", "Encargos e Provisões"),
+    ("beneficios", "Benefícios"),
+    ("materiais", "Materiais e Insumos"),
+    ("servicos_pj", "Serviços PJ"),
+    ("transportes", "Transportes"),
+    ("demais", "Demais"),
+)
+
+#: O degrau INDIRETO não sai de conta nenhuma — ele é a soma das linhas SEM
+#: contrato, e por isso vem depois de todos os outros.
+#:
+#: A primeira versão o tirava de `degrau_dre`, com `41601`, `41602`, `41701` e
+#: `41801` marcados como indiretos. Dava 88 mil, enquanto a faixa do dinheiro
+#: logo acima mostrava 234 mil de custo indireto — e as duas ficavam na mesma
+#: tela sem ninguém explicar a diferença.
+#:
+#: A causa é que o MESMO grupo carrega as duas coisas: a telefonia de um
+#: contrato é custo direto dele, a telefonia da administração é rateio. O que
+#: faz um custo ser indireto é a linha não ter contrato.
+ROTULO_INDIRETO = "Indireto"
+
+#: Onde os PATAMARES entram, e depois de qual degrau.
+#:
+#: Sem eles a cascata é uma escada de onze degraus sem descanso, e quem lê perde
+#: a conta de onde está. Com eles, os dois números que a diretoria procura —
+#: receita líquida e margem de contribuição — aparecem como coluna cheia.
+PATAMARES: dict[str, str] = {
+    "impostos": "Receita Líquida",
+    "demais": "Margem de Contribuição",
+}
+
+
+def cascata_da_dre(linhas, filtros: Filtros, receita_liquida: Decimal):
+    """Do faturamento ao EBITDA, na ordem contábil — C6.
+
+    ## Por que ela vive aqui e não na faixa do dinheiro
+
+    Porque ela é a MESMA aritmética da tabela contábil, e sai das mesmas linhas.
+    Montá-la a partir dos seis campos agregados de `CompetenciaResultado` daria
+    um gráfico que discorda da tabela logo abaixo dele — os agregados não se
+    decompõem em degraus, e a diferença apareceria justamente nos meses em que
+    algum campo vem vazio.
+
+    ## Cada degrau LEVA ao detalhamento
+
+    A URL abre os grupos de conta daquele degrau na tabela. É o que transforma
+    "o EBITDA caiu" em "o EBITDA caiu, e é `41504`" sem ninguém procurar.
+    """
+    from django.urls import reverse
+
+    from workspace.graficos import series
+
+    por_degrau: dict[str, Decimal] = {}
+    grupos_do_degrau: dict[str, set[str]] = {}
+    indireto = Decimal("0")
+    grupos_indiretos: set[str] = set()
+    for linha in linhas:
+        if not linha.degrau:
+            # Financeiro e não operacional ficam FORA: esta DRE vai até o
+            # EBITDA, e EBITDA é antes de juros. Incluí-los faria a cascata não
+            # fechar com o número que a faixa do dinheiro mostra.
+            continue
+        valor = linha.realizado_ajustado * _sinal(linha.natureza)
+        if not linha.contrato:
+            # SEM CONTRATO é o rateio — e é ele, e só ele, que é indireto.
+            indireto += valor
+            grupos_indiretos.add(linha.grupo_codigo)
+            continue
+        por_degrau[linha.degrau] = por_degrau.get(linha.degrau, Decimal("0")) + valor
+        grupos_do_degrau.setdefault(linha.degrau, set()).add(linha.grupo_codigo)
+
+    bruta = por_degrau.get("receita_bruta", Decimal("0"))
+    if not bruta:
+        return None
+
+    base = reverse("workspace:resultados")
+    passos: list[tuple[str, Decimal]] = []
+    urls: list[str] = []
+    subtotais: list[str] = []
+    for degrau, rotulo in DEGRAUS_DA_DRE:
+        passos.append((rotulo, por_degrau.get(degrau, Decimal("0"))))
+        grupos = sorted(grupos_do_degrau.get(degrau, ()))
+        urls.append(
+            _url_com(base, filtros, expandir=",".join(grupos[:MAXIMO_EXPANDIDO]))
+            if grupos
+            else ""
+        )
+        patamar = PATAMARES.get(degrau)
+        if patamar:
+            passos.append((patamar, Decimal("0")))
+            subtotais.append(patamar)
+            # O patamar não leva a lugar nenhum: ele é uma soma, e não um grupo
+            # de contas. Um link ali abriria "o quê"?
+            urls.append("")
+
+    passos.append((ROTULO_INDIRETO, indireto))
+    urls.append(
+        _url_com(
+            base, filtros,
+            expandir=",".join(sorted(grupos_indiretos)[:MAXIMO_EXPANDIDO]),
+        )
+        if grupos_indiretos
+        else ""
+    )
+
+    return series.cascata(
+        passos,
+        chave="dre",
+        # O MÊS e não o período. Esta cascata é do mês, como a tabela — e
+        # `_titulo` escreveria "últimos 12 meses", que é o recorte dos
+        # gráficos da faixa acima. Um gráfico de um mês rotulado como doze é o
+        # tipo de erro que ninguém percebe porque nada parece errado.
+        titulo=f"Do faturamento ao EBITDA — {filtros.competencia:%m/%Y}",
+        inicial=bruta,
+        rotulo_inicial="Receita Bruta",
+        rotulo_final="EBITDA",
+        subtotais=tuple(subtotais),
+        urls=urls,
+    )
+
+
+def _contratos_sem_custo(provedor, escopo, inicio: date, filtros: Filtros) -> list[str]:
+    """Contratos com receita no mês e custo DESCONHECIDO no agregado.
+
+    ## Por que esta função existe
+
+    A tabela e a cascata saem do RAZÃO. No razão, um contrato sem lançamento de
+    custo é indistinguível de um contrato que não gastou nada — e a cascata o
+    trata como zero, inflando a margem de contribuição pela receita líquida
+    inteira dele.
+
+    Medido na massa: o CT-102 tem o defeito 10 plantado — receita lançada, custo
+    ausente. A cascata dizia margem de R$ 335.428,65 enquanto a soma dos
+    contratos dava R$ 195.867,77. A diferença, R$ 139.560,88, era exatamente a
+    receita líquida dele.
+
+    A informação de que o custo é DESCONHECIDO (e não zero) só existe no
+    agregado, onde `custo_direto` é nulo. Por isso a comparação: o razão não tem
+    como saber sozinho, e a regra do produto é explícita — sem amostra é "—", e
+    nunca "0".
+
+    Devolve os CÓDIGOS, e não uma contagem: "um contrato está sem custo" manda
+    procurar; "o CT-102 está sem custo" manda agir.
+    """
+    # `custo_direto is None` no AGREGADO — a pergunta direta, desde que o
+    # espelho passou a saber respondê-la (10/09/2026).
+    #
+    # Antes o campo tinha `default=0` e não distinguia "não gastou" de "não
+    # sei", então isto era deduzido do razão: contrato com receita e nenhuma
+    # linha de custo. A dedução funcionava e tinha um falso positivo — o
+    # contrato que de fato não gastou nada no mês. Com o campo anulável a
+    # pergunta é feita a quem tem a resposta.
+    return sorted(
+        {
+            linha.contrato
+            for linha in provedor.serie_competencia(escopo, inicio, filtros.ate)
+            if _no_mes(linha, filtros.competencia)
+            and linha.contrato
+            and linha.custo_direto is None
+            and linha.receita_bruta
+        }
+    )
+
+
+def _controles_da_tabela(filtros: Filtros) -> dict:
+    """As URLs dos três controles do cabeçalho — D3.
+
+    Montadas em PYTHON, como toda URL desta tela: só o servidor sabe quais
+    filtros preservar ao mudar um deles, e replicar essa regra em JavaScript a
+    faria mudar sozinha na primeira dimensão nova.
+    """
+    from django.urls import reverse
+
+    base = reverse("workspace:resultados")
+    outro_modo = (
+        MODO_ABSOLUTO if filtros.numeros == MODO_PERCENTUAL else MODO_PERCENTUAL
+    )
+    return {
+        "url_modo": _url_com(base, filtros, numeros=outro_modo),
+        "rotulo_do_outro_modo": dict(MODOS)[outro_modo],
+        "url_expandir_tudo": _url_com(base, filtros, expandir=TUDO),
+        # Recolher é `expandir=` VAZIO, e não a ausência do parâmetro: ausência
+        # e vazio dão o mesmo resultado aqui, e o vazio é o que sobrevive ao
+        # `data-limpar-vazios` da barra de filtros sem virar um caso especial.
+        "url_recolher_tudo": _url_com(base, filtros, expandir=""),
+    }
+
+
+#: Quantos anos o comparativo trimestral mostra — F2.
+#:
+#: Três. A quarta barra por trimestre não cabe com rótulo, e comparar quatro
+#: anos de uma vez não é pergunta que alguém faça de pé numa reunião.
+ANOS_NO_TRIMESTRAL = 3
+
+#: Quantos meses o comparativo trimestral busca. Vinte e quatro: é o mínimo em
+#: que existe o MESMO trimestre em dois anos, que é a comparação inteira.
+MESES_DO_TRIMESTRAL = 24
+
+
+def trimestral(serie, filtros: Filtros):
+    """Receita por trimestre, uma cor por ano — F2.
+
+    ## Ele lê a SÉRIE LONGA, e não a do seletor de período
+
+    Comparar anos exige dois anos. O seletor governa os gráficos mensais —
+    "quero ver seis meses" —, e com a série dele NENHUM trimestre tinha os dois
+    anos: quatro barras de 2026 ao lado de uma de 2025, medido.
+
+    A série de vinte e quatro meses é buscada uma vez na faixa e lida também
+    pela tendência da safra (C5). Antes ela era buscada aqui dentro, e a safra
+    não tinha nenhuma — mostrando "—" em toda linha.
+
+    ## O trimestre PARCIAL é o ponto do bloco
+
+    Comparar um trimestre de dois meses com um de três, sem avisar, é o erro que
+    mais gera decisão errada em reunião de resultado: a barra menor é lida como
+    queda, e a queda não existe — falta um mês.
+
+    O aviso diz QUANTOS meses entraram ("parcial — 2 de 3 meses"), e não só que
+    é parcial: "parcial" sozinho não deixa ninguém corrigir de cabeça.
+
+    ## Por que sai da mesma série do resto da faixa
+
+    Ela já está carregada, já respeita o escopo e já respeita os filtros. Uma
+    consulta própria daria um quarto caminho para o mesmo número — e o dia em
+    que discordasse, discordaria dentro da mesma tela.
+    """
+    from workspace.graficos import series as g
+
+    if not serie:
+        return None
+
+    por_ano_trimestre: dict[tuple[int, int], Decimal] = {}
+    meses_vistos: dict[tuple[int, int], set[int]] = {}
+    for linha in serie:
+        chave = (linha.ano, (linha.mes - 1) // 3 + 1)
+        por_ano_trimestre[chave] = por_ano_trimestre.get(chave, Decimal("0")) + (
+            linha.receita_bruta or Decimal("0")
+        )
+        meses_vistos.setdefault(chave, set()).add(linha.mes)
+
+    anos = sorted({ano for ano, _ in por_ano_trimestre}, reverse=True)
+    anos = anos[:ANOS_NO_TRIMESTRAL]
+    # PELO MENOS UM trimestre com dois anos — e não "pelo menos dois anos na
+    # série". Com janela de doze meses havia 2026 e 2025, e nenhum trimestre
+    # tinha os dois: eram quatro barras de um ano ao lado de uma de outro, que
+    # é um gráfico pior que gráfico nenhum.
+    comparaveis = [
+        t for t in (1, 2, 3, 4)
+        if sum(1 for ano in anos if (ano, t) in por_ano_trimestre) >= 2
+    ]
+    if not comparaveis:
+        return None
+
+    categorias = [f"T{t}" for t in (1, 2, 3, 4)]
+    montadas, parciais = [], {}
+    for ano in anos:
+        valores = []
+        for t in (1, 2, 3, 4):
+            chave = (ano, t)
+            valores.append(por_ano_trimestre.get(chave))
+            meses = len(meses_vistos.get(chave, ()))
+            if 0 < meses < 3:
+                parciais[(str(ano), f"T{t}")] = (
+                    f"parcial — {meses} de 3 {'mês' if meses == 1 else 'meses'}"
+                )
+        montadas.append((str(ano), valores))
+
+    return g.barras_por_ano(
+        categorias,
+        montadas,
+        chave="trimestral",
+        titulo="Receita por trimestre",
+        parciais=parciais,
+    )
+
+
+def _receita_liquida(linhas) -> Decimal:
+    """Receita bruta menos impostos — o denominador de toda coluna de `%`.
+
+    Calculada uma vez e passada adiante, e não recalculada em cada grupo: com
+    vinte e oito grupos seriam vinte e oito somas da mesma coisa, e a primeira
+    que divergisse faria dois percentuais da mesma tabela não fecharem.
+    """
+    receita = sum(
+        (linha.realizado_ajustado for linha in linhas if linha.natureza == "receita"),
+        Decimal("0"),
+    )
+    impostos = sum(
+        (linha.realizado_ajustado for linha in linhas if linha.natureza == "imposto"),
+        Decimal("0"),
+    )
+    return receita - impostos
+
+
+def _agrupar_por_conta(
+    linhas, receita_liquida: Decimal, filtros: Filtros | None = None
+) -> list[dict]:
+    """Os dois primeiros níveis: grupo sintético e conta analítica.
+
+    O terceiro — rateio por contrato — sai de `contas_do_contrato`, e só quando
+    alguém expande a conta. Montá-lo aqui produziria centenas de linhas que
+    ninguém pediu, e a tela ficaria pesada para responder a pergunta de sempre,
+    que é a do nível 1.
+    """
+    grupos: dict[str, dict] = {}
+    for linha in linhas:
+        grupo = grupos.setdefault(
+            linha.grupo_codigo,
+            {
+                "codigo": linha.grupo_codigo,
+                "nome": linha.grupo_nome,
+                "degrau": linha.degrau,
+                "natureza": linha.natureza,
+                "desconhecida": linha.desconhecida,
+                "contas": {},
+                "realizado": Decimal("0"),
+                "ajustes": Decimal("0"),
+                "orcado": None,
+            },
+        )
+        conta = grupo["contas"].setdefault(
+            linha.codigo,
+            {
+                "codigo": linha.codigo,
+                "nome": linha.nome,
+                "realizado": Decimal("0"),
+                "ajustes": Decimal("0"),
+                "orcado": None,
+            },
+        )
+        sinal = _sinal(linha.natureza)
+        for alvo in (grupo, conta):
+            alvo["realizado"] += linha.realizado * sinal
+            alvo["ajustes"] += linha.ajustes * sinal
+            if linha.orcado is not None:
+                alvo["orcado"] = (
+                    (alvo["orcado"] or Decimal("0")) + linha.orcado * sinal
+                )
+
+    montados = []
+    for grupo in grupos.values():
+        grupo["contas"] = [
+            _com_derivadas(conta, receita_liquida)
+            for conta in sorted(grupo["contas"].values(), key=lambda c: c["codigo"])
+        ]
+        montados.append(_com_derivadas(grupo, receita_liquida))
+    montados.sort(key=lambda g: g["codigo"])
+
+    # A EXPANSÃO num segundo passo, porque ela precisa da lista COMPLETA de
+    # grupos: fechar um grupo com "tudo aberto" produz a URL "todos menos este",
+    # e no primeiro passo os grupos seguintes ainda não existem.
+    todos = tuple(g["codigo"] for g in montados)
+    for grupo in montados:
+        _com_expansao(grupo, filtros, todos)
+    return montados
+
+
+def _com_expansao(
+    grupo: dict, filtros: Filtros | None, todos: tuple[str, ...] = ()
+) -> None:
+    """`aberto` e a URL que alterna — montada em PYTHON.
+
+    A URL sai daqui pela mesma razão da perfuração: só o servidor sabe quais
+    filtros preservar ao mudar um deles. Montá-la em JavaScript replicaria essa
+    regra num segundo lugar, e ela mudaria sozinha na primeira dimensão nova.
+    """
+    if filtros is None:
+        grupo["aberto"] = False
+        grupo["url_alternar"] = ""
+        return
+
+    from django.urls import reverse
+
+    codigo = grupo["codigo"]
+    abertos = filtros.expandidos
+    grupo["aberto"] = filtros.tudo_aberto or codigo in abertos
+    # Fechar TIRA o próprio; abrir ACRESCENTA no fim. Acrescentar no começo
+    # faria a ordem da URL mudar a cada clique, e dois links do mesmo estado
+    # ficariam com textos diferentes.
+    if filtros.tudo_aberto:
+        # Fechar UM com tudo aberto: a lista passa a ser "todos menos este".
+        # Sem isto, o clique num grupo com tudo aberto não faria nada, e a
+        # pessoa clicaria de novo achando que não pegou.
+        novos = tuple(c for c in todos if c != codigo)[:MAXIMO_EXPANDIDO]
+    elif grupo["aberto"]:
+        novos = tuple(c for c in abertos if c != codigo)
+    else:
+        novos = (*abertos, codigo)
+    grupo["url_alternar"] = _url_com(
+        reverse("workspace:resultados"), filtros, expandir=",".join(novos)
+    )
+
+
+def _com_derivadas(linha: dict, receita_liquida: Decimal) -> dict:
+    """As colunas que se calculam — D3.
+
+    Elas ficam no SERVIÇO e não no template, porque `% da receita` é regra de
+    negócio: o dia em que a base mudar de receita líquida para bruta, ela muda
+    num lugar. Num filtro de template, mudaria em cada tela que o usasse.
+    """
+    realizado = linha["realizado"]
+    ajustado = realizado + linha["ajustes"]
+    orcado = linha["orcado"]
+    linha["realizado_ajustado"] = ajustado
+    linha["pct_re_or"] = _percentual(ajustado, orcado)
+    # `orçado − realizado`, e não o contrário: positivo é FOLGA. Invertido, um
+    # número positivo significaria estouro, e a leitura de relance seria o
+    # oposto do que a cor sugere.
+    linha["dif_or_re"] = (orcado - ajustado) if orcado is not None else None
+    # O PERCENTUAL usa o valor ABSOLUTO, e o número ao lado carrega o sinal.
+    #
+    # "Pessoal: −207.412, 18,9% da receita líquida" é como se lê em voz alta.
+    # Com o percentual negativo junto, a mesma linha diria a direção duas vezes
+    # e a coluna deixaria de somar 100% entre as despesas.
+    linha["pct_da_receita"] = _sobre(abs(ajustado), receita_liquida)
+
+    # AS COLUNAS DE DINHEIRO EM PERCENTUAL — o "ver números" do D3.
+    #
+    # Calculadas aqui e não no template: `% sobre a receita líquida` é regra de
+    # negócio, e o dia em que a base mudar de líquida para bruta ela muda num
+    # lugar. Num filtro de template, mudaria em cada tela que o usasse.
+    #
+    # Todas as cinco, e não só a do ajustado: no modo percentual a tabela troca
+    # a coluna INTEIRA, e uma que continuasse em reais faria a linha somar
+    # grandezas diferentes.
+    linha["pct_realizado"] = _sobre(abs(realizado), receita_liquida)
+    # `None` quando não há ajuste, e não `0,0%`: no modo em reais a célula
+    # mostra "—", e mostrar "0,0%" no outro faria a mesma ausência parecer duas
+    # coisas diferentes conforme o botão que a pessoa apertou.
+    linha["pct_ajustes"] = (
+        _sobre(abs(linha["ajustes"]), receita_liquida) if linha["ajustes"] else None
+    )
+    linha["pct_ajustado"] = linha["pct_da_receita"]
+    linha["pct_orcado"] = (
+        _sobre(abs(orcado), receita_liquida) if orcado is not None else None
+    )
+    linha["pct_folga"] = (
+        _sobre(abs(linha["dif_or_re"]), receita_liquida)
+        if linha["dif_or_re"] is not None
+        else None
+    )
+    return linha
+
+
+def _totais_contabeis(linhas, receita_liquida: Decimal) -> dict:
+    total = {
+        "realizado": sum(
+            (linha.realizado * _sinal(linha.natureza) for linha in linhas),
+            Decimal("0"),
+        ),
+        "ajustes": sum(
+            (linha.ajustes * _sinal(linha.natureza) for linha in linhas),
+            Decimal("0"),
+        ),
+        "orcado": None,
+    }
+    orcados = [
+        linha.orcado * _sinal(linha.natureza)
+        for linha in linhas
+        if linha.orcado is not None
+    ]
+    if orcados:
+        total["orcado"] = sum(orcados, Decimal("0"))
+    return _com_derivadas(total, receita_liquida)
+
+
+def contas_do_contrato(
+    escopo: contrato.Escopo, filtros: Filtros, conta: str
+) -> list[dict]:
+    """O NÍVEL 3 — o rateio de uma conta por contrato.
+
+    Só existe porque o Sankhya traz o contrato na linha do razão. Sem isso a
+    coluna ficaria sempre vazia, e coluna sempre vazia é pior que a ausência
+    dela: ela promete um detalhe que não vem.
+    """
+    provedor = contrato.obter(contrato.ProvedorResultadoFinanceiro)
+    if provedor is None:
+        return []
+
+    inicio = date(filtros.competencia.year, filtros.competencia.month, 1)
+    por_contrato: dict[str, dict] = {}
+    for linha in provedor.por_conta(escopo, inicio, filtros.ate):
+        if linha.codigo != conta:
+            continue
+        chave = linha.contrato or ""
+        alvo = por_contrato.setdefault(
+            chave,
+            {
+                "contrato": chave,
+                # Sem contrato é o RATEIO do centro de custo, e ele precisa
+                # aparecer nomeado — some da lista, o nível 3 não fecha com o
+                # nível 2 logo acima.
+                "rotulo": chave or f"Rateio do CC {linha.centro_custo}",
+                "realizado": Decimal("0"),
+                "ajustes": Decimal("0"),
+                "orcado": None,
+            },
+        )
+        alvo["realizado"] += linha.realizado
+        alvo["ajustes"] += linha.ajustes
+        if linha.orcado is not None:
+            alvo["orcado"] = (alvo["orcado"] or Decimal("0")) + linha.orcado
+
+    return sorted(por_contrato.values(), key=lambda c: -c["realizado"])
 
 
 # ── Faixa 3 · Os contratos ──────────────────────────────────────────
@@ -570,9 +1837,103 @@ def contratos(escopo: contrato.Escopo, filtros: Filtros) -> Faixa:
     return faixa
 
 
+# ── C5 · as safras ──────────────────────────────────────────────────
+
+
+def _safra_de(contrato_dto) -> str | None:
+    """`C2023` para quem entrou em 2023, `P2019` para quem saiu em 2019.
+
+    DERIVADA e não gravada: o ano de entrada já é `inicio_vigencia` e o de saída
+    é `fim_vigencia`. Um campo `safra` no espelho seria um terceiro lugar
+    guardando o mesmo fato, e o dia em que discordasse da data ninguém saberia
+    qual das duas está certa.
+    """
+    if contrato_dto.status == "encerrado" and contrato_dto.fim_vigencia:
+        return f"P{contrato_dto.fim_vigencia.year}"
+    if contrato_dto.inicio_vigencia:
+        return f"C{contrato_dto.inicio_vigencia.year}"
+    return None
+
+
+def safras_da_carteira(carteira) -> list[dict]:
+    """As safras presentes, das mais recentes para as mais antigas.
+
+    Saem do que EXISTE, e não de um intervalo fixo de anos: `C2016…C2026` numa
+    carteira que começa em 2019 ofereceria três safras vazias, e um filtro que
+    devolve vazio parece quebrado.
+    """
+    contagem: dict[str, int] = {}
+    for c in carteira:
+        chave = _safra_de(c)
+        if chave:
+            contagem[chave] = contagem.get(chave, 0) + 1
+    return [
+        {"chave": chave, "quantos": quantos, "perda": chave.startswith("P")}
+        for chave, quantos in sorted(contagem.items(), reverse=True)
+    ]
+
+
+def grafico_da_safra(serie, carteira, safra: str, filtros: Filtros):
+    """A receita mensal dos contratos de UMA safra, com a tendência anual.
+
+    Responde "as perdas de 2023 ainda estão pesando?" — e a linha é contra o
+    MESMO MÊS do ano anterior, e não contra o mês anterior: uma safra é um
+    fenômeno de doze meses, e comparar agosto com julho dentro dela mede
+    sazonalidade em vez de tendência.
+    """
+    from workspace.graficos import series as g
+
+    codigos = {c.codigo for c in carteira if _safra_de(c) == safra}
+    if not codigos:
+        return None
+
+    por_mes: dict[str, Decimal] = {}
+    ordem: list[str] = []
+    bruto: dict[tuple[int, int], Decimal] = {}
+    for linha in serie:
+        if linha.contrato not in codigos:
+            continue
+        rotulo = f"{linha.mes:02d}/{str(linha.ano)[2:]}"
+        if rotulo not in por_mes:
+            por_mes[rotulo] = Decimal("0")
+            ordem.append(rotulo)
+        receita = linha.receita_bruta or Decimal("0")
+        por_mes[rotulo] += receita
+        bruto[(linha.ano, linha.mes)] = bruto.get(
+            (linha.ano, linha.mes), Decimal("0")
+        ) + receita
+
+    if not ordem:
+        return None
+
+    pontos = [(rotulo, por_mes[rotulo], None) for rotulo in ordem]
+    tendencia = []
+    for rotulo in ordem:
+        mes, ano = rotulo.split("/")
+        atual = bruto[(2000 + int(ano), int(mes))]
+        antes = bruto.get((2000 + int(ano) - 1, int(mes)))
+        # `None` sem o mesmo mês do ano anterior — a safra pode ser nova, e
+        # inventar 100% faria o primeiro ano parecer crescimento infinito.
+        tendencia.append(
+            (atual / antes * 100).quantize(Decimal("0.1")) if antes else None
+        )
+
+    return g.barras_comparadas(
+        pontos,
+        chave=f"safra-{safra}",
+        titulo=f"Safra {safra} — receita mensal",
+        rotulo_a="Receita",
+        rotulo_b="",
+        rotulo_linha="% contra o mesmo mês do ano anterior",
+        linha=tendencia,
+    )
+
+
 def _filtrar_carteira(carteira, filtros: Filtros):
-    if filtros.servico:
-        carteira = [c for c in carteira if c.servico == filtros.servico]
+    # Área e serviço NÃO aparecem aqui: eles já foram filtrados em SQL, no
+    # `_recortar` do espelho. Repetir o filtro em Python seria um segundo lugar
+    # com a mesma regra — e o dia em que os dois discordassem, a carteira e o
+    # gráfico do dinheiro mostrariam contratos diferentes sem ninguém saber.
     if filtros.status:
         carteira = [c for c in carteira if c.status == filtros.status]
     if filtros.layer:
@@ -755,13 +2116,23 @@ def satisfacao(escopo: contrato.Escopo, filtros: Filtros) -> Faixa:
             por_classe[a.classificacao] += 1
     total = len(avaliacoes)
 
+    percentuais = {
+        classe: _sobre(Decimal(quantidade), Decimal(total))
+        for classe, quantidade in por_classe.items()
+    }
     faixa.conteudo = {
         "total": total,
         "contagem": por_classe,
-        "percentuais": {
-            classe: _sobre(Decimal(quantidade), Decimal(total))
-            for classe, quantidade in por_classe.items()
-        },
+        "percentuais": percentuais,
+        # O NPS — e ele NÃO estava em lugar nenhum desta tela.
+        #
+        # A tela mostrava a distribuição três vezes (a barra, a tabela irmã e
+        # uma linha de três indicadores) e nunca o número que dá nome a ela.
+        # Promotores menos detratores, em pontos percentuais: é assim que o
+        # índice é definido, e é o que alguém pergunta primeiro.
+        "nps": (percentuais["promotor"] - percentuais["detrator"]).quantize(
+            Decimal("0.1")
+        ),
         "detratores": [a for a in avaliacoes if a.classificacao == "detrator"],
         "sem_tratativa": [a for a in avaliacoes if a.detrator_sem_tratativa],
     }
@@ -781,11 +2152,26 @@ class Destaque:
     titulo: str
     valor: str
     detalhe: str = ""
-    #: `atencao` pinta; `neutro` informa. Só a primeira classe tem cor, porque
-    #: cor que aparece sempre deixa de significar alguma coisa.
+    #: `critico` > `atencao` > `neutro`. A distinção não é decorativa: o cartão
+    #: de FONTE DESATUALIZADA invalida a leitura de tudo o que está abaixo dele
+    #: na tela, e os outros apontam um número que merece conversa. Lidos com o
+    #: mesmo peso, a pessoa trata "o Sankhya não carregou" como se fosse mais um
+    #: contrato deficitário — e decide sobre um dado velho sem saber.
+    #:
+    #: Todos os cartões nasciam `atencao`, e um campo que sempre tem o mesmo
+    #: valor não diferencia nada.
+    #:
+    #: `bom` entrou em 09/09/2026 com a terceira categoria (§E1). Até então TODO
+    #: cartão era um problema, e a faixa se chamava "Destaques e pontos de
+    #: atenção" mostrando só a segunda metade do nome. Um painel em que nada
+    #: nunca dá certo ensina que a tela é lugar de má notícia — e aí ela é
+    #: aberta quando alguém cobra, e não quando alguém decide.
     severidade: str = "atencao"
     fonte: str = ""
     ancora: str = ""
+    #: A pergunta que o cartão responde, para quem não sabe o que ele é. Vai no
+    #: `title` do link — o valor sozinho diz "3" e não diz três do quê.
+    explicacao: str = ""
 
 
 def destaques(faixas: dict[str, Faixa], filtros: Filtros) -> Faixa:
@@ -808,6 +2194,7 @@ def destaques(faixas: dict[str, Faixa], filtros: Filtros) -> Faixa:
     cartoes += _cartoes_de_satisfacao(faixas.get("satisfacao"))
     cartoes += _cartoes_de_dinheiro(faixas.get("dinheiro"))
     cartoes += _cartoes_de_pessoas(faixas.get("pessoas"))
+    cartoes += _cartoes_do_que_foi_bem(faixas)
 
     faixa.conteudo = {"cartoes": cartoes}
     if not cartoes:
@@ -820,6 +2207,88 @@ def destaques(faixas: dict[str, Faixa], filtros: Filtros) -> Faixa:
             "continuam com os números."
         )
     return faixa
+
+
+#: Quanto o realizado precisa passar do orçado para virar destaque.
+#:
+#: Cinco por cento. Abaixo disso é ruído de arredondamento e de sazonalidade, e
+#: um "destaque" que aparece todo mês por 0,4% ensina a ignorar a categoria
+#: inteira.
+FOLGA_PARA_DESTAQUE = Decimal("105")
+
+#: A partir de quantos pontos acima da margem mínima a carteira vira destaque.
+MARGEM_DE_DESTAQUE = MARGEM_MINIMA * 2
+
+
+def _cartoes_do_que_foi_bem(faixas: dict[str, Faixa]) -> list[Destaque]:
+    """A categoria QUE FALTAVA — §E1.
+
+    Até 09/09/2026 todo cartão desta faixa era um problema, e a faixa se
+    chamava "Destaques e pontos de atenção" mostrando só a segunda metade do
+    nome. Um painel em que nada nunca dá certo ensina que aquela tela é lugar de
+    má notícia — e aí ela é aberta quando alguém cobra, e não quando alguém
+    decide.
+
+    Duas regras, e não seis: destaque barato desvaloriza destaque. Elas só
+    disparam quando o número está claramente acima do combinado, e ficam
+    caladas no resto do tempo — que é a maior parte dele.
+    """
+    cartoes: list[Destaque] = []
+
+    dinheiro = faixas.get("dinheiro")
+    conteudo = getattr(dinheiro, "conteudo", None) or {}
+    totais = conteudo.get("totais") or {}
+    receita = totais.get("receita_bruta") or Decimal("0")
+    orcada = sum(
+        (
+            linha.receita_orcada
+            for linha in conteudo.get("serie") or []
+            if linha.receita_orcada is not None
+            and _no_mes(linha, dinheiro.competencia if dinheiro else None)
+        ),
+        Decimal("0"),
+    )
+    if orcada and receita:
+        pct = (receita / orcada * 100).quantize(Decimal("0.1"))
+        if pct >= FOLGA_PARA_DESTAQUE:
+            cartoes.append(
+                Destaque(
+                    chave="receita_acima",
+                    titulo="Receita acima do orçado",
+                    valor=fmt.percentual(pct),
+                    detalhe=f"{fmt.moeda(receita - orcada)} a mais que o previsto",
+                    severidade="bom",
+                    fonte="sankhya",
+                    ancora="dinheiro",
+                    explicacao="Realizado sobre orçado no mês.",
+                )
+            )
+
+    carteira = (getattr(faixas.get("contratos"), "conteudo", None) or {}).get(
+        "carteira", []
+    )
+    saudaveis = [
+        c for c in carteira
+        if c.margem_contribuicao_pct is not None
+        and c.margem_contribuicao_pct >= MARGEM_DE_DESTAQUE
+    ]
+    # Só quando são a MAIORIA: três contratos bons numa carteira de trinta não
+    # são um destaque da empresa, são três contratos bons.
+    com_margem = [c for c in carteira if c.margem_contribuicao_pct is not None]
+    if com_margem and len(saudaveis) > len(com_margem) / 2:
+        cartoes.append(
+            Destaque(
+                chave="carteira_saudavel",
+                titulo="Contratos acima do dobro da margem mínima",
+                valor=f"{len(saudaveis)} de {len(com_margem)}",
+                detalhe=f"acima de {fmt.percentual(MARGEM_DE_DESTAQUE)}",
+                severidade="bom",
+                fonte="iconnect_platform",
+                ancora="contratos",
+                explicacao="Contratos com margem confortável na competência.",
+            )
+        )
+    return cartoes
 
 
 def _cartoes_de_fonte(faixas: dict[str, Faixa]) -> list[Destaque]:
@@ -844,8 +2313,13 @@ def _cartoes_de_fonte(faixas: dict[str, Faixa]) -> list[Destaque]:
                 titulo=f"{carimbo.rotulo} está desatualizada",
                 valor=carimbo.idade or "sem carga",
                 detalhe=carimbo.motivo or "A última carga não terminou bem.",
+                severidade="critico",
                 fonte=faixa.fonte,
                 ancora="fontes",
+                explicacao=(
+                    "Enquanto esta fonte não carregar, os números das faixas "
+                    "que dependem dela são os da última carga boa."
+                ),
             )
         )
     return cartoes
@@ -1008,7 +2482,7 @@ def _cartoes_de_pessoas(faixa: Faixa | None) -> list[Destaque]:
                 Destaque(
                     chave="he-ineficiencia",
                     titulo="Hora extra de ineficiência",
-                    valor=f"{pct}%",
+                    valor=fmt.percentual(pct),
                     detalhe="Cobertura de ausência e escala — não é serviço extra.",
                     fonte=faixa.fonte,
                     ancora="pessoas",
@@ -1042,7 +2516,7 @@ def _cartoes_de_pessoas(faixa: Faixa | None) -> list[Destaque]:
             Destaque(
                 chave="turnover",
                 titulo="Turnover acima do aceitável",
-                valor=f"{pior.turnover_pct}%",
+                valor=fmt.percentual(pior.turnover_pct),
                 detalhe=(
                     f"Centro de custo {pior.centro_custo}"
                     + (f" e mais {len(acima) - 1}." if len(acima) > 1 else ".")
@@ -1059,46 +2533,88 @@ def _cartoes_de_pessoas(faixa: Faixa | None) -> list[Destaque]:
 
 #: A ordem das faixas na tela É a mensagem, como a ordem da home. Primeiro o que
 #: exige decisão, depois o dinheiro, depois o que sustenta o dinheiro.
+#: As quatro faixas da tela 10. `pessoas` e `satisfacao` SAÍRAM daqui em
+#: 04/09/2026: são perguntas de outra gente, e viraram as telas 16 e 17.
+#:
+#: A tela 10 responde "o que a empresa produziu". Quadro e jornada respondem
+#: "como está a equipe", e a avaliação responde "o que o cliente achou" — e
+#: nenhuma das duas é lida por quem lê as outras quatro.
 MONTADORES = (
     ("dinheiro", dinheiro),
+    # A TABELA CONTÁBIL vem logo depois do dinheiro, e antes dos contratos.
+    #
+    # A ordem é a da pergunta: o bloco do dinheiro responde "quanto entrou e
+    # quanto sobrou"; este responde "com o que foi gasto". Quem lê o segundo
+    # sem o primeiro não tem denominador, e quem lê os contratos antes de saber
+    # onde o dinheiro foi já perdeu a pergunta.
+    ("contabil", contabil),
     ("contratos", contratos),
     ("vencimentos", vencimentos),
     ("projetos", projetos),
-    ("pessoas", pessoas),
-    ("satisfacao", satisfacao),
 )
 
+MONTADORES_PESSOAS = (("pessoas", pessoas),)
+MONTADORES_SATISFACAO = (("satisfacao", satisfacao),)
 
-def painel(pessoa, parametros, cache: dict | None = None) -> dict:
-    """Tudo o que a tela mostra. Levanta `SemResultados` para quem não tem escopo."""
+
+def _painel(
+    pessoa,
+    parametros,
+    *,
+    permissao: str,
+    montadores,
+    rota: str,
+    recusa: str,
+    perfura: bool = False,
+    cache: dict | None = None,
+) -> dict:
+    """O corpo comum das três telas de resultado.
+
+    As três recortam igual, filtram igual, carimbam igual e desenham igual — o
+    que muda é a permissão que abre a porta e quais faixas entram. Três cópias
+    desta função seriam três lugares onde "o gerente vê só o centro de custo
+    dele" está escrito.
+    """
     from django.urls import reverse
 
-    escopo = escopo_de(pessoa, cache=cache)
+    escopo = escopo_de(pessoa, permissao, cache=cache, recusa=recusa)
     filtros = ler_filtros(parametros)
-    base_url = reverse("workspace:resultados")
+    base_url = reverse(rota)
     recorte = _estreitar_por_atributo(filtros.aplicar(escopo), filtros)
 
     faixas: dict[str, Faixa] = {}
-    for chave, montador in MONTADORES:
+    for chave, montador in montadores:
         faixas[chave] = montador(recorte, filtros)
 
     # A perfuração entra DEPOIS de a faixa existir, e só na do dinheiro — é o
     # passo 7 do plano: um mecanismo isolado, numa faixa só. Ligar nas cinco de
     # uma vez tornaria impossível dizer qual delas quebrou.
-    _com_perfuracao(faixas["dinheiro"], recorte, filtros)
+    if perfura:
+        _com_perfuracao(faixas["dinheiro"], recorte, filtros)
+    _com_graficos(faixas, filtros)
+    _com_leitura(faixas, filtros)
+
+    opcoes = _opcoes_de_atributo(escopo)
 
     return {
         "filtros": filtros,
         "escopo": recorte,
         "escopo_total": escopo.tudo,
         "destaques": destaques(faixas, filtros),
-        "faixas": [faixas[chave] for chave, _ in MONTADORES],
+        # AS CONCENTRAÇÕES — a terceira categoria (§E1), e a única que uma
+        # pessoa escreve. Vêm num contexto próprio e não dentro de `destaques`:
+        # aquelas são derivadas de regra e não se editam, e misturar as duas
+        # listas faria a tela deixar de refletir o espelho.
+        **_concentracoes(pessoa, cache=cache),
+        "faixas": [faixas[chave] for chave, _ in montadores],
         "por_chave": faixas,
         "competencias": _competencias_oferecidas(filtros.competencia),
-        # Os serviços que EXISTEM no espelho, e não uma lista escrita à mão:
-        # uma opção que não devolve linha nenhuma é pior que a ausência dela.
-        "servicos": _servicos_oferecidos(faixas),
-        "janelas": JANELAS,
+        # As OPÇÕES saem do que a pessoa ALCANÇA, e não do que ela já filtrou —
+        # ver `_opcoes_de_atributo`.
+        **opcoes,
+        "periodos": PERIODOS,
+        "comparacoes": COMPARACOES,
+        "recorte_em_texto": recorte_em_texto(filtros, opcoes["areas"]),
         # As TARJAS. Sempre no contexto — inclusive em apresentação, onde os
         # controles somem e elas ficam. Filtro invisível é a principal fonte de
         # "esse número está errado" que não está.
@@ -1109,9 +2625,100 @@ def painel(pessoa, parametros, cache: dict | None = None) -> dict:
     }
 
 
-#: As janelas oferecidas. Três é o mínimo em que uma tendência existe; treze é
-#: o teto do que cabe com rótulo por ponto.
-JANELAS: tuple[int, ...] = (3, 6, 12, MESES_DA_SERIE)
+def painel(pessoa, parametros, cache: dict | None = None) -> dict:
+    """Tudo o que a tela mostra. Levanta `SemResultados` para quem não tem escopo."""
+    return _painel(
+        pessoa,
+        parametros,
+        permissao=PERMISSAO,
+        montadores=MONTADORES,
+        rota="workspace:resultados",
+        recusa="Esta tela é de quem responde por resultado.",
+        perfura=True,
+        cache=cache,
+    )
+
+
+def painel_de_pessoas(pessoa, parametros, cache: dict | None = None) -> dict:
+    return _painel(
+        pessoa,
+        parametros,
+        permissao=PERMISSAO_PESSOAS,
+        montadores=MONTADORES_PESSOAS,
+        rota="workspace:quadro",
+        recusa="Esta tela é de quem responde por gente.",
+        cache=cache,
+    )
+
+
+def painel_de_satisfacao(pessoa, parametros, cache: dict | None = None) -> dict:
+    return _painel(
+        pessoa,
+        parametros,
+        permissao=PERMISSAO_SATISFACAO,
+        montadores=MONTADORES_SATISFACAO,
+        rota="workspace:satisfacao",
+        recusa="Esta tela é de quem responde pela relação com o cliente.",
+        cache=cache,
+    )
+
+
+#: OS PERÍODOS OFERECIDOS — `(valor, rótulo, meses)`.
+#:
+#: Nomeados e fechados, em vez de um inteiro livre. `?janela=9` não dizia o que
+#: significava a quem lia o link, e aceitava `?janela=7` — um recorte que a tela
+#: oferecia sem oferecer, e que ninguém sabe interpretar.
+#:
+#: **"Mês atual" quebra o piso de três meses, de propósito.** A regra antiga
+#: dizia: "três é o mínimo em que uma tendência existe; abaixo disso o gráfico é
+#: uma comparação, e comparação se lê melhor em tabela." A regra continua certa,
+#: e é por isso que `so_o_mes` existe — nesse período a tela mostra a TABELA do
+#: mês em vez de desenhar uma barra sozinha. O período entrou porque "como
+#: fechou este mês" é a pergunta mais frequente da reunião mensal; a resposta
+#: foi atendê-la sem fingir que uma barra é uma série.
+PERIODOS: tuple[tuple[str, str, int], ...] = (
+    ("mes", "Mês atual", 1),
+    ("3m", "3 meses", 3),
+    ("6m", "6 meses", 6),
+    ("9m", "9 meses", 9),
+    ("12m", "12 meses", 12),
+)
+
+#: Doze e não treze. Os treze existiam para o mesmo mês do ano anterior caber na
+#: série; a comparação com o ano anterior passou a ser explícita (bloco F), e a
+#: série volta a ter o tamanho que a pessoa pediu.
+PERIODO_PADRAO = "12m"
+PERIODO_PADRAO_MESES = 12
+
+#: COM QUE COMPARAR — `(valor, rótulo, meses de recuo)`. F1.
+#:
+#: "Nenhum" é uma opção EXPLÍCITA e é a primeira. Sem ela o seletor não teria
+#: como desligar a comparação, e uma comparação que não se desliga acaba
+#: ficando ligada sem ninguém lembrar de a ter pedido.
+#:
+#: O trimestre do ano anterior recua doze meses como o ano — o que muda é o
+#: RECORTE que a pessoa escolhe no período, não o salto no tempo. Ele existe
+#: separado porque nomeia a pergunta que a diretoria faz ("como foi o mesmo
+#: trimestre?"), e um seletor que obriga a traduzir a pergunta para "12 meses
+#: com período de 3" é um seletor que ninguém usa.
+COMPARACOES: tuple[tuple[str, str, int], ...] = (
+    ("", "Nenhum", 0),
+    ("ano_anterior", "Ano anterior", 12),
+    ("trimestre_ano_anterior", "Mesmo trimestre do ano anterior", 12),
+    ("dois_anos", "Dois anos atrás", 24),
+)
+
+MESES_DA_COMPARACAO: dict[str, int] = {v: m for v, _, m in COMPARACOES if m}
+ROTULO_DA_COMPARACAO: dict[str, str] = {v: r for v, r, m in COMPARACOES if m}
+
+MESES_POR_PERIODO: dict[str, int] = {v: m for v, _, m in PERIODOS}
+ROTULO_DO_PERIODO: dict[str, str] = {
+    "mes": "no mês",
+    "3m": "últimos 3 meses",
+    "6m": "últimos 6 meses",
+    "9m": "últimos 9 meses",
+    "12m": "últimos 12 meses",
+}
 
 
 # ── Perfuração — Onda 11, mecanismo 1 ───────────────────────────────
@@ -1141,7 +2748,11 @@ JANELAS: tuple[int, ...] = (3, 6, 12, MESES_DA_SERIE)
 
 #: `(parâmetro na URL, rótulo, atributo do contrato)`, do topo para o fundo.
 HIERARQUIA: tuple[tuple[str, str, str], ...] = (
-    ("regional", "Regional", "regional"),
+    # "Unidade" e não "Regional": este degrau é o nome da unidade do organograma
+    # (`lotacao.unidade.nome`), que é o que a permissão usa. Chamá-lo de
+    # "regional" fazia parecer recorte comercial — e é por aí que alguém tenta
+    # trocá-lo pela área e quebra o acesso do gerente.
+    ("regional", "Unidade", "regional"),
     ("cc", "Centro de custo", "centro_custo"),
     ("contrato", "Contrato", "codigo"),
 )
@@ -1179,19 +2790,32 @@ def _url_com(base: str, filtros: Filtros, **mudancas) -> str:
     from urllib.parse import urlencode
 
     atual = {
-        "competencia": filtros.competencia.strftime("%Y-%m"),
+        # `mes` e não `competencia`: a URL que a tela GERA usa o nome novo. O
+        # antigo continua sendo lido (ver `_mes_pedido`), mas não é mais
+        # produzido — senão a compatibilidade nunca envelhece e nunca sai.
+        "mes": filtros.competencia.strftime("%Y-%m"),
         "regional": filtros.regional,
         "cc": filtros.centro_custo,
         "contrato": filtros.contrato,
+        # Tuplas. `urlencode(..., doseq=True)` as expande em `area=a&area=b`,
+        # que é a forma que `getlist` lê de volta — o par tem de casar, senão o
+        # link que a pessoa manda por e-mail abre com um filtro só.
+        "area": filtros.area,
         "servico": filtros.servico,
         "layer": filtros.layer,
-        "janela": str(filtros.meses),
+        "periodo": filtros.periodo or PERIODO_PADRAO,
+        "comparar": filtros.comparar,
+        "expandir": ",".join(filtros.expandidos),
+        # O modo ABSOLUTO não vai para a URL: ele é o padrão, e carregá-lo
+        # deixaria `?numeros=reais` em todo link que alguém compartilha.
+        "numeros": "" if filtros.numeros == MODO_ABSOLUTO else filtros.numeros,
+        "safra": filtros.safra,
         "dim": filtros.dimensao,
     }
     if filtros.deficitario:
         atual["deficitario"] = "1"
     atual.update(mudancas)
-    return f"{base}?{urlencode({k: v for k, v in atual.items() if v})}"
+    return f"{base}?{urlencode({k: v for k, v in atual.items() if v}, doseq=True)}"
 
 
 def migalhas(filtros: Filtros, base: str) -> list:
@@ -1259,13 +2883,19 @@ class FiltroAtivo:
 #: Os filtros que ganham tarja, na ordem em que a tela os oferece.
 #: `(parâmetro, rótulo)`.
 COM_TARJA: tuple[tuple[str, str], ...] = (
-    ("regional", "Regional"),
+    ("regional", "Unidade"),
     ("cc", "Centro de custo"),
     ("contrato", "Contrato"),
+    ("area", "Área"),
     ("servico", "Serviço"),
     ("layer", "Layer"),
     ("deficitario", "Só deficitários"),
 )
+
+#: Os filtros que aceitam mais de um valor. Cada valor ganha a PRÓPRIA tarja,
+#: com o próprio X — remover "Área 03" não pode levar "Área 01" junto, que é o
+#: que uma tarja só para os dois faria.
+MULTIVALOR: frozenset[str] = frozenset({"area", "servico"})
 
 #: Quantos filtros CRUZADOS cabem ao mesmo tempo. O quarto substitui o mais
 #: antigo e avisa — quatro recortes simultâneos produzem um número que ninguém
@@ -1275,7 +2905,7 @@ COM_TARJA: tuple[tuple[str, str], ...] = (
 #: trilha já os mostra.
 MAXIMO_DE_CRUZADOS = 3
 
-CRUZAVEIS: tuple[str, ...] = ("servico", "layer", "deficitario")
+CRUZAVEIS: tuple[str, ...] = ("area", "servico", "layer", "deficitario")
 
 
 def filtros_ativos(filtros: Filtros, base: str) -> list[FiltroAtivo]:
@@ -1284,6 +2914,7 @@ def filtros_ativos(filtros: Filtros, base: str) -> list[FiltroAtivo]:
         "regional": filtros.regional,
         "cc": filtros.centro_custo,
         "contrato": filtros.contrato,
+        "area": filtros.area,
         "servico": filtros.servico,
         "layer": filtros.layer,
         "deficitario": "sim" if filtros.deficitario else "",
@@ -1292,8 +2923,15 @@ def filtros_ativos(filtros: Filtros, base: str) -> list[FiltroAtivo]:
     for parametro, rotulo in COM_TARJA:
         if not valores[parametro]:
             continue
+
+        if parametro in MULTIVALOR:
+            ativos.extend(
+                _tarjas_multi(filtros, base, parametro, rotulo, valores[parametro])
+            )
+            continue
+
         # Remover um degrau da hierarquia limpa os de baixo, pela mesma razão da
-        # trilha: a regional recortada por um CC que a tela diz não estar ativo
+        # trilha: a unidade recortada por um CC que a tela diz não estar ativo
         # é um número que não bate com nada.
         limpeza = {parametro: ""}
         if parametro == "regional":
@@ -1311,6 +2949,79 @@ def filtros_ativos(filtros: Filtros, base: str) -> list[FiltroAtivo]:
     return ativos
 
 
+def _tarjas_multi(
+    filtros: Filtros, base: str, parametro: str, rotulo: str, escolhidos: tuple
+) -> list[FiltroAtivo]:
+    """Uma tarja por valor, e o X de cada uma remove só o seu.
+
+    A alternativa — uma tarja "Área: 01, 03" com um X só — obriga a pessoa a
+    limpar tudo e remarcar para tirar uma das duas. Ela faz isso uma vez e passa
+    a não usar mais de um valor.
+    """
+    return [
+        FiltroAtivo(
+            chave=f"{parametro}:{valor}",
+            rotulo=rotulo,
+            valor=valor,
+            url_remover=_url_com(
+                base, filtros,
+                **{parametro: tuple(v for v in escolhidos if v != valor)},
+            ),
+        )
+        for valor in escolhidos
+    ]
+
+
+def recorte_em_texto(filtros: Filtros, areas: list[dict]) -> str:
+    """O recorte ativo em frase — A6.
+
+        "Área 01 e Área 03 · monitoramento · últimos 6 meses até AGO/2026"
+
+    ## Frase E tarjas, e não uma das duas
+
+    As tarjas dizem *o que remover*, uma por uma, com o X. A frase diz *o que
+    estou vendo*, de uma vez. Quem chega à tela lê a frase; quem quer mudar
+    clica na tarja. Uma tarja de cada vez não forma a leitura completa, e a
+    frase sozinha não deixa desfazer nada.
+
+    Sai da MESMA função de filtros que as tarjas, e não de um segundo cálculo:
+    duas verdades sobre o mesmo recorte, na mesma barra, é como alguém descobre
+    que a tela mente.
+
+    ## Se a frase não couber, o recorte já é complexo demais
+
+    Não há truncamento aqui de propósito. A frase crescer é o sinal — e o sinal
+    é para a pessoa, não para o CSS.
+    """
+    nomes = {a["codigo"]: a["nome"] for a in areas}
+    partes: list[str] = []
+
+    if filtros.area:
+        partes.append(_e_comercial([nomes.get(c, c) for c in filtros.area]))
+    if filtros.centro_custo:
+        partes.append(f"CC {filtros.centro_custo}")
+    if filtros.contrato:
+        partes.append(filtros.contrato)
+    if filtros.servico:
+        partes.append(_e_comercial(list(filtros.servico)))
+    if filtros.layer:
+        partes.append(f"layer {filtros.layer}")
+    if filtros.deficitario:
+        partes.append("só deficitários")
+
+    periodo = filtros.rotulo_do_periodo
+    mes = f"{filtros.competencia:%m/%Y}"
+    partes.append(f"{periodo} até {mes}" if periodo else mes)
+    return " · ".join(partes)
+
+
+def _e_comercial(valores: list[str]) -> str:
+    """`["a", "b", "c"]` → `"a, b e c"`. Português, não vírgula até o fim."""
+    if len(valores) <= 1:
+        return valores[0] if valores else ""
+    return f"{', '.join(valores[:-1])} e {valores[-1]}"
+
+
 def url_limpa(filtros: Filtros, base: str) -> str:
     """"Limpar tudo" — preserva a competência e a janela, e só elas.
 
@@ -1319,7 +3030,8 @@ def url_limpa(filtros: Filtros, base: str) -> str:
     """
     return _url_com(
         base, filtros,
-        regional="", cc="", contrato="", servico="", layer="", deficitario="",
+        regional="", cc="", contrato="", area=(), servico=(),
+        layer="", deficitario="",
     )
 
 
@@ -1346,18 +3058,26 @@ def cruzar(filtros: Filtros, base: str, parametro: str, valor: str) -> tuple[str
 
     ordem = [p for p in CRUZAVEIS if _valor_do_filtro(filtros, p)]
     substituiu = False
-    mudancas = {parametro: valor}
+    # Num filtro multivalor, clicar ACRESCENTA. Substituir faria o segundo
+    # clique desfazer o primeiro, e comparar duas áreas — que é a razão de o
+    # filtro aceitar mais de uma — ficaria impossível pelo gráfico.
+    if parametro in MULTIVALOR:
+        ja = _valor_do_filtro(filtros, parametro) or ()
+        mudancas = {parametro: ja if valor in ja else (*ja, valor)}
+    else:
+        mudancas = {parametro: valor}
     if parametro not in ordem and len(ordem) >= MAXIMO_DE_CRUZADOS:
         mudancas[ordem[0]] = ""
         substituiu = True
     return _url_com(base, filtros, **mudancas), substituiu
 
 
-def _valor_do_filtro(filtros: Filtros, parametro: str) -> str:
+def _valor_do_filtro(filtros: Filtros, parametro: str):
     return {
         "regional": filtros.regional,
         "cc": filtros.centro_custo,
         "contrato": filtros.contrato,
+        "area": filtros.area,
         "servico": filtros.servico,
         "layer": filtros.layer,
         "deficitario": "1" if filtros.deficitario else "",
@@ -1373,9 +3093,14 @@ def _valor_do_filtro(filtros: Filtros, parametro: str) -> str:
 #: nível. Serviço e layer são atributos: escolhê-los reagrupa sem descer, e o
 #: clique vira filtro cruzado.
 DIMENSOES: tuple[tuple[str, str, str, bool], ...] = (
-    ("regional", "Regional", "regional", False),
+    ("regional", "Unidade", "regional", False),
     ("cc", "Centro de custo", "centro_custo", False),
     ("contrato", "Contrato", "codigo", False),
+    # ÁREA é atributo e não nível, e a diferença não é arbitrária: um centro de
+    # custo atende contratos de áreas diferentes, então nenhuma das duas CONTÉM
+    # a outra. Como nível, descer para uma área depois de escolher um CC faria a
+    # lista crescer — o defeito que a Onda 11 corrigiu na hierarquia.
+    ("area", "Área", "area", True),
     ("servico", "Serviço", "servico", True),
     ("layer", "Layer", "layer", True),
 )
@@ -1458,21 +3183,26 @@ def _bloco_perfuracao(escopo, filtros: Filtros, base: str):
 
 
 def _estreitar_por_atributo(recorte: contrato.Escopo, filtros: Filtros):
-    """Traduz `serviço` e `layer` em uma LISTA DE CONTRATOS, e estreita o escopo.
+    """Traduz `layer` em uma LISTA DE CONTRATOS, e estreita o escopo.
 
-    Sem isto, os dois filtravam só a faixa da carteira: a pessoa escolhia
-    "serviço = cftv", a lista de contratos encolhia, e o gráfico do dinheiro
-    continuava mostrando a empresa inteira.
+    Sem isto, o layer filtrava só a faixa da carteira: a pessoa escolhia
+    "layer = 1", a lista de contratos encolhia, e o gráfico do dinheiro
+    continuava mostrando a empresa inteira. Duas faixas discordando sobre o
+    mesmo filtro, na mesma tela, é o defeito que faz alguém deixar de confiar no
+    número — e ele não dá erro nem aparece em log.
 
-    Duas faixas discordando sobre o mesmo filtro, na mesma tela, é o defeito que
-    faz alguém deixar de confiar no número — e ele não dá erro nem aparece em
-    log.
+    ## Serviço saiu daqui, e área nunca entrou
 
-    A tradução acontece UMA vez, aqui, e vale para todas as faixas. Fazê-la
-    dentro de cada montador seria a mesma consulta cinco vezes, e cinco lugares
-    para ela divergir.
+    Os dois são CAMPO do contrato, e agora viajam no próprio `Escopo`
+    (`servicos`, `areas`), filtrados em SQL pelo `_recortar` do espelho. Traduzir
+    para lista de códigos custaria uma volta ao provedor para chegar ao mesmo
+    lugar, e uma tupla de dezoito códigos onde cabia um `IN` de um valor.
+
+    **Layer não é campo.** Ele é calculado a partir da receita dos últimos meses
+    — não existe coluna para o banco filtrar —, e por isso continua precisando
+    da tradução. É a diferença que decide quem fica aqui.
     """
-    if not (filtros.servico or filtros.layer):
+    if not filtros.layer:
         return recorte
 
     provedor = contrato.obter(contrato.ProvedorCarteira)
@@ -1482,13 +3212,10 @@ def _estreitar_por_atributo(recorte: contrato.Escopo, filtros: Filtros):
         # o menos errado: a faixa da carteira já diz que a fonte não respondeu.
         return recorte
 
+    # `provedor.contratos(recorte)` JÁ aplicou área e serviço — a tradução do
+    # layer acontece dentro do que os outros filtros deixaram passar.
     codigos = tuple(
-        sorted(
-            c.codigo
-            for c in provedor.contratos(recorte)
-            if (not filtros.servico or c.servico == filtros.servico)
-            and (not filtros.layer or c.layer == filtros.layer)
-        )
+        sorted(c.codigo for c in provedor.contratos(recorte) if c.layer == filtros.layer)
     )
     if not codigos:
         # Nenhum contrato casa. `("",)` é um código que não existe — e é o que
@@ -1496,22 +3223,109 @@ def _estreitar_por_atributo(recorte: contrato.Escopo, filtros: Filtros):
         # uma tupla vazia significaria em `Escopo`.
         codigos = ("",)
 
+    # Área e serviço seguem junto. Sem isto, o recorte por atributo APAGARIA o
+    # filtro de área — e a tela mostraria, para quem filtrou a Área 03, os
+    # contratos de layer 1 da empresa inteira.
     return contrato.Escopo(
         regionais=recorte.regionais,
         centros_custo=recorte.centros_custo,
         contratos=codigos,
+        areas=recorte.areas,
+        servicos=recorte.servicos,
     )
 
 
-def _servicos_oferecidos(faixas: dict) -> list[str]:
-    """Os serviços presentes na carteira visível, ordenados.
+def _concentracoes(pessoa, cache: dict | None = None) -> dict:
+    """O que a empresa decidiu olhar, e quem pode mexer nisso.
 
-    Sai das FAIXAS já montadas e não de uma consulta nova: elas já respeitam o
-    escopo da pessoa, e uma segunda consulta poderia oferecer um serviço que ela
-    não alcança — o que revelaria a existência dele.
+    Import local pelo motivo de sempre neste módulo: `concentracao` importa
+    `identidade`, e no topo criaria um ciclo com o que já é importado ali.
     """
-    contratos = getattr(faixas.get("contratos"), "conteudo", None) or {}
-    return sorted({c.servico for c in contratos.get("carteira", []) if c.servico})
+    from workspace.services import concentracao as svc_conc
+
+    marca = svc_conc.pode_concentrar(pessoa, cache=cache)
+    return {
+        "concentracoes": svc_conc.abertas(),
+        "concentracoes_encerradas": svc_conc.encerradas(),
+        "pode_concentrar": marca,
+        "origens_de_concentracao": OrigemConcentracao.choices,
+        # A lista de responsáveis só é consultada por quem PODE marcar. Para o
+        # resto ela seria uma consulta a cada abertura da tela para preencher um
+        # `<select>` que nunca é renderizado.
+        "pessoas": _pessoas_lotadas() if marca else (),
+    }
+
+
+def _pessoas_lotadas():
+    """Quem pode ser responsável por uma concentração.
+
+    Só quem tem lotação: responsável sem centro de custo é responsável que
+    ninguém sabe cobrar, e o organograma é onde essa resposta mora.
+    """
+    from django.contrib.auth import get_user_model
+
+    return (
+        get_user_model()
+        .objects.filter(lotacao__isnull=False)
+        .order_by("nome", "email")
+    )
+
+
+def _opcoes_de_atributo(escopo: contrato.Escopo) -> dict:
+    """As áreas e os serviços que a pessoa ALCANÇA — não os que ela já filtrou.
+
+    ## Por que do escopo, e não das faixas já montadas
+
+    A versão anterior tirava os serviços da carteira montada, que já passou
+    pelos filtros. Isso tem uma consequência que só aparece com multi-seleção:
+    escolher "monitoramento" deixava a caixa com **uma opção só**, e não havia
+    como acrescentar "manutenção" sem editar a URL à mão. Com um valor por vez o
+    defeito era invisível; comparar dois serviços é exatamente a razão de o
+    filtro aceitar mais de um. É o mesmo cuidado que o filtro de editais do
+    radar já tomava.
+
+    ## E por que continua respeitando a permissão
+
+    O escopo aqui é o da PESSOA — apenas sem os filtros de área e serviço, que
+    não vêm da permissão. Não é o espelho inteiro: uma opção fora do alcance
+    dela não aparece, e a caixa não revela a existência de contrato que ela não
+    pode ver.
+    """
+    provedor = contrato.obter(contrato.ProvedorCarteira)
+    if provedor is None:
+        return {"servicos": [], "areas": []}
+
+    # A HIERARQUIA fica; os dois atributos saem. É o que a permissão permite,
+    # antes de os filtros de leitura recortarem.
+    alcance = contrato.Escopo(
+        regionais=escopo.regionais,
+        centros_custo=escopo.centros_custo,
+        contratos=escopo.contratos,
+    )
+    carteira = provedor.contratos(alcance)
+
+    areas: dict[str, str] = {}
+    tem_sem_area = False
+    for c in carteira:
+        if c.area:
+            areas[c.area] = c.area_nome or c.area
+        else:
+            tem_sem_area = True
+
+    ordenadas = [
+        {"codigo": codigo, "nome": nome}
+        for codigo, nome in sorted(areas.items(), key=lambda par: par[1])
+    ]
+    if tem_sem_area:
+        # NO FIM, e sempre presente quando existe: "Sem área" é uma escolha, e
+        # não uma ausência. Escondê-la faria o contrato não agrupado sumir da
+        # soma no instante em que alguém marcasse qualquer área.
+        ordenadas.append({"codigo": "sem-area", "nome": "Sem área"})
+
+    return {
+        "servicos": sorted({c.servico for c in carteira if c.servico}),
+        "areas": ordenadas,
+    }
 
 
 def _competencias_oferecidas(atual: date, quantas: int = MESES_DA_SERIE) -> list[date]:
@@ -1563,10 +3377,14 @@ def mapa_das_faixas() -> list[dict]:
     Sai de `DEFINICOES`, e não de uma lista à mão nem de montar as seis faixas
     só para ler dois campos de cada: a primeira opção apodrece, a segunda toca o
     banco numa tela que não mostra número nenhum.
+
+    AS SEIS, e não as quatro da tela 10. A pergunta desta tela é "de onde vem
+    cada número do produto", e ela não muda porque duas faixas passaram a morar
+    em telas próprias — quem abre a 99 está atrás da fonte, não da tela.
     """
     return [
         {"chave": chave, "faixa": DEFINICOES[chave][0], "fonte": DEFINICOES[chave][1]}
-        for chave, _ in MONTADORES
+        for chave, _ in MONTADORES + MONTADORES_PESSOAS + MONTADORES_SATISFACAO
     ]
 
 
@@ -1724,3 +3542,185 @@ def dados(pessoa, parametros, cache: dict | None = None) -> dict:
             for rotulo in ordem
         ],
     }
+
+
+# ── Os gráficos das faixas 3 a 7 — passo 6 ──────────────────────────
+#
+# Um tipo por faixa, e cada escolha responde a uma pergunta diferente. Repetir
+# barra em todas seria mais fácil de escrever e diria menos: o tipo do gráfico é
+# parte do que ele afirma.
+
+
+def _grafico_da_carteira(conteudo: dict):
+    """Dispersão: receita × margem, tamanho pelo valor mensal.
+
+    É a adição nossa ao catálogo, e é aqui que ela ganha sentido: o quadrante
+    direito-inferior — **grande e pouco rentável** — é o que nenhuma tabela
+    ordenada mostra, porque ordenar por um esconde o outro.
+
+    A linha do limiar de 10% é a fronteira do quadrante. Sem ela, ele existe e
+    ninguém vê onde começa.
+    """
+    from workspace.graficos import series
+
+    pontos = [
+        (
+            c.codigo,
+            c.valor_mensal or Decimal("0"),
+            c.margem_contribuicao_pct,
+            c.valor_mensal or Decimal("0"),
+        )
+        for c in conteudo.get("carteira", [])
+        # Sem amostra fica FORA do gráfico: um contrato que faturou uma vez
+        # apareceria no quadrante errado por falta de histórico, e não por
+        # desempenho. O rodapé diz quantos ficaram de fora.
+        if c.margem_contribuicao_pct is not None and c.layer != SEM_AMOSTRA
+    ]
+    return series.dispersao(
+        pontos,
+        chave="carteira",
+        titulo="Receita mensal × margem, por contrato",
+        rotulo_x="Receita mensal",
+        # SEM o "%" aqui: quem acrescenta a unidade ao nome do eixo é
+        # `series.dispersao`, e escrevê-la nos dois lugares produzia
+        # "Margem % (%)" na tela.
+        rotulo_y="Margem",
+        limiar_y=MARGEM_MINIMA,
+    )
+
+
+def _grafico_do_mix(conteudo: dict):
+    """Rosca do mix por serviço, com o total no centro."""
+    from workspace.graficos import series
+
+    return series.rosca(
+        [(item["servico"], item["valor"]) for item in conteudo.get("mix", [])],
+        chave="mix",
+        titulo="Mix da carteira, por serviço",
+        centro_rotulo="carteira mensal",
+    )
+
+
+def _grafico_dos_vencimentos(conteudo: dict):
+    """Barras por faixa de vencimento — 30, 60, 90, 180 dias.
+
+    Barra e não rosca: as faixas são **cumulativas no tempo** e têm ordem. Uma
+    rosca ordena por tamanho e perde a única coisa que importa aqui, que é qual
+    vence antes.
+    """
+    from workspace.graficos import series
+
+    return series.barras_por_categoria(
+        [
+            series.Ponto(
+                rotulo=f"até {bloco['dias']} dias",
+                valor=sum(
+                    (c.valor_mensal or Decimal("0") for c in bloco["contratos"]),
+                    Decimal("0"),
+                ),
+            )
+            for bloco in conteudo.get("blocos", [])
+        ],
+        chave="vencimentos",
+        titulo="Valor mensal a vencer, por faixa",
+        rotulo_serie="Valor mensal",
+    )
+
+
+def _grafico_dos_projetos(conteudo: dict):
+    """Rosca por situação, e o bullet dos marcos em risco.
+
+    Devolve os DOIS: a rosca responde "como está a carteira de projetos" e o
+    bullet responde "o que vence antes do quê". São perguntas diferentes, e
+    espremê-las num gráfico só produziria um que não responde nenhuma.
+    """
+    from workspace.graficos import series
+
+    rosca = series.rosca(
+        [
+            (item["situacao"], Decimal(item["quantidade"]))
+            for item in conteudo.get("por_situacao", [])
+        ],
+        chave="projetos-situacao",
+        titulo="Projetos por situação",
+        centro_rotulo="projetos",
+        centro_valor=str(
+            sum(i["quantidade"] for i in conteudo.get("por_situacao", []))
+        ),
+        formatar_tabela=lambda v: fmt.numero(v),
+    )
+
+    hoje = timezone.localdate()
+    marcos = [
+        (
+            f"{m.projeto} · {m.titulo}"[:40],
+            Decimal((m.prazo - hoje).days) if m.prazo else None,
+            Decimal("0"),
+        )
+        for m in conteudo.get("marcos_em_risco", [])
+    ]
+    bullet = series.bullet(
+        marcos,
+        chave="projetos-marcos",
+        titulo="Marcos em risco — dias até o prazo",
+        rotulo_valor="Dias restantes",
+        rotulo_meta="Hoje",
+        formatar=lambda v: fmt.numero(v) + " d" if v is not None else fmt.VAZIO,
+        formatar_tabela=lambda v: fmt.numero(v) + " d" if v is not None else fmt.VAZIO,
+    )
+    return rosca, bullet
+
+
+def _mapa_do_quadro(conteudo: dict):
+    """Mapa de calor do turnover por centro de custo.
+
+    Tabela e não `heatmap`: é a grade do Score PEC do benchmark, e o número
+    precisa ser selecionável — alguém vai copiar uma linha dela para um e-mail.
+
+    **Menor é melhor**, e por isso os limiares invertem: turnover de 8,4% é
+    crítico, não excelente.
+    """
+    from workspace.graficos import series
+
+    por_centro = conteudo.get("por_centro", [])
+    return series.mapa_calor_tabela(
+        ["Turnover", "Absenteísmo"],
+        [
+            (q.centro_custo or "—", [q.turnover_pct, q.absenteismo_pct])
+            for q in por_centro
+        ],
+        chave="quadro",
+        titulo="Turnover e absenteísmo por centro de custo",
+        critico=Decimal("5"),
+        atencao=Decimal("3"),
+        maior_melhor=False,
+    )
+
+
+def _grafico_da_satisfacao(conteudo: dict):
+    """Barra de composição: promotor, neutro, detrator.
+
+    Composição e não rosca: são três categorias com **ordem** — de promotor a
+    detrator —, e a rosca embaralha essa ordem ao ordenar por tamanho.
+
+    O valor absoluto fica dentro de cada segmento: uma barra de 100% esconde se
+    ela vale doze respostas ou mil, e doze é o número real desta massa.
+    """
+    from workspace.graficos import series
+
+    contagem = conteudo.get("contagem", {})
+    return series.barra_composicao(
+        [
+            (rotulo, Decimal(contagem.get(chave, 0)))
+            for chave, rotulo in (
+                ("promotor", "Promotores"),
+                ("neutro", "Neutros"),
+                ("detrator", "Detratores"),
+            )
+            if contagem.get(chave)
+        ],
+        chave="satisfacao",
+        titulo="Distribuição das avaliações",
+        formatar=lambda v: fmt.numero(v),
+        formatar_tabela=lambda v: fmt.numero(v),
+    )

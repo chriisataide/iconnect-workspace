@@ -11,3 +11,17 @@
   <h2 class="au-secao-titulo" id="{{ faixa.chave }}">{{ faixa.titulo }}</h2>
   {% include "workspace/_carimbo.html" with carimbo=faixa.carimbo chave=faixa.chave %}
 </header>
+{% comment %}
+  A FRASE DE LEITURA — B2.
+
+  Abaixo do título e do carimbo: a frase LÊ o número, e o carimbo diz de onde
+  ele veio. Acima do carimbo, ela empurraria a procedência para baixo do
+  gráfico — e procedência que se procura é procedência que ninguém confere.
+
+  Ela é gerada por REGRA, em Python, com número real. Vazia é o estado normal:
+  quando não há afirmação verdadeira a fazer, o bloco não exibe frase nenhuma,
+  porque frase genérica é pior que ausência.
+{% endcomment %}
+{% if faixa.leitura %}
+  <p class="au-faixa-leitura">{{ faixa.leitura }}</p>
+{% endif %}

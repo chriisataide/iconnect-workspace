@@ -368,6 +368,16 @@ body {
 
 .au-app {
   position: relative;
+  /* `overflow: hidden` por causa de `.au-app-marca`: ela é absoluta, colada em
+     `inset: auto 0 0 0`, e mede 3px de altura. Um `border-radius` de 10px numa
+     faixa de 3px não tem espaço vertical para curvar — o navegador reduz o raio
+     e as PONTAS QUADRADAS sobram para fora da curva do card. Recortar no pai é
+     o que faz a barra seguir exatamente a borda, e não uma aproximação dela.
+
+     Nada aqui transborda de propósito: o selo, o ícone e os textos são todos
+     internos, e a sombra do card é desenhada fora da caixa, onde este recorte
+     não alcança. */
+  overflow: hidden;
   display: flex;
   flex-direction: column;
   gap: var(--au-3);
@@ -411,9 +421,24 @@ body {
   color: var(--au-text-muted);
 }
 
-/* O app em destaque é o iConnect — hoje o único acesso ao sistema principal.
-   Sem peso visual, ele se perde entre nove cards "em breve" idênticos, e o
-   usuário precisa ler os dez para achar o único que abre alguma coisa. */
+/* DESTAQUE = "inação aqui trava alguém". Não é "tem número".
+
+   O comentário anterior dizia que o destaque era o tile do iConnect. Não é mais,
+   desde o reposicionamento de 12/08/2026: o iConnect virou um tile entre outros,
+   sem borda e sem primeira posição, e hoje NENHUM app da faixa Aplicativos
+   recebe esta classe. Quem usa é o card urgente de MEU DIA.
+
+   A diferença entre urgente e não urgente chega por QUATRO canais, e só um deles
+   é matiz — a regra "erro nunca só por cor" do EXEC 06 vale aqui igual:
+
+     1. a borda muda de cor
+     2. a barra inferior aparece
+     3. o quadrado do ícone fica CHEIO (navy sólido), e não claro
+     4. o selo vai de `--contagem` (azul) para `--alerta` (vermelho)
+
+   O item 3 é o que salva quem não distingue vermelho de azul: é diferença de
+   luminância, e não de tom. Mexer nele sem repor outro canal não-cromático
+   deixa a urgência legível só para parte das pessoas. */
 .au-app--destaque {
   border-color: var(--au-accent);
   box-shadow: var(--au-e-1);
@@ -429,8 +454,11 @@ body {
   inset: auto 0 0 0;
   height: 3px;
   border-radius: 0 0 var(--au-r-md) var(--au-r-md);
-  /* Navy → crimson: o único lugar da interface onde o crimson aparece,
-     e é ornamento de marca, não estado. */
+  /* Navy → crimson: o único lugar da interface onde o crimson aparece.
+     Nasceu como ornamento de marca no tile do iConnect; hoje o único uso vivo é
+     estado — a faixa MEU DIA a desenha no card urgente. `aria-hidden`, porque
+     ela REFORÇA o que o selo e a descrição já dizem, e não substitui nenhum
+     dos dois. */
   background: linear-gradient(90deg, var(--au-btn-bg), var(--au-marca));
 }
 
@@ -658,7 +686,12 @@ body {
   font-size: var(--au-t-sm);
   color: var(--au-text-subtle);
 }
-.au-rodape-marca { opacity: .75; }
+/* `height` e `width:auto` no CSS, e não só nos atributos: a marca da ADB é
+   240×189, e um `width="18" height="18"` no HTML — que era o que servia à marca
+   quadrada da iCODEV — achataria a águia em 25%. Os atributos guardam a
+   PROPORÇÃO do arquivo, para o navegador reservar a caixa; o CSS decide o
+   tamanho. */
+.au-rodape-marca { opacity: .75; height: 14px; width: auto; }
 
 /* ── Responsivo ─────────────────────────────────────────────── */
 
@@ -709,15 +742,51 @@ body {
   overscroll-behavior: contain;
 }
 
+/* ── Grupos recolhíveis do trilho ───────────────────────────────
+   `<details>` e não JavaScript: abrir e fechar disclosure é comportamento
+   nativo, funciona sem JS e não pede nonce na CSP. É o mesmo mecanismo do sino.
+
+   Só o grupo da tela atual nasce aberto (`grupo_aberto`, de `navegacao.py`).
+   Para quem tem todas as permissões, o trilho ia de 28 itens visíveis para
+   cerca de sete. */
+.au-rail-secao { margin: var(--au-4) 0 0; }
+.au-rail-secao:first-of-type { margin-top: 0; }
+
 .au-rail-grupo {
-  margin: var(--au-4) 0 var(--au-1);
+  display: flex;
+  align-items: center;
+  gap: var(--au-2);
+  margin: 0 0 var(--au-1);
+  padding: var(--au-1) var(--au-2);
+  border-radius: var(--au-r-sm);
   font-size: var(--au-t-2xs);
   font-weight: 700;
   letter-spacing: .09em;
   text-transform: uppercase;
   color: var(--au-text-subtle);
+  cursor: pointer;
+  list-style: none;          /* o triângulo padrão do Firefox */
 }
-.au-rail-grupo:first-child { margin-top: 0; }
+.au-rail-grupo::-webkit-details-marker { display: none; }
+.au-rail-grupo:hover { background: var(--au-surface-sunken); color: var(--au-text-muted); }
+
+/* A seta é DESENHADA, e gira ao abrir. Sem ela, um grupo fechado parece um
+   título solto e ninguém descobre que ele clica. */
+.au-rail-grupo::after {
+  content: "";
+  width: 5px; height: 5px;
+  margin-left: auto;
+  border-right: 1.5px solid currentColor;
+  border-bottom: 1.5px solid currentColor;
+  transform: rotate(-45deg) translate(-1px, -1px);
+  transition: transform .15s;
+}
+.au-rail-secao[open] > .au-rail-grupo::after {
+  transform: rotate(45deg) translate(-2px, -2px);
+}
+@media (prefers-reduced-motion: reduce) {
+  .au-rail-grupo::after { transition: none; }
+}
 
 .au-rail-item {
   display: flex;
@@ -1897,8 +1966,17 @@ a.au-notif-titulo:hover { color: var(--au-accent-text); text-decoration: underli
 /* ── Ação na busca ─────────────────────────────────────────────────
    O grupo "Ação" não é mais um link: começa um pedido. O fundo de marca
    é o que separa "vá ler sobre isso" de "resolva isso agora". */
+/* O GRUPO DE AÇÃO era um banho de `--au-accent-bg` na largura inteira, colado
+   embaixo do campo de busca. Buscar "recursos" casa a ação "Reservar um
+   recurso", o bloco aparecia, e a leitura de quem digitou foi "o campo ficou
+   roxo" — não "há uma ação em destaque aqui".
+
+   O destaque continua, pelo mesmo caminho da legenda de leitura dos gráficos:
+   uma barra de acento à esquerda. Ela diz "isto é diferente" sem pintar uma
+   área grande o bastante para ser confundida com o campo. */
 .au-busca-grupo--acao {
-  background: var(--au-accent-bg);
+  background: var(--au-surface);
+  border-left: 3px solid var(--au-accent);
   border-bottom: 1px solid var(--au-border);
 }
 .au-busca-grupo--acao .au-busca-grupo-titulo { color: var(--au-accent-text); }
@@ -2137,7 +2215,10 @@ a.au-notif-titulo:hover { color: var(--au-accent-text); text-decoration: underli
 
 /* ── Escolha do adiantamento ─────────────────────────────────────── */
 
-.au-fieldset { border: none; margin: 0; padding: 0; }
+/* `min-width: 0` porque um `<fieldset>` tem largura mínima automática e não
+   encolhe dentro de um grid — o público-alvo dos comunicados são dois deles
+   lado a lado, e sem isto a segunda coluna transborda. */
+.au-fieldset { border: none; margin: 0; padding: 0; min-width: 0; }
 
 .au-escolhas { display: flex; flex-direction: column; gap: var(--au-2); }
 
@@ -3278,8 +3359,10 @@ tr[data-abre-resumo]:focus-visible {
   border-left: 3px solid var(--au-border-strong);
   border-radius: var(--au-r-md, 6px);
   background: var(--au-surface);
+  transition: border-color .12s, box-shadow .12s;
 }
 .au-destaque--atencao { border-left-color: var(--au-warning); }
+.au-destaque--critico { border-left-color: var(--au-danger-text); }
 
 .au-destaque-link {
   display: flex;
@@ -3289,13 +3372,48 @@ tr[data-abre-resumo]:focus-visible {
   color: inherit;
   text-decoration: none;
 }
+.au-destaque:hover { border-color: var(--au-accent); box-shadow: var(--au-e-1); }
 .au-destaque-link:hover { background: var(--au-neutral-bg); }
 
-.au-destaque-titulo { font-size: var(--au-t-xs); color: var(--au-text-muted); }
+/* A linha de cima: o selo de severidade e a seta que diz "leva para baixo". */
+.au-destaque-topo {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--au-2);
+  margin-bottom: var(--au-1);
+}
+.au-destaque-selo {
+  padding: 2px 6px;
+  font-size: var(--au-t-2xs);
+  font-weight: 700;
+  letter-spacing: .04em;
+  text-transform: uppercase;
+  border-radius: var(--au-r-full);
+  color: var(--au-warning-text);
+  background: var(--au-warning-bg);
+}
+.au-destaque--critico .au-destaque-selo {
+  color: var(--au-danger-text);
+  background: var(--au-danger-bg);
+}
+.au-destaque-ir { font-size: var(--au-t-sm); color: var(--au-text-subtle); }
+.au-destaque:hover .au-destaque-ir { color: var(--au-accent); }
+
+/* O VALOR domina: ele é a razão de o cartão existir. O título abaixo dele é a
+   legenda, e não o contrário — era assim, e o número se perdia entre os três
+   textos de peso parecido. */
 .au-destaque-valor {
-  font-size: var(--au-t-lg);
-  font-weight: 600;
+  font-size: var(--au-t-2xl);
+  font-weight: 700;
+  line-height: 1.1;
   font-variant-numeric: tabular-nums;
+  color: var(--au-text);
+}
+.au-destaque-titulo {
+  font-size: var(--au-t-sm);
+  font-weight: 600;
+  color: var(--au-text-muted);
 }
 .au-destaque-detalhe { font-size: var(--au-t-xs); color: var(--au-text-subtle); }
 
@@ -3322,12 +3440,9 @@ tr[data-abre-resumo]:focus-visible {
 
 /* ── Filtros ─────────────────────────────────────────────────────
    A barra padronizada que se repete em toda tela futura. Aprende-se uma vez. */
-.au-filtros--resultados {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: flex-end;
-  gap: var(--au-3);
-}
+/* `.au-filtros--resultados` é declarada UMA vez, lá embaixo, junto dos grupos.
+   A regra que morava aqui — doze campos numa fila — foi substituída em
+   04/09/2026, e mantê-la faria a de baixo vencer em silêncio. */
 .au-filtro { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
 .au-filtro-rotulo { font-size: var(--au-t-xs); color: var(--au-text-subtle); }
 .au-filtro--check { flex-direction: row; align-items: center; gap: var(--au-2); }
@@ -4127,6 +4242,20 @@ tr[data-abre-resumo]:focus-visible {
    Elas aparecem SEMPRE, inclusive em apresentação, onde os controles somem.
    Filtro invisível é a principal fonte de "esse número está errado". */
 
+/* A FRASE do recorte ativo — A6.
+ *
+ * Fora da barra de filtros e acima das tarjas: ela é LEITURA, e a barra é
+ * controle. Dentro da barra ela competiria com os campos pelo mesmo olhar.
+ *
+ * Sem truncamento, de propósito. Se a frase não couber, o recorte já está
+ * complexo demais e a pessoa já se perdeu — o sinal é para ela, não para o CSS.
+ */
+.au-recorte {
+  margin: 0 0 var(--au-2);
+  color: var(--au-text-muted);
+  font-size: var(--au-t-sm);
+}
+
 .au-tarjas {
   display: flex;
   flex-wrap: wrap;
@@ -4207,3 +4336,436 @@ tr[data-abre-resumo]:focus-visible {
   font-size: var(--au-t-xs);
   color: var(--au-warning-text);
 }
+
+/* ── Legenda de leitura de gráfico ──────────────────────────────
+   Para o gráfico cujo desenho não se explica sozinho — hoje só a dispersão.
+   Não é decoração: sem ela, "não entendi como ler" foi a resposta de quem
+   abriu a tela, e a explicação existia apenas num comentário do template. */
+.au-legenda-leitura {
+  margin: 0 0 var(--au-3);
+  padding: var(--au-2) var(--au-3);
+  font-size: var(--au-t-sm);
+  line-height: 1.5;
+  color: var(--au-text-muted);
+  background: var(--au-surface-sunken);
+  border-left: 3px solid var(--au-accent);
+  border-radius: 0 var(--au-r-sm) var(--au-r-sm) 0;
+}
+.au-legenda-leitura b { color: var(--au-text); font-weight: 600; }
+
+/* ── Filtros de resultados, em três grupos ──────────────────────
+   Eram doze controles e cinco botões numa fila só. O agrupamento não reduz o
+   número de campos — reduz o que a pessoa precisa ler para achar UM deles.
+
+   `align-items: flex-start` e não `stretch`: os grupos têm alturas diferentes
+   (o "O quê" tem um checkbox no fim), e esticados eles alinham o rótulo do
+   grupo pelo topo e os campos por lugar nenhum. */
+.au-filtros--resultados {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: var(--au-4) var(--au-5);
+  margin: var(--au-4) 0;
+  padding: var(--au-3) var(--au-4);
+  background: var(--au-surface-sunken);
+  border: 1px solid var(--au-border);
+  border-radius: var(--au-r-md);
+
+  /* A BARRA ACOMPANHA A ROLAGEM — A6.
+   *
+   * A tela tem nove blocos; quem chega ao de vencimentos e quer estreitar o
+   * período rolava até o topo, escolhia, e a página voltava para o topo — três
+   * gestos para um filtro. Foi a mesma queixa que o trilho já rendeu ("não
+   * fique subindo para o topo toda vez").
+   *
+   * `z-index` acima do conteúdo e abaixo do cabeçalho: a barra tem de cobrir
+   * gráfico, e nunca a navegação.
+   *
+   * `background` opaco é obrigatório num elemento grudento — sem ele o gráfico
+   * passa por baixo e o texto do filtro fica ilegível sobre as barras.
+   */
+  position: sticky;
+  top: 0;
+  z-index: 20;
+}
+
+.au-filtro-grupo { display: flex; flex-direction: column; gap: var(--au-2); }
+.au-filtro-grupo-titulo {
+  display: flex;
+  align-items: baseline;
+  gap: var(--au-2);
+  margin: 0;
+  font-size: var(--au-t-2xs);
+  font-weight: 700;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+  color: var(--au-text-subtle);
+}
+.au-filtro-grupo-dica {
+  font-weight: 400;
+  letter-spacing: 0;
+  text-transform: none;
+  font-size: var(--au-t-xs);
+}
+.au-filtro-grupo-campos {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: var(--au-3);
+}
+
+/* As AÇÕES vão para a direita e para a última linha. `margin-left: auto` só
+   quando há espaço; quando quebra, ela vira uma faixa própria embaixo. */
+.au-filtro-acoes {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--au-2);
+  margin-left: auto;
+  padding-top: var(--au-4);
+}
+/* O divisor separa "muda esta tela" de "leva para outro lugar". */
+.au-filtro-acoes-divisor {
+  width: 1px;
+  height: 20px;
+  margin: 0 var(--au-1);
+  background: var(--au-border-strong);
+}
+
+/* ── Público-alvo em caixas de marcar ───────────────────────────
+   Era um `<select multiple>`, e desmarcar exigia Ctrl+clique — atalho que
+   ninguém descobre sozinho. Quem clicasse errado não tinha como desfazer, e o
+   comunicado saía para uma unidade só. `<fieldset>` e `<legend>` porque isto é
+   um grupo de controles com um rótulo, e é o que o leitor de tela anuncia. */
+.au-marcadores {
+  list-style: none;
+  margin: var(--au-1) 0 0;
+  padding: var(--au-1);
+  max-height: 168px;
+  overflow-y: auto;
+  border: 1px solid var(--au-border);
+  border-radius: var(--au-r-sm);
+  background: var(--au-surface);
+}
+.au-marcador {
+  display: flex;
+  align-items: center;
+  gap: var(--au-2);
+  padding: var(--au-1) var(--au-2);
+  border-radius: var(--au-r-sm);
+  cursor: pointer;
+}
+.au-marcador:hover { background: var(--au-surface-sunken); }
+/* O foco vai para o `<input>`, que está DENTRO do label: sem isto o teclado
+   percorre a lista sem nada mudar na tela. */
+.au-marcador:focus-within { outline: 2px solid var(--au-accent); outline-offset: -2px; }
+
+/* ── Campo de arquivo ───────────────────────────────────────────
+   O `<input type="file">` levava `class="au-input"` — a classe do campo de
+   TEXTO —, e o resultado era uma borda de campo em volta do botão nativo do
+   navegador: dois controles empilhados onde deveria haver um.
+
+   Aqui o input fica em `.au-sr` (escondido, focável) e o label é o controle. */
+.au-arquivo {
+  display: flex;
+  align-items: center;
+  gap: var(--au-2);
+  margin-top: var(--au-1);
+  padding: var(--au-2) var(--au-3);
+  border: 1px dashed var(--au-border-strong);
+  border-radius: var(--au-r-sm);
+  background: var(--au-surface-sunken);
+  cursor: pointer;
+  transition: border-color var(--au-dur-fast) var(--au-ease);
+}
+.au-arquivo:hover { border-color: var(--au-accent); }
+.au-arquivo > .au-icon { color: var(--au-text-subtle); flex: none; }
+.au-arquivo-acao { font-weight: 600; color: var(--au-accent-text); white-space: nowrap; }
+/* O nome do arquivo pode ser longo. `min-width: 0` + `ellipsis` é o que impede
+   que ele empurre o botão para fora da caixa. */
+.au-arquivo-nome {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--au-text-muted);
+  font-size: var(--au-t-sm);
+}
+/* O foco do input escondido tem de aparecer NO LABEL, senão o teclado percorre
+   o formulário e este campo é o único que não mostra onde está. */
+.au-sr:focus-visible + .au-arquivo,
+.au-arquivo:has(+ .au-sr:focus-visible) {
+  border-color: var(--au-accent);
+  box-shadow: 0 0 0 3px var(--au-accent-bg);
+}
+
+/* ── Atalho para a tela de trabalho do departamento ─────────────
+   Um módulo pode ter DUAS portas com o mesmo nome: a vista de catálogo
+   (`/workspace/m/marketing/`) e a tela de verdade (`/workspace/marketing/`).
+   Elas respondem perguntas diferentes e por isso continuam separadas — o que
+   faltava era o elo, e ele vai no topo porque é o destino mais provável de
+   quem clicou no nome do departamento. */
+.au-atalho-tela {
+  display: flex;
+  align-items: center;
+  gap: var(--au-3);
+  margin-bottom: var(--au-5);
+  padding: var(--au-3) var(--au-4);
+  border: 1px solid var(--au-border);
+  border-left: 3px solid var(--au-accent);
+  border-radius: var(--au-r-md);
+  background: var(--au-surface);
+  text-decoration: none;
+  color: inherit;
+  transition: border-color var(--au-dur-fast) var(--au-ease);
+}
+.au-atalho-tela:hover { border-color: var(--au-accent); background: var(--au-surface-sunken); }
+.au-atalho-tela-texto { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.au-atalho-tela-texto b { color: var(--au-accent-text); }
+.au-atalho-tela-texto span { font-size: var(--au-t-sm); color: var(--au-text-muted); }
+.au-atalho-tela > .au-icon { margin-left: auto; flex: none; color: var(--au-text-subtle); }
+
+/* ── O indicador principal de uma faixa ─────────────────────────
+   O NPS na tela de satisfação. Ele não é mais um número da linha: é o que dá
+   nome à tela, e ficava ausente enquanto a distribuição aparecia três vezes. */
+.au-kpi--destaque { border-color: var(--au-accent); }
+.au-kpi--destaque .au-kpi-valor { font-size: var(--au-t-2xl); color: var(--au-accent-text); }
+/* A definição ao lado do rótulo. "NPS" sozinho é sigla; com "promotores −
+   detratores" ao lado, quem nunca viu a conta não precisa procurar. */
+.au-kpi-nota {
+  display: block;
+  margin-top: 1px;
+  font-size: var(--au-t-2xs);
+  font-weight: 400;
+  letter-spacing: 0;
+  text-transform: none;
+  color: var(--au-text-subtle);
+}
+
+/* A COMPARAÇÃO COM O PERÍODO ANTERIOR — F1.
+ *
+ * Fica ACIMA dos gráficos: ela é a resposta ("melhoramos ou pioramos"), e o
+ * gráfico é a evidência. Abaixo, ela viraria uma legenda do que já passou.
+ *
+ * A cor acompanha a seta e a palavra, e nunca as substitui — subir não é bom
+ * em toda linha (custo que sobe é ruim), e por isso o verde e o vermelho aqui
+ * dizem só a DIREÇÃO. O juízo fica com quem lê.
+ */
+.au-comparacao {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--au-2);
+  margin: 0 0 var(--au-3);
+  font-size: var(--au-t-sm);
+  color: var(--au-text-muted);
+}
+.au-comparacao-variacao { font-weight: 650; font-size: var(--au-t-md); }
+.au-comparacao--subiu .au-comparacao-variacao { color: var(--au-success-text); }
+.au-comparacao--caiu  .au-comparacao-variacao { color: var(--au-danger-text); }
+
+/* A TABELA CONTÁBIL — bloco D.
+ *
+ * Ela tem cento e quarenta e nove contas possíveis em dois níveis, e a leitura
+ * depende de o olho distinguir o grupo da analítica sem contar colunas. Três
+ * recursos fazem isso, e nenhum deles é cor sozinha: peso da fonte, recuo, e o
+ * código monoespaçado alinhando os dígitos em coluna.
+ */
+.au-tabela--contabil table { font-variant-numeric: tabular-nums; }
+
+.au-contabil-grupo > th { font-weight: 650; }
+.au-contabil-grupo--alerta > th { color: var(--au-warning-text); }
+
+/* O "+" é um LINK, e precisa parecer um. Sem sublinhado porque a linha inteira
+ * é clicável e um sublinhado por linha viraria ruído em vinte e oito grupos. */
+.au-contabil-abrir {
+  display: inline-flex;
+  align-items: baseline;
+  gap: var(--au-2);
+  color: inherit;
+  text-decoration: none;
+}
+.au-contabil-abrir:hover { text-decoration: underline; }
+
+/* Largura fixa para o "+" e o "−" ocuparem o mesmo espaço: sem isso o nome do
+ * grupo desloca um pixel a cada clique, e a lista inteira parece tremer. */
+.au-contabil-sinal {
+  display: inline-block;
+  width: 1em;
+  text-align: center;
+  font-weight: 700;
+  color: var(--au-accent);
+}
+
+.au-contabil-codigo {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: var(--au-t-xs);
+  color: var(--au-text-muted);
+  margin-right: var(--au-2);
+}
+
+/* O RECUO é o que diz "esta linha pertence à de cima". Em `padding-inline-start`
+ * e não em `margin`: a célula é um `th`, e a borda dela precisa continuar
+ * alinhada com a do grupo. */
+.au-contabil-conta > th {
+  padding-inline-start: var(--au-6);
+  font-weight: 400;
+  color: var(--au-text-muted);
+}
+
+.au-contabil-total > th,
+.au-contabil-total > td {
+  font-weight: 700;
+  border-top: 2px solid var(--au-border);
+}
+
+/* OS CONTROLES da tabela contábil — D3.
+ *
+ * Acima da tabela e alinhados à direita: eles agem sobre ela, e à esquerda
+ * competiriam com o título da faixa pelo mesmo olhar.
+ */
+.au-contabil-controles {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: var(--au-2);
+  margin-bottom: var(--au-2);
+}
+
+/* O TOTAL FIXO AO ROLAR — D3, e é ele que faz a tabela ser conferível.
+ *
+ * Com "expandir tudo" a tabela passa de vinte e oito para cento e quarenta e
+ * nove linhas, e a última — o resultado — sai de vista. É contra ela que se
+ * confere o fechamento, e uma linha de total que exige rolar até o fim para
+ * cada olhada é uma linha que ninguém olha.
+ *
+ * `bottom: 0` no `tfoot` gruda no rodapé da JANELA, e não da tabela: a tabela
+ * pode ser mais alta que a tela, que é justamente o caso.
+ */
+.au-tabela--contabil tfoot th,
+.au-tabela--contabil tfoot td {
+  position: sticky;
+  bottom: 0;
+  background: var(--au-surface-raised);
+}
+
+/* A FRASE DE LEITURA de uma faixa — B2.
+ *
+ * Peso 550 e não negrito: ela é a leitura do número, e não um alerta. Em
+ * negrito competiria com o título logo acima; em peso normal se perderia entre
+ * o carimbo e o gráfico.
+ *
+ * A borda à esquerda é o que a marca como comentário sobre o bloco, e não como
+ * mais um dado dele.
+ */
+/* `au-faixa-leitura` e não `au-leitura`: aquela já existe, e é a leitura de um
+ * DOCUMENTO (`max-width: 72ch`). Reusar o nome faria esta regra vencer a de lá
+ * por vir depois no arquivo, e o corpo dos documentos mudaria de aparência sem
+ * ninguém tocar naquela tela. Foi o guarda de classe redefinida que pegou. */
+.au-faixa-leitura {
+  margin: 0 0 var(--au-3);
+  padding-left: var(--au-3);
+  border-left: 3px solid var(--au-accent-200);
+  font-size: var(--au-t-sm);
+  font-weight: 550;
+  color: var(--au-text-muted);
+}
+
+/* A CONCENTRAÇÃO — §E1, a terceira categoria da faixa de destaques.
+ *
+ * Visualmente SEPARADA dos cartões, e não é decoração: destaque e ponto de
+ * atenção são derivados de regra e ninguém os edita; a concentração é decisão
+ * humana. Na mesma lista, as três pareceriam a mesma coisa.
+ *
+ * O bloco tem borda e fundo próprios pela mesma razão que a frase de leitura
+ * tem borda à esquerda: ele é COMENTÁRIO sobre a tela, e não mais um dado dela.
+ */
+.au-concentracoes {
+  margin-top: var(--au-4);
+  padding: var(--au-3) var(--au-4);
+  background: var(--au-surface-sunken);
+  border: 1px solid var(--au-border);
+  border-radius: var(--au-r-md);
+}
+.au-concentracao-lista { list-style: none; margin: 0; padding: 0; }
+
+.au-concentracao {
+  padding: var(--au-3) 0;
+  border-bottom: 1px solid var(--au-border);
+}
+.au-concentracao:last-child { border-bottom: 0; }
+
+/* O ATRASO com barra à esquerda E o texto "venceu há N dias" no corpo — cor
+ * nunca sozinha. A barra chama o olho; a frase diz o que houve. */
+.au-concentracao--atrasada { border-left: 3px solid var(--au-danger); padding-left: var(--au-3); }
+.au-concentracao--encerrada { opacity: .75; }
+
+.au-concentracao-titulo { margin: 0 0 var(--au-1); font-weight: 600; }
+.au-concentracao-motivo { margin: 0 0 var(--au-1); color: var(--au-text-muted); font-size: var(--au-t-sm); }
+.au-concentracao-meta { margin: 0; color: var(--au-text-subtle); font-size: var(--au-t-xs); }
+
+/* O campo de resultado ao LADO do botão de encerrar, e não num segundo passo:
+ * separados, alguém encerraria e escreveria "ok" para se livrar do formulário —
+ * e o histórico viraria uma lista de datas. */
+.au-concentracao-encerrar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--au-2);
+  margin-top: var(--au-2);
+}
+.au-concentracao-encerrar .au-input { flex: 1 1 18rem; }
+
+.au-concentracao-nova > summary,
+.au-concentracao-historico > summary {
+  cursor: pointer;
+  margin-top: var(--au-3);
+  font-size: var(--au-t-sm);
+  color: var(--au-accent-text);
+}
+
+/* O PAINEL DA EMPRESA — §I1. */
+.au-painel-numeros {
+  list-style: none; margin: 0 0 var(--au-5); padding: 0;
+  display: grid; gap: var(--au-3);
+  grid-template-columns: repeat(auto-fit, minmax(11rem, 1fr));
+}
+.au-painel-numero-link {
+  display: block; padding: var(--au-3) var(--au-4);
+  background: var(--au-surface-raised);
+  border: 1px solid var(--au-border); border-radius: var(--au-r-md);
+  color: inherit; text-decoration: none;
+}
+.au-painel-numero-link:hover { border-color: var(--au-accent); }
+.au-painel-numero-valor { display: block; font-size: var(--au-t-xl); font-weight: 700; }
+.au-painel-numero-titulo { display: block; font-size: var(--au-t-sm); color: var(--au-text-muted); }
+
+/* AS DUAS comparações lado a lado, cada uma rotulada. "−3,2%" sozinho não diz
+ * contra o quê — e a resposta muda a decisão: contra o mês pode ser calendário,
+ * contra o ano é tendência. */
+.au-painel-numero-comparacoes { display: flex; gap: var(--au-3); margin-top: var(--au-2); }
+.au-painel-delta { font-size: var(--au-t-xs); font-weight: 600; }
+.au-painel-delta small { display: block; font-weight: 400; color: var(--au-text-subtle); }
+.au-painel-delta--alta { color: var(--au-success-text); }
+.au-painel-delta--baixa { color: var(--au-danger-text); }
+
+.au-painel-destaque { display: flex; align-items: center; gap: var(--au-2); margin: 0 0 var(--au-2); }
+.au-painel-clientes, .au-painel-faixas { list-style: none; margin: 0; padding: 0; }
+.au-painel-clientes li, .au-painel-faixas li {
+  padding: var(--au-2) 0; border-bottom: 1px solid var(--au-border); font-size: var(--au-t-sm);
+}
+.au-painel-tres {
+  display: grid; gap: var(--au-4);
+  grid-template-columns: repeat(auto-fit, minmax(14rem, 1fr));
+}
+.au-painel-caixa {
+  padding: var(--au-3) var(--au-4);
+  background: var(--au-surface-sunken);
+  border: 1px solid var(--au-border); border-radius: var(--au-r-md);
+}
+.au-painel-caixa p { margin: 0 0 var(--au-1); font-size: var(--au-t-sm); }
+.au-painel-fontes { margin-top: var(--au-5); }
+
+/* A safra de PERDA, distinta da de conquista — C5. Borda e não só matiz: a
+ * lista mistura `C2023` e `P2023`, e a letra sozinha exige leitura atenta de
+ * uma lista de vinte chips. */
+.au-chip--perda { border-color: var(--au-danger); }

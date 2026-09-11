@@ -23,6 +23,7 @@ from django.urls import reverse
 from identidade.tests import fabricas as f
 from workspace.graficos import formato as fmt
 from workspace.graficos import series
+from workspace.services import resultados
 
 RAIZ = Path(__file__).resolve().parent.parent.parent
 BUNDLE = RAIZ / "workspace" / "static" / "workspace" / "js" / "echarts.min.js"
@@ -62,7 +63,10 @@ def espelho(db):
             valor_mensal=Decimal("100000"),
         )
 
-    contratos = [_contrato("C-CFTV", "cftv"), _contrato("C-ALAR", "alarme")]
+    contratos = [
+        _contrato("C-MON", "monitoramento"),
+        _contrato("C-MAN", "manutencao"),
+    ]
 
     # Treze meses, para a janela ter o que estreitar.
     for atras in range(13):
@@ -89,7 +93,11 @@ def diretoria(db):
     f.lotar(pessoa, centro_custo_codigo="1042")
     f.atribuir(
         pessoa,
-        f.papel("diretoria_graficos", ["eco.ler.global"], escopo="global"),
+        f.papel(
+            "diretoria_graficos",
+            ["eco.ler.global", "eco.pessoas.global", "eco.satisfacao.global"],
+            escopo="global",
+        ),
         escopo="global",
     )
     return pessoa
@@ -189,7 +197,14 @@ def test_a_option_serializa_em_json_com_decimal_e_data(client, espelho, diretori
     assert blocos
     for corpo in blocos:
         option = json.loads(corpo)
-        assert option["dataset"]["source"]
+        # `dataset` OU `series[].data`: a série temporal e a comparada usam
+        # `dataset` com dimensões nomeadas, e a rosca, o bullet e a dispersão
+        # levam o dado no próprio item — a segunda forma é a que aceita cor e
+        # tamanho por ponto. Exigir só a primeira reprovaria os tipos novos.
+        tem_dado = bool(option.get("dataset", {}).get("source")) or any(
+            s.get("data") for s in option.get("series", [])
+        )
+        assert tem_dado, "option serializada sem dado nenhum"
 
 
 def test_o_bloco_de_dados_leva_o_nonce_da_requisicao(client, espelho, diretoria):
@@ -441,7 +456,7 @@ def test_barras_comparadas_poe_a_linha_em_eixo_proprio():
         [("01/26", Decimal("100"), Decimal("80")),
          ("02/26", Decimal("120"), Decimal("90"))],
         chave="x", titulo="t", rotulo_a="Realizado", rotulo_b="Orçado",
-        rotulo_linha="%RExOR", linha=[Decimal("125"), Decimal("133")],
+        rotulo_linha="% do orçado", linha=[Decimal("125"), Decimal("133")],
     )
 
     linha = bloco.option["series"][2]
@@ -515,7 +530,11 @@ def test_o_percentual_da_linha_nao_gira():
     linha = bloco.option["series"][2]["label"]
 
     assert "rotate" not in linha
-    assert linha["backgroundColor"] == series.COR_LINHA
+    # A ETIQUETA é mais escura que a linha, e de propósito: branco sobre
+    # `COR_LINHA` dá 3,19:1. A linha continua clara — ela é traço, não fundo
+    # de texto.
+    assert linha["backgroundColor"] == series.COR_LINHA_ETIQUETA
+    assert bloco.option["series"][2]["lineStyle"]["color"] == series.COR_LINHA
 
 
 # ── A faixa do dinheiro ─────────────────────────────────────────────
@@ -532,7 +551,7 @@ def test_a_faixa_do_dinheiro_compara_realizado_com_orcado(client, espelho, diret
     ).group(1)
     option = json.loads(corpo)
 
-    assert [s["name"] for s in option["series"]] == ["Realizado", "Orçado", "%RExOR"]
+    assert [s["name"] for s in option["series"]] == ["Realizado", "Orçado", "% do orçado"]
     assert option["series"][2]["yAxisIndex"] == 1
 
 
@@ -557,18 +576,38 @@ def test_mes_sem_orcado_nao_vira_ponto_em_zero_na_linha():
     assert fonte[1][3] is None, "sem orçado, sem ponto na linha"
 
 
-def test_o_ebitda_nao_ganha_par_inventado(client, espelho, diretoria):
-    """O espelho não traz EBITDA orçado. Inventar um denominador para ter a
-    linha seria a pior forma de completar um gráfico."""
+def test_o_par_do_ebitda_e_CALCULADO_e_nao_inventado(client, espelho, diretoria):
+    """O EBITDA ficou sem par até 10/09/2026, e a nota de então dizia por quê: o
+    espelho não trazia `ebitda_orcado`, e inventar um denominador para ter a
+    linha seria a pior forma de completar um gráfico.
+
+    A coluna chegou. O que este teste guarda agora é a outra metade da mesma
+    regra: a barra do orçado só existe quando o ESPELHO a traz — sem
+    `ebitda_orcado` na competência, o mês fica sem barra clara e sem ponto na
+    linha, e não com um zero que seria lido como "não cumpriu nada".
+    """
+    from resultados.models import CompetenciaResultado
+
     client.force_login(diretoria)
-
     html = client.get(reverse("workspace:resultados")).content.decode()
-    corpo = re.search(
-        r'id="grafico-dados-ebitda"[^>]*>(.*?)</script>', html, re.S
-    ).group(1)
-    option = json.loads(corpo)
+    option = json.loads(
+        re.search(r'id="grafico-dados-ebitda"[^>]*>(.*?)</script>', html, re.S)
+        .group(1)
+    )
 
-    assert len(option["series"]) == 1
+    assert len(option["series"]) >= 2, "com orçado no espelho, há par"
+
+    CompetenciaResultado.objects.update(ebitda_orcado=None)
+    html = client.get(reverse("workspace:resultados")).content.decode()
+    option = json.loads(
+        re.search(r'id="grafico-dados-ebitda"[^>]*>(.*?)</script>', html, re.S)
+        .group(1)
+    )
+    orcado = [
+        linha[2] for linha in option["dataset"]["source"]
+    ]
+
+    assert all(v is None for v in orcado), "sem orçado, sem barra — nunca zero"
 
 
 # ── Os filtros ──────────────────────────────────────────────────────
@@ -588,19 +627,42 @@ def test_a_janela_estreita_a_serie(client, espelho, diretoria):
         ).group(1)
         return len(json.loads(corpo)["dataset"]["source"])
 
-    assert pontos("") == 13
-    assert pontos("?janela=6") == 6
-    assert pontos("?janela=3") == 3
+    # DOZE e não treze, desde 08/09/2026. Os treze existiam para o mesmo mês do
+    # ano anterior caber na série; a comparação anual virou explícita (F1), e a
+    # série voltou a ter o tamanho que a pessoa pediu.
+    assert pontos("") == 12
+    assert pontos("?periodo=6m") == 6
+    assert pontos("?janela=3") == 3, "o nome antigo continua sendo lido"
 
 
-def test_a_janela_tem_piso_e_teto(client, espelho, diretoria):
-    """Três é o mínimo em que uma tendência existe. E `?janela=999` é uma URL
-    digitada errada, não um ataque."""
+def test_o_periodo_tem_teto_e_valor_impossivel_cai_no_padrao(client, espelho, diretoria):
+    """`?periodo=abacaxi` é uma URL digitada errada, não um ataque.
+
+    O PISO de três meses saiu daqui em 08/09/2026, e não por descuido. A regra
+    que o justificava — "abaixo de três meses o gráfico é uma comparação, e
+    comparação se lê melhor em tabela" — continua valendo, e passou a ser
+    aplicada por `so_o_mes`: no período "Mês atual" a tela mostra a TABELA do
+    mês em vez de desenhar uma barra sozinha. Ver o teste logo abaixo.
+    """
     from workspace.services import resultados as svc
 
-    assert svc.ler_filtros({"janela": "1"}).meses == 3
-    assert svc.ler_filtros({"janela": "999"}).meses == svc.MESES_DA_SERIE
-    assert svc.ler_filtros({"janela": "abacaxi"}).meses == svc.MESES_DA_SERIE
+    assert svc.ler_filtros({"periodo": "abacaxi"}).meses == 12
+    assert svc.ler_filtros({"janela": "999"}).meses == 12
+    assert svc.ler_filtros({"janela": "abacaxi"}).meses == 12
+
+
+def test_o_mes_atual_nao_desenha_uma_barra_sozinha(client, espelho, diretoria):
+    """O que substituiu o piso de três meses.
+
+    Uma barra sem vizinha não mostra tendência nenhuma e ocupa o espaço de quem
+    mostraria. `so_o_mes` é o que a tela consulta para trocar o gráfico pela
+    tabela.
+    """
+    from workspace.services import resultados as svc
+
+    assert svc.ler_filtros({"periodo": "mes"}).so_o_mes
+    assert svc.ler_filtros({"periodo": "mes"}).meses == 1
+    assert not svc.ler_filtros({"periodo": "3m"}).so_o_mes
 
 
 def test_o_filtro_de_servico_move_o_grafico_do_dinheiro(client, espelho, diretoria):
@@ -621,7 +683,7 @@ def test_o_filtro_de_servico_move_o_grafico_do_dinheiro(client, espelho, diretor
         return sum(p[1] or 0 for p in fonte)
 
     inteiro = total("")
-    recortado = total("?servico=cftv")
+    recortado = total("?servico=monitoramento")
 
     assert inteiro > 0
     assert recortado < inteiro, "o filtro não chegou ao gráfico"
@@ -629,15 +691,45 @@ def test_o_filtro_de_servico_move_o_grafico_do_dinheiro(client, espelho, diretor
 
 def test_filtro_sem_nenhum_contrato_mostra_vazio_e_nao_tudo(client, espelho, diretoria):
     """Tupla vazia em `Escopo` significa "a empresa inteira". Um filtro que não
-    casa com nada precisa dizer "nada", e não "tudo"."""
-    from workspace.services import resultados as svc
-    from workspace.providers import resultados as contrato_res
+    casa com nada precisa dizer "nada", e não "tudo".
 
-    recorte = svc._estreitar_por_atributo(
-        contrato_res.Escopo(), svc.ler_filtros({"servico": "nao-existe"})
+    Reescrito em 08/09/2026 para afirmar o RESULTADO e não o mecanismo. Ele
+    conferia `recorte.contratos == ("",)` — a sentinela que `_estreitar_por_atributo`
+    usava para o serviço. Serviço passou a filtrar em SQL, pelo próprio `Escopo`,
+    e a sentinela deixou de aparecer nesse caminho.
+
+    O mecanismo mudou; a invariante não, e é ela que este teste existe para
+    proteger. Afirmá-la pela tela cobre os DOIS caminhos — o do serviço, que
+    filtra no banco, e o do layer, que ainda traduz para lista de contratos,
+    porque layer é calculado e não tem coluna.
+    """
+    client.force_login(diretoria)
+
+    # A ÂNCORA. Sem ela este teste passaria num cenário vazio, provando apenas
+    # que nada existe — que é o modo mais silencioso de um teste deixar de
+    # testar. Ele precisa ver o número aparecer antes de exigir que suma.
+    sem_filtro = _faixa_do_dinheiro(client, "")
+    assert sem_filtro and sem_filtro.get("linhas"), (
+        "o cenário precisa ter linha para o filtro ter o que esconder"
     )
 
-    assert recorte.contratos == ("",)
+    for filtro in ("?servico=nao-existe", "?layer=nao-existe"):
+        conteudo = _faixa_do_dinheiro(client, filtro)
+        assert conteudo is None or not conteudo.get("linhas"), (
+            f"{filtro} deveria mostrar nada, e mostrou algo"
+        )
+
+
+def _faixa_do_dinheiro(client, query: str):
+    """`faixas` é uma LISTA no contexto, e não um dicionário — a ordem dela é a
+    narrativa da tela."""
+    from django.urls import reverse
+
+    resposta = client.get(reverse("workspace:resultados") + query)
+    for faixa in resposta.context["faixas"]:
+        if faixa.chave == "dinheiro":
+            return faixa.conteudo
+    return None
 
 
 def test_o_seletor_de_servico_so_oferece_o_que_existe(client, espelho, diretoria):
@@ -1014,3 +1106,496 @@ def test_a_comparada_precisa_de_menos_folga_porque_o_rotulo_vai_dentro():
 
     assert bloco.option["series"][0]["label"]["position"] == "insideBottom"
     assert 20 < bloco.option["grid"]["top"] < series.FOLGA_DO_ROTULO
+
+
+# ── As faixas 3 a 7 — passo 6 ───────────────────────────────────────
+
+
+@pytest.fixture
+def massa(db):
+    """A massa das três fontes, plantada pelo conector de CSV.
+
+    É o que responde à pergunta "não daria para fazer um dado mockado?": ele já
+    existe, e não é mock — é o ESPELHO, cheio por arquivo em vez de por API. A
+    tela lê do espelho, e o espelho não sabe quem o encheu.
+    """
+    from django.core.management import call_command
+
+    call_command("semear_fontes", "--aplicar", verbosity=0)
+    call_command("semear_resultados", "--aplicar", verbosity=0)
+
+
+def test_toda_faixa_com_dado_tem_grafico(client, massa, diretoria):
+    """Uma faixa de números sem desenho é uma tabela com título — e a onda 10
+    existe para que ela não seja isso.
+
+    AS TRÊS TELAS somadas, e não só a 10: se o teste olhasse uma só, a separação
+    de 04/09/2026 teria "consertado" a cobertura fazendo dois gráficos deixarem
+    de ser conferidos.
+    """
+    client.force_login(diretoria)
+
+    html = "".join(
+        client.get(reverse(rota)).content.decode()
+        for rota in (
+            "workspace:resultados", "workspace:quadro", "workspace:satisfacao"
+        )
+    )
+    desenhados = set(re.findall(r'data-grafico-tela="([^"]+)"', html))
+
+    for esperado in (
+        "receita", "ebitda", "perfuracao", "carteira", "mix",
+        "vencimentos", "projetos-situacao", "projetos-marcos", "satisfacao",
+    ):
+        assert esperado in desenhados, f"a faixa de {esperado} ficou sem gráfico"
+    assert 'data-mapa-calor="quadro"' in html, "o quadro de pessoas ficou sem mapa"
+
+
+def test_todo_grafico_da_tela_tem_tabela_irma(client, massa, diretoria):
+    client.force_login(diretoria)
+
+    html = client.get(reverse("workspace:resultados")).content.decode()
+
+    telas = re.findall(r'data-grafico-tela="([^"]+)"', html)
+    tabelas = re.findall(r'data-grafico-tabela="([^"]+)"', html)
+    assert set(telas) == set(tabelas)
+
+
+def test_a_dispersao_deixa_de_fora_quem_nao_tem_amostra_e_diz_quantos(
+    client, massa, diretoria
+):
+    """Um contrato que faturou uma vez apareceria no quadrante errado por falta
+    de histórico, e não por desempenho."""
+    client.force_login(diretoria)
+
+    resposta = client.get(reverse("workspace:resultados"))
+    conteudo = resposta.context["por_chave"]["contratos"].conteudo
+
+    no_grafico = len(conteudo["grafico"].linhas)
+    na_carteira = len(conteudo["carteira"])
+    assert no_grafico + conteudo["fora_do_grafico"] == na_carteira
+    if conteudo["fora_do_grafico"]:
+        assert "ficaram de fora do gráfico" in resposta.content.decode() or \
+               "ficou de fora do gráfico" in resposta.content.decode()
+
+
+def test_a_dispersao_marca_o_limiar_de_margem(client, massa, diretoria):
+    """Sem a linha, o quadrante que importa não tem fronteira visível."""
+    client.force_login(diretoria)
+
+    grafico = client.get(reverse("workspace:resultados")).context[
+        "por_chave"
+    ]["contratos"].conteudo["grafico"]
+
+    marcas = grafico.option["series"][0]["markLine"]["data"]
+    assert marcas and marcas[0]["yAxis"] == float(resultados.MARGEM_MINIMA)
+
+
+def test_o_mapa_do_quadro_inverte_os_limiares(client, massa, diretoria):
+    """Turnover de 8,4% é crítico, não excelente. Sem a inversão, quem perdeu
+    metade da equipe apareceria em verde."""
+    client.force_login(diretoria)
+
+    mapa = client.get(reverse("workspace:quadro")).context[
+        "por_chave"
+    ]["pessoas"].conteudo["mapa"]
+
+    situacoes = {c.situacao for _, celulas in mapa.linhas for c in celulas}
+    assert series.FAROL_CRITICO in situacoes, (
+        "com turnover acima de 5% em algum CC, alguma célula tem de ser crítica"
+    )
+
+
+def test_a_satisfacao_mostra_o_numero_dentro_do_segmento(client, massa, diretoria):
+    """Uma barra de 100% esconde se ela vale doze respostas ou mil — e doze é o
+    número real desta massa."""
+    client.force_login(diretoria)
+
+    grafico = client.get(reverse("workspace:satisfacao")).context[
+        "por_chave"
+    ]["satisfacao"].conteudo["grafico"]
+
+    for serie in grafico.option["series"]:
+        assert serie["label"]["position"] == "inside"
+        assert serie["data"][0]["rotulo"].isdigit()
+
+
+def test_os_projetos_ganham_dois_graficos_e_nao_um(client, massa, diretoria):
+    """A rosca responde "como está a carteira" e o bullet responde "o que vence
+    antes do quê". Espremê-las num só produziria um que não responde nenhuma."""
+    client.force_login(diretoria)
+
+    conteudo = client.get(reverse("workspace:resultados")).context[
+        "por_chave"
+    ]["projetos"].conteudo
+
+    assert conteudo["grafico"].option["series"][0]["type"] == "pie"
+    assert conteudo["grafico_marcos"].option["series"][0]["type"] == "bar"
+
+
+def test_os_vencimentos_usam_barra_porque_a_ordem_importa(client, massa, diretoria):
+    """As faixas são cumulativas no tempo. Uma rosca ordena por tamanho e perde
+    a única coisa que importa — qual vence antes."""
+    client.force_login(diretoria)
+
+    grafico = client.get(reverse("workspace:resultados")).context[
+        "por_chave"
+    ]["vencimentos"].conteudo["grafico"]
+
+    assert grafico.option["series"][0]["type"] == "bar"
+    assert [linha[0] for linha in grafico.linhas] == [
+        "até 30 dias", "até 60 dias", "até 90 dias", "até 180 dias"
+    ]
+
+
+def test_faixa_indisponivel_nao_ganha_grafico_vazio(client, diretoria):
+    """Sem espelho, a faixa diz que a fonte não está conectada — e não desenha
+    um eixo com escala inventada."""
+    from workspace.providers import resultados as contrato
+
+    guardados = dict(contrato._provedores)
+    contrato.limpar()
+    try:
+        client.force_login(diretoria)
+        # AS TRÊS TELAS: a regra "sem fonte, sem gráfico" não é da tela 10, é do
+        # produto — e as irmãs nasceram depois dela.
+        for rota, chaves in (
+            ("workspace:resultados", ("contratos", "projetos")),
+            ("workspace:quadro", ("pessoas",)),
+            ("workspace:satisfacao", ("satisfacao",)),
+        ):
+            resposta = client.get(reverse(rota))
+            assert resposta.status_code == 200
+            for chave in chaves:
+                conteudo = resposta.context["por_chave"][chave].conteudo or {}
+                assert not conteudo.get("grafico"), f"{chave} desenhou sem fonte"
+    finally:
+        contrato.limpar()
+        contrato._provedores.update(guardados)
+
+
+# ── O que se lê dentro da barra, e o que se lê no gráfico ───────────
+
+
+@pytest.mark.parametrize(
+    "fundo,esperado",
+    [
+        (series.COR_PRINCIPAL, "#ffffff"),   # navy escuro
+        (series.COR_SECUNDARIA, series.COR_ROTULO_ESCURO),  # lilás claro
+        (series.COR_NEGATIVO, "#ffffff"),
+    ],
+)
+def test_o_rotulo_dentro_da_barra_escolhe_a_cor_pelo_fundo(fundo, esperado):
+    """Branco sobre `#a0a2e1` dá 2,2:1, e o mínimo é 4,5:1.
+
+    Era branco fixo em quatro gráficos. O pedido foi "põe branco e negrito"; em
+    metade das barras isso APAGARIA o número, então o negrito entrou e o branco
+    virou "o que contrastar mais".
+    """
+    assert series.cor_do_rotulo(fundo) == esperado
+
+
+def test_todo_rotulo_dentro_de_barra_passa_no_contraste():
+    """A varredura da paleta inteira — a garantia que o teste acima não dá para
+    uma cor nova que alguém acrescente ao `_paleta`."""
+    for cor in series._paleta(5):
+        escolhida = series.cor_do_rotulo(cor)
+        claro = series._luminancia(cor)
+        escuro = series._luminancia(escolhida)
+        razao = (max(claro, escuro) + 0.05) / (min(claro, escuro) + 0.05)
+        assert razao >= 4.0, f"{escolhida} sobre {cor} dá só {razao:.2f}:1"
+
+
+def test_a_dispersao_pinta_de_vermelho_quem_esta_abaixo_do_limiar(espelho):
+    """A posição sozinha exige seguir a linha tracejada com o olho até cada
+    ponto. "Não entendi como ler" foi a resposta de quem abriu a tela."""
+    bloco = series.dispersao(
+        [("CT-1", Decimal("100"), Decimal("4"), Decimal("10")),
+         ("CT-2", Decimal("200"), Decimal("22"), Decimal("30"))],
+        chave="d", titulo="Dispersão", limiar_y=Decimal("10"),
+    )
+
+    pontos = bloco.option["series"][0]["data"]
+    assert pontos[0]["itemStyle"]["color"] == series.COR_NEGATIVO
+    assert pontos[1]["itemStyle"]["color"] == series.COR_PRINCIPAL
+
+
+def test_a_dispersao_repete_por_escrito_o_que_a_cor_diz(espelho):
+    """Cor nunca sozinha: a tabela irmã ganha a mesma coluna."""
+    bloco = series.dispersao(
+        [("CT-1", Decimal("100"), Decimal("4"), Decimal("10"))],
+        chave="d", titulo="Dispersão", limiar_y=Decimal("10"),
+    )
+
+    assert bloco.colunas[-1].titulo == "Situação"
+    assert bloco.linhas[0][-1] == "abaixo do mínimo"
+    assert "abaixo do mínimo" in bloco.option["series"][0]["data"][0]["name"]
+
+
+def test_o_tooltip_da_dispersao_traz_o_numero_ja_formatado():
+    r"""`formatter` é uma string, e o texto vem pronto do Python. Um `Intl` em JS
+    poria a regra de pt-BR num segundo lugar.
+
+    `{b}` e não `{@detalhe}`, desde 08/09/2026 — o defeito relatado era o
+    `{@detalhe}` aparecendo LITERAL na tela. A causa está provada no próprio
+    bundle: o regex `/\{@(.+?)\}/g` é usado em **um** `.replace()`, dentro de
+    `getFormattedLabel`. O caminho do tooltip é o `formatTpl`, que só conhece
+    `{a}`, `{b}`, `{c}` e `{d}` — `{@qualquer coisa}` nunca chega a ser
+    substituído ali.
+
+    `{b}` é o `name` do item, e `name` aceita qualquer string. O texto rico vai
+    ali, já formatado.
+    """
+    bloco = series.dispersao(
+        [("CT-1", Decimal("1234.5"), Decimal("8.4"), Decimal("10"))],
+        chave="d", titulo="Dispersão",
+    )
+
+    assert bloco.option["tooltip"]["formatter"] == "{b}"
+    assert "1.234,50" in bloco.option["series"][0]["data"][0]["name"]
+
+
+def test_nenhum_rotulo_de_valor_fica_em_peso_normal(client, massa, diretoria):
+    """A varredura que faltava, e que só existe porque a correção anterior foi
+    PELA METADE.
+
+    Consertei os rótulos de DENTRO da barra e declarei o assunto encerrado. Quem
+    abriu a tela respondeu que ainda havia valor em cima das colunas difícil de
+    ler — e havia, em quatro gráficos que eu não tinha olhado, porque meu
+    critério tinha sido "onde o contraste reprova" e o critério certo é "onde há
+    número para ler".
+
+    Este teste percorre a tela inteira: qualquer série nova que mostre rótulo
+    entra aqui sem ninguém precisar lembrar.
+    """
+    client.force_login(diretoria)
+
+    html = client.get(reverse("workspace:resultados")).content.decode()
+    blocos = re.findall(
+        r'type="application/json"[^>]*>(.*?)</script>', html, re.S
+    )
+    assert blocos
+
+    fracos = []
+    for corpo in blocos:
+        for serie in json.loads(corpo).get("series", []):
+            rotulo = serie.get("label") or {}
+            if not rotulo.get("show"):
+                continue
+            if rotulo.get("fontWeight") != "bold" or rotulo.get("fontSize", 0) < 10:
+                fracos.append((serie.get("name", "?"), rotulo))
+    assert not fracos, f"rótulo de valor em peso normal ou miúdo: {fracos}"
+
+
+def test_todo_rotulo_sobre_fundo_colorido_passa_no_contraste(client, massa, diretoria):
+    """Onde o rótulo tem `backgroundColor`, o par é conferido de verdade.
+
+    A etiqueta do percentual era branca sobre `#d97706` — 3,19:1, reprovada — e
+    passou despercebida porque o olho aceita laranja com branco."""
+    client.force_login(diretoria)
+
+    html = client.get(reverse("workspace:resultados")).content.decode()
+    conferidos = 0
+    for corpo in re.findall(r'type="application/json"[^>]*>(.*?)</script>', html, re.S):
+        for serie in json.loads(corpo).get("series", []):
+            rotulo = serie.get("label") or {}
+            fundo = rotulo.get("backgroundColor")
+            if not fundo:
+                continue
+            conferidos += 1
+            claro = series._luminancia(fundo)
+            escuro = series._luminancia(rotulo["color"])
+            razao = (max(claro, escuro) + 0.05) / (min(claro, escuro) + 0.05)
+            assert razao >= 4.5, (
+                f"{rotulo['color']} sobre {fundo} dá {razao:.2f}:1"
+            )
+    assert conferidos, "nenhuma etiqueta com fundo — o teste virou decoração"
+
+
+# ── A guarda do `{@}` ───────────────────────────────────────────────
+
+
+def _todos_os_blocos():
+    """Um bloco de cada tipo do catálogo, com dado de verdade.
+
+    Lista escrita à mão e não descoberta por introspecção: cada tipo tem
+    assinatura própria, e um `inspect` que chutasse argumentos produziria
+    blocos vazios — que passam em qualquer guarda sem provar nada.
+    """
+    from decimal import Decimal as D
+
+    meses = [("01/26", D("100"), D("120")), ("02/26", D("140"), D("130"))]
+    simples = [("01/26", D("100")), ("02/26", D("140"))]
+    categorias = [("CFTV", D("100")), ("Alarme", D("60"))]
+
+    return [
+        series.serie_temporal(simples, chave="a", titulo="t"),
+        series.barras_comparadas(
+            meses, chave="b", titulo="t", rotulo_a="RE", rotulo_b="OR",
+            linha=[D("83.3"), D("107.7")], rotulo_linha="%",
+        ),
+        series.cascata(categorias, chave="c", titulo="t"),
+        series.barra_composicao(categorias, chave="d", titulo="t"),
+        series.empilhada_percentual(
+            ["01/26"], [("CFTV", [D("60")]), ("Alarme", [D("40")])],
+            chave="e", titulo="t",
+        ),
+        series.rosca(categorias, chave="f", titulo="t"),
+        series.medidor(D("72"), chave="g", titulo="t"),
+        series.bullet(
+            [("CFTV", D("100"), D("120"))], chave="h", titulo="t",
+            rotulo_valor="RE", rotulo_meta="OR",
+        ),
+        series.dispersao(
+            [("CT-1", D("100"), D("4"), D("10"))],
+            chave="i", titulo="t", limiar_y=D("10"),
+        ),
+        series.barras_por_categoria(
+            [series.Ponto(rotulo=r, valor=v) for r, v in categorias],
+            chave="j", titulo="t",
+        ),
+        # Com um trimestre PARCIAL, que é o caminho em que este tipo monta o
+        # rótulo à mão — e onde um `{@}` entraria por descuido.
+        series.barras_por_ano(
+            ["T1", "T2"],
+            [("2026", [D("100"), D("60")]), ("2025", [D("90"), D("80")])],
+            chave="k", titulo="t",
+            parciais={("2026", "T2"): "parcial — 2 de 3 meses"},
+        ),
+    ]
+
+
+def _formatters(no, caminho=""):
+    """Todo `formatter` da `option`, com o caminho até ele."""
+    achados = []
+    if isinstance(no, dict):
+        for chave, valor in no.items():
+            novo = f"{caminho}.{chave}" if caminho else chave
+            if chave == "formatter" and isinstance(valor, str):
+                achados.append((novo, valor))
+            else:
+                achados.extend(_formatters(valor, novo))
+    elif isinstance(no, list):
+        for i, item in enumerate(no):
+            achados.extend(_formatters(item, f"{caminho}[{i}]"))
+    return achados
+
+
+def test_nenhum_tooltip_usa_placeholder_de_dimensao():
+    r"""`{@dimensão}` NÃO existe no caminho do tooltip — e chega à tela literal.
+
+    Provado no bundle: o regex `/\{@(.+?)\}/g` aparece em **um** `.replace()`,
+    dentro de `getFormattedLabel`. O tooltip passa por `formatTpl`, que só
+    conhece `{a}`, `{b}`, `{c}` e `{d}`.
+
+    Foi assim que `{@detalhe}` apareceu escrito no gráfico de bolhas para quem
+    abriu a tela. O erro cabe em qualquer um dos onze tipos, e por isso a guarda
+    varre o catálogo inteiro em vez de olhar só a dispersão.
+
+    Em RÓTULO `{@}` é legítimo e continua permitido — é o mesmo mecanismo que
+    põe o valor dentro da barra sem uma linha de JavaScript.
+    """
+    problemas = []
+    for bloco in _todos_os_blocos():
+        for caminho, texto in _formatters(bloco.option):
+            if "{@" in texto and "tooltip" in caminho:
+                problemas.append(f"{bloco.chave}: {caminho} = {texto!r}")
+
+    assert not problemas, "placeholder de dimensão em tooltip: " + "; ".join(problemas)
+
+
+def test_a_guarda_do_tooltip_realmente_pega():
+    """A guarda acima só vale se ela reprovar quando o defeito existe.
+
+    Sem isto, um `_formatters` que devolvesse lista vazia — por um caminho novo
+    da `option` que ele não soubesse percorrer — faria a guarda passar para
+    sempre, em silêncio.
+    """
+    falso = {"tooltip": {"formatter": "{@detalhe}"}, "series": [{"type": "scatter"}]}
+
+    achados = [
+        (c, t) for c, t in _formatters(falso) if "{@" in t and "tooltip" in c
+    ]
+
+    assert achados == [("tooltip.formatter", "{@detalhe}")]
+
+
+def test_todo_bloco_do_catalogo_entra_na_guarda():
+    """Tipo novo sem entrada em `_todos_os_blocos` sai da varredura sem avisar.
+
+    Este teste é o que faz a guarda envelhecer junto com o catálogo.
+    """
+    import inspect
+
+    publicas = {
+        nome
+        for nome, obj in inspect.getmembers(series, inspect.isfunction)
+        if obj.__module__ == series.__name__
+        and not nome.startswith("_")
+        and inspect.signature(obj).return_annotation == "Bloco"
+    }
+    # `mapa_calor_tabela` e `farol` não desenham: não têm `option`.
+    esperado = publicas - {"mapa_calor_tabela", "farol"}
+
+    assert len(_todos_os_blocos()) == len(esperado), (
+        f"o catálogo tem {len(esperado)} tipos desenháveis "
+        f"({sorted(esperado)}) e a guarda cobre {len(_todos_os_blocos())}"
+    )
+
+
+# ── A paleta: o par que se repete em toda a tela ────────────────────
+
+
+def _contraste(a: str, b: str) -> float:
+    la, lb = series._luminancia(a), series._luminancia(b)
+    maior, menor = max(la, lb), min(la, lb)
+    return (maior + 0.05) / (menor + 0.05)
+
+
+def test_realizado_e_orcado_se_separam_em_escala_de_cinza():
+    """A queixa era "a paleta é lavada", e ela estava certa: o par eram dois
+    tons do MESMO azul, com 3,79:1 entre si.
+
+    A revisão pediu "azul-aço contra âmbar". Medido, esse par dá **1,33:1** — em
+    escala de cinza as duas barras viram uma só, e a regra "cor nunca sozinha"
+    cai junto com ela. Trocar contraste de luminância por contraste de matiz
+    parece melhorar e piora.
+
+    O piso de 3,0 é o que separa duas barras vizinhas a olho e em cinza. Este
+    teste é o que impede a próxima revisão de refazer a troca.
+    """
+    razao = _contraste(series.COR_PRINCIPAL, series.COR_SECUNDARIA)
+
+    assert razao >= 3.0, (
+        f"realizado × orçado dá só {razao:.2f}:1 — em cinza viram a mesma barra"
+    )
+
+
+def test_o_par_nao_usa_verde_nem_vermelho():
+    """Reservados para bom e ruim. Usados como cor de série, perdem o
+    significado e a tela deixa de comunicar sem que nada quebre."""
+    reservadas = {series.COR_POSITIVO, series.COR_NEGATIVO}
+
+    assert series.COR_PRINCIPAL not in reservadas
+    assert series.COR_SECUNDARIA not in reservadas
+    assert series.COR_TERCIARIA not in reservadas
+
+
+def test_a_linha_da_razao_nao_e_a_cor_de_nenhuma_barra():
+    """Ela ficaria indistinguível de uma das séries.
+
+    Foi o que quase aconteceu quando o orçado virou âmbar: a linha ERA âmbar,
+    herdada de `--au-warning` — e ela nunca foi um aviso, é a razão entre as
+    duas séries, que pode ser boa ou ruim.
+    """
+    assert series.COR_LINHA != series.COR_PRINCIPAL
+    assert series.COR_LINHA != series.COR_SECUNDARIA
+    assert series.COR_LINHA != series.COR_ATENCAO, (
+        "a linha e a faixa de atenção do medidor são papéis diferentes"
+    )
+
+
+def test_a_capsula_do_percentual_e_legivel():
+    """O valor da razão não pode se perder onde o traço cruza a barra escura —
+    é a cápsula que carrega o número, e é por isso que o traço pode ceder ali."""
+    assert _contraste(series.COR_LINHA_ETIQUETA, "#ffffff") >= 7.0

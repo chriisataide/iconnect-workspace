@@ -106,29 +106,194 @@ def test_ordem_coloca_a_platform_no_fim():
 
 
 # ── O nome do produto ───────────────────────────────────────────────
+#
+# Em 12/08/2026 o produto deixou de se chamar "Portal" e virou "iConnect
+# Workspace", e havia aqui um teste proibindo a palavra "Portal" em qualquer
+# tela. Em 04/09/2026 ele voltou a ser Portal — **Portal ADB360** — por decisão
+# do dono do produto, e aquele teste passou a guardar uma decisão revogada.
+#
+# O que ficou no lugar dele é mais durável que qualquer um dos dois nomes: o
+# nome vive em `settings.PRODUTO_NOME`, e nenhum template o escreve à mão. Um
+# terceiro rebatismo é uma linha, e não outra varredura.
 
 
-def test_a_casca_diz_workspace(client):
+def test_a_casca_usa_o_nome_do_produto(client, settings):
     corpo = client.get(reverse("workspace:home")).content.decode()
 
-    assert "iConnect Workspace" in corpo
-    assert 'class="au-brand-produto">Workspace<' in corpo
+    assert f'class="au-brand-produto">{settings.PRODUTO_NOME}<' in corpo
 
 
-def test_nenhuma_tela_ainda_diz_portal(client):
-    """"Portal" é conceito morto. Sobra dele numa tela é dívida visível ao
-    usuário — e num produto que acabou de ser renomeado, é o tipo de detalhe
-    que faz a mudança parecer inacabada."""
+def test_titulo_da_aba_tem_o_produto_como_sufixo(client, settings):
+    corpo = client.get(reverse("workspace:home")).content.decode()
+
+    assert f"<title>Início · {settings.PRODUTO_NOME}</title>" in corpo
+
+
+def test_trocar_o_nome_no_settings_troca_a_tela_inteira(client, settings):
+    """O teste que guarda a fonte única.
+
+    Se alguém escrever "Portal ADB360" à mão num template novo, este teste passa
+    — mas o dia do próximo rebatismo esse template fica para trás, e ninguém
+    percebe até um usuário reparar. Trocar o valor e conferir que NADA sobrou do
+    anterior é a única forma de provar que a fonte é mesmo única.
+    """
+    settings.PRODUTO_NOME = "Nome Inventado Para O Teste"
+
     rotas = [
         reverse("workspace:home"),
         reverse("workspace:modulo", args=("rh",)),
+        reverse("workspace:servicos"),
+        # As telas de estado vazio mandam a pessoa para o `/admin/` PELO NOME,
+        # e são as que menos gente abre — o nome antigo sobreviveria aqui.
+        reverse("workspace:reservas"),
     ]
     for rota in rotas:
         corpo = client.get(rota).content.decode()
-        assert "Portal" not in corpo, f"{rota} ainda diz Portal"
+        assert "Nome Inventado Para O Teste" in corpo, f"{rota} não usa o settings"
+        assert "Portal ADB360" not in corpo, f"{rota} escreve o nome à mão"
+        assert "iConnect Workspace" not in corpo, f"{rota} ficou com o nome antigo"
 
 
-def test_titulo_da_aba_tem_o_produto_como_sufixo(client):
+def test_nenhum_template_escreve_o_nome_a_mao():
+    """A varredura que a rota não alcança.
+
+    O teste acima só vê as telas que ele visita, e uma delas depende de estado
+    vazio para renderizar. Este lê os arquivos: qualquer template com o nome
+    literal é o próximo a ficar para trás."""
+    from pathlib import Path
+
+    raiz = Path(__file__).resolve().parent.parent / "templates"
+    # Sem os `{% comment %}`: eles não chegam ao usuário, e um comentário que
+    # EXPLICA por que o nome não é escrito à mão não pode reprovar por citá-lo.
+    sem_comentario = re.compile(r"\{%\s*comment\s*%\}.*?\{%\s*endcomment\s*%\}", re.S)
+    sujos = [
+        str(arquivo.relative_to(raiz))
+        for arquivo in raiz.rglob("*.html")
+        for texto in [sem_comentario.sub("", arquivo.read_text(encoding="utf-8"))]
+        if "iConnect Workspace" in texto or "Portal ADB360" in texto
+    ]
+
+    assert not sujos, f"escrevem o nome à mão em vez de {{% produto %}}: {sujos}"
+
+
+def test_o_alt_do_logo_e_a_empresa_e_nao_o_produto(client, settings):
+    """"Portal ADB360" já está escrito ao lado, em texto. Repetir no `alt`
+    faria o leitor de tela dizer o nome duas vezes e não dizer de quem é o
+    portal — que é a única coisa que a imagem acrescenta."""
     corpo = client.get(reverse("workspace:home")).content.decode()
 
-    assert "<title>Início · iConnect Workspace</title>" in corpo
+    assert f'alt="{settings.PRODUTO_MARCA}"' in corpo
+    assert settings.PRODUTO_MARCA != settings.PRODUTO_NOME
+
+
+# ── A marca ─────────────────────────────────────────────────────────
+#
+# Logo quebrado NÃO derruba tela nenhuma: o navegador desenha o ícone de imagem
+# faltando e segue. É o tipo de defeito que sobrevive a um deploy inteiro,
+# porque quem testa olha o conteúdo e o alto da página vira paisagem.
+
+
+def _referencias_de_imagem(corpo: str) -> list[str]:
+    return re.findall(r'(?:src|href)="/static/(workspace/img/[^"]+)"', corpo)
+
+
+@pytest.mark.parametrize("rota", ["/workspace/", "/entrar/"])
+def test_toda_imagem_da_marca_existe_no_disco(client, rota):
+    from pathlib import Path
+
+    estaticos = Path(__file__).resolve().parent.parent / "static"
+    corpo = client.get(rota).content.decode()
+
+    referencias = _referencias_de_imagem(corpo)
+    assert referencias, f"{rota} não referencia imagem nenhuma da marca"
+    for caminho in referencias:
+        assert (estaticos / caminho).exists(), f"{rota} aponta para {caminho}, que não existe"
+
+
+@pytest.mark.parametrize("rota", ["/workspace/", "/entrar/"])
+def test_nenhuma_tela_ainda_carrega_a_marca_antiga(client, rota):
+    """Os arquivos da iCODEV continuam no repositório — apagar marca é decisão
+    de quem a possui, não faxina. Mas nenhuma tela pode mais carregá-los."""
+    corpo = client.get(rota).content.decode()
+
+    for caminho in _referencias_de_imagem(corpo):
+        assert "icodev" not in caminho, f"{rota} ainda carrega {caminho}"
+
+
+def test_o_favicon_e_quadrado(client):
+    """O original da ADB é 240×189. Favicon é desenhado numa caixa quadrada, e
+    quem não quadra o arquivo deixa o navegador decidir — uns esticam, outros
+    recortam, e a águia sai deformada em metade deles."""
+    from pathlib import Path
+
+    from PIL import Image
+
+    img = Path(__file__).resolve().parent.parent / "static/workspace/img"
+    for nome in ("adb-512.png", "adb-apple-touch.png", "favicon-adb.ico"):
+        largura, altura = Image.open(img / nome).size
+        assert largura == altura, f"{nome} é {largura}×{altura}, e devia ser quadrado"
+
+
+def test_o_apple_touch_nao_tem_transparencia():
+    """O iOS pinta o alfa de PRETO. A águia é vermelha, e vermelho sobre preto
+    é o contraste mais fraco que existe entre cores saturadas."""
+    from pathlib import Path
+
+    from PIL import Image
+
+    caminho = (
+        Path(__file__).resolve().parent.parent
+        / "static/workspace/img/adb-apple-touch.png"
+    )
+
+    assert Image.open(caminho).mode == "RGB", "o apple-touch precisa ser opaco"
+
+
+# ── Duas portas com o mesmo nome ────────────────────────────────────
+#
+# `/workspace/m/marketing/` mostra a fatia do catálogo — UM item — e
+# `/workspace/marketing/` mostra o radar de oportunidades, que é o que a palavra
+# significa para quem trabalha nela. O tile da home levava à quase vazia, e
+# nenhuma das duas apontava para a outra.
+#
+# Elas continuam separadas de propósito: o radar diz o que EXISTE e até quando
+# responder; o catálogo é por onde se GASTA o dinheiro depois. O que faltava era
+# o elo.
+
+
+def test_modulo_com_tela_propria_aponta_para_ela(client):
+    from workspace.modulos import MODULOS
+
+    com_tela = [m for m in MODULOS if m.tela_propria]
+    assert com_tela, "nenhum módulo declara tela própria — o elo sumiu"
+
+    for modulo in com_tela:
+        corpo = client.get(
+            reverse("workspace:modulo", args=(modulo.chave,))
+        ).content.decode()
+        assert reverse(modulo.tela_propria) in corpo, (
+            f"{modulo.chave} não aponta para a própria tela de trabalho"
+        )
+        assert modulo.tela_propria_rotulo in corpo
+
+
+def test_a_tela_propria_nao_engole_o_catalogo(client):
+    """As duas continuam existindo. Fundi-las perderia uma das perguntas."""
+    from workspace.modulos import MODULOS
+
+    marketing = next(m for m in MODULOS if m.chave == "marketing")
+
+    assert marketing.dominios, "o módulo perdeu a fatia do catálogo"
+    assert marketing.tem_catalogo
+    # `rota` SUBSTITUI o catálogo; `tela_propria` CONVIVE com ele. Confundir os
+    # dois faria o item "Evento ou patrocínio" perder a porta do departamento.
+    assert not marketing.rota
+
+
+def test_todo_modulo_com_tela_propria_tem_rotulo():
+    """Um elo sem rótulo é uma seta para lugar nenhum."""
+    from workspace.modulos import MODULOS
+
+    for modulo in MODULOS:
+        if modulo.tela_propria:
+            assert modulo.tela_propria_rotulo, f"{modulo.chave} tem elo sem rótulo"

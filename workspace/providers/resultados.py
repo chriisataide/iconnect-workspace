@@ -95,9 +95,10 @@ class CompetenciaDTO(ComProcedencia):
     mes: int = 0
     receita_bruta: Decimal = Decimal("0")
     impostos: Decimal = Decimal("0")
-    custo_direto: Decimal = Decimal("0")
+    #: `None` = DESCONHECIDO, e não zero. Ver o modelo no espelho.
+    custo_direto: Decimal | None = None
     custo_indireto: Decimal = Decimal("0")
-    margem_contribuicao: Decimal = Decimal("0")
+    margem_contribuicao: Decimal | None = None
     ebitda: Decimal = Decimal("0")
     ajuste_potencial: Decimal = Decimal("0")
     #: `None` e não `Decimal("0")`: sem orçado é diferente de orçado zero. A
@@ -105,6 +106,9 @@ class CompetenciaDTO(ComProcedencia):
     #: 100% — que é o que uma conciliação de centro de custo quebrada produz.
     receita_orcada: Decimal | None = None
     custo_orcado: Decimal | None = None
+    impostos_orcado: Decimal | None = None
+    custo_indireto_orcado: Decimal | None = None
+    ebitda_orcado: Decimal | None = None
     margem_orcada: Decimal | None = None
     contrato: str = ""
 
@@ -133,7 +137,17 @@ class ContratoDTO(ComProcedencia):
     nome_cliente: str = ""
     servico: str = ""
     centro_custo: str = ""
+    #: A UNIDADE do organograma — infraestrutura de permissão, não filtro de
+    #: tela. Ver `area` logo abaixo, e o cabeçalho de `resultados.models.Area`.
     regional: str = ""
+    #: O código da área comercial, ou `""` quando o contrato não tem uma. Vazio
+    #: é resposta legítima e aparece como "Sem área" — nunca some do total.
+    area: str = ""
+    #: O nome legível, para a tela não precisar consultar a área de novo só para
+    #: escrever "Área 03" ao lado do contrato.
+    area_nome: str = ""
+    #: O que está instalado, em texto — §H1.
+    escopo: str = ""
     inicio_vigencia: date | None = None
     fim_vigencia: date | None = None
     valor_mensal: Decimal = Decimal("0")
@@ -147,6 +161,39 @@ class ContratoDTO(ComProcedencia):
     def deficitario(self) -> bool:
         mc = self.margem_contribuicao_pct
         return mc is not None and mc < 0
+
+
+@dataclass(frozen=True)
+class ContaDTO(ComProcedencia):
+    """Uma conta, num mês, de um contrato — a linha do bloco D.
+
+    Traz o GRUPO junto (`grupo_codigo`, `grupo_nome`) em vez de deixar a tela
+    consultar o pai: a tabela agrupa por grupo, e uma consulta por linha seria
+    um N+1 de cento e quarenta e nove contas.
+    """
+
+    codigo: str = ""
+    nome: str = ""
+    grupo_codigo: str = ""
+    grupo_nome: str = ""
+    degrau: str = ""
+    natureza: str = ""
+    contrato: str = ""
+    centro_custo: str = ""
+    ano: int = 0
+    mes: int = 0
+    realizado: Decimal = Decimal("0")
+    ajustes: Decimal = Decimal("0")
+    #: `None` e não zero — sem orçado é diferente de orçado zero.
+    orcado: Decimal | None = None
+    #: `True` quando a fonte mandou um código que o plano não conhece. A linha
+    #: entra no total assim mesmo: despesa que some porque o plano está
+    #: desatualizado é o defeito que ninguém procura no lugar certo.
+    desconhecida: bool = False
+
+    @property
+    def realizado_ajustado(self) -> Decimal:
+        return self.realizado + self.ajustes
 
 
 @dataclass(frozen=True)
@@ -254,6 +301,42 @@ class AvaliacaoDTO(ComProcedencia):
 
 
 @dataclass(frozen=True)
+class EditalDTO(ComProcedencia):
+    """Um edital com proposta aberta.
+
+    `termo_casado` vem junto de propósito: a triagem por palavra é nossa, ela
+    vai errar nas primeiras semanas, e a tela é onde o comercial vê o ruído. Sem
+    este campo, "por que este edital de merenda entrou?" não tem resposta e a
+    lista de termos nunca melhora.
+    """
+
+    numero_controle: str = ""
+    objeto: str = ""
+    orgao: str = ""
+    unidade: str = ""
+    uf: str = ""
+    municipio: str = ""
+    modalidade: str = ""
+    valor_estimado: Decimal | None = None
+    encerramento: datetime | None = None
+    termo_casado: str = ""
+    link: str = ""
+
+    @property
+    def dias_para_encerrar(self) -> int | None:
+        """Quantos dias faltam. `None` quando não há prazo declarado.
+
+        É o número que ordena o radar — e o que separa "vale olhar" de "já
+        passou". Negativo quer dizer que encerrou, e a tela filtra isso.
+        """
+        if self.encerramento is None:
+            return None
+        from django.utils import timezone
+
+        return (self.encerramento.date() - timezone.localdate()).days
+
+
+@dataclass(frozen=True)
 class MovimentacaoDTO:
     """Conquistas, renovações e perdas de um período."""
 
@@ -282,13 +365,33 @@ class Escopo:
     cache na Onda 3.
     """
 
+    #: A HIERARQUIA — `regional ⊃ centro de custo ⊃ contrato`. Entre as três, a
+    #: mais específica vence; ver `_recortar` no espelho.
     regionais: tuple[str, ...] = ()
     centros_custo: tuple[str, ...] = ()
     contratos: tuple[str, ...] = ()
 
+    #: Os ATRIBUTOS, e a diferença com a hierarquia acima decide o desenho: eles
+    #: não descem um nível, eles recortam de lado. Um centro de custo pode
+    #: atender contratos de três áreas comerciais diferentes, e um contrato tem
+    #: um serviço só — nenhum dos dois CONTÉM o outro.
+    #:
+    #: Por isso entram com **E** contra o nível vencedor, e não na precedência.
+    #: Na precedência, escolher uma área substituiria o centro de custo e a
+    #: pessoa veria a lista crescer ao estreitar — que é exatamente o defeito
+    #: que o `OU` da hierarquia produzia antes da Onda 11.
+    #:
+    #: Vazio quer dizer "todas". Estes dois nunca vêm da permissão: ninguém é
+    #: lotado numa área comercial.
+    areas: tuple[str, ...] = ()
+    servicos: tuple[str, ...] = ()
+
     @property
     def tudo(self) -> bool:
-        return not (self.regionais or self.centros_custo or self.contratos)
+        return not (
+            self.regionais or self.centros_custo or self.contratos
+            or self.areas or self.servicos
+        )
 
 
 # ── Os contratos ────────────────────────────────────────────────────
@@ -308,6 +411,20 @@ class ProvedorResultadoFinanceiro(ABC):
 
     def consolidado(self, escopo, competencia: date) -> ConsolidadoDTO | None:
         return None
+
+    def por_conta(self, escopo, de: date, ate: date) -> list[ContaDTO]:
+        """O razão por conta contábil — o bloco D.
+
+        No MESMO contrato que a série, e não num provedor novo: quem responde
+        "quanto entrou" é quem responde "com o que foi gasto", e separá-los
+        permitiria que as duas respostas viessem de fontes diferentes e não
+        fechassem. Há teste conferindo que a soma daqui bate com o agregado.
+
+        Devolve `[]` por padrão: uma fonte que não expõe razão não deve ser
+        obrigada a fingir que expõe, e a tela diz o que falta em vez de mostrar
+        uma tabela vazia sem explicação.
+        """
+        return []
 
 
 class ProvedorCarteira(ABC):
@@ -362,6 +479,23 @@ class ProvedorSatisfacao(ABC):
         return []
 
 
+class ProvedorEditais(ABC):
+    """Editais públicos com proposta aberta — o radar externo.
+
+    SEM `escopo`, e é o único assim. Os outros cinco contratos recortam pelo
+    que a pessoa responde: contrato, centro de custo, regional. Um edital ainda
+    não é de ninguém — ele é uma oportunidade que a empresa pode ou não
+    disputar, e recortá-lo por centro de custo esconderia justamente o de outra
+    regional que valeria a pena.
+
+    Quem decide o recorte aqui é a TRIAGEM do conector (`PNCP_TERMOS`), e não
+    o organograma.
+    """
+
+    def editais(self, ate: date | None = None) -> list[EditalDTO]:
+        return []
+
+
 CONTRATOS: tuple[type, ...] = (
     ProvedorResultadoFinanceiro,
     ProvedorCarteira,
@@ -369,6 +503,7 @@ CONTRATOS: tuple[type, ...] = (
     ProvedorPessoas,
     ProvedorJornada,
     ProvedorSatisfacao,
+    ProvedorEditais,
 )
 
 

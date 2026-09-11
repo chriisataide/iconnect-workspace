@@ -561,3 +561,299 @@ def test_o_prazo_apertado_vira_card_urgente_na_home(cenario, client):
 
     assert card.urgente
     assert card.contagem == 1
+
+
+# ── Os editais públicos no radar ────────────────────────────────────
+#
+# Eles vêm do espelho, e NÃO viram `Oportunidade`. A razão é a que decidiu o
+# desenho inteiro: uma `Oportunidade` é registro NOSSO — alguém cadastrou,
+# alguém decidiu, e o motivo do descarte fica guardado. Um edital é registro do
+# GOVERNO. Numa tabela só, a carga da madrugada seguinte sobrescreveria o texto
+# escrito à mão, que é a única coisa que o radar guarda de verdade.
+
+
+@pytest.fixture
+def edital(db):
+    from datetime import timedelta
+
+    from django.utils import timezone
+    from resultados.models import EditalPublico
+
+    return EditalPublico.objects.create(
+        fonte="pncp",
+        chave_externa="00509968000148-1-004225/2025",
+        numero_controle="00509968000148-1-004225/2025",
+        objeto="Contratação de serviços de vigilância armada",
+        orgao="Ministério da Fazenda",
+        uf="BA",
+        municipio="Salvador",
+        valor_estimado=Decimal("5871050.16"),
+        encerramento_proposta=timezone.now() + timedelta(days=15),
+        termo_casado="vigilancia",
+        link="https://pncp.gov.br/app/editais/00509968000148/2025/4225",
+    )
+
+
+def test_o_radar_mostra_o_edital_espelhado(client, cenario, edital):
+    client.force_login(cenario["mkt"])
+
+    corpo = client.get(reverse("workspace:marketing")).content.decode()
+
+    assert "Editais públicos com proposta aberta" in corpo
+    assert "vigilância armada" in corpo
+    assert "Salvador" in corpo
+
+
+def test_o_edital_mostra_QUAL_termo_o_trouxe(client, cenario, edital):
+    """A triagem por palavra é nossa e vai errar nas primeiras semanas. Sem este
+    campo na tela, "por que este edital de merenda entrou?" não tem resposta e a
+    lista de termos nunca melhora."""
+    client.force_login(cenario["mkt"])
+
+    corpo = client.get(reverse("workspace:marketing")).content.decode()
+
+    assert "vigilancia" in corpo
+    assert edital.chave_externa in corpo, "procedência na tela"
+
+
+def test_edital_encerrado_nao_aparece(client, cenario, db):
+    """A pergunta da tela é "o que ainda dá para disputar". Um edital vencido é
+    ruído — mas a LINHA fica no espelho: apagá-la faria a mesma disputa voltar
+    do zero no ano seguinte."""
+    from datetime import timedelta
+
+    from django.utils import timezone
+    from resultados.models import EditalPublico
+
+    EditalPublico.objects.create(
+        fonte="pncp", chave_externa="x-1/2024", numero_controle="x-1/2024",
+        objeto="Vigilância que já encerrou", uf="BA",
+        encerramento_proposta=timezone.now() - timedelta(days=2),
+        termo_casado="vigilancia",
+    )
+    client.force_login(cenario["mkt"])
+
+    corpo = client.get(reverse("workspace:marketing")).content.decode()
+
+    assert "que já encerrou" not in corpo
+    assert EditalPublico.objects.count() == 1, "a linha fica no espelho"
+
+
+def test_sem_provedor_a_tela_diz_o_que_falta_e_nao_quebra(client, cenario):
+    """O radar tem vida própria sem o PNCP. Derrubar a tela porque uma fonte
+    externa não respondeu seria trocar uma faixa vazia por uma tela de erro."""
+    from workspace.providers import resultados as contrato
+
+    guardados = dict(contrato._provedores)
+    contrato.limpar()
+    try:
+        client.force_login(cenario["mkt"])
+        resposta = client.get(reverse("workspace:marketing"))
+
+        assert resposta.status_code == 200
+        assert "Nenhum edital no espelho" in resposta.content.decode()
+    finally:
+        contrato.limpar()
+        contrato._provedores.update(guardados)
+
+
+# ── O filtro do bloco de editais ────────────────────────────────────
+#
+# Ele nasceu de um número: a primeira carga real do PNCP trouxe 526 editais
+# abertos, e o bloco cortava em 40 SEM dizer. Quem lia os quarenta concluía que
+# tinha visto tudo — o pior modo de uma tela errar, porque ela não parece
+# errada.
+
+
+@pytest.fixture
+def tres_editais(db):
+    """Três estados, três termos — o mínimo para um filtro provar alguma coisa."""
+    from datetime import timedelta
+
+    from django.utils import timezone
+    from resultados.models import EditalPublico
+
+    base = timezone.now()
+    dados = (
+        ("BA", "Salvador", "vigilancia", "Vigilância armada para o campus", 1),
+        ("SP", "Santos", "cftv", "Aquisição de câmeras CFTV para o porto", 2),
+        ("SP", "Campinas", "portaria", "Limpeza, conservação e portaria", 3),
+    )
+    for i, (uf, cidade, termo, objeto, dias) in enumerate(dados):
+        EditalPublico.objects.create(
+            fonte="pncp",
+            chave_externa=f"1111111100011{i}-1-00000{i}/2026",
+            numero_controle=f"1111111100011{i}-1-00000{i}/2026",
+            objeto=objeto,
+            orgao=f"Prefeitura de {cidade}",
+            uf=uf,
+            municipio=cidade,
+            encerramento_proposta=base + timedelta(days=dias),
+            termo_casado=termo,
+        )
+
+
+def test_filtra_por_uf(client, cenario, tres_editais):
+    client.force_login(cenario["mkt"])
+
+    radar = client.get(reverse("workspace:marketing"), {"uf": "SP"}).context["editais"]
+
+    assert radar.total == 2
+    assert {e.uf for e in radar.editais} == {"SP"}
+
+
+def test_filtra_pelo_termo_que_casou(client, cenario, tres_editais):
+    """É o filtro que a poda usa: "portaria" trouxe 154 dos 526 na primeira
+    carga, e um deles era um contrato de limpeza e copeiragem."""
+    client.force_login(cenario["mkt"])
+
+    radar = client.get(
+        reverse("workspace:marketing"), {"termo": "portaria"}
+    ).context["editais"]
+
+    assert radar.total == 1
+    assert "Limpeza" in radar.editais[0].objeto
+
+
+def test_a_busca_varre_objeto_E_orgao(client, cenario, tres_editais):
+    """Duas perguntas, uma caixa. Separadas, digitar o órgão no campo do objeto
+    devolve vazio e a pessoa conclui que não há nada."""
+    client.force_login(cenario["mkt"])
+    pedir = lambda q: client.get(  # noqa: E731
+        reverse("workspace:marketing"), {"busca": q}
+    ).context["editais"]
+
+    assert pedir("câmeras").total == 1, "casou pelo objeto"
+    assert pedir("Santos").total == 1, "casou pelo órgão"
+    assert pedir("prefeitura").total == 3, "os três órgãos são prefeituras"
+    assert pedir("cameras").total == 1, "sem acento acha com acento"
+    assert pedir("VIGILÂNCIA").total == 1, "e sem depender da caixa"
+
+
+def test_os_filtros_se_somam(client, cenario, tres_editais):
+    client.force_login(cenario["mkt"])
+
+    radar = client.get(
+        reverse("workspace:marketing"), {"uf": "SP", "termo": "cftv"}
+    ).context["editais"]
+
+    assert radar.total == 1
+
+
+def test_as_opcoes_do_filtro_saem_do_espelho_e_nao_das_27_ufs(
+    client, cenario, tres_editais
+):
+    """Oferecer um estado que a carga não trouxe é oferecer um filtro que
+    devolve vazio — e a pessoa culpa a tela, não a carga."""
+    client.force_login(cenario["mkt"])
+
+    radar = client.get(reverse("workspace:marketing")).context["editais"]
+
+    assert radar.ufs == ["BA", "SP"]
+    assert radar.termos == ["cftv", "portaria", "vigilancia"]
+
+
+def test_escolher_uma_uf_nao_apaga_as_outras_da_caixa(
+    client, cenario, tres_editais
+):
+    """Se as opções saíssem do resultado filtrado, escolher "BA" deixaria só
+    "BA" na caixa — e não haveria como voltar sem editar a URL."""
+    client.force_login(cenario["mkt"])
+
+    radar = client.get(reverse("workspace:marketing"), {"uf": "BA"}).context["editais"]
+
+    assert radar.ufs == ["BA", "SP"]
+
+
+def test_o_corte_da_lista_APARECE(client, cenario, db, monkeypatch):
+    """Cortar em silêncio é pior que não listar: quem lê os que sobraram conclui
+    que viu tudo, e não há nada na tela que o contradiga."""
+    from datetime import timedelta
+
+    from django.utils import timezone
+    from resultados.models import EditalPublico
+
+    monkeypatch.setattr("workspace.services.marketing.TETO_DA_LISTA", 3)
+    base = timezone.now()
+    for i in range(5):
+        EditalPublico.objects.create(
+            fonte="pncp",
+            chave_externa=f"2222222200011{i}-1-00000{i}/2026",
+            numero_controle=f"2222222200011{i}-1-00000{i}/2026",
+            objeto="Vigilância patrimonial",
+            orgao="Prefeitura",
+            uf="BA",
+            municipio="Salvador",
+            encerramento_proposta=base + timedelta(days=i + 1),
+            termo_casado="vigilancia",
+        )
+
+    client.force_login(cenario["mkt"])
+    resposta = client.get(reverse("workspace:marketing"))
+    radar = resposta.context["editais"]
+
+    assert len(radar.editais) == 3 and radar.total == 5
+    assert radar.cortada
+    assert "de 5" in resposta.content.decode(), "o total aparece na tela"
+
+
+def test_filtro_sem_resultado_NAO_manda_conferir_a_fonte(
+    client, cenario, tres_editais
+):
+    """São dois vazios diferentes. "A carga não rodou" pede olhar a tela 99;
+    "o filtro não achou" pede afrouxar o filtro. Uma frase só para os dois manda
+    a pessoa investigar um servidor porque ela cruzou duas opções."""
+    client.force_login(cenario["mkt"])
+
+    corpo = client.get(
+        reverse("workspace:marketing"), {"uf": "BA", "termo": "cftv"}
+    ).content.decode()
+
+    assert "Nenhum edital com esse recorte" in corpo
+    assert "Nenhum edital no espelho" not in corpo
+    assert "Fontes de dados" not in corpo
+
+
+def test_filtrar_edital_nao_apaga_o_recorte_do_radar(client, cenario, tres_editais):
+    """Dois filtros na mesma tela. Um que apaga o outro faz a pessoa achar que o
+    portal esquece o que ela escolheu."""
+    client.force_login(cenario["mkt"])
+
+    corpo = client.get(
+        reverse("workspace:marketing"), {"uf": "SP", "situacao": "avaliando"}
+    ).content.decode()
+
+    assert 'name="situacao" value="avaliando"' in corpo, "o form leva a situação"
+    assert "uf=SP" in corpo, "os chips levam a UF"
+
+
+# ── O vocabulário da tela ───────────────────────────────────────────
+
+
+def test_a_tela_nao_chama_duas_coisas_diferentes_de_oportunidade(
+    client, cenario, tres_editais, db
+):
+    """A queixa que originou isto: "não vejo necessidade em marketing ter essa
+    opção", sobre o formulário de cadastro.
+
+    O formulário registra feira, congresso, patrocínio e prêmio — nenhum deles é
+    lead comercial. Ele É de marketing. O que não era de marketing era a
+    PALAVRA: a tela se chamava "Oportunidades de marketing" e o formulário
+    "Registrar oportunidade", enquanto o bloco logo abaixo passou a listar
+    editais públicos — que são oportunidade comercial de verdade. Duas coisas
+    com o mesmo nome na mesma tela, e a de cima lida com o sentido da de baixo.
+
+    Este teste segura o rótulo, e não a função: apagar o formulário levaria
+    junto o aviso de prazo, o motivo do descarte e o bloco "Precisa decidir".
+    """
+    client.force_login(cenario["mkt"])
+
+    corpo = client.get(reverse("workspace:marketing")).content.decode()
+
+    assert "Registrar evento ou patrocínio" in corpo
+    assert "Eventos e patrocínios" in corpo
+    assert "Registrar oportunidade" not in corpo
+    assert "Oportunidades de marketing" not in corpo
+    # O bloco dos editais mantém a palavra, e é o único que pode: ali ela está
+    # certa.
+    assert "Editais públicos com proposta aberta" in corpo

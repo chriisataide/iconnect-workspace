@@ -65,9 +65,52 @@
   própria tabela irmã dentro de um `<details>`: sem JavaScript o gráfico não
   existe, e é ela que continua respondendo.
 {% endcomment %}
+{% comment %}
+  A COMPARAÇÃO, POR ESCRITO — F1.
+
+  "Nunca deixar a comparação implícita." O gráfico mostra duas curvas, e duas
+  curvas não dizem DE QUANTO foi a diferença: sem o número escrito, cada pessoa
+  na reunião estima uma coisa olhando a mesma tela.
+
+  Os três números aparecem juntos — atual, anterior e variação — porque a
+  variação sozinha esconde a escala: +40% sobre um mês fraco e +40% sobre um mês
+  forte pedem decisões diferentes.
+
+  A seta acompanha a palavra, e não a substitui: cor e símbolo nunca sozinhos.
+{% endcomment %}
+{% if faixa.conteudo.comparacao %}
+  {% with c=faixa.conteudo.comparacao %}
+    <p class="au-comparacao {% if c.subiu %}au-comparacao--subiu{% else %}au-comparacao--caiu{% endif %}">
+      <span class="au-comparacao-variacao">
+        {% if c.subiu %}↑{% else %}↓{% endif %}
+        {{ c.variacao_texto }}
+      </span>
+      {% blocktrans with rotulo=c.rotulo|lower atual=c.atual_texto anterior=c.anterior_texto %}contra o {{ rotulo }} — {{ atual }} agora, {{ anterior }} antes{% endblocktrans %}
+      <small class="au-procedencia">{{ c.de|date:"m/Y" }} a {{ c.ate|date:"m/Y" }}</small>
+    </p>
+  {% endwith %}
+{% endif %}
+
 <div class="au-graficos">
   {% grafico faixa.conteudo.grafico_receita %}
+  {% comment %}
+    C2 e C3 — impostos e indireto. Entraram em 10/09/2026, quando as três
+    colunas orçadas chegaram ao espelho: antes deles a linha de "% do orçado"
+    não tinha denominador, e o gráfico saía com uma barra só.
+  {% endcomment %}
+  {% grafico faixa.conteudo.grafico_impostos %}
+  {% grafico faixa.conteudo.grafico_indireto %}
   {% grafico faixa.conteudo.grafico_ebitda %}
+
+{% comment %}
+  O COMPARATIVO TRIMESTRAL — F2. Depois do EBITDA porque ele responde outra
+  pergunta: os dois de cima são "como foi o mês"; este é "como vai o ano contra
+  o anterior". Some quando só há um ano de dado — quatro barras soltas não são
+  um comparativo.
+{% endcomment %}
+{% if faixa.conteudo.grafico_trimestral %}
+  {% grafico faixa.conteudo.grafico_trimestral %}
+{% endif %}
 </div>
 
 {% comment %}
@@ -120,8 +163,21 @@
         <th class="num">{% trans "Ajuste" %}</th>
         <th class="num">{% trans "Realizado ajustado" %}</th>
         <th class="num">{% trans "Orçado" %}</th>
-        <th class="num">{% trans "%RExOR" %}</th>
-        <th class="num">{% trans "Diferença" %}</th>
+        {% comment %}
+          Chamava-se `%RExOR` — "REalizado x ORçado", a sigla do benchmark. Ela
+          exigia um decodificador, e o "x" no meio fazia parecer MULTIPLICAÇÃO
+          quando é divisão. Alguém precisou perguntar o que a coluna era; numa
+          tela de diretoria, a pergunta não costuma ser feita — a pessoa
+          interpreta errado em silêncio.
+
+          A conta não mudou: realizado ajustado ÷ orçado × 100.
+        {% endcomment %}
+        <th class="num" title="{% trans 'Realizado ajustado dividido pelo orçado. Acima de 100% é gasto acima do previsto.' %}">
+          {% trans "% do orçado" %}
+        </th>
+        <th class="num" title="{% trans 'Realizado ajustado menos o orçado, em reais.' %}">
+          {% trans "Diferença" %}
+        </th>
       </tr>
     </thead>
     <tbody>

@@ -65,10 +65,14 @@ def test_destino_nao_configurado_nao_aparece_nem_como_em_breve(registro_limpo):
 def test_o_publico_deste_produto_esta_sempre_disponivel(registro_limpo):
     publicos.semear()
 
+    from django.conf import settings
+
     interno = publicos.de(publicos.INTERNO)
     assert interno.interno is True
     assert interno.disponivel is True
-    assert interno.nome == "Portal ADB"
+    # Do settings, e não um literal: o público interno É este produto, e o nome
+    # dele não pode ser escrito num segundo lugar.
+    assert interno.nome == settings.PRODUTO_NOME
 
 
 def test_o_interno_nao_tem_url_propria(registro_limpo):
@@ -206,14 +210,24 @@ def test_sem_destino_configurado_a_tela_de_entrar_nao_desenha_a_secao(
 def test_o_portal_do_colaborador_nao_se_lista_na_propria_porta(
     registro_limpo, client
 ):
-    """Dizer a quem já está aqui que a entrada dele é aqui não ajuda ninguém."""
+    """Dizer a quem já está aqui que a entrada dele é aqui não ajuda ninguém.
+
+    A asserção olha a LISTA, e não o corpo inteiro: o nome do público interno é
+    `settings.PRODUTO_NOME`, que aparece legitimamente no título da aba e na
+    marca da topbar. Procurar a substring no HTML todo reprovaria por causa
+    deles — foi exatamente o que aconteceu quando "Portal ADB" virou "Portal
+    ADB360".
+    """
+    from django.conf import settings
+
     publicos.semear()
     publicos.registrar(_externo())
 
-    conteudo = client.get(reverse("entrar")).content.decode()
+    resposta = client.get(reverse("entrar"))
+    listados = [p.nome for p in resposta.context["outros_publicos"]]
 
-    assert "ADB Cliente" in conteudo
-    assert "Portal ADB" not in conteudo
+    assert "ADB Cliente" in listados
+    assert settings.PRODUTO_NOME not in listados
 
 
 # ── O tile ──────────────────────────────────────────────────────────

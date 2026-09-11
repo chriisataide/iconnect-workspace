@@ -1,5 +1,5 @@
 {% extends "workspace/_shell_modulo.html" %}
-{% load i18n %}
+{% load i18n wks %}
 
 {% block titulo %}{% trans "Serviços" %}{% endblock %}
 
@@ -88,7 +88,7 @@
     <div class="au-vazio">
       <p class="au-vazio-titulo">{% trans "Nenhum serviço disponível para você." %}</p>
       <p class="au-vazio-dica">
-        {% blocktrans %}O catálogo é populado em <b>Admin › iConnect Workspace › Itens do catálogo</b>,
+        {% produto as nome_do_produto %}{% blocktrans %}O catálogo é populado em <b>Admin › {{ nome_do_produto }} › Itens do catálogo</b>,
         ou pelo comando <code>semear_catalogo</code>.{% endblocktrans %}
       </p>
     </div>

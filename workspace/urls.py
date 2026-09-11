@@ -186,6 +186,10 @@ urlpatterns = [
     path("planos/<int:pk>/fechar/", views.fechar_plano, name="fechar_plano"),
     path("excecoes/<slug:chave>/notificar/", views.notificar_excecao,
          name="notificar_excecao"),
+    # O PAINEL DA EMPRESA — §I1. Rota própria, e `/indicadores/` continua
+    # sendo o SLA de solicitações: trocar a rota daquela para dar o nome bonito
+    # a esta quebraria link, favorito e teste para ganhar uma palavra.
+    path("painel/", views.painel, name="painel"),
     path("resultados/", views.resultados, name="resultados"),
     path("resultados/pdf/", views.resultados_pdf, name="resultados_pdf"),
     # O DETALHE — mecanismo 4. Tela própria e não gaveta: uma tela tem URL, e é
@@ -194,6 +198,17 @@ urlpatterns = [
     # O contrato de dados. MESMO escopo da tela — o erro clássico é a API
     # devolver tudo enquanto a tela filtra.
     path("resultados/dados/", views.resultados_dados, name="resultados_dados"),
+    # As duas telas irmãs da 10. FORA de `resultados/` de propósito: elas não
+    # são um recorte da apresentação de resultados, são outra pergunta com outro
+    # público — e uma URL aninhada diria o contrário a quem lê o endereço.
+    path("quadro/", views.quadro, name="quadro"),
+    path("satisfacao/", views.satisfacao, name="satisfacao"),
+    # A CONCENTRAÇÃO — §E1. `POST` nas duas: `GET` faria um prefetch do
+    # navegador abrir ou encerrar um foco sozinho.
+    path("resultados/concentracao/", views.concentracao_abrir,
+         name="concentracao_abrir"),
+    path("resultados/concentracao/<int:pk>/encerrar/",
+         views.concentracao_encerrar, name="concentracao_encerrar"),
     path("resultados/fontes/", views.fontes, name="fontes"),
     path("resultados/fontes/<slug:chave>/recarregar/", views.recarregar_fonte,
          name="recarregar_fonte"),

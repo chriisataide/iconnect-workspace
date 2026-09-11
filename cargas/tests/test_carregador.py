@@ -113,7 +113,15 @@ def test_falha_no_meio_deixa_a_carga_parcial_e_o_espelho_integro(
     resultado = carregar("csv", aplicar=True)
 
     assert resultado.status == StatusCarga.PARCIAL
-    assert "caiu no meio" in resultado.erro_resumo
+    # A TELA recebe uma frase; o LOG recebe o detalhe técnico.
+    #
+    # `erro_resumo` é lido pela diretoria — `str(erro)` de um `IntegrityError`
+    # do SQLite já apareceu num cartão CRÍTICO, com nome de tabela e de coluna.
+    # O motivo da parada continua registrado, e é aqui que se confere: uma frase
+    # dizendo "o detalhe está no histórico" com o histórico vazio seria pior que
+    # o erro cru.
+    assert "no histórico desta fonte" in resultado.erro_resumo
+    assert "caiu no meio" in resultado.log
     assert set(Contrato.objects.values_list("codigo", flat=True)) == {"C-1", "C-2"}
 
 
@@ -299,3 +307,54 @@ def test_fonte_desativada_nao_carrega(fontes, conector):
 
     with pytest.raises(CargaError, match="desativada"):
         carregar("csv", aplicar=True)
+
+
+# ── O que a diretoria lê, e o que quem opera lê ─────────────────────
+
+
+def test_erro_de_banco_nao_chega_a_tela_com_nome_de_tabela(
+    fontes, conector, contrato_bruto
+):
+    """`UNIQUE constraint failed: resultados_avaliacaocliente.fonte, …`
+    apareceu num cartão CRÍTICO da tela de Satisfação do Cliente — em cima, em
+    vermelho, para a diretoria, com o nome da tabela e das colunas junto.
+
+    Duas coisas erradas de uma vez: quem lê não tem o que fazer com a frase, e
+    ela conta o esquema do banco numa tela que ninguém audita.
+    """
+    from django.db import IntegrityError
+
+    conector(
+        "csv",
+        [contrato_bruto("C-1"), contrato_bruto("C-2")],
+        quebra_em=1,
+        erro=IntegrityError(
+            "UNIQUE constraint failed: resultados_avaliacaocliente.fonte, "
+            "resultados_avaliacaocliente.chave_externa"
+        ),
+    )
+
+    resultado = carregar("csv", aplicar=True)
+
+    assert "UNIQUE constraint" not in resultado.erro_resumo
+    assert "resultados_avaliacaocliente" not in resultado.erro_resumo
+    assert "duas vezes" in resultado.erro_resumo
+    # E o detalhe continua registrado para quem opera a carga.
+    assert "UNIQUE constraint" in resultado.log
+
+
+def test_a_mensagem_de_transporte_passa_direto(fontes, conector, contrato_bruto):
+    """`TransporteError` e `FonteNaoConfigurada` já são escritas para quem lê a
+    tela. Traduzi-las de novo trocaria uma frase boa por uma genérica."""
+    from cargas.transporte import TransporteError
+
+    conector(
+        "csv",
+        [contrato_bruto("C-1"), contrato_bruto("C-2")],
+        quebra_em=1,
+        erro=TransporteError("o Sankhya não respondeu em 60 s"),
+    )
+
+    resultado = carregar("csv", aplicar=True)
+
+    assert resultado.erro_resumo == "o Sankhya não respondeu em 60 s"

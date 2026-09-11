@@ -72,9 +72,28 @@
   </div>
 
   <div class="au-colunas au-colunas--duas">
+    {% comment %}
+      O CAMPO DE ARQUIVO tinha `class="au-input"` — a classe do campo de TEXTO.
+      O resultado é uma borda de campo de texto em volta do botão nativo do
+      navegador, com altura errada e o nome do arquivo escapando da caixa: dois
+      controles empilhados onde deveria haver um.
+
+      Aqui o `<input>` fica escondido (mas focável e alcançável por teclado, via
+      `.au-sr`) e o `<label>` inteiro vira a área clicável. O nome do arquivo
+      escolhido aparece ao lado, escrito pelo JS — e sem JS o controle continua
+      funcionando, porque quem envia é o input de verdade.
+    {% endcomment %}
     <div class="au-campo">
       <label class="au-rotulo" for="imagem">{% trans "Imagem" %}</label>
-      <input class="au-input" id="imagem" name="imagem" type="file" accept="image/*">
+      <label class="au-arquivo" for="imagem">
+        <svg class="au-icon" aria-hidden="true"><use href="#i-file"></use></svg>
+        <span class="au-arquivo-acao">{% trans "Escolher imagem" %}</span>
+        <span class="au-arquivo-nome" data-vazio="{% trans 'nenhuma escolhida' %}">
+          {% trans "nenhuma escolhida" %}
+        </span>
+      </label>
+      <input class="au-sr" id="imagem" name="imagem" type="file" accept="image/*"
+             data-nome-em=".au-arquivo-nome">
       {% if publicacao.imagem %}
         <p class="au-ajuda">{% trans "Já existe uma imagem. Enviar outra substitui." %}</p>
       {% endif %}
@@ -87,7 +106,15 @@
     </div>
     <div class="au-campo">
       <label class="au-rotulo" for="anexo">{% trans "Anexo" %}</label>
-      <input class="au-input" id="anexo" name="anexo" type="file">
+      <label class="au-arquivo" for="anexo">
+        <svg class="au-icon" aria-hidden="true"><use href="#i-file"></use></svg>
+        <span class="au-arquivo-acao">{% trans "Escolher arquivo" %}</span>
+        <span class="au-arquivo-nome" data-vazio="{% trans 'nenhum escolhido' %}">
+          {% trans "nenhum escolhido" %}
+        </span>
+      </label>
+      <input class="au-sr" id="anexo" name="anexo" type="file"
+             data-nome-em=".au-arquivo-nome">
       <p class="au-ajuda">{% trans "PDF da política, ata, planilha." %}</p>
     </div>
   </div>
@@ -97,25 +124,55 @@
     lista: uma caixa de seleção vazia se lê como "ninguém marcado ainda", que é
     a leitura oposta da verdadeira.
   {% endcomment %}
+  {% comment %}
+    CAIXAS DE MARCAR, e não `<select multiple>`.
+
+    O `<select multiple>` era intransponível na prática: clicar numa opção
+    seleciona, e DESMARCAR exige Ctrl+clique (Cmd no Mac) — que ninguém
+    descobre sozinho. Quem clicasse errado não tinha como desfazer, e o
+    comunicado saía para uma unidade só sem que a pessoa entendesse por quê.
+    Foi relatado como "os comunicados não estão funcionando", e a leitura estava
+    certa: o campo de público era inoperável.
+
+    Caixa de marcar não tem esse problema: clicar marca, clicar de novo
+    desmarca, e o estado é visível sem foco. O `name` continua o mesmo, então a
+    view não muda — `request.POST.getlist("unidades")` lê os dois formatos.
+  {% endcomment %}
   <div class="au-colunas au-colunas--duas">
-    <div class="au-campo">
-      <label class="au-rotulo" for="unidades">{% trans "Unidades" %}</label>
+    <fieldset class="au-campo au-fieldset">
+      <legend class="au-rotulo">{% trans "Unidades" %}</legend>
       <p class="au-ajuda">{% trans "Nenhuma marcada = todas." %}</p>
-      <select class="au-input" id="unidades" name="unidades" multiple size="5">
+      <ul class="au-marcadores">
         {% for u in unidades %}
-          <option value="{{ u.pk }}" {% if u.pk in alvo_unidades %}selected{% endif %}>{{ u.nome }}</option>
+          <li>
+            <label class="au-marcador">
+              <input class="au-check" type="checkbox" name="unidades" value="{{ u.pk }}"
+                     {% if u.pk in alvo_unidades %}checked{% endif %}>
+              <span>{{ u.nome }}</span>
+            </label>
+          </li>
+        {% empty %}
+          <li class="au-ajuda">{% trans "Nenhuma unidade cadastrada." %}</li>
         {% endfor %}
-      </select>
-    </div>
-    <div class="au-campo">
-      <label class="au-rotulo" for="departamentos">{% trans "Departamentos" %}</label>
+      </ul>
+    </fieldset>
+    <fieldset class="au-campo au-fieldset">
+      <legend class="au-rotulo">{% trans "Departamentos" %}</legend>
       <p class="au-ajuda">{% trans "Nenhum marcado = todos." %}</p>
-      <select class="au-input" id="departamentos" name="departamentos" multiple size="5">
+      <ul class="au-marcadores">
         {% for d in departamentos %}
-          <option value="{{ d.pk }}" {% if d.pk in alvo_departamentos %}selected{% endif %}>{{ d.nome }}</option>
+          <li>
+            <label class="au-marcador">
+              <input class="au-check" type="checkbox" name="departamentos" value="{{ d.pk }}"
+                     {% if d.pk in alvo_departamentos %}checked{% endif %}>
+              <span>{{ d.nome }}</span>
+            </label>
+          </li>
+        {% empty %}
+          <li class="au-ajuda">{% trans "Nenhum departamento cadastrado." %}</li>
         {% endfor %}
-      </select>
-    </div>
+      </ul>
+    </fieldset>
   </div>
 
   <div class="au-colunas au-colunas--duas">

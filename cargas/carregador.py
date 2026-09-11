@@ -54,6 +54,7 @@ from django.db import transaction
 from django.utils import timezone
 
 from resultados.models import (
+    EditalPublico,
     Apontamento,
     AvaliacaoCliente,
     CompetenciaResultado,
@@ -61,6 +62,7 @@ from resultados.models import (
     MarcoProjeto,
     Projeto,
     QuadroPessoas,
+    ResultadoPorConta,
 )
 
 from .conectores import Janela, Registro, conector_de
@@ -79,6 +81,8 @@ ENTIDADES = {
     "quadro": QuadroPessoas,
     "apontamento": Apontamento,
     "avaliacao": AvaliacaoCliente,
+    "edital": EditalPublico,
+    "conta": ResultadoPorConta,
 }
 
 #: Como achar a linha que já existe, por entidade. É a chave de NEGÓCIO, e não
@@ -93,6 +97,16 @@ CHAVE_DE_NEGOCIO = {
     "quadro": ("centro_custo", "ano", "mes"),
     "apontamento": ("centro_custo", "ano", "mes"),
     "avaliacao": ("contrato", "data"),
+    # O número de controle do PNCP é único no país e estável no tempo — é a
+    # chave de negócio óbvia. Diferente dos outros, aqui ela COINCIDE com a
+    # `chave_externa`: só existe uma fonte para edital público, e por isso não
+    # há duas descrições da mesma linha para a precedência resolver.
+    "edital": ("numero_controle",),
+    # A linha do razão é única por contrato, mês e conta. `codigo_origem` e não
+    # `conta`: o código vem da fonte SEMPRE, e a FK pode estar nula quando o
+    # plano não conhece o código — duas linhas de contas desconhecidas
+    # diferentes colidiriam numa chave que usasse a FK.
+    "conta": ("contrato", "centro_custo", "ano", "mes", "codigo_origem"),
 }
 
 #: Campos de mecânica. Nunca vêm do conector e nunca entram no hash — se
@@ -190,6 +204,15 @@ def carregar(
             if (resultado.criados or resultado.atualizados)
             else StatusCarga.FALHA
         )
+        # O DETALHE VAI PARA O LOG ANTES de a mensagem virar frase.
+        #
+        # `_resumo` troca o erro técnico por uma frase que diz "o detalhe está no
+        # histórico desta fonte". Sem esta linha, essa frase seria mentira: o
+        # histórico ficaria vazio e a pessoa procuraria num lugar onde não há
+        # nada. Foi um teste existente que pegou — ele conferia que o motivo da
+        # parada ficava registrado, e eu tinha tirado o registro junto com o
+        # texto cru.
+        resultado.anotar(f"{type(erro).__name__}: {str(erro).strip()[:2000]}")
         resultado.erro_resumo = _resumo(erro)
         logger.warning(
             "carga %s → %s: %s", chave_fonte, resultado.status, type(erro).__name__
@@ -360,15 +383,25 @@ def _regras_de(entidade: str) -> dict[str, str]:
     }
 
 
+#: Entidades em que `contrato` faz parte da chave e pode vir VAZIO.
+#:
+#: A linha de rateio de centro de custo não pertence a cliente nenhum, e exigir
+#: contrato deixaria o rateio fora do espelho — fazendo o total do centro de
+#: custo ficar menor que a soma dos contratos dele.
+#:
+#: Conjunto e não um `if` por entidade: era um caso especial para `competencia`,
+#: e quando `conta` chegou com o mesmo formato o `if` a rejeitou em silêncio —
+#: 258 linhas de rateio recusadas com "faltam campos da chave de negócio", numa
+#: carga que continuou verde porque rejeição não é falha.
+CONTRATO_OPCIONAL = frozenset({"competencia", "conta"})
+
+
 def _filtro_de_negocio(entidade: str, dados: dict) -> dict | None:
     campos = CHAVE_DE_NEGOCIO.get(entidade, ())
     filtro = {}
     for campo in campos:
         if campo not in dados:
-            # `contrato` é opcional em `competencia` — a linha de centro de
-            # custo não tem contrato nenhum, e exigi-lo deixaria o rateio de
-            # fora do espelho.
-            if entidade == "competencia" and campo == "contrato":
+            if campo == "contrato" and entidade in CONTRATO_OPCIONAL:
                 filtro["contrato"] = None
                 continue
             return None
@@ -403,14 +436,66 @@ def _hash(dados: dict) -> str:
     return hashlib.sha256(bruto.encode("utf-8")).hexdigest()
 
 
+#: Exceção técnica → a frase que vai para a TELA.
+#:
+#: `str(erro)` de um `IntegrityError` do SQLite é
+#: `UNIQUE constraint failed: resultados_avaliacaocliente.fonte, …`. Isso
+#: apareceu num cartão CRÍTICO da tela de Satisfação do Cliente, em cima, em
+#: vermelho, para a diretoria — e o nome da tabela e das colunas junto.
+#:
+#: Duas coisas erradas de uma vez: quem lê não tem o que fazer com a frase, e
+#: ela conta o esquema do banco numa tela que ninguém audita. O comentário do
+#: campo já dizia "uma linha, para a tela"; faltava fazer valer.
+#:
+#: O DETALHE NÃO SE PERDE: ele continua inteiro em `ExecucaoCarga.log`, que é o
+#: que quem opera a carga lê. O que muda é só o que a diretoria vê.
+FRASES_POR_ERRO: tuple[tuple[str, str], ...] = (
+    (
+        "IntegrityError",
+        "A fonte mandou o mesmo registro duas vezes. O detalhe está no "
+        "histórico desta fonte.",
+    ),
+    (
+        "DataError",
+        "A fonte mandou um valor que não cabe no campo. O detalhe está no "
+        "histórico desta fonte.",
+    ),
+    (
+        "OperationalError",
+        "O banco recusou a gravação. O detalhe está no histórico desta fonte.",
+    ),
+)
+
+#: O que se diz quando não se reconhece o erro. Genérica de propósito: inventar
+#: uma causa é pior que admitir que não se sabe, e o histórico tem o resto.
+FRASE_GENERICA = (
+    "A carga não terminou. O detalhe está no histórico desta fonte."
+)
+
+
 def _resumo(erro: Exception) -> str:
-    """Uma linha, sem segredo e sem traceback.
+    """Uma linha PARA GENTE — sem segredo, sem traceback e sem SQL.
 
     A tela de fontes é visível à diretoria, e uma URL com token no
-    `erro_resumo` seria um vazamento numa tela que ninguém audita.
+    `erro_resumo` seria um vazamento numa tela que ninguém audita. O mesmo vale
+    para o nome de uma tabela e das suas colunas.
+
+    `TransporteError` e `FonteNaoConfigurada` PASSAM DIRETO: as mensagens delas
+    já são escritas para quem lê a tela ("o Sankhya não respondeu em 60 s",
+    "SANKHYA_TOKEN não está definida"). Traduzi-las de novo trocaria uma frase
+    boa por uma genérica.
     """
-    texto = str(erro).strip() or type(erro).__name__
-    return texto.splitlines()[0][:300]
+    from cargas.transporte import TransporteError
+
+    if isinstance(erro, (TransporteError, FonteNaoConfigurada)):
+        texto = str(erro).strip() or type(erro).__name__
+        return texto.splitlines()[0][:300]
+
+    nome = type(erro).__name__
+    for classe, frase in FRASES_POR_ERRO:
+        if nome == classe:
+            return frase
+    return FRASE_GENERICA
 
 
 def _fechar(execucao: ExecucaoCarga, resultado: Resultado) -> None:

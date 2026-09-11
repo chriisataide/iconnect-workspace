@@ -225,8 +225,15 @@ TELAS: tuple[Tela, ...] = (
     # O orçamento anual. `15` e não dentro de `08`: indicadores medem o
     # trabalho do produto, e orçamento é o dinheiro da empresa.
     Tela("15", "Orçamento", "workspace:orcamento"),
+    # As duas que saíram de dentro da 10 em 04/09/2026. Códigos NOVOS e não
+    # `10.1` e `10.2`: elas deixaram de ser parte da 10, e um código filho diria
+    # que ainda são. ADR-015 proíbe renumerar depois — então é melhor errar para
+    # o lado de dois códigos independentes.
+    Tela("10.1", "Painel da empresa", "workspace:painel"),
+    Tela("16", "Quadro e jornada", "workspace:quadro"),
+    Tela("17", "Satisfação do cliente", "workspace:satisfacao"),
     Tela("09", "Relatórios", "workspace:relatorios"),
-    Tela("26.1", "Oportunidades de marketing", "workspace:marketing"),
+    Tela("26.1", "Marketing", "workspace:marketing"),
     Tela("30", "Pessoas e papéis", "workspace:pessoas"),
     Tela("31", "Estoque", "workspace:estoque"),
     Tela("32", "Custódia de equipamentos", "workspace:custodia"),
