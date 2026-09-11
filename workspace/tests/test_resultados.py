@@ -72,6 +72,27 @@ def espelho(db):
     return {"sudeste": sudeste, "sul": sul}
 
 
+def test_opcoes_de_localizacao_respeitam_o_escopo(espelho):
+    from workspace.providers.resultados import Escopo
+
+    opcoes = svc._opcoes_de_atributo(Escopo(regionais=("Sudeste",)))
+
+    assert opcoes["centros_custo"] == ["1042"]
+    assert opcoes["contratos_filtro"] == [
+        {"codigo": "C-SE", "nome": "Cliente C-SE"},
+    ]
+
+
+def test_opcoes_de_localizacao_sem_provedor(monkeypatch):
+    from workspace.providers import resultados as contrato
+
+    monkeypatch.setattr(contrato, "obter", lambda tipo: None)
+    opcoes = svc._opcoes_de_atributo(contrato.Escopo())
+
+    assert opcoes["centros_custo"] == []
+    assert opcoes["contratos_filtro"] == []
+
+
 def _pessoa(apelido, permissoes, escopo="global", **lotacao):
     pessoa = f.pessoa(apelido, nome=apelido.title())
     f.lotar(pessoa, **lotacao)
@@ -82,6 +103,24 @@ def _pessoa(apelido, permissoes, escopo="global", **lotacao):
 @pytest.fixture
 def diretoria():
     return _pessoa("diretoria", ["eco.ler.global"])
+
+
+def test_filtros_oferecem_opcoes_e_preservam_selecao(client, espelho, diretoria):
+    client.force_login(diretoria)
+    resposta = client.get(reverse("workspace:resultados"), {
+        "cc": "1042", "contrato": "C-SE", "servico": "monitoramento",
+    })
+    corpo = resposta.content.decode()
+
+    assert resposta.status_code == 200
+    assert '<select class="au-input au-input--compacto" id="f-cc" name="cc">' in corpo
+    assert '<select class="au-input au-input--compacto" id="f-contrato" name="contrato">' in corpo
+    assert 'value="1042" selected' in corpo
+    assert 'value="C-SE" selected' in corpo
+    assert 'name="servico" value="monitoramento" checked' in corpo
+    # Filtrar não elimina as alternativas que permitem trocar de recorte.
+    assert 'value="2050"' in corpo
+    assert 'value="C-SU"' in corpo
 
 
 @pytest.fixture

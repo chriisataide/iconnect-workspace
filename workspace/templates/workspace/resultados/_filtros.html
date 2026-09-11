@@ -1,42 +1,9 @@
-{% load i18n %}
-{% comment %}
-  A BARRA DE FILTROS — compartilhada pelas três telas de resultado.
-
-  `com_atributos` liga o grupo "O quê" (serviço, layer, deficitários) e os
-  botões de PDF e Detalhamento. Eles são do CONTRATO: nas telas 16 e 17 não
-  há contrato por trás do número, e um filtro que não muda nada é pior que a
-  ausência dele — a pessoa escolhe, o número fica igual, e ela conclui que a
-  tela está quebrada.
-{% endcomment %}
-  {% comment %}
-    TRÊS GRUPOS, e não doze campos em fila.
-
-    Eram doze controles e cinco botões numa linha só, e a queixa foi de quem
-    olhou: "muito pouca opção de filtro" — quando havia opção demais e nenhuma
-    ordem. O problema não era a quantidade: era não haver como saber, de
-    relance, qual campo responde a qual pergunta.
-
-    Os grupos são as três perguntas que um recorte responde, nesta ordem:
-
-      QUANDO   competência e janela — o eixo do tempo
-      ONDE     regional › centro de custo › contrato — a HIERARQUIA, e a ordem
-               dos campos é a ordem em que se desce nela
-      O QUÊ    serviço, layer, deficitários — atributos, que recortam sem descer
-
-    E as AÇÕES saem da barra de filtros. "Aplicar" muda esta tela; "Apresentar",
-    "PDF" e "Detalhamento" LEVAM para outro lugar. Lado a lado, os quatro
-    pareciam quatro formas de filtrar.
-  {% endcomment %}
-  <form class="au-filtros--resultados" method="get" action="" data-limpar-vazios="1">
+{% load i18n static %}
+  <script src="{% static 'workspace/js/resultados-filtros.js' %}" defer></script>
+  <form aria-label="{% trans 'Filtros de resultados' %}" class="au-filtros--resultados" method="get" action="" data-limpar-vazios="1">
     <div class="au-filtro-grupo">
       <p class="au-filtro-grupo-titulo">{% trans "Quando" %}</p>
       <div class="au-filtro-grupo-campos">
-        {% comment %}
-          "Mês" e não "Competência": a palavra é de contabilidade, e esta barra
-          é lida por quem não é do financeiro. O parâmetro virou `?mes=`; o
-          `?competencia=` antigo continua sendo LIDO por uma versão, para não
-          quebrar link já compartilhado — ver `_mes_pedido` no serviço.
-        {% endcomment %}
         <div class="au-filtro">
           <label class="au-filtro-rotulo" for="f-mes">{% trans "Mês" %}</label>
           <select class="au-input au-input--compacto" id="f-mes" name="mes">
@@ -46,15 +13,6 @@
             {% endfor %}
           </select>
         </div>
-        {% comment %}
-          O PERÍODO nasceu de uma reclamação concreta — "os números ficam um em
-          cima do outro". Girar o rótulo resolveu metade; estreitar o período é
-          a outra metade, e é a que a pessoa controla.
-
-          Valores nomeados e não o número de meses: `?janela=9` não dizia o que
-          significava a quem lia o link, e aceitava `?janela=7` — um recorte que
-          a tela oferecia sem oferecer.
-        {% endcomment %}
         <div class="au-filtro">
           <label class="au-filtro-rotulo" for="f-periodo">{% trans "Período" %}</label>
           <select class="au-input au-input--compacto" id="f-periodo" name="periodo">
@@ -64,16 +22,6 @@
             {% endfor %}
           </select>
         </div>
-        {% comment %}
-          COMPARAR COM — F1, e separado do período de propósito.
-
-          "Quero ver seis meses" e "quero ver contra o ano passado" são duas
-          perguntas. Um seletor só para as duas obrigaria a escolher entre elas.
-
-          "Nenhum" é opção explícita e é a primeira: sem ela não haveria como
-          DESLIGAR a comparação, e comparação que não se desliga acaba ficando
-          ligada sem ninguém lembrar de a ter pedido.
-        {% endcomment %}
         {% if comparacoes %}
         <div class="au-filtro">
           <label class="au-filtro-rotulo" for="f-comparar">{% trans "Comparar com" %}</label>
@@ -94,40 +42,50 @@
         <span class="au-filtro-grupo-dica">{% trans "do mais amplo ao mais específico" %}</span>
       </p>
       <div class="au-filtro-grupo-campos">
-        {% comment %}
-          A ÁREA no lugar da Regional, e a troca não é de nome.
-
-          `regional` é o nome da UNIDADE do organograma — é por ele que a
-          permissão recorta o que um gerente enxerga (`lotacao.unidade.nome`).
-          Ele saiu da barra porque ninguém filtra digitando o nome de uma
-          unidade, e porque oferecê-lo aqui convida a trocá-lo pela área e
-          quebrar o acesso. Continua vivo como degrau da perfuração, com o
-          rótulo "Unidade".
-
-          "Área" é o conglomerado COMERCIAL, e aceita mais de uma: comparar a
-          Área 01 com a 03 é a pergunta que ela existe para responder.
-        {% endcomment %}
         <div class="au-filtro">
-          <label class="au-filtro-rotulo" for="f-area">{% trans "Área" %}</label>
-          <select class="au-input au-input--compacto" id="f-area" name="area"
-                  multiple size="4">
-            {% for a in areas %}
-              <option value="{{ a.codigo }}"
-                      {% if a.codigo in filtros.area %}selected{% endif %}>{{ a.nome }}</option>
-            {% endfor %}
-          </select>
+          <span class="au-filtro-rotulo" id="f-area-label">{% trans "Área" %}</span>
+          <details class="au-filtro-multi">
+            <summary class="au-input" aria-labelledby="f-area-label f-area-valor">
+              <span id="f-area-valor" data-resumo data-padrao="{% trans 'Todas as áreas' %}">{% if filtros.area %}{{ filtros.area|length }} {% trans "selecionada(s)" %}{% else %}{% trans "Todas as áreas" %}{% endif %}</span>
+            </summary>
+            <div class="au-filtro-multi-opcoes" role="group" aria-labelledby="f-area-label">
+              {% for a in areas %}
+                <label class="au-marcador"><input class="au-check" type="checkbox" name="area" value="{{ a.codigo }}" {% if a.codigo in filtros.area %}checked{% endif %}><span>{{ a.nome }}</span></label>
+              {% empty %}<label class="au-marcador"><input class="au-check" type="checkbox" name="area" disabled><span>{% trans "Nenhuma área disponível." %}</span></label>{% endfor %}
+            </div>
+          </details>
         </div>
         <div class="au-filtro">
           <label class="au-filtro-rotulo" for="f-cc">{% trans "Centro de custo" %}</label>
+          {% if com_atributos %}
+          <select class="au-input au-input--compacto" id="f-cc" name="cc">
+            <option value="">{% trans "Todos" %}</option>
+            {% if filtros.centro_custo %}<option value="{{ filtros.centro_custo }}" selected>{{ filtros.centro_custo }}</option>{% endif %}
+            {% for opcao in centros_custo %}
+              {% if opcao != filtros.centro_custo %}<option value="{{ opcao }}">{{ opcao }}</option>{% endif %}
+            {% endfor %}
+          </select>
+          {% else %}
           <input class="au-input au-input--compacto" id="f-cc" type="text" name="cc"
                  value="{{ filtros.centro_custo }}" maxlength="20"
                  placeholder="{% trans 'todos' %}">
+          {% endif %}
         </div>
         <div class="au-filtro">
           <label class="au-filtro-rotulo" for="f-contrato">{% trans "Contrato" %}</label>
+          {% if com_atributos %}
+          <select class="au-input au-input--compacto" id="f-contrato" name="contrato">
+            <option value="">{% trans "Todos os contratos" %}</option>
+            {% if filtros.contrato %}<option value="{{ filtros.contrato }}" selected>{{ filtros.contrato }}</option>{% endif %}
+            {% for opcao in contratos_filtro %}
+              {% if opcao.codigo != filtros.contrato %}<option value="{{ opcao.codigo }}">{{ opcao.codigo }} · {{ opcao.nome }}</option>{% endif %}
+            {% endfor %}
+          </select>
+          {% else %}
           <input class="au-input au-input--compacto" id="f-contrato" type="text" name="contrato"
                  value="{{ filtros.contrato }}" maxlength="40"
                  placeholder="{% trans 'todos' %}">
+          {% endif %}
         </div>
       </div>
     </div>
@@ -136,19 +94,18 @@
     <div class="au-filtro-grupo">
       <p class="au-filtro-grupo-titulo">{% trans "O quê" %}</p>
       <div class="au-filtro-grupo-campos">
-        {% comment %}
-          `<select>` e não texto livre: os valores vêm do espelho, e digitar
-          "monitoramento " com espaço devolvia zero linhas sem dizer por quê.
-        {% endcomment %}
         <div class="au-filtro">
-          <label class="au-filtro-rotulo" for="f-servico">{% trans "Serviço" %}</label>
-          <select class="au-input au-input--compacto" id="f-servico" name="servico"
-                  multiple size="4">
-            {% for opcao in servicos %}
-              <option value="{{ opcao }}"
-                      {% if opcao in filtros.servico %}selected{% endif %}>{{ opcao }}</option>
-            {% endfor %}
-          </select>
+          <span class="au-filtro-rotulo" id="f-servico-label">{% trans "Serviço" %}</span>
+          <details class="au-filtro-multi">
+            <summary class="au-input" aria-labelledby="f-servico-label f-servico-valor">
+              <span id="f-servico-valor" data-resumo data-padrao="{% trans 'Todos os serviços' %}">{% if filtros.servico %}{{ filtros.servico|length }} {% trans "selecionado(s)" %}{% else %}{% trans "Todos os serviços" %}{% endif %}</span>
+            </summary>
+            <div class="au-filtro-multi-opcoes" role="group" aria-labelledby="f-servico-label">
+              {% for opcao in servicos %}
+                <label class="au-marcador"><input class="au-check" type="checkbox" name="servico" value="{{ opcao }}" {% if opcao in filtros.servico %}checked{% endif %}><span>{{ opcao }}</span></label>
+              {% empty %}<p class="au-filtro-vazio">{% trans "Nenhum serviço disponível." %}</p>{% endfor %}
+            </div>
+          </details>
         </div>
         <div class="au-filtro">
           <label class="au-filtro-rotulo" for="f-layer">{% trans "Layer" %}</label>
@@ -170,22 +127,8 @@
     {% endif %}
 
     <div class="au-filtro-acoes">
-      {% comment %}
-        SEM botão de "Limpar" aqui: as tarjas já trazem "Limpar tudo", e elas só
-        aparecem quando há o que limpar. Dois lugares para a mesma ação fazem a
-        pessoa procurar qual dos dois limpa o quê.
-      {% endcomment %}
-      <button class="au-btn" type="submit">{% trans "Aplicar" %}</button>
+      <button class="au-btn au-btn--primario" type="submit">{% trans "Aplicar filtros" %}</button>
       <span class="au-filtro-acoes-divisor" aria-hidden="true"></span>
-      {% comment %}
-        Depois do divisor, o que LEVA PARA OUTRO LUGAR. "Apresentar" preserva os
-        filtros: antes ele levava só a competência, e clicar com um recorte
-        ativo trocava os números em silêncio, no caminho entre a tela e o
-        projetor.
-
-        "Detalhar" é link explícito, e nunca clique acidental no gráfico: descer
-        para as linhas é outra pergunta, não uma variação da mesma.
-      {% endcomment %}
       <a class="au-btn au-btn--fantasma" href="{{ url_apresentar }}">{% trans "Apresentar" %}</a>
       {% if com_atributos %}
         <a class="au-btn au-btn--fantasma" href="{{ url_detalhe }}">{% trans "Detalhamento" %}</a>

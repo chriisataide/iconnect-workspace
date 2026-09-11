@@ -4353,83 +4353,110 @@ tr[data-abre-resumo]:focus-visible {
 }
 .au-legenda-leitura b { color: var(--au-text); font-weight: 600; }
 
-/* ── Filtros de resultados, em três grupos ──────────────────────
-   Eram doze controles e cinco botões numa fila só. O agrupamento não reduz o
-   número de campos — reduz o que a pessoa precisa ler para achar UM deles.
-
-   `align-items: flex-start` e não `stretch`: os grupos têm alturas diferentes
-   (o "O quê" tem um checkbox no fim), e esticados eles alinham o rótulo do
-   grupo pelo topo e os campos por lugar nenhum. */
+/* Resultados: grupos alinhados e ações em uma faixa própria. */
 .au-filtros--resultados {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: flex-start;
-  gap: var(--au-4) var(--au-5);
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--au-5);
   margin: var(--au-4) 0;
-  padding: var(--au-3) var(--au-4);
-  background: var(--au-surface-sunken);
+  padding: var(--au-5);
+  background: var(--au-surface);
   border: 1px solid var(--au-border);
   border-radius: var(--au-r-md);
-
-  /* A BARRA ACOMPANHA A ROLAGEM — A6.
-   *
-   * A tela tem nove blocos; quem chega ao de vencimentos e quer estreitar o
-   * período rolava até o topo, escolhia, e a página voltava para o topo — três
-   * gestos para um filtro. Foi a mesma queixa que o trilho já rendeu ("não
-   * fique subindo para o topo toda vez").
-   *
-   * `z-index` acima do conteúdo e abaixo do cabeçalho: a barra tem de cobrir
-   * gráfico, e nunca a navegação.
-   *
-   * `background` opaco é obrigatório num elemento grudento — sem ele o gráfico
-   * passa por baixo e o texto do filtro fica ilegível sobre as barras.
-   */
   position: sticky;
   top: 0;
   z-index: 20;
 }
-
-.au-filtro-grupo { display: flex; flex-direction: column; gap: var(--au-2); }
+.au-filtro-grupo { display: flex; min-width: 0; flex-direction: column; gap: var(--au-3); }
 .au-filtro-grupo-titulo {
   display: flex;
+  flex-wrap: wrap;
   align-items: baseline;
   gap: var(--au-2);
   margin: 0;
-  font-size: var(--au-t-2xs);
-  font-weight: 700;
-  letter-spacing: .06em;
-  text-transform: uppercase;
-  color: var(--au-text-subtle);
-}
-.au-filtro-grupo-dica {
-  font-weight: 400;
-  letter-spacing: 0;
-  text-transform: none;
   font-size: var(--au-t-xs);
+  font-weight: 700;
+  color: var(--au-text);
 }
+.au-filtro-grupo-dica { font-weight: 400; color: var(--au-text-muted); }
 .au-filtro-grupo-campos {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: flex-end;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  align-items: end;
   gap: var(--au-3);
 }
-
-/* As AÇÕES vão para a direita e para a última linha. `margin-left: auto` só
-   quando há espaço; quando quebra, ela vira uma faixa própria embaixo. */
+.au-filtros--resultados .au-filtro { gap: var(--au-2); }
+.au-filtros--resultados .au-filtro-rotulo { color: var(--au-text-muted); }
+.au-filtros--resultados .au-input {
+  max-width: none;
+  width: 100%;
+  height: 40px;
+  min-height: 40px;
+  padding: 0 var(--au-3);
+  font-size: var(--au-t-sm);
+  text-overflow: ellipsis;
+}
+.au-filtros--resultados .au-filtro--check { min-height: 40px; font-size: var(--au-t-sm); }
+/* A regra móvel de seleção em lote não deve esconder os filtros. */
+.au-filtros--resultados .au-check { display: inline-block; flex-shrink: 0; }
 .au-filtro-acoes {
+  grid-column: 1 / -1;
   display: flex;
   flex-wrap: wrap;
   align-items: center;
   gap: var(--au-2);
-  margin-left: auto;
   padding-top: var(--au-4);
+  border-top: 1px solid var(--au-border);
 }
-/* O divisor separa "muda esta tela" de "leva para outro lugar". */
-.au-filtro-acoes-divisor {
-  width: 1px;
-  height: 20px;
-  margin: 0 var(--au-1);
-  background: var(--au-border-strong);
+.au-filtro-acoes-divisor { flex: 1; }
+.au-filtro-multi { position: relative; min-width: 0; }
+.au-filtro-multi summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--au-2);
+  cursor: pointer;
+  list-style: none;
+}
+.au-filtro-multi summary::-webkit-details-marker { display: none; }
+.au-filtro-multi summary::after {
+  content: "";
+  width: 7px;
+  height: 7px;
+  border-right: 2px solid currentColor;
+  border-bottom: 2px solid currentColor;
+  transform: rotate(45deg) translateY(-2px);
+  flex-shrink: 0;
+}
+.au-filtro-multi summary span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.au-filtro-multi summary:focus-visible { outline: 2px solid var(--au-accent); outline-offset: 2px; }
+.au-filtro-multi[open] { z-index: 2; }
+.au-filtro-multi-opcoes {
+  position: absolute;
+  top: calc(100% + var(--au-1));
+  left: 0;
+  width: 100%;
+  min-width: 12rem;
+  max-height: 240px;
+  overflow-y: auto;
+  padding: var(--au-2);
+  background: var(--au-surface);
+  border: 1px solid var(--au-border-strong);
+  border-radius: var(--au-r-sm);
+  box-shadow: 0 4px 12px rgb(0 0 0 / .1);
+}
+.au-filtro-multi-opcoes .au-marcador { min-height: 36px; overflow-wrap: anywhere; font-size: var(--au-t-sm); }
+.au-filtro-vazio { margin: var(--au-2); color: var(--au-text-muted); font-size: var(--au-t-sm); }
+@media (max-width: 1200px) {
+  .au-filtros--resultados { grid-template-columns: minmax(0, 1fr); position: relative; }
+}
+@media (max-width: 600px) {
+  .au-filtros--resultados { padding: var(--au-4); gap: var(--au-4); }
+  .au-filtro-grupo-campos { grid-template-columns: minmax(0, 1fr); }
+  .au-filtro-acoes-divisor { display: none; }
+  .au-filtro-acoes .au-btn { flex: 1 1 auto; }
+  .au-filtro-acoes .au-btn--primario { flex-basis: 100%; }
+  .au-filtro-multi-opcoes { min-width: 0; }
 }
 
 /* ── Público-alvo em caixas de marcar ───────────────────────────

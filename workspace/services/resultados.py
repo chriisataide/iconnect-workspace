@@ -3272,7 +3272,7 @@ def _pessoas_lotadas():
 
 
 def _opcoes_de_atributo(escopo: contrato.Escopo) -> dict:
-    """As áreas e os serviços que a pessoa ALCANÇA — não os que ela já filtrou.
+    """Opções de área, serviço e localização que a pessoa alcança antes dos filtros.
 
     ## Por que do escopo, e não das faixas já montadas
 
@@ -3293,7 +3293,7 @@ def _opcoes_de_atributo(escopo: contrato.Escopo) -> dict:
     """
     provedor = contrato.obter(contrato.ProvedorCarteira)
     if provedor is None:
-        return {"servicos": [], "areas": []}
+        return {"servicos": [], "areas": [], "centros_custo": [], "contratos_filtro": []}
 
     # A HIERARQUIA fica; os dois atributos saem. É o que a permissão permite,
     # antes de os filtros de leitura recortarem.
@@ -3325,6 +3325,12 @@ def _opcoes_de_atributo(escopo: contrato.Escopo) -> dict:
     return {
         "servicos": sorted({c.servico for c in carteira if c.servico}),
         "areas": ordenadas,
+        "centros_custo": sorted({c.centro_custo for c in carteira if c.centro_custo}),
+        "contratos_filtro": [
+            {"codigo": codigo, "nome": nome}
+            for codigo, nome in sorted({c.codigo: c.nome_cliente for c in carteira}.items())
+            if codigo
+        ],
     }
 
 
