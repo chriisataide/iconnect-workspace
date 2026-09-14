@@ -44,6 +44,7 @@ from workspace.providers.frescor import NATIVO
 from workspace.graficos import formato as fmt
 from workspace.models.concentracao import OrigemConcentracao
 from workspace.services import frescor as frs
+from workspace.services.contabil_detalhes import enriquecer as enriquecer_contabil
 
 logger = logging.getLogger("workspace")
 
@@ -1231,11 +1232,20 @@ def contabil(escopo: contrato.Escopo, filtros: Filtros) -> Faixa:
 
     receita_liquida = _receita_liquida(linhas)
     sem_custo = _contratos_sem_custo(provedor, escopo, inicio, filtros)
+    grupos = _agrupar_por_conta(linhas, receita_liquida, filtros)
+    totais = _totais_contabeis(linhas, receita_liquida)
+    mes_anterior = _recuar(inicio, 1)
+    anteriores = (
+        provedor.por_conta(escopo, mes_anterior, inicio - timedelta(days=1))
+        if any(g["aberto"] for g in grupos) else []
+    )
+    enriquecer_contabil(grupos, totais, linhas, anteriores, _sinal)
     faixa.conteudo = {
         "sem_custo": sem_custo,
         "cascata": cascata_da_dre(linhas, filtros, receita_liquida),
-        "grupos": _agrupar_por_conta(linhas, receita_liquida, filtros),
-        "totais": _totais_contabeis(linhas, receita_liquida),
+        "grupos": grupos,
+        "totais": totais,
+        "mes_anterior": mes_anterior,
         "receita_liquida": receita_liquida,
         "expandidos": filtros.expandidos,
         "modo": filtros.numeros,

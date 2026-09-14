@@ -80,6 +80,12 @@
   aqui seria um segundo lugar onde a exportação pode divergir do que a tela
   mostra.
 {% endcomment %}
+<p class="au-ajuda">
+  {% trans "Fonte" %}: {{ faixa.conteudo.totais.analise.fontes|join:", "|default:"Não informada" }} ·
+  {% trans "Última carga recebida" %}: {% if faixa.conteudo.totais.analise.ultima_carga %}{{ faixa.conteudo.totais.analise.ultima_carga|date:"d/m/Y H:i" }}{% else %}{% trans "Não informada" %}{% endif %}.
+  {% if faixa.conteudo.totais.analise.cargas_incompletas %}{% trans "Há registros sem data de carga." %}{% endif %}
+  {% if faixa.conteudo.totais.analise.primeira_carga != faixa.conteudo.totais.analise.ultima_carga %}{% trans "Carga mais antiga" %}: {{ faixa.conteudo.totais.analise.primeira_carga|date:"d/m/Y H:i" }}.{% endif %}
+</p>
 <div class="au-contabil-controles">
   <a class="au-btn au-btn--fantasma" href="{{ faixa.conteudo.url_modo }}">
     {{ faixa.conteudo.rotulo_do_outro_modo }}
@@ -101,10 +107,10 @@
         <th scope="col">{% trans "Conta" %}</th>
         <th scope="col" class="num">{% trans "Realizado" %}</th>
         <th scope="col" class="num">{% trans "Ajustes" %}</th>
-        <th scope="col" class="num">{% trans "RE ajustado" %}</th>
+        <th scope="col" class="num">{% trans "Realizado ajustado" %}</th>
         <th scope="col" class="num">{% trans "Orçado" %}</th>
-        <th scope="col" class="num">{% trans "% do orçado" %}</th>
-        <th scope="col" class="num">{% trans "Folga" %}</th>
+        <th scope="col" class="num">{% trans "Desvio (%)" %}</th>
+        <th scope="col" class="num">{% trans "Desvio (R$)" %}</th>
         <th scope="col" class="num">{% trans "% da receita líquida" %}</th>
       </tr>
     </thead>
@@ -120,15 +126,15 @@
             </a>
           </th>
           <td class="num">{% if faixa.conteudo.percentual %}{% if grupo.pct_realizado is not None %}{{ grupo.pct_realizado|numero:1 }}%{% else %}—{% endif %}{% else %}{% if grupo.realizado is not None %}{{ grupo.realizado|moeda }}{% else %}—{% endif %}{% endif %}</td>
-          <td class="num">{% if faixa.conteudo.percentual %}{% if grupo.pct_ajustes is not None %}{{ grupo.pct_ajustes|numero:1 }}%{% else %}—{% endif %}{% else %}{% if grupo.ajustes %}{{ grupo.ajustes|moeda }}{% else %}—{% endif %}{% endif %}</td>
+          <td class="num">{% if faixa.conteudo.percentual %}{% if faixa.conteudo.receita_liquida %}{{ grupo.pct_ajustes|default_if_none:0|numero:1 }}%{% else %}—{% endif %}{% else %}{% if grupo.ajustes is not None %}{{ grupo.ajustes|moeda }}{% else %}—{% endif %}{% endif %}</td>
           <td class="num">{% if faixa.conteudo.percentual %}{% if grupo.pct_ajustado is not None %}{{ grupo.pct_ajustado|numero:1 }}%{% else %}—{% endif %}{% else %}{% if grupo.realizado_ajustado is not None %}{{ grupo.realizado_ajustado|moeda }}{% else %}—{% endif %}{% endif %}</td>
           <td class="num">{% if faixa.conteudo.percentual %}{% if grupo.pct_orcado is not None %}{{ grupo.pct_orcado|numero:1 }}%{% else %}—{% endif %}{% else %}{% if grupo.orcado is not None %}{{ grupo.orcado|moeda }}{% else %}—{% endif %}{% endif %}</td>
-          <td class="num">{% if grupo.pct_re_or is not None %}{{ grupo.pct_re_or|numero:1 }}%{% else %}—{% endif %}</td>
-          <td class="num">{% if faixa.conteudo.percentual %}{% if grupo.pct_folga is not None %}{{ grupo.pct_folga|numero:1 }}%{% else %}—{% endif %}{% else %}{% if grupo.dif_or_re is not None %}{{ grupo.dif_or_re|moeda }}{% else %}—{% endif %}{% endif %}</td>
+          {% include "workspace/resultados/_contabil_desvio.html" with analise=grupo.analise %}
           <td class="num">{% if grupo.pct_da_receita is not None %}{{ grupo.pct_da_receita|numero:1 }}%{% else %}—{% endif %}</td>
         </tr>
 
         {% if grupo.aberto %}
+          <tr><td colspan="8">{% include "workspace/resultados/_contabil_detalhes.html" with analise=grupo.analise detalhe_id=grupo.codigo %}</td></tr>
           {% for conta in grupo.contas %}
             <tr class="au-contabil-conta">
               <th scope="row">
@@ -136,13 +142,13 @@
                 {{ conta.nome }}
               </th>
               <td class="num">{% if faixa.conteudo.percentual %}{% if conta.pct_realizado is not None %}{{ conta.pct_realizado|numero:1 }}%{% else %}—{% endif %}{% else %}{% if conta.realizado is not None %}{{ conta.realizado|moeda }}{% else %}—{% endif %}{% endif %}</td>
-              <td class="num">{% if faixa.conteudo.percentual %}{% if conta.pct_ajustes is not None %}{{ conta.pct_ajustes|numero:1 }}%{% else %}—{% endif %}{% else %}{% if conta.ajustes %}{{ conta.ajustes|moeda }}{% else %}—{% endif %}{% endif %}</td>
+              <td class="num">{% if faixa.conteudo.percentual %}{% if faixa.conteudo.receita_liquida %}{{ conta.pct_ajustes|default_if_none:0|numero:1 }}%{% else %}—{% endif %}{% else %}{% if conta.ajustes is not None %}{{ conta.ajustes|moeda }}{% else %}—{% endif %}{% endif %}</td>
               <td class="num">{% if faixa.conteudo.percentual %}{% if conta.pct_ajustado is not None %}{{ conta.pct_ajustado|numero:1 }}%{% else %}—{% endif %}{% else %}{% if conta.realizado_ajustado is not None %}{{ conta.realizado_ajustado|moeda }}{% else %}—{% endif %}{% endif %}</td>
               <td class="num">{% if faixa.conteudo.percentual %}{% if conta.pct_orcado is not None %}{{ conta.pct_orcado|numero:1 }}%{% else %}—{% endif %}{% else %}{% if conta.orcado is not None %}{{ conta.orcado|moeda }}{% else %}—{% endif %}{% endif %}</td>
-              <td class="num">{% if conta.pct_re_or is not None %}{{ conta.pct_re_or|numero:1 }}%{% else %}—{% endif %}</td>
-              <td class="num">{% if faixa.conteudo.percentual %}{% if conta.pct_folga is not None %}{{ conta.pct_folga|numero:1 }}%{% else %}—{% endif %}{% else %}{% if conta.dif_or_re is not None %}{{ conta.dif_or_re|moeda }}{% else %}—{% endif %}{% endif %}</td>
+          {% include "workspace/resultados/_contabil_desvio.html" with analise=conta.analise %}
               <td class="num">{% if conta.pct_da_receita is not None %}{{ conta.pct_da_receita|numero:1 }}%{% else %}—{% endif %}</td>
             </tr>
+            <tr><td colspan="8"><details class="au-contabil-conta-detalhes" data-resultados-detalhe="conta-{{ conta.codigo }}"><summary>{% trans "Analisar conta" %} {{ conta.codigo }} — {{ conta.nome }}</summary>{% include "workspace/resultados/_contabil_detalhes.html" with analise=conta.analise detalhe_id=conta.codigo %}</details></td></tr>
           {% endfor %}
         {% endif %}
       {% endfor %}
@@ -156,12 +162,11 @@
       <tr class="au-contabil-total">
         <th scope="row">{% trans "Total" %}</th>
         <td class="num">{% if faixa.conteudo.percentual %}{% if faixa.conteudo.totais.pct_realizado is not None %}{{ faixa.conteudo.totais.pct_realizado|numero:1 }}%{% else %}—{% endif %}{% else %}{{ faixa.conteudo.totais.realizado|moeda }}{% endif %}</td>
-        <td class="num">{% if faixa.conteudo.totais.ajustes %}{{ faixa.conteudo.totais.ajustes|moeda }}{% else %}—{% endif %}</td>
+        <td class="num">{% if faixa.conteudo.percentual %}{% if faixa.conteudo.receita_liquida %}{{ faixa.conteudo.totais.pct_ajustes|default_if_none:0|numero:1 }}%{% else %}—{% endif %}{% else %}{{ faixa.conteudo.totais.ajustes|moeda }}{% endif %}</td>
         <td class="num">{% if faixa.conteudo.percentual %}{% if faixa.conteudo.totais.pct_ajustado is not None %}{{ faixa.conteudo.totais.pct_ajustado|numero:1 }}%{% else %}—{% endif %}{% else %}{{ faixa.conteudo.totais.realizado_ajustado|moeda }}{% endif %}</td>
-        <td class="num">{% if faixa.conteudo.totais.orcado is not None %}{{ faixa.conteudo.totais.orcado|moeda }}{% else %}—{% endif %}</td>
-        <td class="num">{% if faixa.conteudo.totais.pct_re_or is not None %}{{ faixa.conteudo.totais.pct_re_or|numero:1 }}%{% else %}—{% endif %}</td>
-        <td class="num">{% if faixa.conteudo.totais.dif_or_re is not None %}{{ faixa.conteudo.totais.dif_or_re|moeda }}{% else %}—{% endif %}</td>
-        <td class="num">{% if faixa.conteudo.percentual %}100,0%{% else %}—{% endif %}</td>
+        <td class="num">{% if faixa.conteudo.percentual %}{% if faixa.conteudo.totais.pct_orcado is not None %}{{ faixa.conteudo.totais.pct_orcado|numero:1 }}%{% else %}—{% endif %}{% else %}{% if faixa.conteudo.totais.orcado is not None %}{{ faixa.conteudo.totais.orcado|moeda }}{% else %}—{% endif %}{% endif %}</td>
+          {% include "workspace/resultados/_contabil_desvio.html" with analise=faixa.conteudo.totais.analise %}
+        <td class="num">{% if faixa.conteudo.totais.pct_da_receita is not None %}{{ faixa.conteudo.totais.pct_da_receita|numero:1 }}%{% else %}—{% endif %}</td>
       </tr>
     </tfoot>
   </table>
@@ -170,3 +175,4 @@
 <p class="au-ajuda">
   {% blocktrans with rl=faixa.conteudo.receita_liquida|moeda %}A coluna "% da receita líquida" usa {{ rl }} como base — receita bruta menos impostos, do mês.{% endblocktrans %}
 </p>
+<p class="au-ajuda">{% trans "Desvio = realizado ajustado − orçado; positivo melhora o resultado e negativo piora. O percentual divide o desvio pelo valor absoluto do orçamento. Desvio e detalhes permanecem em reais nos dois modos. Orçamento parcial não gera comparação. Zero é um valor informado; — indica dado ou base de cálculo indisponível." %}</p>

@@ -4609,6 +4609,39 @@ tr[data-abre-resumo]:focus-visible {
 
 .au-contabil-grupo > th { font-weight: 650; }
 .au-contabil-grupo--alerta > th { color: var(--au-warning-text); }
+.au-contabil-status {
+  display: block;
+  margin-top: var(--au-1);
+  font-size: var(--au-t-xs);
+  font-weight: 550;
+  color: var(--au-text-muted);
+}
+.au-contabil-status--favoravel { color: var(--au-success-text); }
+.au-contabil-status--desfavoravel { color: var(--au-danger-text); }
+.au-contabil-detalhes {
+  display: grid;
+  gap: var(--au-4);
+  padding: var(--au-4);
+  background: var(--au-surface-sunken);
+  white-space: normal;
+  text-align: left;
+  font-size: var(--au-t-sm);
+}
+.au-contabil-detalhes h4 { margin: 0 0 var(--au-2); }
+.au-contabil-detalhes p { margin: var(--au-2) 0; }
+.au-contabil-detalhes summary,
+.au-contabil-conta-detalhes > summary { cursor: pointer; font-weight: 550; }
+.au-contabil-conta-detalhes { text-align: left; white-space: normal; }
+.au-contabil-composicao { margin: var(--au-3) 0 0; padding: 0; list-style: none; }
+.au-contabil-composicao li {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--au-4);
+  padding: var(--au-2) 0;
+  border-bottom: 1px solid var(--au-border);
+}
+.au-contabil-composicao span { overflow-wrap: anywhere; }
+.au-contabil-composicao strong { white-space: nowrap; }
 
 /* O "+" é um LINK, e precisa parecer um. Sem sublinhado porque a linha inteira
  * é clicável e um sublinhado por linha viraria ruído em vinte e oito grupos. */

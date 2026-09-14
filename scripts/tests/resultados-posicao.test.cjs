@@ -7,12 +7,12 @@ const script = fs.readFileSync(path.join(__dirname, '../../workspace/static/work
 const chave = 'workspace:resultados:posicao';
 const base = 'https://workspace.test/workspace/resultados/';
 
-function pagina({ storage = new Map(), href = base, tipo = 'navigate', state = null, bloqueado = false, ancoraExiste = true, tabelaX = 0 } = {}) {
+function pagina({ storage = new Map(), href = base, tipo = 'navigate', state = null, bloqueado = false, ancoraExiste = true, tabelaX = 0, detalhes = [] } = {}) {
   const eventos = {}, janela = {}, scrolls = [];
   const ancora = { id: 'conta-41101', getBoundingClientRect: () => ({ top: 360 }), focus: () => {} };
   const root = { querySelectorAll: () => ancoraExiste ? [ancora] : [], contains: () => true };
   // Os seletores de tabelas alternativas não devem devolver linhas contábeis.
-  root.querySelectorAll = selector => selector === '[data-grafico-tabela]' ? [] : (ancoraExiste ? [ancora] : []);
+  root.querySelectorAll = selector => selector === '[data-grafico-tabela], [data-resultados-detalhe]' ? detalhes : (ancoraExiste ? [ancora] : []);
   const tabela = { scrollLeft: tabelaX };
   const history = { state, replaceState(value) { this.state = value; } };
   const context = {
@@ -110,4 +110,14 @@ test('rolagem horizontal é salva antes de sair e restaurada após refresh', () 
   const nova = pagina({ tipo: 'reload', state: atual.history.state });
   nova.janela.pageshow({ persisted: false });
   assert.equal(nova.tabela.scrollLeft, 300);
+});
+
+test('detalhes contábeis abertos são restaurados antes da posição', () => {
+  const atual = pagina({ detalhes: [{ dataset: { resultadosDetalhe: '41101-composicao' }, open: true }] });
+  atual.eventos.toggle({ target: {} });
+  const detalhe = { dataset: { resultadosDetalhe: '41101-composicao' }, open: false };
+  const nova = pagina({ tipo: 'reload', state: atual.history.state, detalhes: [detalhe] });
+  nova.janela.pageshow({ persisted: false });
+  assert.equal(detalhe.open, true);
+  assert.equal(nova.scrolls[0].top, 4000);
 });

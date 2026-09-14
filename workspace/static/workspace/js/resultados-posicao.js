@@ -19,8 +19,8 @@
     }
     var tabela = document.getElementById('contabil-tabela');
     var abertas = {};
-    pagina.querySelectorAll('[data-grafico-tabela]').forEach(function (item) {
-      abertas[item.dataset.graficoTabela] = item.open;
+    pagina.querySelectorAll('[data-grafico-tabela], [data-resultados-detalhe]').forEach(function (item) {
+      abertas[item.dataset.graficoTabela || item.dataset.resultadosDetalhe] = item.open;
     });
     return {
       x: window.scrollX, y: window.scrollY,
@@ -81,6 +81,10 @@
     } catch (erro) { /* Histórico indisponível: mantém o comportamento nativo. */ }
   }
   window.addEventListener('pagehide', guardarHistorico);
+  // Abrir um detalhe pode não rolar a página; salve antes de um refresh.
+  document.addEventListener('toggle', function (event) {
+    if (pagina.contains(event.target)) guardarHistorico();
+  }, true);
   // No retorno pelo bfcache, pagehide pode chegar tarde para atualizar a entrada.
   // Captura também a rolagem horizontal dos contêineres, sem gravar a cada pixel.
   var quadroPendente = false;
@@ -99,8 +103,9 @@
     if (event.persisted || !restaurar) return;
     var posicao = restaurar;
     restaurar = null;
-    pagina.querySelectorAll('[data-grafico-tabela]').forEach(function (item) {
-      if (Object.hasOwn(posicao.abertas || {}, item.dataset.graficoTabela)) item.open = posicao.abertas[item.dataset.graficoTabela];
+    pagina.querySelectorAll('[data-grafico-tabela], [data-resultados-detalhe]').forEach(function (item) {
+      var id = item.dataset.graficoTabela || item.dataset.resultadosDetalhe;
+      if (Object.hasOwn(posicao.abertas || {}, id)) item.open = posicao.abertas[id];
     });
     requestAnimationFrame(function () {
       if (navegando) return;

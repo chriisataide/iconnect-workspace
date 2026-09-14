@@ -1,0 +1,35 @@
+{% load i18n wks %}
+<div class="au-contabil-detalhes">
+  <div>
+    <h4>{% trans "Comparação mensal" %}</h4>
+    {% if analise.anterior is not None %}
+      <p>{{ faixa.conteudo.mes_anterior|date:"m/Y" }}: <strong>{{ analise.anterior|moeda }}</strong></p>
+      <p>{% trans "Variação no resultado ajustado" %}: <strong>{{ analise.variacao|moeda }}</strong>
+        {% if analise.variacao_pct is not None %}({{ analise.variacao_pct|numero:1 }}%){% else %}— {% trans "base anterior igual a zero" %}{% endif %}.</p>
+      <p class="au-ajuda">{% trans "Valores dos registros disponíveis em cada mês, no mesmo recorte. Mudanças de composição também afetam a variação." %}</p>
+    {% else %}
+      <p class="au-ajuda">{% trans "Sem registros no mês anterior para este recorte. Ausência de dados não significa valor zero." %}</p>
+    {% endif %}
+  </div>
+  <details data-resultados-detalhe="{{ detalhe_id }}-composicao">
+    <summary>{% trans "Composição por contrato e centro de custo" %} ({{ analise.composicao|length }})</summary>
+    <ul class="au-contabil-composicao">
+      {% for item in analise.composicao %}
+        <li><span>{% if item.contrato %}{% trans "Contrato" %} {{ item.contrato }}{% else %}{% trans "Sem contrato vinculado" %}{% endif %} · {% trans "CC" %} {{ item.centro_custo|default:"Não informado" }}</span><strong>{{ item.valor|moeda }}</strong></li>
+      {% endfor %}
+    </ul>
+  </details>
+  <details data-resultados-detalhe="{{ detalhe_id }}-ajustes">
+    <summary>{% trans "Origem dos ajustes" %} ({{ analise.ajustes|length }})</summary>
+    {% if analise.ajustes %}
+      <p class="au-ajuda">{% trans "A fonte fornece o valor agregado do ajuste por conta. Autor, data do ajuste e justificativa não foram informados; a data de carga abaixo indica apenas quando o registro chegou ao sistema." %}</p>
+      <ul class="au-contabil-composicao">
+        {% for item in analise.ajustes %}
+          <li><span>{% trans "Conta" %} {{ item.codigo }} · {% trans "Contrato" %} {{ item.contrato|default:"Não vinculado" }} · {% trans "CC" %} {{ item.centro_custo|default:"Não informado" }}<br>
+            {{ item.procedencia.fonte|default:"Fonte não informada" }} · {% trans "Referência" %}: {{ item.procedencia.chave_externa|default:"Não informada" }}<br>
+            {% trans "Carga" %}: {% if item.procedencia.carregado_em %}{{ item.procedencia.carregado_em|date:"d/m/Y H:i" }}{% else %}{% trans "Não informada" %}{% endif %}</span><strong>{{ item.valor|moeda }}</strong></li>
+        {% endfor %}
+      </ul>
+    {% else %}<p class="au-ajuda">{% trans "Nenhum ajuste com valor diferente de zero nos registros deste recorte." %}</p>{% endif %}
+  </details>
+</div>
