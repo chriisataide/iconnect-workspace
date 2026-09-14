@@ -1,81 +1,22 @@
 {% load i18n wks %}
-{% comment %}
-  OS DESTAQUES E AS FAIXAS — compartilhados pelas TRÊS telas de resultado.
-
-  A 10 traz quatro faixas, a 16 traz uma e a 17 traz outra. O que elas fazem
-  com uma faixa é idêntico: cabeçalho com carimbo de procedência, estado
-  vazio que explica o que falta, e o parcial certo para a chave.
-
-  Em três arquivos, a terceira semana traria uma delas com um carimbo
-  diferente — e carimbo é justamente o que não pode divergir entre telas que
-  leem o mesmo espelho.
-{% endcomment %}
-{% comment %} ── FAIXA 1 · Destaques ───────────────────────────────── {% endcomment %}
 <section class="au-secao-faixa" aria-labelledby="destaques">
-  <header class="au-secao-faixa-cabeca">
-    <h2 class="au-secao-titulo" id="destaques">{{ destaques.titulo }}</h2>
-  </header>
-  {% if destaques.disponivel %}
-    {% comment %}
-      O VALOR domina o cartão, e o título vira legenda dele. Era o contrário:
-      os três textos tinham peso parecido, e o número — que é a razão de o
-      cartão existir — se perdia entre eles.
-
-      A severidade aparece por SELO ESCRITO, e não só pela borda colorida de
-      3px. "Crítico" e "atenção" pedem ações diferentes: o primeiro diz que os
-      números abaixo estão velhos, o segundo aponta um número que merece
-      conversa. Distinguidos só pela cor da borda, os dois eram lidos igual —
-      e a regra do produto é que cor nunca vem sozinha.
-    {% endcomment %}
-    <ul class="au-destaques">
-      {% for cartao in destaques.conteudo.cartoes %}
-        <li class="au-destaque au-destaque--{{ cartao.severidade }}">
-          <a class="au-destaque-link" href="#{{ cartao.ancora }}"
-             {% if cartao.explicacao %}title="{{ cartao.explicacao }}"{% endif %}>
-            <span class="au-destaque-topo">
-              {% comment %}
-                O SELO ESCRITO, e não só a borda colorida — cor nunca sozinha.
-
-                Três palavras desde 09/09/2026: "destaque" entrou com a
-                categoria positiva (§E1). Até então todo cartão era um
-                problema, e a faixa se chamava "Destaques e pontos de atenção"
-                mostrando só a segunda metade do nome.
-              {% endcomment %}
-              <span class="au-destaque-selo">
-                {% if cartao.severidade == "critico" %}{% trans "crítico" %}
-                {% elif cartao.severidade == "bom" %}{% trans "destaque" %}
-                {% else %}{% trans "atenção" %}{% endif %}
-              </span>
-              <span class="au-destaque-ir" aria-hidden="true">↓</span>
-            </span>
-            <span class="au-destaque-valor">{{ cartao.valor }}</span>
-            <span class="au-destaque-titulo">{{ cartao.titulo }}</span>
-            {% if cartao.detalhe %}<span class="au-destaque-detalhe">{{ cartao.detalhe }}</span>{% endif %}
-          </a>
-        </li>
-      {% endfor %}
-    </ul>
-  {% else %}
-    <div class="au-vazio">
-      <p class="au-vazio-titulo">{% trans "Nada exigindo atenção." %}</p>
-      <p class="au-vazio-dica">{{ destaques.motivo }}</p>
+  <header class="au-secao-faixa-cabeca"><h2 class="au-secao-titulo" id="destaques">{% trans "Resumo e prioridades" %}</h2></header>
+  {% for grupo in grupos_resumo %}
+    <div class="au-resumo-grupo">
+      <h3>{{ grupo.titulo }} <small>({{ grupo.itens|length }})</small></h3>
+      <p class="au-ajuda">{{ grupo.descricao }}</p>
+      <ul class="au-resumo-lista">
+        {% for item in grupo.itens|slice:":3" %}{% include "workspace/resultados/_resumo_linha.html" %}{% empty %}<li class="au-ajuda">{% trans "Nenhum sinal identificado pelas regras neste período." %}</li>{% endfor %}
+      </ul>
+      {% if grupo.itens|length > 3 %}
+        <details class="au-resultados-consulta" data-resultados-detalhe="resumo-{{ forloop.counter }}"><summary>{% trans "Ver todos" %} ({{ grupo.itens|length }})</summary>
+          <ul class="au-resumo-lista">{% for item in grupo.itens|slice:"3:" %}{% include "workspace/resultados/_resumo_linha.html" %}{% endfor %}</ul>
+        </details>
+      {% endif %}
     </div>
-  {% endif %}
-
-  {% comment %}
-    A CONCENTRAÇÃO fica FORA do `if` dos cartões, e a diferença não é de layout.
-
-    Os cartões são derivados de regra: sem regra disparando, não há cartão. A
-    concentração é decisão humana, e ela existe independentemente de o mês estar
-    tranquilo — aliás, é justamente no mês tranquilo que ela mais importa, porque
-    é quando dá para atacar o que se decidiu em vez de apagar incêndio.
-
-    Dentro do `if`, a lista de foco da diretoria sumiria da tela toda vez que
-    nenhuma regra automática disparasse.
-  {% endcomment %}
+  {% endfor %}
   {% include "workspace/resultados/_concentracao.html" %}
 </section>
-
 {% for faixa in faixas %}
   <section class="au-secao-faixa" aria-labelledby="{{ faixa.chave }}">
     {% include "workspace/_faixa_cabeca.html" with faixa=faixa %}
@@ -107,5 +48,10 @@
       {% include "workspace/resultados/_satisfacao.html" with faixa=faixa %}
     {% endif %}
   </section>
+  {% if faixa.chave == "contabil" and por_chave.contratos %}
+    {% include "workspace/resultados/_rentabilidade.html" with faixa=por_chave.contratos %}
+  {% endif %}
 {% endfor %}
 
+
+<script src="{% estatico 'workspace/js/resultados-resumo.js' %}" defer></script>

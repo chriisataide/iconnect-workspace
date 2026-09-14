@@ -72,6 +72,9 @@
         if (typeof destino === "string" && destino.charAt(0) === "/") {
           // Só caminho relativo deste produto. Uma URL absoluta vinda de dado
           // seria um redirecionamento aberto com passos extras.
+          tela.dispatchEvent(new CustomEvent('resultados:navegar', {
+            bubbles: true, detail: { destino: destino }
+          }));
           window.location.assign(destino);
         }
       });

@@ -20,7 +20,7 @@ abre a tela, e uma lista de foco que qualquer um edita deixa de ser foco.
 
 from __future__ import annotations
 
-from django.db import transaction
+from django.db import IntegrityError, transaction
 from django.utils import timezone
 
 from identidade.services.autorizacao import pode
@@ -42,6 +42,17 @@ class ConcentracaoError(Exception):
 
 def pode_concentrar(pessoa, cache: dict | None = None) -> bool:
     return bool(pode(pessoa, PERMISSAO, cache=cache))
+
+
+def atualizar_passo(concentracao, pessoa, proximo_passo, cache=None):
+    if not pode_concentrar(pessoa, cache=cache):
+        raise ConcentracaoError("Você não tem permissão para atualizar concentrações.")
+    passo = (proximo_passo or "").strip()
+    if not passo or len(passo) > 500:
+        raise ConcentracaoError("Informe o próximo passo, com até 500 caracteres.")
+    alteradas = Concentracao.objects.abertas().filter(pk=concentracao.pk).update(proximo_passo=passo)
+    if not alteradas:
+        raise ConcentracaoError("Esta concentração já foi encerrada.")
 
 
 def abertas():
@@ -81,6 +92,8 @@ def abrir(
     motivo: str,
     responsavel,
     prazo=None,
+    proximo_passo: str = "",
+    alerta_chave: str = "",
     cache: dict | None = None,
 ) -> Concentracao:
     """Marca um foco do período.
@@ -109,13 +122,18 @@ def abrir(
     if responsavel is None:
         raise ConcentracaoError("Toda concentração tem um responsável.")
 
+    alerta_chave = (alerta_chave or "").strip()[:64]
+    if alerta_chave:
+        existente = Concentracao.objects.abertas().filter(alerta_chave=alerta_chave).first()
+        if existente:
+            return existente
     if Concentracao.objects.abertas().count() >= MAXIMO_ABERTAS:
         raise ConcentracaoError(
             f"Já há {MAXIMO_ABERTAS} concentrações abertas. Encerre uma antes "
             "de abrir outra — uma lista de quinze focos não é foco."
         )
 
-    return Concentracao.objects.create(
+    campos = dict(
         origem_tipo=origem_tipo,
         origem_ref=origem_ref.strip()[:60],
         titulo=titulo[:200],
@@ -123,7 +141,18 @@ def abrir(
         responsavel=responsavel,
         prazo=prazo,
         aberta_por=pessoa,
+        proximo_passo=(proximo_passo or "").strip()[:500],
+        alerta_chave=alerta_chave,
     )
+    try:
+        with transaction.atomic():
+            return Concentracao.objects.create(**campos)
+    except IntegrityError:
+        if alerta_chave:
+            existente = Concentracao.objects.abertas().filter(alerta_chave=alerta_chave).first()
+            if existente:
+                return existente
+        raise
 
 
 @transaction.atomic

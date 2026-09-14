@@ -43,7 +43,7 @@ from .orcamento import (
 from .planos import fechar_plano, plano, plano_novo, planos
 from .painel_empresa import painel
 from .resultados import (
-    concentracao_abrir, concentracao_encerrar,
+    concentracao_abrir, concentracao_encerrar, concentracao_atualizar,
     fontes, quadro, recarregar_fonte, resultados, resultados_dados,
     resultados_detalhe, resultados_pdf, satisfacao,
 )
@@ -182,6 +182,7 @@ __all__ = [
     "painel",
     "concentracao_abrir",
     "concentracao_encerrar",
+    "concentracao_atualizar",
     "resultados_pdf",
     "confirmar_leitura",
     "cancelar_solicitacao",

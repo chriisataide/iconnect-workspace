@@ -1068,7 +1068,7 @@ def rosca(
                     # legenda embaixo não diz quanto.
                     "label": {
                         "show": True,
-                        "formatter": "{b}\\n{d}%",
+                        "formatter": "{b}\n{d}%",
                         "fontSize": 11,
                         "fontWeight": "bold",
                         "color": COR_ROTULO_ESCURO,

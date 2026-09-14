@@ -1,0 +1,14 @@
+{% load i18n wks %}
+<td class="num">
+  {% if analise.desvio_pct is not None %}{{ analise.desvio_pct|numero:1 }}%{% else %}<span title="{% trans 'Percentual indisponível: orçamento ausente, incompleto ou igual a zero.' %}">—</span>{% endif %}
+</td>
+<td class="num">
+  {% if analise.desvio is not None %}
+    {{ analise.desvio|moeda }}
+    {% if not resumido %}<span class="au-contabil-status au-contabil-status--{{ analise.situacao }}">
+      {% if analise.situacao == 'favoravel' %}{% trans "Favorável" %}{% elif analise.situacao == 'desfavoravel' %}{% trans "Desfavorável" %}{% elif analise.situacao == 'previsto' %}{% trans "No previsto" %}{% else %}{% trans "Não classificado" %}{% endif %}
+    </span>{% endif %}
+  {% else %}
+    <span class="au-contabil-status">{% if analise.orcamento_parcial %}{% trans "Orçamento parcial" %}{% else %}{% trans "Sem orçamento" %}{% endif %}</span>
+  {% endif %}
+</td>

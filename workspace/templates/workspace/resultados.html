@@ -49,6 +49,7 @@
   corpo: a casca já define a ordem, e `defer` mantém o HTML pintando antes.
 {% endcomment %}
 {% block scripts %}
+  <script src="{% estatico 'workspace/js/resultados-posicao.js' %}" defer></script>
   <script src="{% estatico 'workspace/js/echarts.min.js' %}" defer></script>
   <script src="{% estatico 'workspace/js/echarts-adb.js' %}" defer></script>
 {% endblock %}

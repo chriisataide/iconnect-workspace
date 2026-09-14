@@ -23,18 +23,20 @@
 {% endcomment %}
 <div class="au-concentracoes">
   <div class="au-secao-cabeca">
-    <h3 class="au-mini-titulo">{% trans "Onde estamos concentrados" %}</h3>
+    <h3 class="au-mini-titulo">{% if contratos_resumo is not None %}{% trans "Contratos em concentração" %}{% else %}{% trans "Concentrações" %}{% endif %}</h3>
     {% if concentracoes %}<span class="au-secao-contagem">{{ concentracoes|length }}</span>{% endif %}
   </div>
 
+  <p class="au-ajuda">{% trans "O que decidimos acompanhar e resolver, com responsável e próximo passo." %}</p>
   {% if concentracoes %}
     <ul class="au-concentracao-lista">
       {% for foco in concentracoes %}
-        <li class="au-concentracao {% if foco.atrasada %}au-concentracao--atrasada{% endif %}">
+        <li id="concentracao-{{ foco.pk }}" class="au-concentracao {% if foco.atrasada %}au-concentracao--atrasada{% endif %}">
           <p class="au-concentracao-titulo">
             <span class="au-etiqueta">{{ foco.get_origem_tipo_display }}</span>
-            {{ foco.origem_ref }} · {{ foco.titulo }}
+            {{ foco.origem_ref }}{% if foco.cliente_resumo %} · {{ foco.cliente_resumo }}{% endif %} · {{ foco.titulo }}
           </p>
+          <p class="au-concentracao-meta">{% if foco.atrasada %}{% trans "Situação: atrasada" %}{% else %}{% trans "Situação: em aberto" %}{% endif %}</p>
           <p class="au-concentracao-motivo">{{ foco.motivo }}</p>
           <p class="au-concentracao-meta">
             {% blocktrans with quem=foco.responsavel.nome|default:foco.responsavel.email %}Responsável: {{ quem }}{% endblocktrans %}
@@ -56,7 +58,17 @@
             {% endif %}
           </p>
 
+          <p class="au-concentracao-motivo"><strong>{% trans "Próximo passo" %}:</strong> {{ foco.proximo_passo|default:_("Não definido") }}</p>
           {% if pode_concentrar %}
+            <details class="au-resultados-consulta">
+              <summary>{% trans "Atualizar próximo passo" %}</summary>
+              <form class="au-concentracao-encerrar" method="post" action="{% url 'workspace:concentracao_atualizar' foco.pk %}">
+                {% csrf_token %}
+                <label class="au-sr" for="passo-{{ foco.pk }}">{% trans "Próximo passo" %}</label>
+                <input class="au-input" id="passo-{{ foco.pk }}" name="proximo_passo" value="{{ foco.proximo_passo }}" maxlength="500" required>
+                <button class="au-btn" type="submit">{% trans "Salvar" %}</button>
+              </form>
+            </details>
             {% comment %}
               O RESULTADO é obrigatório para encerrar, e o campo vem junto do
               botão. Num segundo passo, alguém encerraria e escreveria "ok" para
@@ -91,11 +103,12 @@
   {% endif %}
 
   {% if pode_concentrar %}
-    <details class="au-concentracao-nova">
+    <details class="au-concentracao-nova" id="nova-concentracao">
       <summary>{% trans "Marcar uma concentração" %}</summary>
       <form class="au-form" method="post"
             action="{% url 'workspace:concentracao_abrir' %}" novalidate>
         {% csrf_token %}
+        <input type="hidden" name="alerta_chave" id="c-alerta">
         <div class="au-colunas au-colunas--duas">
           <div class="au-campo">
             <label class="au-rotulo" for="c-tipo">{% trans "Sobre o quê" %}</label>
@@ -109,8 +122,14 @@
             <label class="au-rotulo" for="c-ref">
               {% trans "Qual" %} <span class="au-obrigatorio" aria-hidden="true">*</span>
             </label>
-            <input class="au-input" id="c-ref" name="origem_ref" type="text"
-                   maxlength="60" placeholder="{% trans 'CT-107, area-03…' %}">
+            {% if contratos_resumo is not None %}
+              <select class="au-input" id="c-ref" name="origem_ref" required>
+                <option value="">{% trans "Selecione o contrato" %}</option>
+                {% for c in contratos_resumo %}<option value="{{ c.codigo }}">{{ c.codigo }} · {{ c.nome_cliente }}</option>{% endfor %}
+              </select>
+            {% else %}
+              <input class="au-input" id="c-ref" name="origem_ref" type="text" maxlength="60" placeholder="{% trans 'CT-107, area-03…' %}">
+            {% endif %}
           </div>
         </div>
         <div class="au-campo">
@@ -147,8 +166,13 @@
             <p class="au-ajuda">{% trans "Opcional. Sem prazo, a tela não cobra." %}</p>
           </div>
         </div>
+        <div class="au-campo">
+          <label class="au-rotulo" for="c-passo">{% trans "Próximo passo" %}</label>
+          <input class="au-input" id="c-passo" name="proximo_passo" maxlength="500" placeholder="{% trans 'Qual será a próxima ação concreta?' %}">
+        </div>
         <div class="au-form-acoes">
           <button class="au-btn" type="submit">{% trans "Marcar" %}</button>
+          <button class="au-btn au-btn--fantasma" type="reset">{% trans "Limpar formulário" %}</button>
         </div>
       </form>
     </details>
@@ -162,7 +186,7 @@
       <ul class="au-concentracao-lista">
         {% for foco in concentracoes_encerradas %}
           <li class="au-concentracao au-concentracao--encerrada">
-            <p class="au-concentracao-titulo">{{ foco.origem_ref }} · {{ foco.titulo }}</p>
+            <p class="au-concentracao-titulo">{{ foco.origem_ref }}{% if foco.cliente_resumo %} · {{ foco.cliente_resumo }}{% endif %} · {{ foco.titulo }}</p>
             <p class="au-concentracao-motivo">{{ foco.resultado }}</p>
             <p class="au-concentracao-meta">
               {% blocktrans with data=foco.encerrada_em|date:"d/m/Y" %}encerrada em {{ data }}{% endblocktrans %}

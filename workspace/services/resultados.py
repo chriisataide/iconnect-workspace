@@ -44,6 +44,7 @@ from workspace.providers.frescor import NATIVO
 from workspace.graficos import formato as fmt
 from workspace.models.concentracao import OrigemConcentracao
 from workspace.services import frescor as frs
+from workspace.services.contabil_detalhes import enriquecer as enriquecer_contabil
 
 logger = logging.getLogger("workspace")
 
@@ -532,9 +533,9 @@ class Faixa:
 #: nova.
 DEFINICOES: dict[str, tuple[str, str]] = {
     "destaques": ("Destaques e pontos de atenção", NATIVO),
-    "dinheiro": ("O dinheiro", "sankhya"),
-    "contabil": ("Com o que foi gasto", "sankhya"),
-    "contratos": ("Os contratos", "iconnect_platform"),
+    "dinheiro": ("Resultado financeiro", "sankhya"),
+    "contabil": ("Composição do resultado", "sankhya"),
+    "contratos": ("Nossa carteira", "iconnect_platform"),
     "vencimentos": ("O que está prestes a vencer", "iconnect_platform"),
     "projetos": ("Os projetos", "monday"),
     "pessoas": ("As pessoas e a jornada", "sankhya"),
@@ -1231,11 +1232,20 @@ def contabil(escopo: contrato.Escopo, filtros: Filtros) -> Faixa:
 
     receita_liquida = _receita_liquida(linhas)
     sem_custo = _contratos_sem_custo(provedor, escopo, inicio, filtros)
+    grupos = _agrupar_por_conta(linhas, receita_liquida, filtros)
+    totais = _totais_contabeis(linhas, receita_liquida)
+    mes_anterior = _recuar(inicio, 1)
+    anteriores = (
+        provedor.por_conta(escopo, mes_anterior, inicio - timedelta(days=1))
+        if any(g["aberto"] for g in grupos) else []
+    )
+    enriquecer_contabil(grupos, totais, linhas, anteriores, _sinal)
     faixa.conteudo = {
         "sem_custo": sem_custo,
         "cascata": cascata_da_dre(linhas, filtros, receita_liquida),
-        "grupos": _agrupar_por_conta(linhas, receita_liquida, filtros),
-        "totais": _totais_contabeis(linhas, receita_liquida),
+        "grupos": grupos,
+        "totais": totais,
+        "mes_anterior": mes_anterior,
         "receita_liquida": receita_liquida,
         "expandidos": filtros.expandidos,
         "modo": filtros.numeros,
@@ -1795,8 +1805,8 @@ def contas_do_contrato(
 def contratos(escopo: contrato.Escopo, filtros: Filtros) -> Faixa:
     """Carteira, movimentação e rentabilidade.
 
-    **Contrato deficitário aparece separado, no topo, sempre.** Ele é a única
-    coisa desta tela que não espera a pessoa rolar até encontrar.
+    Contratos deficitários alimentam os alertas do topo e a seção própria
+    de rentabilidade, que reutiliza este conteúdo.
     """
     faixa = _faixa("contratos", filtros.competencia)
     provedor = contrato.obter(contrato.ProvedorCarteira)
@@ -2284,7 +2294,7 @@ def _cartoes_do_que_foi_bem(faixas: dict[str, Faixa]) -> list[Destaque]:
                 detalhe=f"acima de {fmt.percentual(MARGEM_DE_DESTAQUE)}",
                 severidade="bom",
                 fonte="iconnect_platform",
-                ancora="contratos",
+                ancora="rentabilidade",
                 explicacao="Contratos com margem confortável na competência.",
             )
         )
@@ -2339,7 +2349,7 @@ def _cartoes_de_contrato(faixa: Faixa | None) -> list[Destaque]:
                 valor=str(len(deficitarios)),
                 detalhe=", ".join(c.codigo for c in deficitarios[:3]),
                 fonte=faixa.fonte,
-                ancora="contratos",
+                ancora="rentabilidade",
             )
         )
     if abaixo:
@@ -2350,7 +2360,7 @@ def _cartoes_de_contrato(faixa: Faixa | None) -> list[Destaque]:
                 valor=str(len(abaixo)),
                 detalhe="Exige justificativa e plano de ação.",
                 fonte=faixa.fonte,
-                ancora="contratos",
+                ancora="rentabilidade",
             )
         )
     return cartoes
@@ -2531,24 +2541,13 @@ def _cartoes_de_pessoas(faixa: Faixa | None) -> list[Destaque]:
 # ── O painel ────────────────────────────────────────────────────────
 
 
-#: A ordem das faixas na tela É a mensagem, como a ordem da home. Primeiro o que
-#: exige decisão, depois o dinheiro, depois o que sustenta o dinheiro.
-#: As quatro faixas da tela 10. `pessoas` e `satisfacao` SAÍRAM daqui em
-#: 04/09/2026: são perguntas de outra gente, e viraram as telas 16 e 17.
-#:
-#: A tela 10 responde "o que a empresa produziu". Quadro e jornada respondem
-#: "como está a equipe", e a avaliação responde "o que o cliente achou" — e
-#: nenhuma das duas é lida por quem lê as outras quatro.
+# A leitura parte da carteira, passa pelo resultado e termina nos próximos
+# compromissos. Rentabilidade reutiliza a carteira depois da contabilidade,
+# na apresentação, sem consultar novamente o provedor.
 MONTADORES = (
-    ("dinheiro", dinheiro),
-    # A TABELA CONTÁBIL vem logo depois do dinheiro, e antes dos contratos.
-    #
-    # A ordem é a da pergunta: o bloco do dinheiro responde "quanto entrou e
-    # quanto sobrou"; este responde "com o que foi gasto". Quem lê o segundo
-    # sem o primeiro não tem denominador, e quem lê os contratos antes de saber
-    # onde o dinheiro foi já perdeu a pergunta.
-    ("contabil", contabil),
     ("contratos", contratos),
+    ("dinheiro", dinheiro),
+    ("contabil", contabil),
     ("vencimentos", vencimentos),
     ("projetos", projetos),
 )
@@ -2595,17 +2594,35 @@ def _painel(
     _com_leitura(faixas, filtros)
 
     opcoes = _opcoes_de_atributo(escopo)
+    concentracoes = _concentracoes(pessoa, cache=cache)
+    resumo = destaques(faixas, filtros)
+    from workspace.services.resumo_resultados import organizar, organizar_contratos
+    carteira_resumo = None
+    if "contratos" in faixas:
+        carteira_resumo = faixas["contratos"].conteudo.get("carteira", [])
+        clientes = {c.codigo: c.nome_cliente for c in carteira_resumo}
+        for campo in ("concentracoes", "concentracoes_encerradas"):
+            concentracoes[campo] = [f for f in concentracoes[campo] if f.origem_tipo == "contrato" and f.origem_ref in clientes]
+            for foco in concentracoes[campo]:
+                foco.cliente_resumo = clientes[foco.origem_ref]
+        concentracoes["origens_de_concentracao"] = [("contrato", "Contrato")]
+        grupos_resumo = organizar_contratos(carteira_resumo, concentracoes["concentracoes"], filtros.competencia,
+            lambda codigo: _url_com(base_url, filtros, contrato=codigo) + "#rentabilidade")
+    else:
+        grupos_resumo = organizar(resumo.conteudo["cartoes"], concentracoes["concentracoes"], filtros.competencia, recorte)
 
     return {
         "filtros": filtros,
         "escopo": recorte,
         "escopo_total": escopo.tudo,
-        "destaques": destaques(faixas, filtros),
+        "destaques": resumo,
+        "grupos_resumo": grupos_resumo,
+        "contratos_resumo": carteira_resumo,
         # AS CONCENTRAÇÕES — a terceira categoria (§E1), e a única que uma
         # pessoa escreve. Vêm num contexto próprio e não dentro de `destaques`:
         # aquelas são derivadas de regra e não se editam, e misturar as duas
         # listas faria a tela deixar de refletir o espelho.
-        **_concentracoes(pessoa, cache=cache),
+        **concentracoes,
         "faixas": [faixas[chave] for chave, _ in montadores],
         "por_chave": faixas,
         "competencias": _competencias_oferecidas(filtros.competencia),
@@ -3272,7 +3289,7 @@ def _pessoas_lotadas():
 
 
 def _opcoes_de_atributo(escopo: contrato.Escopo) -> dict:
-    """As áreas e os serviços que a pessoa ALCANÇA — não os que ela já filtrou.
+    """Opções de área, serviço e localização que a pessoa alcança antes dos filtros.
 
     ## Por que do escopo, e não das faixas já montadas
 
@@ -3293,7 +3310,7 @@ def _opcoes_de_atributo(escopo: contrato.Escopo) -> dict:
     """
     provedor = contrato.obter(contrato.ProvedorCarteira)
     if provedor is None:
-        return {"servicos": [], "areas": []}
+        return {"servicos": [], "areas": [], "centros_custo": [], "contratos_filtro": []}
 
     # A HIERARQUIA fica; os dois atributos saem. É o que a permissão permite,
     # antes de os filtros de leitura recortarem.
@@ -3325,6 +3342,12 @@ def _opcoes_de_atributo(escopo: contrato.Escopo) -> dict:
     return {
         "servicos": sorted({c.servico for c in carteira if c.servico}),
         "areas": ordenadas,
+        "centros_custo": sorted({c.centro_custo for c in carteira if c.centro_custo}),
+        "contratos_filtro": [
+            {"codigo": codigo, "nome": nome}
+            for codigo, nome in sorted({c.codigo: c.nome_cliente for c in carteira}.items())
+            if codigo
+        ],
     }
 
 
@@ -3593,12 +3616,32 @@ def _grafico_do_mix(conteudo: dict):
     """Rosca do mix por serviço, com o total no centro."""
     from workspace.graficos import series
 
-    return series.rosca(
-        [(item["servico"], item["valor"]) for item in conteudo.get("mix", [])],
-        chave="mix",
-        titulo="Mix da carteira, por serviço",
+    nomes = {
+        "monitoramento": "Monitoramento", "projeto": "Projeto",
+        "manutencao": "Manutenção", "locacao": "Locação",
+        "projeto_turnkey": "Projeto turnkey",
+    }
+    mix = conteudo.get("mix", [])
+    rotulos = [nomes.get(i["servico"], i["servico"].replace("_", " ").capitalize()) for i in mix]
+    bloco = series.rosca(
+        [(nome, item["valor"]) for nome, item in zip(rotulos, mix)],
+        chave="mix", titulo="Mix da carteira, por serviço",
         centro_rotulo="carteira mensal",
     )
+    total = sum((i["valor"] for i in mix), Decimal("0"))
+    bloco.colunas = [series.Coluna("Serviço", numerica=False), series.Coluna("Contratos"),
+                     series.Coluna("Valor mensal"), series.Coluna("Participação")]
+    bloco.linhas = [
+        [nome, str(i["quantidade"]), fmt.moeda(i["valor"]),
+         fmt.percentual(i["valor"] / total * 100) if total else fmt.VAZIO]
+        for nome, i in zip(rotulos, mix)
+    ]
+    if mix:
+        for item, dados in zip(mix, bloco.option["series"][0]["data"]):
+            percentual = fmt.percentual(item["valor"] / total * 100) if total else fmt.VAZIO
+            dados["label"] = {"formatter": dados["name"] + "\n" + percentual}
+    return bloco
+
 
 
 def _grafico_dos_vencimentos(conteudo: dict):
