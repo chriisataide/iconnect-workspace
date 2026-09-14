@@ -1,5 +1,10 @@
 # Avaliação do iConnect Workspace — 11/09/2026
 
+> Atualização: a [varredura de 14/09](VARREDURA_WORKSPACE_2026-09-14.md)
+> corrigiu a conclusão sobre o CI: PostgreSQL é iniciado, mas os testes usam
+> SQLite porque a configuração não lê `DATABASE_URL`. Consulte o relatório
+> mais recente para os achados e resultados atualizados.
+
 ## Parecer
 
 O sistema tem uma base técnica bem estruturada: regras de acesso centralizadas,
