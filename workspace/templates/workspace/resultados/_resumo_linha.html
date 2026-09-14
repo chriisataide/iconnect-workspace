@@ -6,10 +6,10 @@
     {% if item.sinal.detalhe %}<span class="au-resumo-detalhe">{{ item.sinal.detalhe }}</span>{% endif %}
   </div>
   <div class="au-resumo-acoes">
-    <a href="#{{ item.sinal.ancora }}" aria-label="{% trans 'Ver detalhe' %}: {{ item.sinal.titulo }}" title="{{ item.sinal.explicacao }}">{% trans "Ver detalhe" %}</a>
+    <a href="{% if item.url %}{{ item.url }}{% else %}#{{ item.sinal.ancora }}{% endif %}" aria-label="{% trans 'Ver detalhe' %}: {{ item.sinal.titulo }}" title="{{ item.sinal.explicacao }}">{% trans "Ver detalhe" %}</a>
     {% if item.sinal.severidade != "bom" and pode_concentrar %}
       {% if item.foco %}<a href="#concentracao-{{ item.foco.pk }}">{% trans "Ver concentração" %}</a>
-      {% else %}<a href="#nova-concentracao" data-concentrar data-chave="{{ item.chave }}" data-referencia="{{ item.referencia }}" data-titulo="{{ item.sinal.titulo }}" data-motivo="{{ item.motivo }}">{% trans "Definir como concentração" %}</a>{% endif %}
+      {% else %}<a href="#nova-concentracao" data-concentrar data-tipo="{{ item.tipo|default:'indicador' }}" data-chave="{{ item.chave }}" data-referencia="{{ item.referencia }}" data-titulo="{{ item.sinal.titulo }}" data-motivo="{{ item.motivo }}">{% trans "Definir como concentração" %}</a>{% endif %}
     {% endif %}
   </div>
 </li>

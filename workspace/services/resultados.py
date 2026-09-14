@@ -2596,14 +2596,28 @@ def _painel(
     opcoes = _opcoes_de_atributo(escopo)
     concentracoes = _concentracoes(pessoa, cache=cache)
     resumo = destaques(faixas, filtros)
-    from workspace.services.resumo_resultados import organizar
+    from workspace.services.resumo_resultados import organizar, organizar_contratos
+    carteira_resumo = None
+    if "contratos" in faixas:
+        carteira_resumo = faixas["contratos"].conteudo.get("carteira", [])
+        clientes = {c.codigo: c.nome_cliente for c in carteira_resumo}
+        for campo in ("concentracoes", "concentracoes_encerradas"):
+            concentracoes[campo] = [f for f in concentracoes[campo] if f.origem_tipo == "contrato" and f.origem_ref in clientes]
+            for foco in concentracoes[campo]:
+                foco.cliente_resumo = clientes[foco.origem_ref]
+        concentracoes["origens_de_concentracao"] = [("contrato", "Contrato")]
+        grupos_resumo = organizar_contratos(carteira_resumo, concentracoes["concentracoes"], filtros.competencia,
+            lambda codigo: _url_com(base_url, filtros, contrato=codigo) + "#rentabilidade")
+    else:
+        grupos_resumo = organizar(resumo.conteudo["cartoes"], concentracoes["concentracoes"], filtros.competencia, recorte)
 
     return {
         "filtros": filtros,
         "escopo": recorte,
         "escopo_total": escopo.tudo,
         "destaques": resumo,
-        "grupos_resumo": organizar(resumo.conteudo["cartoes"], concentracoes["concentracoes"], filtros.competencia, recorte),
+        "grupos_resumo": grupos_resumo,
+        "contratos_resumo": carteira_resumo,
         # AS CONCENTRAÇÕES — a terceira categoria (§E1), e a única que uma
         # pessoa escreve. Vêm num contexto próprio e não dentro de `destaques`:
         # aquelas são derivadas de regra e não se editam, e misturar as duas

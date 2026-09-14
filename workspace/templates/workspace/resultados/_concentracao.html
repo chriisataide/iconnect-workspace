@@ -23,7 +23,7 @@
 {% endcomment %}
 <div class="au-concentracoes">
   <div class="au-secao-cabeca">
-    <h3 class="au-mini-titulo">{% trans "Concentrações" %}</h3>
+    <h3 class="au-mini-titulo">{% if contratos_resumo is not None %}{% trans "Contratos em concentração" %}{% else %}{% trans "Concentrações" %}{% endif %}</h3>
     {% if concentracoes %}<span class="au-secao-contagem">{{ concentracoes|length }}</span>{% endif %}
   </div>
 
@@ -34,7 +34,7 @@
         <li id="concentracao-{{ foco.pk }}" class="au-concentracao {% if foco.atrasada %}au-concentracao--atrasada{% endif %}">
           <p class="au-concentracao-titulo">
             <span class="au-etiqueta">{{ foco.get_origem_tipo_display }}</span>
-            {{ foco.origem_ref }} · {{ foco.titulo }}
+            {{ foco.origem_ref }}{% if foco.cliente_resumo %} · {{ foco.cliente_resumo }}{% endif %} · {{ foco.titulo }}
           </p>
           <p class="au-concentracao-meta">{% if foco.atrasada %}{% trans "Situação: atrasada" %}{% else %}{% trans "Situação: em aberto" %}{% endif %}</p>
           <p class="au-concentracao-motivo">{{ foco.motivo }}</p>
@@ -122,8 +122,14 @@
             <label class="au-rotulo" for="c-ref">
               {% trans "Qual" %} <span class="au-obrigatorio" aria-hidden="true">*</span>
             </label>
-            <input class="au-input" id="c-ref" name="origem_ref" type="text"
-                   maxlength="60" placeholder="{% trans 'CT-107, area-03…' %}">
+            {% if contratos_resumo is not None %}
+              <select class="au-input" id="c-ref" name="origem_ref" required>
+                <option value="">{% trans "Selecione o contrato" %}</option>
+                {% for c in contratos_resumo %}<option value="{{ c.codigo }}">{{ c.codigo }} · {{ c.nome_cliente }}</option>{% endfor %}
+              </select>
+            {% else %}
+              <input class="au-input" id="c-ref" name="origem_ref" type="text" maxlength="60" placeholder="{% trans 'CT-107, area-03…' %}">
+            {% endif %}
           </div>
         </div>
         <div class="au-campo">
@@ -180,7 +186,7 @@
       <ul class="au-concentracao-lista">
         {% for foco in concentracoes_encerradas %}
           <li class="au-concentracao au-concentracao--encerrada">
-            <p class="au-concentracao-titulo">{{ foco.origem_ref }} · {{ foco.titulo }}</p>
+            <p class="au-concentracao-titulo">{{ foco.origem_ref }}{% if foco.cliente_resumo %} · {{ foco.cliente_resumo }}{% endif %} · {{ foco.titulo }}</p>
             <p class="au-concentracao-motivo">{{ foco.resultado }}</p>
             <p class="au-concentracao-meta">
               {% blocktrans with data=foco.encerrada_em|date:"d/m/Y" %}encerrada em {{ data }}{% endblocktrans %}
