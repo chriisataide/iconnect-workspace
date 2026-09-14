@@ -83,6 +83,8 @@ def concentracao_abrir(request: HttpRequest) -> HttpResponse:
             motivo=request.POST.get("motivo", ""),
             responsavel=_pessoa(request.POST.get("responsavel")),
             prazo=parse_date(request.POST.get("prazo") or "") or None,
+            proximo_passo=request.POST.get("proximo_passo", ""),
+            alerta_chave=request.POST.get("alerta_chave", ""),
             cache=_cache(request),
         )
     except svc_conc.ConcentracaoError as erro:
@@ -90,6 +92,22 @@ def concentracao_abrir(request: HttpRequest) -> HttpResponse:
     else:
         messages.success(request, "Concentração aberta.")
     return redirect(f"{reverse('workspace:resultados')}#destaques")
+
+
+@login_required
+@require_POST
+def concentracao_atualizar(request: HttpRequest, pk: int) -> HttpResponse:
+    from workspace.models.concentracao import Concentracao
+    from workspace.services import concentracao as svc_conc
+
+    alvo = get_object_or_404(Concentracao, pk=pk)
+    try:
+        svc_conc.atualizar_passo(alvo, request.user, request.POST.get("proximo_passo", ""), cache=_cache(request))
+    except svc_conc.ConcentracaoError as erro:
+        messages.error(request, str(erro))
+    else:
+        messages.success(request, "Próximo passo atualizado.")
+    return redirect(f"{reverse('workspace:resultados')}#concentracao-{pk}")
 
 
 @login_required

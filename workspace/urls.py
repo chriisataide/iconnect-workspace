@@ -209,6 +209,8 @@ urlpatterns = [
          name="concentracao_abrir"),
     path("resultados/concentracao/<int:pk>/encerrar/",
          views.concentracao_encerrar, name="concentracao_encerrar"),
+    path("resultados/concentracao/<int:pk>/atualizar/",
+         views.concentracao_atualizar, name="concentracao_atualizar"),
     path("resultados/fontes/", views.fontes, name="fontes"),
     path("resultados/fontes/<slug:chave>/recarregar/", views.recarregar_fonte,
          name="recarregar_fonte"),

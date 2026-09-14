@@ -2594,17 +2594,21 @@ def _painel(
     _com_leitura(faixas, filtros)
 
     opcoes = _opcoes_de_atributo(escopo)
+    concentracoes = _concentracoes(pessoa, cache=cache)
+    resumo = destaques(faixas, filtros)
+    from workspace.services.resumo_resultados import organizar
 
     return {
         "filtros": filtros,
         "escopo": recorte,
         "escopo_total": escopo.tudo,
-        "destaques": destaques(faixas, filtros),
+        "destaques": resumo,
+        "grupos_resumo": organizar(resumo.conteudo["cartoes"], concentracoes["concentracoes"], filtros.competencia, recorte),
         # AS CONCENTRAÇÕES — a terceira categoria (§E1), e a única que uma
         # pessoa escreve. Vêm num contexto próprio e não dentro de `destaques`:
         # aquelas são derivadas de regra e não se editam, e misturar as duas
         # listas faria a tela deixar de refletir o espelho.
-        **_concentracoes(pessoa, cache=cache),
+        **concentracoes,
         "faixas": [faixas[chave] for chave, _ in montadores],
         "por_chave": faixas,
         "competencias": _competencias_oferecidas(filtros.competencia),

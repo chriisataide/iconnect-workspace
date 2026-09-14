@@ -62,6 +62,68 @@ def _abrir(pessoa, **campos):
     )
 
 
+def test_alerta_nao_duplica_e_pode_voltar_apos_encerrado(diretor):
+    foco = _abrir(diretor, alerta_chave="a" * 64, proximo_passo="Revisar custos")
+    repetido = _abrir(diretor, alerta_chave="a" * 64)
+    assert foco.pk == repetido.pk
+    assert foco.proximo_passo == "Revisar custos"
+    svc.encerrar(foco, diretor, "Custos revisados")
+    assert _abrir(diretor, alerta_chave="a" * 64).pk != foco.pk
+
+
+def test_banco_impede_duplicacao_do_alerta_aberto(diretor):
+    from django.db import IntegrityError, transaction
+    foco = _abrir(diretor, alerta_chave="a" * 64)
+    foco.pk = None
+    with pytest.raises(IntegrityError), transaction.atomic():
+        foco.save(force_insert=True)
+
+
+def test_formulario_salva_proximo_passo_e_vinculo(client, diretor):
+    client.force_login(diretor)
+    dados = {"origem_tipo": "indicador", "origem_ref": "Margem", "titulo": "Revisar margem",
+             "motivo": "Margem abaixo da meta", "responsavel": diretor.pk,
+             "alerta_chave": "b" * 64, "proximo_passo": "Conferir despesas"}
+    for _ in range(2):
+        assert client.post(reverse("workspace:concentracao_abrir"), dados).status_code == 302
+    assert Concentracao.objects.filter(alerta_chave="b" * 64).count() == 1
+    assert Concentracao.objects.get(alerta_chave="b" * 64).proximo_passo == "Conferir despesas"
+
+
+def test_passo_respeita_permissao_e_encerramento(client, diretor, leitor):
+    foco = _abrir(diretor)
+    url = reverse("workspace:concentracao_atualizar", args=[foco.pk])
+    client.force_login(leitor)
+    client.post(url, {"proximo_passo": "Não autorizado"})
+    foco.refresh_from_db()
+    assert foco.proximo_passo == ""
+    client.force_login(diretor)
+    assert client.get(url).status_code == 405
+    client.post(url, {"proximo_passo": "Conferir notas"})
+    foco.refresh_from_db()
+    assert foco.proximo_passo == "Conferir notas"
+    svc.encerrar(foco, diretor, "Conferido")
+    client.post(url, {"proximo_passo": "Alteração tardia"})
+    foco.refresh_from_db()
+    assert foco.proximo_passo == "Conferir notas"
+
+
+def test_resumo_separa_sinais_e_vincula_apenas_mes_e_recorte_corretos(diretor):
+    from datetime import date
+    from workspace.services.resumo_resultados import organizar
+    from workspace.services.resultados import Destaque
+    from workspace.providers.resultados import Escopo
+    sinais = [Destaque("bom", "Receita", "10%", severidade="bom"), Destaque("custo", "Custo", "20%")]
+    mes = date(2026, 9, 1)
+    grupos = organizar(sinais, [], mes, Escopo())
+    assert grupos[0]["itens"][0]["sinal"].chave == "bom"
+    item = grupos[1]["itens"][0]
+    foco = _abrir(diretor, alerta_chave=item["chave"])
+    assert organizar(sinais, [foco], mes, Escopo())[1]["itens"][0]["foco"] == foco
+    assert organizar(sinais, [foco], mes, Escopo(contratos=("outro",)))[1]["itens"][0]["foco"] is None
+    assert organizar(sinais, [foco], date(2026, 10, 1), Escopo())[1]["itens"][0]["foco"] is None
+
+
 # ── Quem pode ──────────────────────────────────────────────────────
 
 
@@ -209,7 +271,7 @@ def test_a_lista_aparece_MESMO_sem_cartao_disparando(client, diretor):
 
     corpo = _tela(client)
 
-    assert "Onde estamos concentrados" in corpo
+    assert "Concentrações" in corpo
     assert "Recuperar CT-107" in corpo
 
 

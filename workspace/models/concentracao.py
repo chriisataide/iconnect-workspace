@@ -85,6 +85,8 @@ class Concentracao(models.Model):
     #: sem motivo é um item de lista, e listas de itens sem motivo é o que
     #: reuniões produzem quando ninguém decide nada.
     motivo = models.TextField()
+    proximo_passo = models.CharField(max_length=500, blank=True)
+    alerta_chave = models.CharField(max_length=64, blank=True)
 
     responsavel = models.ForeignKey(
         settings.AUTH_USER_MODEL,
@@ -113,6 +115,13 @@ class Concentracao(models.Model):
     objects = ConcentracaoQuerySet.as_manager()
 
     class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=["alerta_chave"],
+                condition=models.Q(encerrada_em__isnull=True) & ~models.Q(alerta_chave=""),
+                name="wks_conc_alerta_aberto_unico",
+            ),
+        ]
         # Abertas primeiro, e dentro delas a de prazo mais próximo. É a ordem
         # em que a reunião as percorre.
         ordering = ["encerrada_em", "prazo", "-aberta_em"]

@@ -4752,12 +4752,28 @@ tr[data-abre-resumo]:focus-visible {
  */
 .au-concentracoes {
   margin-top: var(--au-4);
-  padding: var(--au-3) var(--au-4);
-  background: var(--au-surface-sunken);
-  border: 1px solid var(--au-border);
-  border-radius: var(--au-r-md);
+  padding: 0;
 }
+.au-concentracoes .au-mini-titulo { font-size: var(--au-t-md); text-transform: none; letter-spacing: normal; }
 .au-concentracao-lista { list-style: none; margin: 0; padding: 0; }
+.au-resumo-grupo { margin-bottom: var(--au-6); }
+.au-resumo-grupo h3 { margin-bottom: var(--au-1); font-size: var(--au-t-md); }
+.au-resumo-grupo h3 small { color: var(--au-text-muted); font-weight: 400; }
+.au-resumo-lista { list-style: none; padding: 0; margin: 0; }
+.au-resumo-linha {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: var(--au-2) var(--au-5);
+  padding: var(--au-3) 0;
+  border-bottom: 1px solid var(--au-border);
+  font-size: var(--au-t-sm);
+}
+.au-resumo-linha > div:first-child { flex: 1 1 20rem; }
+.au-resumo-detalhe { display: block; color: var(--au-text-muted); margin-top: var(--au-1); }
+.au-resumo-acoes { display: flex; flex-wrap: wrap; gap: var(--au-3); }
+.au-resumo-critico { color: var(--au-danger-text); }
 
 .au-concentracao {
   padding: var(--au-3) 0;
