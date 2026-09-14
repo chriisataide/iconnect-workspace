@@ -29,6 +29,31 @@ from workspace.services import resultados as svc
 HOJE = date(2026, 9, 1)
 
 
+def test_narrativa_da_pagina_e_unica_no_modo_normal_e_apresentacao(client, espelho, diretoria):
+    client.force_login(diretoria)
+    for modo in ("", "&apresentacao=1"):
+        html = client.get(reverse("workspace:resultados") + "?mes=2026-09" + modo).content.decode()
+        ids = ["destaques", "contratos", "dinheiro", "contabil", "rentabilidade", "vencimentos", "projetos"]
+        posicoes = [html.index('id="' + chave + '"') for chave in ids]
+        assert posicoes == sorted(posicoes)
+        assert html.count('id="grafico-dados-mix"') == 1
+        assert 'Mix por serviço</h3>' not in html
+        assert html.count('id="rentabilidade"') == 1
+
+
+def test_mix_tem_rotulos_legiveis_e_tabela_completa():
+    bloco = svc._grafico_do_mix({"mix": [
+        {"servico": "manutencao", "quantidade": 2, "valor": Decimal(25)},
+        {"servico": "projeto_turnkey", "quantidade": 3, "valor": Decimal(75)},
+    ]})
+    assert [c.titulo for c in bloco.colunas] == ["Serviço", "Contratos", "Valor mensal", "Participação"]
+    assert bloco.linhas[0][0:2] == ["Manutenção", "2"]
+    label = bloco.option["series"][0]["data"][0]["label"]["formatter"]
+    assert "\\n" not in label
+    assert "\n" in label
+    assert "25,0%" in label
+
+
 @pytest.fixture
 def plano(db):
     from io import StringIO

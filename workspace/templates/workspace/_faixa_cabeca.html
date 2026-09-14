@@ -22,6 +22,6 @@
   quando não há afirmação verdadeira a fazer, o bloco não exibe frase nenhuma,
   porque frase genérica é pior que ausência.
 {% endcomment %}
-{% if faixa.leitura %}
+{% if faixa.leitura and faixa.chave != "contratos" %}
   <p class="au-faixa-leitura">{{ faixa.leitura }}</p>
 {% endif %}

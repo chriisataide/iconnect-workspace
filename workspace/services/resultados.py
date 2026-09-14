@@ -533,9 +533,9 @@ class Faixa:
 #: nova.
 DEFINICOES: dict[str, tuple[str, str]] = {
     "destaques": ("Destaques e pontos de atenção", NATIVO),
-    "dinheiro": ("O dinheiro", "sankhya"),
-    "contabil": ("Com o que foi gasto", "sankhya"),
-    "contratos": ("Os contratos", "iconnect_platform"),
+    "dinheiro": ("Resultado financeiro", "sankhya"),
+    "contabil": ("Composição do resultado", "sankhya"),
+    "contratos": ("Nossa carteira", "iconnect_platform"),
     "vencimentos": ("O que está prestes a vencer", "iconnect_platform"),
     "projetos": ("Os projetos", "monday"),
     "pessoas": ("As pessoas e a jornada", "sankhya"),
@@ -1805,8 +1805,8 @@ def contas_do_contrato(
 def contratos(escopo: contrato.Escopo, filtros: Filtros) -> Faixa:
     """Carteira, movimentação e rentabilidade.
 
-    **Contrato deficitário aparece separado, no topo, sempre.** Ele é a única
-    coisa desta tela que não espera a pessoa rolar até encontrar.
+    Contratos deficitários alimentam os alertas do topo e a seção própria
+    de rentabilidade, que reutiliza este conteúdo.
     """
     faixa = _faixa("contratos", filtros.competencia)
     provedor = contrato.obter(contrato.ProvedorCarteira)
@@ -2294,7 +2294,7 @@ def _cartoes_do_que_foi_bem(faixas: dict[str, Faixa]) -> list[Destaque]:
                 detalhe=f"acima de {fmt.percentual(MARGEM_DE_DESTAQUE)}",
                 severidade="bom",
                 fonte="iconnect_platform",
-                ancora="contratos",
+                ancora="rentabilidade",
                 explicacao="Contratos com margem confortável na competência.",
             )
         )
@@ -2349,7 +2349,7 @@ def _cartoes_de_contrato(faixa: Faixa | None) -> list[Destaque]:
                 valor=str(len(deficitarios)),
                 detalhe=", ".join(c.codigo for c in deficitarios[:3]),
                 fonte=faixa.fonte,
-                ancora="contratos",
+                ancora="rentabilidade",
             )
         )
     if abaixo:
@@ -2360,7 +2360,7 @@ def _cartoes_de_contrato(faixa: Faixa | None) -> list[Destaque]:
                 valor=str(len(abaixo)),
                 detalhe="Exige justificativa e plano de ação.",
                 fonte=faixa.fonte,
-                ancora="contratos",
+                ancora="rentabilidade",
             )
         )
     return cartoes
@@ -2541,24 +2541,13 @@ def _cartoes_de_pessoas(faixa: Faixa | None) -> list[Destaque]:
 # ── O painel ────────────────────────────────────────────────────────
 
 
-#: A ordem das faixas na tela É a mensagem, como a ordem da home. Primeiro o que
-#: exige decisão, depois o dinheiro, depois o que sustenta o dinheiro.
-#: As quatro faixas da tela 10. `pessoas` e `satisfacao` SAÍRAM daqui em
-#: 04/09/2026: são perguntas de outra gente, e viraram as telas 16 e 17.
-#:
-#: A tela 10 responde "o que a empresa produziu". Quadro e jornada respondem
-#: "como está a equipe", e a avaliação responde "o que o cliente achou" — e
-#: nenhuma das duas é lida por quem lê as outras quatro.
+# A leitura parte da carteira, passa pelo resultado e termina nos próximos
+# compromissos. Rentabilidade reutiliza a carteira depois da contabilidade,
+# na apresentação, sem consultar novamente o provedor.
 MONTADORES = (
-    ("dinheiro", dinheiro),
-    # A TABELA CONTÁBIL vem logo depois do dinheiro, e antes dos contratos.
-    #
-    # A ordem é a da pergunta: o bloco do dinheiro responde "quanto entrou e
-    # quanto sobrou"; este responde "com o que foi gasto". Quem lê o segundo
-    # sem o primeiro não tem denominador, e quem lê os contratos antes de saber
-    # onde o dinheiro foi já perdeu a pergunta.
-    ("contabil", contabil),
     ("contratos", contratos),
+    ("dinheiro", dinheiro),
+    ("contabil", contabil),
     ("vencimentos", vencimentos),
     ("projetos", projetos),
 )
@@ -3609,12 +3598,32 @@ def _grafico_do_mix(conteudo: dict):
     """Rosca do mix por serviço, com o total no centro."""
     from workspace.graficos import series
 
-    return series.rosca(
-        [(item["servico"], item["valor"]) for item in conteudo.get("mix", [])],
-        chave="mix",
-        titulo="Mix da carteira, por serviço",
+    nomes = {
+        "monitoramento": "Monitoramento", "projeto": "Projeto",
+        "manutencao": "Manutenção", "locacao": "Locação",
+        "projeto_turnkey": "Projeto turnkey",
+    }
+    mix = conteudo.get("mix", [])
+    rotulos = [nomes.get(i["servico"], i["servico"].replace("_", " ").capitalize()) for i in mix]
+    bloco = series.rosca(
+        [(nome, item["valor"]) for nome, item in zip(rotulos, mix)],
+        chave="mix", titulo="Mix da carteira, por serviço",
         centro_rotulo="carteira mensal",
     )
+    total = sum((i["valor"] for i in mix), Decimal("0"))
+    bloco.colunas = [series.Coluna("Serviço", numerica=False), series.Coluna("Contratos"),
+                     series.Coluna("Valor mensal"), series.Coluna("Participação")]
+    bloco.linhas = [
+        [nome, str(i["quantidade"]), fmt.moeda(i["valor"]),
+         fmt.percentual(i["valor"] / total * 100) if total else fmt.VAZIO]
+        for nome, i in zip(rotulos, mix)
+    ]
+    if mix:
+        for item, dados in zip(mix, bloco.option["series"][0]["data"]):
+            percentual = fmt.percentual(item["valor"] / total * 100) if total else fmt.VAZIO
+            dados["label"] = {"formatter": dados["name"] + "\n" + percentual}
+    return bloco
+
 
 
 def _grafico_dos_vencimentos(conteudo: dict):

@@ -1,0 +1,110 @@
+{% load i18n wks graficos %}
+<section class="au-secao-faixa" aria-labelledby="rentabilidade">
+  <header class="au-secao-faixa-cabeca">
+    <h2 class="au-secao-titulo" id="rentabilidade">{% trans "Rentabilidade dos contratos" %}</h2>
+    {% include "workspace/_carimbo.html" with carimbo=faixa.carimbo chave="rentabilidade" %}
+  </header>
+  {% if faixa.disponivel %}
+    {% if faixa.leitura %}<p class="au-faixa-leitura">{{ faixa.leitura }}</p>{% endif %}
+    <div class="au-kpi-linha">
+  <div class="au-kpi {% if faixa.conteudo.deficitarios %}au-kpi--alerta{% endif %}">
+    <span class="au-kpi-rotulo">{% trans "deficitários" %}</span>
+    <span class="au-kpi-valor">{{ faixa.conteudo.deficitarios|length }}</span>
+  </div>
+  <div class="au-kpi {% if faixa.conteudo.abaixo_da_margem %}au-kpi--alerta{% endif %}">
+    <span class="au-kpi-rotulo">{% trans "abaixo de 10% de margem" %}</span>
+    <span class="au-kpi-valor">{{ faixa.conteudo.abaixo_da_margem|length }}</span>
+  </div>
+</div>
+
+{% if faixa.conteudo.deficitarios %}
+  {% comment %}
+    Deficitários abrem a análise de rentabilidade e são sinalizados também
+    pelos destaques no início da página.
+  {% endcomment %}
+  <h3 class="au-subsecao au-subsecao--alerta">{% trans "Contratos deficitários" %}</h3>
+  <ul class="au-lista-contratos">
+    {% for c in faixa.conteudo.deficitarios %}
+      <li class="au-contrato au-contrato--deficitario">
+        <span class="au-contrato-codigo">{{ c.codigo }}</span>
+        <span class="au-contrato-cliente">
+          {{ c.nome_cliente }}
+          {% comment %}
+            O ESCOPO — §H1. "800 câmeras, 30 switches" responde "que contrato é
+            este?" sem sair da tela, e é a pergunta seguinte a "por que ele está
+            deficitário?".
+
+            `au-procedencia` e não uma classe nova: é a mesma coisa — texto
+            pequeno e secundário sob o principal —, e uma classe a mais seria
+            uma regra a mais para manter em sincronia com aquela.
+          {% endcomment %}
+          {% if c.escopo %}<small class="au-procedencia">{{ c.escopo|truncatechars:90 }}</small>{% endif %}
+        </span>
+        <span class="au-contrato-margem">{{ c.margem_contribuicao_pct }}%</span>
+        <span class="au-contrato-valor">R$ {{ c.valor_mensal|moeda }}</span>
+      </li>
+    {% endfor %}
+  </ul>
+{% endif %}
+
+{% if faixa.conteudo.abaixo_da_margem %}
+  <h3 class="au-subsecao">{% trans "Margem abaixo de 10% — exige justificativa" %}</h3>
+  <ul class="au-lista-contratos">
+    {% for c in faixa.conteudo.abaixo_da_margem %}
+      <li class="au-contrato">
+        <span class="au-contrato-codigo">{{ c.codigo }}</span>
+        <span class="au-contrato-cliente">
+          {{ c.nome_cliente }}
+          {% comment %}
+            O ESCOPO — §H1. "800 câmeras, 30 switches" responde "que contrato é
+            este?" sem sair da tela, e é a pergunta seguinte a "por que ele está
+            deficitário?".
+
+            `au-procedencia` e não uma classe nova: é a mesma coisa — texto
+            pequeno e secundário sob o principal —, e uma classe a mais seria
+            uma regra a mais para manter em sincronia com aquela.
+          {% endcomment %}
+          {% if c.escopo %}<small class="au-procedencia">{{ c.escopo|truncatechars:90 }}</small>{% endif %}
+        </span>
+        <span class="au-contrato-margem">{{ c.margem_contribuicao_pct }}%</span>
+        <span class="au-etiqueta">{% trans "Layer" %} {{ c.layer }}</span>
+      </li>
+    {% endfor %}
+  </ul>
+{% endif %}
+
+{% comment %}
+  A DISPERSÃO — o tipo 11, adição nossa ao catálogo.
+
+  Ela responde o que nenhuma tabela ordenada responde: quais contratos são
+  GRANDES e POUCO RENTÁVEIS. Ordenar por receita esconde a margem; ordenar por
+  margem esconde o tamanho. O quadrante direito-inferior mostra os dois.
+
+  A linha tracejada é o limiar de 10%. Sem ela, o quadrante existe e ninguém vê
+  onde começa.
+{% endcomment %}
+{% if faixa.conteudo.grafico %}
+  {% comment %}
+    COMO LER, na tela. Isto estava escrito só no comentário acima — que é o
+    único lugar da página onde o usuário nunca olha. Um gráfico que precisa de
+    explicação e não a traz junto é um gráfico que ninguém usa duas vezes.
+  {% endcomment %}
+  <p class="au-legenda-leitura">
+    {% blocktrans %}Cada bolha é um contrato. Para a <b>direita</b>, fatura mais;
+    para <b>baixo</b>, rende menos. O tamanho é o valor mensal, e a linha
+    tracejada é a margem mínima de 10%.{% endblocktrans %}
+    <b>{% blocktrans %}O que importa é o canto inferior direito: contratos
+    grandes que rendem pouco.{% endblocktrans %}</b>
+    {% blocktrans %}Eles estão em vermelho, e a tabela abaixo os repete por
+    escrito.{% endblocktrans %}
+  </p>
+  {% grafico faixa.conteudo.grafico %}
+  {% if faixa.conteudo.fora_do_grafico %}
+    <p class="au-vazio-dica">
+      {% blocktrans count n=faixa.conteudo.fora_do_grafico %}{{ n }} contrato ficou de fora do gráfico por não ter amostra suficiente — ele continua na tabela.{% plural %}{{ n }} contratos ficaram de fora do gráfico por não terem amostra suficiente — eles continuam na tabela.{% endblocktrans %}
+    </p>
+  {% endif %}
+{% endif %}
+
+  {% else %}<div class="au-vazio"><p class="au-vazio-dica">{{ faixa.motivo }}</p></div>{% endif %}
+</section>

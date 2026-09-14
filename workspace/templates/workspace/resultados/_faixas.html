@@ -107,5 +107,8 @@
       {% include "workspace/resultados/_satisfacao.html" with faixa=faixa %}
     {% endif %}
   </section>
+  {% if faixa.chave == "contabil" and por_chave.contratos %}
+    {% include "workspace/resultados/_rentabilidade.html" with faixa=por_chave.contratos %}
+  {% endif %}
 {% endfor %}
 
