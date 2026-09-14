@@ -91,7 +91,7 @@
   {% endif %}
 </div>
 
-<div class="au-tabela au-tabela--contabil">
+<div class="au-tabela au-tabela--contabil" id="contabil-tabela">
   <table>
     <caption class="au-sr">
       {% blocktrans with mes=faixa.competencia|date:"m/Y" %}Resultado por conta contábil em {{ mes }}{% endblocktrans %}
@@ -112,7 +112,7 @@
       {% for grupo in faixa.conteudo.grupos %}
         <tr class="au-contabil-grupo {% if grupo.desconhecida %}au-contabil-grupo--alerta{% endif %}">
           <th scope="row">
-            <a class="au-contabil-abrir" href="{{ grupo.url_alternar }}"
+            <a class="au-contabil-abrir" id="conta-{{ grupo.codigo }}" data-posicao href="{{ grupo.url_alternar }}"
                aria-expanded="{% if grupo.aberto %}true{% else %}false{% endif %}">
               <span class="au-contabil-sinal" aria-hidden="true">{% if grupo.aberto %}−{% else %}+{% endif %}</span>
               <span class="au-contabil-codigo">{{ grupo.codigo }}</span>
