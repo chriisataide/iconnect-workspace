@@ -86,6 +86,8 @@
   {% if faixa.conteudo.totais.analise.cargas_incompletas %}{% trans "Há registros sem data de carga." %}{% endif %}
   {% if faixa.conteudo.totais.analise.primeira_carga != faixa.conteudo.totais.analise.ultima_carga %}{% trans "Carga mais antiga" %}: {{ faixa.conteudo.totais.analise.primeira_carga|date:"d/m/Y H:i" }}.{% endif %}
 </p>
+<h3>{% trans "Resultado por conta contábil" %}</h3>
+<p class="au-ajuda">{% trans "Receitas, impostos e despesas do mês. Abra o + para ver as contas que compõem cada grupo. Os valores vêm dos lançamentos contábeis; a tabela de receita por contrato acima usa o fechamento agregado e o ajuste potencial." %}</p>
 <div class="au-contabil-controles">
   <a class="au-btn au-btn--fantasma" href="{{ faixa.conteudo.url_modo }}">
     {{ faixa.conteudo.rotulo_do_outro_modo }}
@@ -134,7 +136,6 @@
         </tr>
 
         {% if grupo.aberto %}
-          <tr><td colspan="8">{% include "workspace/resultados/_contabil_detalhes.html" with analise=grupo.analise detalhe_id=grupo.codigo %}</td></tr>
           {% for conta in grupo.contas %}
             <tr class="au-contabil-conta">
               <th scope="row">
@@ -145,11 +146,16 @@
               <td class="num">{% if faixa.conteudo.percentual %}{% if faixa.conteudo.receita_liquida %}{{ conta.pct_ajustes|default_if_none:0|numero:1 }}%{% else %}—{% endif %}{% else %}{% if conta.ajustes is not None %}{{ conta.ajustes|moeda }}{% else %}—{% endif %}{% endif %}</td>
               <td class="num">{% if faixa.conteudo.percentual %}{% if conta.pct_ajustado is not None %}{{ conta.pct_ajustado|numero:1 }}%{% else %}—{% endif %}{% else %}{% if conta.realizado_ajustado is not None %}{{ conta.realizado_ajustado|moeda }}{% else %}—{% endif %}{% endif %}</td>
               <td class="num">{% if faixa.conteudo.percentual %}{% if conta.pct_orcado is not None %}{{ conta.pct_orcado|numero:1 }}%{% else %}—{% endif %}{% else %}{% if conta.orcado is not None %}{{ conta.orcado|moeda }}{% else %}—{% endif %}{% endif %}</td>
-          {% include "workspace/resultados/_contabil_desvio.html" with analise=conta.analise %}
+          {% include "workspace/resultados/_contabil_desvio.html" with analise=conta.analise resumido=1 %}
               <td class="num">{% if conta.pct_da_receita is not None %}{{ conta.pct_da_receita|numero:1 }}%{% else %}—{% endif %}</td>
             </tr>
-            <tr><td colspan="8"><details class="au-contabil-conta-detalhes" data-resultados-detalhe="conta-{{ conta.codigo }}"><summary>{% trans "Analisar conta" %} {{ conta.codigo }} — {{ conta.nome }}</summary>{% include "workspace/resultados/_contabil_detalhes.html" with analise=conta.analise detalhe_id=conta.codigo %}</details></td></tr>
           {% endfor %}
+          <tr><td colspan="8">
+            <details class="au-resultados-consulta" data-resultados-detalhe="analise-{{ grupo.codigo }}">
+              <summary>{% trans "Mais detalhes de" %} {{ grupo.nome|lower }}</summary>
+              {% include "workspace/resultados/_contabil_detalhes.html" with analise=grupo.analise detalhe_id=grupo.codigo %}
+            </details>
+          </td></tr>
         {% endif %}
       {% endfor %}
     </tbody>

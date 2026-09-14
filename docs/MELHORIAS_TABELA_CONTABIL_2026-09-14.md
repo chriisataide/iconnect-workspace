@@ -1,5 +1,26 @@
 # Leitura e detalhamento da tabela contábil
 
+## Revisão após uso
+
+A apresentação inicial abaixo ficou excessiva. A revisão mantém as contas
+imediatamente após o grupo aberto e reúne as explicações em “Mais detalhes de
+[grupo]”, fechado inicialmente. Foram removidas as aberturas repetidas por
+conta e as classificações textuais em cada conta analítica; a classificação
+permanece nos grupos e no total.
+
+A tabela anterior, de receita bruta mais ajuste potencial por contrato/CC,
+fica em “Consultar receita por contrato / centro de custo”. Seus cabeçalhos
+agora explicitam receita. Ela usa o fechamento agregado; a tabela contábil usa
+lançamentos por conta, incluindo impostos e despesas. Não são totais
+intercambiáveis. Corrigida a ajuda que chamava receita acima do orçamento de
+“gasto acima do previsto”. Nenhum cálculo foi alterado nesta revisão.
+
+Revisão validada com 96 testes Python e Chrome a 1440 e 390 px: consultas
+complementares recolhidas, contas imediatamente abaixo do grupo, alinhamento
+preservado e nenhuma exceção JavaScript.
+
+## Implementação inicial
+
 A tabela de Resultados mantém oito colunas. “% do orçado” e “Folga” dão lugar
 a “Desvio (%)” e “Desvio (R$)”, calculados sobre o realizado ajustado. O sinal
 positivo indica melhora do resultado e o negativo, piora, considerando receitas

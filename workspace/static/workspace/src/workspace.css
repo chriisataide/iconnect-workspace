@@ -4630,8 +4630,9 @@ tr[data-abre-resumo]:focus-visible {
 .au-contabil-detalhes h4 { margin: 0 0 var(--au-2); }
 .au-contabil-detalhes p { margin: var(--au-2) 0; }
 .au-contabil-detalhes summary,
-.au-contabil-conta-detalhes > summary { cursor: pointer; font-weight: 550; }
-.au-contabil-conta-detalhes { text-align: left; white-space: normal; }
+.au-resultados-consulta > summary { cursor: pointer; font-weight: 550; }
+.au-resultados-consulta { text-align: left; white-space: normal; }
+.au-resultados-consulta > summary { padding: var(--au-3) 0; color: var(--au-accent); }
 .au-contabil-composicao { margin: var(--au-3) 0 0; padding: 0; list-style: none; }
 .au-contabil-composicao li {
   display: flex;
