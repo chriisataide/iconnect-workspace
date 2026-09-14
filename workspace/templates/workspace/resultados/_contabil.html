@@ -116,7 +116,7 @@
                aria-expanded="{% if grupo.aberto %}true{% else %}false{% endif %}">
               <span class="au-contabil-sinal" aria-hidden="true">{% if grupo.aberto %}−{% else %}+{% endif %}</span>
               <span class="au-contabil-codigo">{{ grupo.codigo }}</span>
-              {{ grupo.nome }}
+              <span>{{ grupo.nome }}</span>
             </a>
           </th>
           <td class="num">{% if faixa.conteudo.percentual %}{% if grupo.pct_realizado is not None %}{{ grupo.pct_realizado|numero:1 }}%{% else %}—{% endif %}{% else %}{% if grupo.realizado is not None %}{{ grupo.realizado|moeda }}{% else %}—{% endif %}{% endif %}</td>

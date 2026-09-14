@@ -4599,6 +4599,13 @@ tr[data-abre-resumo]:focus-visible {
  * código monoespaçado alinhando os dígitos em coluna.
  */
 .au-tabela--contabil table { font-variant-numeric: tabular-nums; }
+.au-tabela--contabil th {
+  text-align: left;
+  vertical-align: top;
+  padding: var(--au-3) var(--au-4);
+  border-bottom: 1px solid var(--au-border);
+}
+.au-tabela--contabil tbody tr:last-child th { border-bottom: none; }
 
 .au-contabil-grupo > th { font-weight: 650; }
 .au-contabil-grupo--alerta > th { color: var(--au-warning-text); }
@@ -4606,13 +4613,15 @@ tr[data-abre-resumo]:focus-visible {
 /* O "+" é um LINK, e precisa parecer um. Sem sublinhado porque a linha inteira
  * é clicável e um sublinhado por linha viraria ruído em vinte e oito grupos. */
 .au-contabil-abrir {
-  display: inline-flex;
+  display: grid;
+  grid-template-columns: 1em 6ch minmax(0, 1fr);
   align-items: baseline;
   gap: var(--au-2);
   color: inherit;
   text-decoration: none;
 }
 .au-contabil-abrir:hover { text-decoration: underline; }
+.au-contabil-abrir .au-contabil-codigo { margin-right: 0; }
 
 /* Largura fixa para o "+" e o "−" ocuparem o mesmo espaço: sem isso o nome do
  * grupo desloca um pixel a cada clique, e a lista inteira parece tremer. */
