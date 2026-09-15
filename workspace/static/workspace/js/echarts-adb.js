@@ -46,6 +46,35 @@
     }
   }
 
+  function ajustarLegendas(opcao, tela) {
+    // O canvas que mede os textos não herda o CSS do SVG. Resolver "inherit"
+    // antes do setOption mantém a medida e o desenho na mesma fonte.
+    var fonte = window.getComputedStyle(tela).fontFamily || "sans-serif";
+    opcao.textStyle = opcao.textStyle || {};
+    if (!opcao.textStyle.fontFamily || opcao.textStyle.fontFamily === "inherit") {
+      opcao.textStyle.fontFamily = fonte;
+    }
+    var legendas = opcao.legend ? [].concat(opcao.legend) : [];
+    legendas.forEach(function (legenda) {
+      if (legenda.show === false) return;
+      legenda.textStyle = legenda.textStyle || {};
+      if (!legenda.textStyle.fontFamily || legenda.textStyle.fontFamily === "inherit") {
+        legenda.textStyle.fontFamily = opcao.textStyle.fontFamily;
+      }
+      if (legenda.orient === "vertical") return;
+      legenda.type = "scroll";
+      legenda.itemGap = Math.max(24, legenda.itemGap || 0);
+      legenda.itemWidth = 14;
+      legenda.itemHeight = 10;
+      legenda.pageTextStyle = Object.assign({}, legenda.textStyle, legenda.pageTextStyle);
+      if (legenda.bottom === 0 && opcao.grid) {
+        [].concat(opcao.grid).forEach(function (grade) {
+          if (typeof grade.bottom === "number") grade.bottom = Math.max(40, grade.bottom);
+        });
+      }
+    });
+  }
+
   function desenhar(tela) {
     var chave = tela.dataset.graficoTela;
     var opcao = opcaoDe(chave);
@@ -56,6 +85,7 @@
     // aceito, o que nós escrevemos, não (ADR-040).
     tela.style.height = (tela.dataset.altura || 260) + "px";
 
+    ajustarLegendas(opcao, tela);
     var grafico = EChartsADB.init(tela, null, { renderer: "svg" });
     grafico.setOption(opcao);
     instancias.set(chave, grafico);
@@ -95,6 +125,16 @@
 
   function iniciar() {
     limparCamposVazios();
+    // Medir antes da fonte terminar de carregar deixa larguras em cache que
+    // não correspondem ao texto final, mesmo depois de redimensionar o SVG.
+    if (document.fonts && document.fonts.status === "loading") {
+      document.fonts.ready.then(iniciarGraficos);
+    } else {
+      iniciarGraficos();
+    }
+  }
+
+  function iniciarGraficos() {
     document.querySelectorAll("[data-grafico-tela]").forEach(desenhar);
     if (instancias.size === 0) return;
 
