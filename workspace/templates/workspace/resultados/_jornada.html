@@ -1,0 +1,31 @@
+{% load i18n wks graficos %}
+<section class="au-secao-faixa" aria-labelledby="jornada">
+  <header class="au-secao-faixa-cabeca">
+    <h2 class="au-secao-titulo" id="jornada">{% trans "Jornada — onde estão as horas" %}</h2>
+    {% include "workspace/_carimbo.html" with carimbo=por_chave.pessoas.carimbo chave="jornada" %}
+  </header>
+  <p class="au-ajuda">{% trans "Indicadores e rankings da competência selecionada. A evolução mensal usa o período escolhido. Valores em horas decimais; percentuais calculados sobre horas normais." %}</p>
+  {% if jornada.disponivel %}
+    <p class="au-faixa-leitura">{{ jornada.leitura }}</p>
+    <p class="au-ajuda">{% trans "Comparação de" %} {{ jornada.titulo_metrica }} · {{ jornada.mes_anterior|date:"m/Y" }}: {{ jornada.comparacao.anterior|numero:2 }} h · {% trans "Diferença" %}: {{ jornada.comparacao.diferenca|numero:2 }} h.</p>
+    <div class="au-jornada-indicadores">
+      {% for item in jornada.kpis %}<div class="au-kpi"><span class="au-kpi-rotulo">{{ item.titulo }}</span><span class="au-kpi-valor">{{ item.valor|numero:2 }}</span><small>{% if item.percentual is not None %}{{ item.percentual|numero:1 }}% {% trans "das normais" %}{% else %}—{% endif %}</small></div>{% endfor %}
+    </div>
+    {% grafico jornada.mensal %}
+  {% else %}<p class="au-vazio-dica">{{ jornada.motivo }}</p>{% endif %}
+  {% if jornada.sem_vinculo %}<p class="au-ajuda au-ajuda--alerta">{% trans "Há totais de centro de custo sem vínculo contratual. Eles entram nos indicadores e no ranking por centro de custo. As visões por área e contrato mostram apenas apontamentos vinculados e podem cobrir só parte do total. Totais de CC e seus detalhes não são somados duas vezes." %}</p>{% endif %}
+  <h3 class="au-subsecao">{% trans "Qual área ou contrato concentra mais horas?" %}</h3>
+  <nav class="au-filtros-chips" aria-label="{% trans 'Modo do ranking' %}">
+    <a class="au-chip {% if jornada.ranking == 'volume' %}au-chip--ativo{% endif %}" href="{{ jornada.url_volume }}" {% if jornada.ranking == 'volume' %}aria-current="true"{% endif %}>{% trans "Volume de horas" %}</a>
+    <a class="au-chip {% if jornada.ranking == 'proporcional' %}au-chip--ativo{% endif %}" href="{{ jornada.url_proporcional }}" {% if jornada.ranking == 'proporcional' %}aria-current="true"{% endif %}>{% trans "Por 100 horas normais" %}</a>
+  </nav>
+  {% if jornada.sem_base %}<p class="au-ajuda">{% trans "Grupos sem horas normais positivas foram excluídos do ranking proporcional. Eles continuam na visão por volume." %}</p>{% endif %}
+  <nav class="au-filtros-chips" aria-label="{% trans 'Tipo de hora para comparar' %}">
+    {% for opcao in jornada.opcoes %}<a class="au-chip {% if opcao.ativa %}au-chip--ativo{% endif %}" href="{{ opcao.url }}" {% if opcao.ativa %}aria-current="true"{% endif %}>{{ opcao.titulo }}</a>{% endfor %}
+  </nav>
+  <p class="au-ajuda">{% trans "Clique em uma barra ou no nome da tabela para filtrar o painel. Os rankings estão ordenados do maior para o menor." %} <a href="{{ jornada.url_voltar }}">{% trans "Voltar à visão geral" %}</a></p>
+  <div class="au-jornada-rankings">{% for grafico in jornada.rankings %}<div>{% if grafico.linhas %}{% grafico grafico %}{% else %}<h4>{{ grafico.titulo }}</h4><p class="au-vazio-dica">{% trans "Sem apontamentos vinculados neste recorte." %}</p>{% endif %}</div>{% endfor %}</div>
+  {% include "workspace/resultados/_jornada_contratos.html" %}
+  {% if jornada.filtrado %}<p class="au-ajuda">{% trans "Efetivo, turnover e absenteísmo não estão disponíveis por contrato: a fonte do quadro informa apenas totais por centro de custo." %}</p>{% endif %}
+  <p class="au-ajuda">{% trans "A fonte atual é mensal: não há perfuração por dia. Intrajornada e hora reduzida também não foram informadas; não são tratadas como zero." %}</p>
+</section>

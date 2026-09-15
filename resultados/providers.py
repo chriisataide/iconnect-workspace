@@ -514,6 +514,8 @@ class EspelhoLocal(
         ]
 
     def _quadros(self, escopo, competencia: date):
+        if escopo and (escopo.contratos or escopo.areas or escopo.servicos):
+            return []  # O efetivo por CC não pode ser atribuído a um contrato.
         consulta = QuadroPessoas.objects.filter(
             ano=competencia.year, mes=competencia.month
         )
@@ -522,6 +524,8 @@ class EspelhoLocal(
         return list(consulta.order_by("centro_custo"))
 
     def movimentacao(self, escopo, de: date, ate: date) -> MovimentacaoPessoasDTO:
+        if escopo and (escopo.contratos or escopo.areas or escopo.servicos):
+            return MovimentacaoPessoasDTO()
         consulta = QuadroPessoas.objects.filter(
             Q(ano__gt=de.year) | Q(ano=de.year, mes__gte=de.month),
             Q(ano__lt=ate.year) | Q(ano=ate.year, mes__lte=ate.month),
@@ -535,12 +539,8 @@ class EspelhoLocal(
         )
 
     def apontamentos(self, escopo, competencia: date) -> ApontamentoDTO | None:
-        consulta = Apontamento.objects.filter(
-            ano=competencia.year, mes=competencia.month
-        )
-        if escopo is not None and escopo.centros_custo:
-            consulta = consulta.filter(centro_custo__in=escopo.centros_custo)
-        linhas = list(consulta)
+        from workspace.providers.resultados import base_apontamentos
+        linhas = base_apontamentos(self.serie_apontamentos(escopo, competencia, competencia))
         if not linhas:
             return None
         linha = _somar_apontamentos(linhas)
@@ -555,6 +555,29 @@ class EspelhoLocal(
             procedencia=_proc(linha),
             **{campo: getattr(linha, campo) for campo in campos},
         )
+
+    def serie_apontamentos(self, escopo, de, ate):
+        consulta = Apontamento.objects.select_related("contrato__area").filter(
+            Q(ano__gt=de.year) | Q(ano=de.year, mes__gte=de.month),
+            Q(ano__lt=ate.year) | Q(ano=ate.year, mes__lte=ate.month),
+        )
+        vinculados = _recortar(consulta.filter(contrato__isnull=False), escopo, ate_o_contrato="contrato__")
+        legados = consulta.filter(contrato__isnull=True)
+        if escopo:
+            if escopo.contratos or escopo.areas or escopo.servicos:
+                legados = legados.none()
+            elif escopo.centros_custo:
+                legados = legados.filter(centro_custo__in=escopo.centros_custo)
+            elif escopo.regionais:
+                legados = legados.filter(centro_custo__in=Contrato.objects.filter(regional__in=escopo.regionais).values("centro_custo"))
+        campos = [f for f in ApontamentoDTO.__dataclass_fields__ if f not in {"procedencia", "contrato", "cliente", "area", "area_nome"}]
+        return [ApontamentoDTO(
+            procedencia=_proc(l), contrato=l.contrato.codigo if l.contrato_id else "",
+            cliente=l.contrato.nome_cliente if l.contrato_id else "",
+            area=(l.contrato.area.codigo if l.contrato.area_id else SEM_AREA) if l.contrato_id else "",
+            area_nome=(l.contrato.area.nome if l.contrato.area_id else "Sem área") if l.contrato_id else "",
+            **{c: getattr(l, c) for c in campos},
+        ) for l in (vinculados | legados).order_by("ano", "mes", "centro_custo", "contrato_id")]
 
     # ── Satisfação ──────────────────────────────────────────────────
 

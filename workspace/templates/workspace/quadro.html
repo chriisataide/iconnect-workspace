@@ -3,20 +3,7 @@
 
 {% block titulo %}{% trans "Quadro e jornada" %}{% endblock %}
 
-{% comment %}
-  QUADRO E JORNADA (16) — era a faixa 6 da tela 10.
 
-  Saiu de lá porque a PERGUNTA é de outra gente. Enquanto morava dentro da
-  Apresentação de Resultados, dar o turnover de um centro de custo a quem
-  responde por gente significava dar junto a margem de todo contrato da empresa,
-  e por isso ninguém dava: a faixa existia e era lida só pela diretoria.
-
-  SEM O GRUPO "O QUÊ" nos filtros. Serviço, layer e "só deficitários" são
-  atributos de CONTRATO, e aqui não há contrato por trás do número — um filtro
-  que a pessoa escolhe e que não muda nada faz ela concluir que a tela quebrou.
-
-  Sem dado pessoal, aqui como lá: o quadro é agregado por centro de custo.
-{% endcomment %}
 {% block rail %}
   {% include "workspace/resultados/_tarjas.html" %}
   {% if not apresentacao %}
@@ -40,6 +27,7 @@
   `resultados.html`: são 217 KB comprimidos, e a home não paga por eles.
 {% endcomment %}
 {% block scripts %}
+  <script src="{% estatico 'workspace/js/resultados-posicao.js' %}" defer></script>
   <script src="{% estatico 'workspace/js/echarts.min.js' %}" defer></script>
   <script src="{% estatico 'workspace/js/echarts-adb.js' %}" defer></script>
 {% endblock %}
@@ -48,10 +36,18 @@
 <div class="au-resultados{% if apresentacao %} au-resultados--apresentacao{% endif %}">
 
 {% if not apresentacao %}
-  {% include "workspace/resultados/_filtros.html" %}
+  {% include "workspace/resultados/_filtros.html" with com_seletores=1 %}
 {% endif %}
 
-{% include "workspace/resultados/_faixas.html" %}
+{% include "workspace/resultados/_jornada.html" %}
+<section class="au-secao-faixa" aria-labelledby="jornada-acoes">
+  <h2 class="au-secao-titulo" id="jornada-acoes">{% trans "Ações sobre a jornada" %}</h2>
+  {% include "workspace/resultados/_concentracao.html" %}
+</section>
+<details class="au-resultados-consulta" data-resultados-detalhe="quadro-efetivo">
+  <summary>{% trans "Consultar efetivo, movimentação e pendências por centro de custo" %}</summary>
+  {% include "workspace/resultados/_faixas.html" with sem_concentracoes=1 %}
+</details>
 
 </div>
 {% endblock %}

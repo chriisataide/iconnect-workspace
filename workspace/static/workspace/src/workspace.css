@@ -4774,6 +4774,10 @@ tr[data-abre-resumo]:focus-visible {
 .au-resumo-detalhe { display: block; color: var(--au-text-muted); margin-top: var(--au-1); }
 .au-resumo-acoes { display: flex; flex-wrap: wrap; gap: var(--au-3); }
 .au-resumo-critico { color: var(--au-danger-text); }
+.au-jornada-indicadores { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: var(--au-2); margin: var(--au-4) 0; }
+.au-jornada-indicadores .au-kpi-valor { font-size: var(--au-t-lg); }
+.au-jornada-rankings { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 320px), 1fr)); gap: var(--au-4); }
+.au-jornada-rankings > div { min-width: 0; }
 
 .au-concentracao {
   padding: var(--au-3) 0;

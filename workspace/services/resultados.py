@@ -2657,7 +2657,7 @@ def painel(pessoa, parametros, cache: dict | None = None) -> dict:
 
 
 def painel_de_pessoas(pessoa, parametros, cache: dict | None = None) -> dict:
-    return _painel(
+    painel = _painel(
         pessoa,
         parametros,
         permissao=PERMISSAO_PESSOAS,
@@ -2666,6 +2666,26 @@ def painel_de_pessoas(pessoa, parametros, cache: dict | None = None) -> dict:
         recusa="Esta tela é de quem responde por gente.",
         cache=cache,
     )
+    from workspace.services.jornada import montar
+    from django.urls import reverse
+    painel["jornada"] = montar(painel["escopo"], painel["filtros"], parametros.get("hora", "he_total"),
+        lambda **mudancas: _url_com(reverse("workspace:quadro"), painel["filtros"], **mudancas), ranking=parametros.get("ranking", "volume"))
+    painel["contratos_resumo"] = painel["jornada"].get("carteira", [])
+    clientes = {c.codigo: c.nome_cliente for c in painel["contratos_resumo"]}
+    for campo in ("concentracoes", "concentracoes_encerradas"):
+        painel[campo] = [f for f in painel[campo] if f.origem_tipo == "contrato" and f.origem_ref in clientes]
+        for foco in painel[campo]:
+            foco.cliente_resumo = clientes[foco.origem_ref]
+    painel["origens_de_concentracao"] = [("contrato", "Contrato")]
+    focos = {f.origem_ref: f for f in painel["concentracoes"]}
+    for item in painel["jornada"].get("detalhes", []):
+        item["foco"] = focos.get(item["codigo"])
+    painel["ranking_jornada"] = painel["jornada"].get("ranking", "volume")
+    painel["retorno_concentracao"] = _url_com(reverse("workspace:quadro"), painel["filtros"], hora=parametros.get("hora", "he_total"), ranking=painel["ranking_jornada"]) + "#jornada-acoes"
+    painel["hora_selecionada"] = painel["jornada"].get("metrica", "he_total")
+    painel["comparacoes"] = ()
+    painel["url_apresentar"] = _url_com(reverse("workspace:quadro"), painel["filtros"], apresentacao="1", hora=painel["hora_selecionada"], ranking=painel["ranking_jornada"])
+    return painel
 
 
 def painel_de_satisfacao(pessoa, parametros, cache: dict | None = None) -> dict:

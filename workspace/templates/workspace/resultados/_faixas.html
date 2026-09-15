@@ -15,7 +15,7 @@
       {% endif %}
     </div>
   {% endfor %}
-  {% include "workspace/resultados/_concentracao.html" %}
+  {% if not sem_concentracoes %}{% include "workspace/resultados/_concentracao.html" %}{% endif %}
 </section>
 {% for faixa in faixas %}
   <section class="au-secao-faixa" aria-labelledby="{{ faixa.chave }}">

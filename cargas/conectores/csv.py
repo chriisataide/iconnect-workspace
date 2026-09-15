@@ -166,6 +166,8 @@ class ConectorCSV(ConectorBase):
             if coluna.startswith("_") or coluna in ("chave_externa",):
                 continue
             convertido = _converter_valor(coluna, valor)
+            if entidade == "apontamento" and coluna == "contrato" and valor and str(valor).strip() and convertido is None:
+                raise ValueError(f"Contrato de apontamento não encontrado: {valor}")
             if convertido is not _IGNORAR:
                 dados[coluna] = convertido
 

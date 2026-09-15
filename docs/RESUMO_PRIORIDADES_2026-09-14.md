@@ -1,5 +1,31 @@
 # Resumo e prioridades
 
+## Revisão: foco nos contratos
+
+Na página Resultados, o resumo agora usa a carteira autorizada, não os sinais
+genéricos do sistema. Identifica código e cliente em três categorias:
+contratos em destaque, contratos que precisam de atenção e contratos em
+concentração. Destaque exige margem de pelo menos 20% e amostra disponível.
+Atenção inclui margem negativa, margem abaixo de 10% com amostra disponível
+e término de vigência nos 30 dias a partir da competência selecionada.
+Um contrato rentável próximo do vencimento pode aparecer nas duas categorias,
+por motivos distintos. Margem desconhecida não é tratada como zero.
+
+O detalhe filtra pelo contrato. A ação de concentração preenche o tipo Contrato
+e seu código, e reconhece também um foco manual já aberto para esse contrato.
+Concentrações e histórico na página são limitados aos contratos do recorte;
+registros técnicos ou fora da carteira continuam armazenados. O formulário
+oferece os contratos da carteira visível. Avisos das fontes permanecem nos
+carimbos de atualização das respectivas seções.
+
+Validação desta revisão: 119 testes passaram, incluindo classificação por
+contrato, identificação do cliente, vencimento, vínculo manual, permissões e
+exclusão de focos técnicos e fora do recorte. A verificação visual desta revisão
+ficou pendente: a revisão automática bloqueou a prévia por limite de uso da
+ferramenta. A validação de navegador descrita abaixo refere-se à versão anterior.
+
+## Implementação inicial
+
 Os cards foram substituídos por listas de Destaques (sinais positivos) e
 Pontos de atenção (demais sinais, com indicação textual dos críticos).
 Cada linha mostra o título, valor, contexto e acesso ao detalhe. Três itens

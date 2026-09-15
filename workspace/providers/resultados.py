@@ -267,6 +267,10 @@ class QuadroDTO(ComProcedencia):
 
 @dataclass(frozen=True)
 class ApontamentoDTO(ComProcedencia):
+    contrato: str = ""
+    cliente: str = ""
+    area: str = ""
+    area_nome: str = ""
     centro_custo: str = ""
     ano: int = 0
     mes: int = 0
@@ -470,8 +474,18 @@ class ProvedorPessoas(ABC):
 
 
 class ProvedorJornada(ABC):
+    def serie_apontamentos(self, escopo, de: date, ate: date) -> list[ApontamentoDTO]:
+        """Linhas mensais por centro de custo e, quando informado, contrato."""
+        return []
+
     def apontamentos(self, escopo, competencia: date) -> ApontamentoDTO | None:
         return None
+
+
+def base_apontamentos(linhas):
+    """O total de CC prevalece sobre seus detalhes contratuais no mesmo mês."""
+    totais = {(l.centro_custo, l.ano, l.mes) for l in linhas if not l.contrato}
+    return [l for l in linhas if not l.contrato or (l.centro_custo, l.ano, l.mes) not in totais]
 
 
 class ProvedorSatisfacao(ABC):

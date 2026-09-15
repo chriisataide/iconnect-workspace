@@ -1,6 +1,8 @@
 {% load i18n static %}
   <script src="{% static 'workspace/js/resultados-filtros.js' %}" defer></script>
   <form aria-label="{% trans 'Filtros de resultados' %}" class="au-filtros--resultados" method="get" action="" data-limpar-vazios="1">
+    {% if hora_selecionada %}<input type="hidden" name="hora" value="{{ hora_selecionada }}">{% endif %}
+    {% if ranking_jornada %}<input type="hidden" name="ranking" value="{{ ranking_jornada }}">{% endif %}
     <div class="au-filtro-grupo">
       <p class="au-filtro-grupo-titulo">{% trans "Quando" %}</p>
       <div class="au-filtro-grupo-campos">
@@ -57,7 +59,7 @@
         </div>
         <div class="au-filtro">
           <label class="au-filtro-rotulo" for="f-cc">{% trans "Centro de custo" %}</label>
-          {% if com_atributos %}
+          {% if com_atributos or com_seletores %}
           <select class="au-input au-input--compacto" id="f-cc" name="cc">
             <option value="">{% trans "Todos" %}</option>
             {% if filtros.centro_custo %}<option value="{{ filtros.centro_custo }}" selected>{{ filtros.centro_custo }}</option>{% endif %}
@@ -73,7 +75,7 @@
         </div>
         <div class="au-filtro">
           <label class="au-filtro-rotulo" for="f-contrato">{% trans "Contrato" %}</label>
-          {% if com_atributos %}
+          {% if com_atributos or com_seletores %}
           <select class="au-input au-input--compacto" id="f-contrato" name="contrato">
             <option value="">{% trans "Todos os contratos" %}</option>
             {% if filtros.contrato %}<option value="{{ filtros.contrato }}" selected>{{ filtros.contrato }}</option>{% endif %}

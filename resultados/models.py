@@ -650,6 +650,7 @@ class QuadroPessoas(ProcedenciaMixin):
 
 
 class Apontamento(ProcedenciaMixin):
+    contrato = models.ForeignKey("Contrato", null=True, blank=True, on_delete=models.PROTECT, related_name="apontamentos")
     centro_custo = models.CharField(max_length=20, db_index=True)
     ano = models.PositiveSmallIntegerField(db_index=True)
     mes = models.PositiveSmallIntegerField(db_index=True)
@@ -675,7 +676,12 @@ class Apontamento(ProcedenciaMixin):
                 fields=["fonte", "chave_externa"], name="res_apontamento_origem_unica"
             ),
             models.UniqueConstraint(
-                fields=["centro_custo", "ano", "mes"], name="res_apontamento_cc_unico"
+                fields=["centro_custo", "ano", "mes"], name="res_apontamento_cc_unico",
+                condition=models.Q(contrato__isnull=True)
+            ),
+            models.UniqueConstraint(
+                fields=["contrato", "centro_custo", "ano", "mes"], name="res_apontamento_contrato_unico",
+                condition=models.Q(contrato__isnull=False)
             ),
         ]
 
