@@ -175,6 +175,27 @@ body {
   padding: var(--au-10) var(--au-6) var(--au-16);
 }
 
+/* A TELA DE MÓDULO NÃO É CENTRADA — ela ocupa a largura da janela.
+ *
+ * O hub e as telas de leitura vivem bem nos 1440px: são cartões e texto, e
+ * texto largo demais se lê pior. A tela de módulo é outra coisa — trilho à
+ * esquerda mais tabelas e gráficos à direita. Centrada num monitor de 2200px,
+ * ela gastava ~380px de cada lado em nada, o trilho ficava boiando longe da
+ * borda e a defesa de território rolava de lado com meia tela vazia ao redor.
+ *
+ * Redefinir o TOKEN e não escrever `max-width` aqui: o rodapé usa o mesmo
+ * token, e sobrescrever só o `.au-main` deixaria a assinatura recuada 380px da
+ * borda do conteúdo que ela fecha.
+ *
+ * O que protege a leitura são as medidas de cada bloco, que já existem e não
+ * mudam: `au-leitura` 72ch, `au-artigo` 720px, `au-folha` 76ch. Largura de
+ * página nunca foi o que segurava linha de texto.
+ *
+ * ponytail: sem teto. Num ultrawide de 3440px a tabela estica; se incomodar,
+ * o teto vai aqui e não em cada bloco.
+ */
+body:has(.au-modulo) { --au-content-max: none; }
+
 .au-secao { margin-top: var(--au-12); }
 .au-secao:first-child { margin-top: 0; }
 
@@ -4881,6 +4902,14 @@ tr[data-abre-resumo]:focus-visible {
 /* A COLUNA DO CONTRATO não encolhe. Sem o mínimo, o nome do cliente quebrava em
  * três linhas para caber o que sobrava depois das colunas numéricas. */
 .au-tabela--territorio th[scope="row"] { min-width: 15rem; }
+
+/* O CÓDIGO DO CONTRATO cabe no que ele mede, e não nos `6ch` da tabela
+ * contábil — lá a coluna 2 é fixa para os códigos de conta ficarem alinhados
+ * entre si, e aqui `CT-100` é o menor que existe: um código de sete dígitos
+ * quebraria no meio. O nome do cliente continua na coluna elástica. */
+.au-tabela--territorio .au-contabil-abrir {
+  grid-template-columns: 1em auto minmax(0, 1fr);
+}
 
 /* A LINHA DO ESCOPO — o que está instalado, aberto pelo `+`. Fundo afundado
  * para ela ler como detalhe da linha acima, e não como mais um contrato. */

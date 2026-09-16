@@ -63,12 +63,20 @@
             O `+` é um LINK e o estado vive na URL, como na tabela contábil:
             mandar o link já aberto no contrato certo é o que faz a conversa
             andar, e funciona sem JavaScript.
+
+            CÓDIGO E CLIENTE EM SPANS SEPARADOS, e isso não é enfeite:
+            `au-contabil-abrir` é uma GRADE de três colunas — sinal, código,
+            nome. Mandar "CT-100 · Rede Aurora" como um texto solto criava UM
+            item anônimo, que caía na coluna do meio e era espremido na largura
+            de um código de conta: o nome quebrava em três linhas e a terceira
+            coluna ficava vazia ao lado. Três filhos, três colunas.
           {% endcomment %}
           <th scope="row">
             <a class="au-contabil-abrir" href="{{ linha.url_alternar }}"
                aria-expanded="{% if linha.aberto %}true{% else %}false{% endif %}">
               <span class="au-contabil-sinal" aria-hidden="true">{% if linha.aberto %}−{% else %}+{% endif %}</span>
-              {{ linha.codigo }} · {{ linha.cliente }}
+              <span class="au-contabil-codigo">{{ linha.codigo }}</span>
+              <span>{{ linha.cliente }}</span>
             </a>
           </th>
           {% comment %}
