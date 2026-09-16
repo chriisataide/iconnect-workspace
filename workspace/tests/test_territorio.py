@@ -290,3 +290,112 @@ def test_sem_contrato_a_faixa_diz_o_que_falta(client, com_satisfacao, db):
 
     assert not faixa.disponivel
     assert "contrato na carteira" in faixa.motivo
+
+
+# ── A natureza da receita ───────────────────────────────────────────
+
+
+def test_a_natureza_e_derivada_do_servico():
+    """Outro eixo, não outro nome: `servico` diz como o contrato foi vendido, a
+    natureza diz o que ele faz com o caixa. Na defesa, a distinção decide a
+    AÇÃO — um recorrente em risco se defende renovando; uma venda em risco se
+    defende vendendo de novo."""
+    from resultados.models import natureza_de
+
+    assert natureza_de("monitoramento") == "recorrente"
+    assert natureza_de("manutencao") == "recorrente"
+    assert natureza_de("locacao") == "locacao"
+    assert natureza_de("projeto") == "venda"
+    assert natureza_de("projeto_turnkey") == "venda"
+
+
+def test_servico_NAO_mapeado_fica_sem_natureza():
+    """Vazio e não um palpite: serviço novo que ninguém mapeou aparece sem
+    natureza na tela, e isso é uma pergunta. Chutar "recorrente" seria uma
+    resposta errada que ninguém iria conferir."""
+    from resultados.models import natureza_de
+
+    assert natureza_de("servico-que-nao-existe") == ""
+
+
+def test_todo_servico_do_enum_tem_natureza():
+    """O mapa tem de acompanhar o enum. Serviço novo sem entrada aqui aparece
+    com "—" na coluna, e o teste é o que faz alguém notar."""
+    from resultados.models import NATUREZA_POR_SERVICO, ServicoContrato
+
+    assert set(NATUREZA_POR_SERVICO) == set(ServicoContrato.values)
+
+
+def test_a_natureza_chega_a_tabela(client, espelho, com_satisfacao):
+    client.force_login(com_satisfacao)
+
+    resposta, faixa = _faixa(client)
+
+    assert _linha(faixa, "C-BOM").natureza == "recorrente"
+    assert "Recorrente" in resposta.content.decode()
+
+
+# ── O `+` do escopo ─────────────────────────────────────────────────
+
+
+def test_o_escopo_nasce_FECHADO(client, espelho, com_satisfacao):
+    """Ele tem cento e cinquenta caracteres, e numa coluna estreita quebrava em
+    seis linhas — a linha do contrato ficava três vezes mais alta que as
+    outras, e a tabela deixava de ser varrível."""
+    client.force_login(com_satisfacao)
+
+    resposta, faixa = _faixa(client)
+
+    assert not _linha(faixa, "C-BOM").aberto
+    assert "O que está instalado" not in resposta.content.decode()
+
+
+def test_o_mais_abre_o_escopo_pela_URL(client, espelho, com_satisfacao):
+    """Na URL como a expansão da tabela contábil: mandar o link já aberto no
+    contrato certo é o que faz a conversa andar."""
+    client.force_login(com_satisfacao)
+
+    resposta, faixa = _faixa(client, "?ver=C-BOM")
+
+    assert _linha(faixa, "C-BOM").aberto
+    assert "800 câmeras" in resposta.content.decode()
+    assert not _linha(faixa, "C-RUIM").aberto
+
+
+def test_o_link_ABRE_quando_fechado_e_FECHA_quando_aberto(
+    client, espelho, com_satisfacao
+):
+    client.force_login(com_satisfacao)
+
+    _, fechado = _faixa(client)
+    _, aberto = _faixa(client, "?ver=C-BOM")
+
+    assert "ver=C-BOM" in _linha(fechado, "C-BOM").url_alternar
+    assert "C-BOM" not in _linha(aberto, "C-BOM").url_alternar.split("ver=")[-1]
+
+
+def test_abrir_o_escopo_PRESERVA_os_filtros(client, espelho, com_satisfacao):
+    client.force_login(com_satisfacao)
+
+    _, faixa = _faixa(client, "?periodo=6m&servico=monitoramento")
+
+    url = _linha(faixa, "C-BOM").url_alternar
+    assert "periodo=6m" in url and "servico=monitoramento" in url
+
+
+def test_contrato_SEM_escopo_nao_ganha_o_mais(client, espelho, com_satisfacao):
+    """Um `+` que abre uma linha vazia ensina a não clicar no `+`."""
+    client.force_login(com_satisfacao)
+
+    resposta, faixa = _faixa(client, "?ver=C-RUIM")
+    corpo = resposta.content.decode()
+
+    assert _linha(faixa, "C-RUIM").escopo == ""
+    assert "O que está instalado" not in corpo
+
+
+def test_a_lista_separada_e_a_MESMA_das_duas_tabelas():
+    """Duas listas por vírgula na mesma query string. Duas cópias da limpeza
+    divergiriam no primeiro caso de borda."""
+    assert svc._lista_separada("a, b ,a,", 40) == ("a", "b")
+    assert svc._lista_separada(None, 40) == ()

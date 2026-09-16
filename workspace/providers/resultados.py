@@ -148,6 +148,11 @@ class ContratoDTO(ComProcedencia):
     area_nome: str = ""
     #: O que está instalado, em texto — §H1.
     escopo: str = ""
+    #: COMO a receita se comporta: `recorrente`, `locacao` ou `venda`. Derivada
+    #: do serviço no espelho — ver `resultados.models.NaturezaReceita`. Vazio
+    #: quer dizer serviço que ninguém mapeou, e não "não sei se é recorrente".
+    natureza: str = ""
+    natureza_rotulo: str = ""
     inicio_vigencia: date | None = None
     fim_vigencia: date | None = None
     valor_mensal: Decimal = Decimal("0")

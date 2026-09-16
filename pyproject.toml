@@ -236,4 +236,8 @@ cargas = 97.0      # medido 97.39 · conectores, carregador, transporte
 #   lateral o acoplamento que a separação das telas 16 e 17 desfez; e o que
 #   afirma que "sem pesquisa" é `None` e não NPS zero, porque zero seria lido
 #   como "metade promotor, metade detrator".
-minimo = 3731
+# 3731 → 3741: o `+` do escopo e a natureza da receita. O que mais protege é o
+#   que exige que o mapa `servico → natureza` cubra o enum INTEIRO: serviço
+#   novo sem entrada nele apareceria como "—" na coluna, e ninguém notaria que
+#   a linha perdeu a informação que decide a ação da defesa.
+minimo = 3741

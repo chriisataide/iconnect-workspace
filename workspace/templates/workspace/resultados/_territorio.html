@@ -38,6 +38,7 @@
         <th scope="col">{% trans "Contrato" %}</th>
         <th scope="col">{% trans "Área" %}</th>
         <th scope="col">{% trans "Serviço" %}</th>
+        <th scope="col">{% trans "Natureza" %}</th>
         <th scope="col" class="num">{% trans "ROB médio" %}</th>
         <th scope="col" class="num">{% trans "MC média" %}</th>
         <th scope="col" class="num">{% trans "% margem" %}</th>
@@ -56,12 +57,40 @@
     <tbody>
       {% for linha in faixa.conteudo.linhas %}
         <tr class="{% if linha.em_risco %}au-territorio--risco{% endif %}">
+          {% comment %}
+            O ESCOPO SAI daqui e vai para uma linha própria, atrás do `+`.
+
+            Ele tem cento e cinquenta caracteres ("14.620 câmeras e 680 DVR em
+            340 unidades, 1.020 pontos de neblina…"), e numa coluna estreita
+            quebrava em seis linhas — a linha do contrato ficava três vezes mais
+            alta que as outras, e a tabela deixava de ser varrível.
+
+            O `+` é um LINK e o estado vive na URL, como na tabela contábil:
+            mandar o link já aberto no contrato certo é o que faz a conversa
+            andar, e funciona sem JavaScript.
+          {% endcomment %}
           <th scope="row">
-            {{ linha.codigo }} · {{ linha.cliente }}
-            {% if linha.escopo %}<small class="au-procedencia">{{ linha.escopo|truncatechars:70 }}</small>{% endif %}
+            {% if linha.escopo %}
+              <a class="au-contabil-abrir" href="{{ linha.url_alternar }}"
+                 aria-expanded="{% if linha.aberto %}true{% else %}false{% endif %}">
+                <span class="au-contabil-sinal" aria-hidden="true">{% if linha.aberto %}−{% else %}+{% endif %}</span>
+                {{ linha.codigo }} · {{ linha.cliente }}
+              </a>
+            {% else %}
+              {{ linha.codigo }} · {{ linha.cliente }}
+            {% endif %}
           </th>
           <td>{{ linha.area }}</td>
           <td>{{ linha.servico }}</td>
+          {% comment %}
+            A NATUREZA decide a AÇÃO, e por isso é coluna e não nota de rodapé:
+            um recorrente em risco se defende renovando; uma venda em risco se
+            defende vendendo de novo.
+
+            Vazio quer dizer serviço que ninguém mapeou — e isso é uma pergunta,
+            não um "recorrente" por omissão.
+          {% endcomment %}
+          <td>{{ linha.natureza_rotulo|default:"—" }}</td>
           <td class="num">
             {% if linha.rob_medio is not None %}R$ {{ linha.rob_medio|moeda }}{% else %}—{% endif %}
             {% comment %}
@@ -129,6 +158,13 @@
             {% endif %}
           </td>
         </tr>
+        {% if linha.aberto and linha.escopo %}
+          <tr class="au-territorio-escopo">
+            <td colspan="{% if faixa.conteudo.com_satisfacao %}15{% else %}9{% endif %}">
+              <strong>{% trans "O que está instalado" %}:</strong> {{ linha.escopo }}
+            </td>
+          </tr>
+        {% endif %}
       {% endfor %}
     </tbody>
   </table>

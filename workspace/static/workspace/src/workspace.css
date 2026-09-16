@@ -4872,3 +4872,15 @@ tr[data-abre-resumo]:focus-visible {
  * chama o olho numa tabela de trinta linhas; o texto diz o que houve, e é o que
  * sobrevive à impressão em preto-e-branco. */
 .au-territorio--risco > th { border-left: 3px solid var(--au-danger); padding-left: var(--au-2); }
+
+/* A COLUNA DO CONTRATO não encolhe. Sem o mínimo, o nome do cliente quebrava em
+ * três linhas para caber o que sobrava depois das quinze colunas numéricas. */
+.au-tabela--territorio th[scope="row"] { min-width: 15rem; }
+
+/* A LINHA DO ESCOPO — o que está instalado, aberto pelo `+`. Fundo afundado
+ * para ela ler como detalhe da linha acima, e não como mais um contrato. */
+.au-territorio-escopo > td {
+  background: var(--au-surface-sunken);
+  font-size: var(--au-t-sm);
+  color: var(--au-text-muted);
+}

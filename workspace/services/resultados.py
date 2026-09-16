@@ -258,6 +258,12 @@ class Filtros:
     numeros: str = MODO_ABSOLUTO
     #: A safra escolhida — `C2023` ou `P2019`. Vazio mostra a lista.
     safra: str = ""
+    #: Os contratos com o escopo ABERTO na defesa de território.
+    #:
+    #: Na URL, como a expansão da tabela contábil: o escopo é a resposta a "que
+    #: contrato é este?", e mandar o link já aberto no contrato certo é o que
+    #: faz a conversa andar.
+    escopos_abertos: tuple[str, ...] = ()
 
     @property
     def tudo_aberto(self) -> bool:
@@ -392,6 +398,7 @@ def ler_filtros(parametros, hoje: date | None = None) -> Filtros:
         expandidos=_expandidos(parametros),
         numeros=_modo_dos_numeros(parametros),
         safra=(parametros.get("safra") or "").strip().upper()[:6],
+        escopos_abertos=_lista_separada(parametros.get("ver"), 40),
         dimensao=(parametros.get("dim") or "").strip()[:20],
     )
 
@@ -1185,6 +1192,21 @@ def _sobre(valor: Decimal, base: Decimal) -> Decimal | None:
 MAXIMO_EXPANDIDO = 8
 
 
+def _lista_separada(bruto, tamanho: int) -> tuple[str, ...]:
+    """`"a,b,a"` → `("a", "b")`. Sem repetição, na ordem em que vieram.
+
+    Compartilhado pela expansão da tabela contábil e pelo escopo aberto da
+    defesa de território: duas listas por vírgula na mesma query string, e duas
+    cópias da mesma limpeza divergiriam no primeiro caso de borda.
+    """
+    vistos: list[str] = []
+    for item in (bruto or "").split(","):
+        limpo = item.strip()[:tamanho]
+        if limpo and limpo not in vistos:
+            vistos.append(limpo)
+    return tuple(vistos[:MAXIMO_EXPANDIDO])
+
+
 def _expandidos(parametros) -> tuple[str, ...]:
     """Os grupos abertos, de `?expandir=41101,41106` — ou `?expandir=tudo`.
 
@@ -1876,6 +1898,14 @@ class LinhaDeDefesa:
     area: str
     servico: str
     escopo: str
+    #: `recorrente`, `locacao` ou `venda` — e o rótulo pronto. Na defesa, a
+    #: distinção decide a AÇÃO: um recorrente em risco se defende renovando;
+    #: uma venda em risco se defende vendendo de novo.
+    natureza: str = ""
+    natureza_rotulo: str = ""
+    #: O escopo está aberto nesta linha? E a URL que alterna.
+    aberto: bool = False
+    url_alternar: str = ""
 
     #: Média mensal na janela financeira.
     rob_medio: Decimal | None = None
@@ -1973,11 +2003,32 @@ def defesa_de_territorio(
         )
         for c in carteira
     ]
+    _com_escopo_aberto(linhas, filtros)
     # Em risco primeiro, e dentro deles o de maior receita: a defesa começa
     # pelo que dói mais perder.
     return sorted(
         linhas, key=lambda linha: (not linha.em_risco, -(linha.rob_medio or 0))
     )
+
+
+def _com_escopo_aberto(linhas, filtros: Filtros) -> None:
+    """O `+` de cada linha, e a URL que ele leva.
+
+    Montada em Python como toda URL desta tela: só o servidor sabe quais filtros
+    preservar ao mudar um deles.
+    """
+    from django.urls import reverse
+
+    base = reverse("workspace:resultados")
+    abertos = filtros.escopos_abertos
+    for linha in linhas:
+        linha.aberto = linha.codigo in abertos
+        novos = (
+            tuple(c for c in abertos if c != linha.codigo)
+            if linha.aberto
+            else (*abertos, linha.codigo)
+        )
+        linha.url_alternar = _url_com(base, filtros, ver=",".join(novos))
 
 
 def _escopo_da_carteira(carteira) -> contrato.Escopo:
@@ -2017,6 +2068,8 @@ def _linha_de_defesa(contrato_dto, competencias, avaliacoes, hoje) -> LinhaDeDef
         area=contrato_dto.area_nome or "Sem área",
         servico=contrato_dto.servico,
         escopo=contrato_dto.escopo,
+        natureza=contrato_dto.natureza,
+        natureza_rotulo=contrato_dto.natureza_rotulo,
         rob_medio=rob,
         mc_media=mc,
         margem_pct=(
@@ -3153,6 +3206,7 @@ def _url_com(base: str, filtros: Filtros, **mudancas) -> str:
         # deixaria `?numeros=reais` em todo link que alguém compartilha.
         "numeros": "" if filtros.numeros == MODO_ABSOLUTO else filtros.numeros,
         "safra": filtros.safra,
+        "ver": ",".join(filtros.escopos_abertos),
         "dim": filtros.dimensao,
     }
     if filtros.deficitario:
