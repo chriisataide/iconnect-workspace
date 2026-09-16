@@ -4859,3 +4859,16 @@ tr[data-abre-resumo]:focus-visible {
  * lista mistura `C2023` e `P2023`, e a letra sozinha exige leitura atenta de
  * uma lista de vinte chips. */
 .au-chip--perda { border-color: var(--au-danger); }
+
+/* DEFESA DE TERRITÓRIO — até dezesseis colunas numa linha por contrato.
+ *
+ * `overflow-x` no contêiner e não na página: a página inteira rolando de lado
+ * leva o trilho e o cabeçalho junto, e a pessoa perde a referência de onde está.
+ */
+.au-tabela--territorio { overflow-x: auto; }
+.au-tabela--territorio table { min-width: 68rem; font-variant-numeric: tabular-nums; }
+
+/* A LINHA EM RISCO tem barra à esquerda E a coluna "Situação" escrita. A barra
+ * chama o olho numa tabela de trinta linhas; o texto diz o que houve, e é o que
+ * sobrevive à impressão em preto-e-branco. */
+.au-territorio--risco > th { border-left: 3px solid var(--au-danger); padding-left: var(--au-2); }

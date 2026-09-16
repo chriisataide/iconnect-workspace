@@ -182,8 +182,13 @@ def test_a_tela_dez_perdeu_as_duas_faixas(client, so_dinheiro):
     client.force_login(so_dinheiro)
 
     # A carteira contextualiza o resultado antes do detalhamento contábil.
+    # `territorio` entrou em 16/09/2026, logo depois da carteira: ela é a
+    # mesma carteira vista pela pergunta "este contrato se defende sozinho?".
     chaves = [c for c, _ in svc.MONTADORES]
-    assert chaves == ["contratos", "dinheiro", "contabil", "vencimentos", "projetos"]
+    assert chaves == [
+        "contratos", "territorio", "dinheiro", "contabil", "vencimentos",
+        "projetos",
+    ]
 
     corpo = client.get(reverse("workspace:resultados")).content.decode()
     faixas = re.findall(r'aria-labelledby="([a-z]+)"', corpo)

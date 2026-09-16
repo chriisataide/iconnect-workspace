@@ -36,6 +36,8 @@
       {% include "workspace/resultados/_dinheiro.html" with faixa=faixa %}
     {% elif faixa.chave == "contabil" %}
       {% include "workspace/resultados/_contabil.html" with faixa=faixa %}
+    {% elif faixa.chave == "territorio" %}
+      {% include "workspace/resultados/_territorio.html" with faixa=faixa %}
     {% elif faixa.chave == "contratos" %}
       {% include "workspace/resultados/_contratos.html" with faixa=faixa %}
     {% elif faixa.chave == "vencimentos" %}

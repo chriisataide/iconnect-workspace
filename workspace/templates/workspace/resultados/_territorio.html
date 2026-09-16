@@ -1,0 +1,141 @@
+{% load i18n wks %}
+{% comment %}
+  DEFESA DE TERRITÓRIO — uma linha por contrato.
+
+  A pergunta é "este contrato se defende sozinho?", e ela precisa de três
+  respostas que até agora moravam em três lugares: quanto ele rende, o que o
+  cliente acha dele, e quando ele vence.
+
+  ## A ordem das linhas é a ordem da defesa
+
+  Em risco primeiro, e dentro deles o de maior receita — a defesa começa pelo
+  que dói mais perder. Ordenada por código, a tabela obrigaria a varrer trinta
+  linhas para achar as três que importam.
+
+  ## As colunas de pesquisa podem não estar aqui
+
+  Elas só aparecem para quem tem `eco.satisfacao` — a mesma permissão que
+  separou as telas 16 e 17. Escondê-las por CSS deixaria o dado no HTML; aqui a
+  consulta nem acontece.
+
+  ## A tabela rola sozinha
+
+  São até dezesseis colunas. `overflow-x` no contêiner e não na página: a página
+  inteira rolando de lado leva o trilho e o cabeçalho junto.
+{% endcomment %}
+
+<p class="au-ajuda">
+  {% blocktrans with f=faixa.conteudo.meses_financeiro s=faixa.conteudo.meses_satisfacao %}Média financeira dos últimos {{ f }} meses; pesquisa dos últimos {{ s }}. As duas janelas são diferentes de propósito — pesquisa de cliente é esparsa, e sete meses deixariam contrato sem nenhuma resposta.{% endblocktrans %}
+</p>
+
+<div class="au-tabela au-tabela--territorio">
+  <table>
+    <caption class="au-sr">
+      {% blocktrans with mes=faixa.competencia|date:"m/Y" %}Defesa de território em {{ mes }}{% endblocktrans %}
+    </caption>
+    <thead>
+      <tr>
+        <th scope="col">{% trans "Contrato" %}</th>
+        <th scope="col">{% trans "Área" %}</th>
+        <th scope="col">{% trans "Serviço" %}</th>
+        <th scope="col" class="num">{% trans "ROB médio" %}</th>
+        <th scope="col" class="num">{% trans "MC média" %}</th>
+        <th scope="col" class="num">{% trans "% margem" %}</th>
+        {% if faixa.conteudo.com_satisfacao %}
+          <th scope="col" class="num">{% trans "Prom." %}</th>
+          <th scope="col" class="num">{% trans "Neut." %}</th>
+          <th scope="col" class="num">{% trans "Detr." %}</th>
+          <th scope="col" class="num">{% trans "Pesquisas" %}</th>
+          <th scope="col" class="num">{% trans "NPS" %}</th>
+          <th scope="col" class="num">{% trans "Nota média" %}</th>
+        {% endif %}
+        <th scope="col" class="num">{% trans "Fim da vigência" %}</th>
+        <th scope="col">{% trans "Situação" %}</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for linha in faixa.conteudo.linhas %}
+        <tr class="{% if linha.em_risco %}au-territorio--risco{% endif %}">
+          <th scope="row">
+            {{ linha.codigo }} · {{ linha.cliente }}
+            {% if linha.escopo %}<small class="au-procedencia">{{ linha.escopo|truncatechars:70 }}</small>{% endif %}
+          </th>
+          <td>{{ linha.area }}</td>
+          <td>{{ linha.servico }}</td>
+          <td class="num">
+            {% if linha.rob_medio is not None %}R$ {{ linha.rob_medio|moeda }}{% else %}—{% endif %}
+            {% comment %}
+              QUANTOS MESES entraram na média. Três meses e sete meses produzem
+              o mesmo "médio" com confianças muito diferentes, e sem o número a
+              tela trata os dois igual.
+            {% endcomment %}
+            {% if linha.meses and linha.meses < faixa.conteudo.meses_financeiro %}
+              <small class="au-procedencia">{% blocktrans count n=linha.meses %}{{ n }} mês{% plural %}{{ n }} meses{% endblocktrans %}</small>
+            {% endif %}
+          </td>
+          <td class="num">{% if linha.mc_media is not None %}R$ {{ linha.mc_media|moeda }}{% else %}—{% endif %}</td>
+          <td class="num">{% if linha.margem_pct is not None %}{{ linha.margem_pct|numero:1 }}%{% else %}—{% endif %}</td>
+
+          {% if faixa.conteudo.com_satisfacao %}
+            {% if linha.sem_pesquisa %}
+              {% comment %}
+                SEM PESQUISA não é NPS zero. Zero seria lido como "metade
+                promotor, metade detrator"; ausência quer dizer que ninguém
+                perguntou — e a ação é outra.
+              {% endcomment %}
+              <td class="num" colspan="6">
+                <span class="au-procedencia">{% trans "sem pesquisa na janela" %}</span>
+              </td>
+            {% else %}
+              <td class="num">{{ linha.promotores }}</td>
+              <td class="num">{{ linha.neutros }}</td>
+              <td class="num">{{ linha.detratores }}</td>
+              <td class="num">{{ linha.pesquisas }}</td>
+              <td class="num">{{ linha.nps|numero:1 }}</td>
+              <td class="num">{{ linha.nota_media|numero:1 }}</td>
+            {% endif %}
+          {% endif %}
+
+          <td class="num">
+            {% if linha.fim_vigencia %}
+              {{ linha.fim_vigencia|date:"d/m/Y" }}
+              {% if linha.dias_para_vencer is not None %}
+                <small class="au-procedencia">
+                  {% if linha.dias_para_vencer < 0 %}
+                    {% trans "vencido" %}
+                  {% else %}
+                    {% blocktrans count n=linha.dias_para_vencer %}{{ n }} dia{% plural %}{{ n }} dias{% endblocktrans %}
+                  {% endif %}
+                </small>
+              {% endif %}
+            {% else %}
+              —
+            {% endif %}
+          </td>
+          {% comment %}
+            A SITUAÇÃO escrita, e não só a borda vermelha da linha — cor nunca
+            sozinha. E ela diz POR QUE está em risco: "em risco" sem motivo
+            manda procurar em dezesseis colunas.
+          {% endcomment %}
+          <td>
+            {% if linha.em_risco %}
+              <span class="au-etiqueta au-etiqueta--atrasado">
+                {% if linha.detratores %}{% trans "cliente insatisfeito" %}
+                {% elif linha.margem_pct is not None and linha.margem_pct < 10 %}{% trans "margem baixa" %}
+                {% else %}{% trans "vence em breve" %}{% endif %}
+              </span>
+            {% else %}
+              <span class="au-procedencia">{% trans "estável" %}</span>
+            {% endif %}
+          </td>
+        </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+{% if not faixa.conteudo.com_satisfacao %}
+  <p class="au-ajuda">
+    {% trans "As colunas de pesquisa de cliente exigem a permissão de satisfação — a mesma da tela de Avaliação do cliente." %}
+  </p>
+{% endif %}

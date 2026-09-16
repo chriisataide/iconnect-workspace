@@ -229,4 +229,11 @@ cargas = 97.0      # medido 97.39 · conectores, carregador, transporte
 #   SOMA ignore o desconhecido: somá-lo como zero faria o total de um mês com
 #   custo ausente parecer completo, e o aviso na tela diria que falta linha
 #   enquanto o número dizia que não.
-minimo = 3682
+# 3682 → 3731: a defesa de território, mais o que as outras telas ganharam
+#   fora destas sessões. Os que mais protegem a defesa: o que exige que quem
+#   NÃO tem `eco.satisfacao` veja a tabela financeira inteira e o dado de
+#   pesquisa nem chegue ao HTML — sem ele, a defesa reabriria por uma porta
+#   lateral o acoplamento que a separação das telas 16 e 17 desfez; e o que
+#   afirma que "sem pesquisa" é `None` e não NPS zero, porque zero seria lido
+#   como "metade promotor, metade detrator".
+minimo = 3731
