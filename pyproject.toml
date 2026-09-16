@@ -240,4 +240,8 @@ cargas = 97.0      # medido 97.39 · conectores, carregador, transporte
 #   que exige que o mapa `servico → natureza` cubra o enum INTEIRO: serviço
 #   novo sem entrada nele apareceria como "—" na coluna, e ninguém notaria que
 #   a linha perdeu a informação que decide a ação da defesa.
-minimo = 3741
+# 3741 → 3743: o corte de quinze colunas para sete. O que mais protege é a
+#   contagem de `<th scope="col">`: cada coluna nova precisa passar por ela e
+#   justificar a largura que tira das outras — foi somando uma de cada vez que
+#   a tabela chegou a 68rem e virou algo que se rola, não que se varre.
+minimo = 3743

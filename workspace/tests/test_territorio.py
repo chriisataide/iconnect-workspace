@@ -383,8 +383,10 @@ def test_abrir_o_escopo_PRESERVA_os_filtros(client, espelho, com_satisfacao):
     assert "periodo=6m" in url and "servico=monitoramento" in url
 
 
-def test_contrato_SEM_escopo_nao_ganha_o_mais(client, espelho, com_satisfacao):
-    """Um `+` que abre uma linha vazia ensina a não clicar no `+`."""
+def test_contrato_SEM_escopo_nao_finge_ter_escopo(client, espelho, com_satisfacao):
+    """O `+` abre em toda linha — área, serviço e MC sempre existem —, mas "o
+    que está instalado" só aparece quando há o que listar. Um rótulo sobre um
+    valor vazio é pior que rótulo nenhum."""
     client.force_login(com_satisfacao)
 
     resposta, faixa = _faixa(client, "?ver=C-RUIM")
@@ -392,6 +394,37 @@ def test_contrato_SEM_escopo_nao_ganha_o_mais(client, espelho, com_satisfacao):
 
     assert _linha(faixa, "C-RUIM").escopo == ""
     assert "O que está instalado" not in corpo
+    # Mas o detalhe abriu, e tem o que saiu da grade.
+    assert "MC média" in corpo
+
+
+# ── A grade enxuta ──────────────────────────────────────────────────
+
+
+def test_os_INGREDIENTES_do_nps_ficam_fora_da_grade(client, espelho, com_satisfacao):
+    """Quinze colunas cabiam — com 68rem e rolagem lateral —, mas uma tabela que
+    rola de lado não se varre. Promotores, neutros e detratores são o que
+    COMPÕE o NPS: quem precisa deles está conferindo uma linha, e conferir é o
+    que o `+` serve."""
+    client.force_login(com_satisfacao)
+
+    fechado, _ = _faixa(client)
+    aberto, _ = _faixa(client, "?ver=C-BOM")
+
+    assert "NPS" in fechado.content.decode(), "o resumo fica"
+    assert "Promotores" not in fechado.content.decode()
+    assert "Promotores" in aberto.content.decode(), "os ingredientes, no detalhe"
+
+
+def test_a_grade_tem_SETE_colunas(client, espelho, com_satisfacao):
+    """A trava do corte: cada coluna nova precisa passar por aqui e justificar a
+    largura que tira das outras."""
+    client.force_login(com_satisfacao)
+
+    resposta, _ = _faixa(client)
+    grade = resposta.content.decode().split('au-tabela--territorio')[1].split("</thead>")[0]
+
+    assert grade.count('<th scope="col"') == 7
 
 
 def test_a_lista_separada_e_a_MESMA_das_duas_tabelas():

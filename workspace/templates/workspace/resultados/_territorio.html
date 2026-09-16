@@ -6,6 +6,21 @@
   respostas que até agora moravam em três lugares: quanto ele rende, o que o
   cliente acha dele, e quando ele vence.
 
+  ## SETE colunas, e não quinze
+
+  A primeira versão pôs tudo na grade: área, serviço, natureza, ROB, MC,
+  margem, promotores, neutros, detratores, pesquisas, NPS, nota, vigência,
+  situação. Cabia — com `overflow-x` e 68rem de tabela —, mas ler exigia rolar
+  de lado, e uma tabela que rola de lado não se varre: a pessoa perde a linha
+  em que estava no caminho de volta.
+
+  Ficam na grade só as colunas que decidem A AÇÃO: quanto vale, se dá dinheiro,
+  se o cliente gosta, quando vence, e o que fazer. Promotores, neutros,
+  detratores e pesquisas são os INGREDIENTES do NPS — quem precisa deles está
+  conferindo uma linha, não varrendo trinta, e conferir é exatamente o que o
+  `+` serve. Área e serviço saem porque a tela já filtra por eles: repetir o
+  filtro em coluna gasta largura para dizer o que a pessoa acabou de escolher.
+
   ## A ordem das linhas é a ordem da defesa
 
   Em risco primeiro, e dentro deles o de maior receita — a defesa começa pelo
@@ -17,11 +32,6 @@
   Elas só aparecem para quem tem `eco.satisfacao` — a mesma permissão que
   separou as telas 16 e 17. Escondê-las por CSS deixaria o dado no HTML; aqui a
   consulta nem acontece.
-
-  ## A tabela rola sozinha
-
-  São até dezesseis colunas. `overflow-x` no contêiner e não na página: a página
-  inteira rolando de lado leva o trilho e o cabeçalho junto.
 {% endcomment %}
 
 <p class="au-ajuda">
@@ -36,19 +46,11 @@
     <thead>
       <tr>
         <th scope="col">{% trans "Contrato" %}</th>
-        <th scope="col">{% trans "Área" %}</th>
-        <th scope="col">{% trans "Serviço" %}</th>
         <th scope="col">{% trans "Natureza" %}</th>
         <th scope="col" class="num">{% trans "ROB médio" %}</th>
-        <th scope="col" class="num">{% trans "MC média" %}</th>
         <th scope="col" class="num">{% trans "% margem" %}</th>
         {% if faixa.conteudo.com_satisfacao %}
-          <th scope="col" class="num">{% trans "Prom." %}</th>
-          <th scope="col" class="num">{% trans "Neut." %}</th>
-          <th scope="col" class="num">{% trans "Detr." %}</th>
-          <th scope="col" class="num">{% trans "Pesquisas" %}</th>
           <th scope="col" class="num">{% trans "NPS" %}</th>
-          <th scope="col" class="num">{% trans "Nota média" %}</th>
         {% endif %}
         <th scope="col" class="num">{% trans "Fim da vigência" %}</th>
         <th scope="col">{% trans "Situação" %}</th>
@@ -58,34 +60,22 @@
       {% for linha in faixa.conteudo.linhas %}
         <tr class="{% if linha.em_risco %}au-territorio--risco{% endif %}">
           {% comment %}
-            O ESCOPO SAI daqui e vai para uma linha própria, atrás do `+`.
-
-            Ele tem cento e cinquenta caracteres ("14.620 câmeras e 680 DVR em
-            340 unidades, 1.020 pontos de neblina…"), e numa coluna estreita
-            quebrava em seis linhas — a linha do contrato ficava três vezes mais
-            alta que as outras, e a tabela deixava de ser varrível.
-
             O `+` é um LINK e o estado vive na URL, como na tabela contábil:
             mandar o link já aberto no contrato certo é o que faz a conversa
             andar, e funciona sem JavaScript.
           {% endcomment %}
           <th scope="row">
-            {% if linha.escopo %}
-              <a class="au-contabil-abrir" href="{{ linha.url_alternar }}"
-                 aria-expanded="{% if linha.aberto %}true{% else %}false{% endif %}">
-                <span class="au-contabil-sinal" aria-hidden="true">{% if linha.aberto %}−{% else %}+{% endif %}</span>
-                {{ linha.codigo }} · {{ linha.cliente }}
-              </a>
-            {% else %}
+            <a class="au-contabil-abrir" href="{{ linha.url_alternar }}"
+               aria-expanded="{% if linha.aberto %}true{% else %}false{% endif %}">
+              <span class="au-contabil-sinal" aria-hidden="true">{% if linha.aberto %}−{% else %}+{% endif %}</span>
               {{ linha.codigo }} · {{ linha.cliente }}
-            {% endif %}
+            </a>
           </th>
-          <td>{{ linha.area }}</td>
-          <td>{{ linha.servico }}</td>
           {% comment %}
-            A NATUREZA decide a AÇÃO, e por isso é coluna e não nota de rodapé:
-            um recorrente em risco se defende renovando; uma venda em risco se
-            defende vendendo de novo.
+            A NATUREZA fica na grade e o SERVIÇO desce para o detalhe: os dois
+            são o mesmo eixo em resoluções diferentes, e é a natureza que decide
+            a ação — um recorrente em risco se defende renovando; uma venda em
+            risco se defende vendendo de novo.
 
             Vazio quer dizer serviço que ninguém mapeou — e isso é uma pergunta,
             não um "recorrente" por omissão.
@@ -102,27 +92,15 @@
               <small class="au-procedencia">{% blocktrans count n=linha.meses %}{{ n }} mês{% plural %}{{ n }} meses{% endblocktrans %}</small>
             {% endif %}
           </td>
-          <td class="num">{% if linha.mc_media is not None %}R$ {{ linha.mc_media|moeda }}{% else %}—{% endif %}</td>
           <td class="num">{% if linha.margem_pct is not None %}{{ linha.margem_pct|numero:1 }}%{% else %}—{% endif %}</td>
 
           {% if faixa.conteudo.com_satisfacao %}
-            {% if linha.sem_pesquisa %}
-              {% comment %}
-                SEM PESQUISA não é NPS zero. Zero seria lido como "metade
-                promotor, metade detrator"; ausência quer dizer que ninguém
-                perguntou — e a ação é outra.
-              {% endcomment %}
-              <td class="num" colspan="6">
-                <span class="au-procedencia">{% trans "sem pesquisa na janela" %}</span>
-              </td>
-            {% else %}
-              <td class="num">{{ linha.promotores }}</td>
-              <td class="num">{{ linha.neutros }}</td>
-              <td class="num">{{ linha.detratores }}</td>
-              <td class="num">{{ linha.pesquisas }}</td>
-              <td class="num">{{ linha.nps|numero:1 }}</td>
-              <td class="num">{{ linha.nota_media|numero:1 }}</td>
-            {% endif %}
+            {% comment %}
+              SEM PESQUISA é traço, e não NPS zero. Zero seria lido como "metade
+              promotor, metade detrator"; ausência quer dizer que ninguém
+              perguntou — e a ação é outra. O detalhe diz qual das duas é.
+            {% endcomment %}
+            <td class="num">{% if linha.nps is not None %}{{ linha.nps|numero:1 }}{% else %}—{% endif %}</td>
           {% endif %}
 
           <td class="num">
@@ -144,7 +122,7 @@
           {% comment %}
             A SITUAÇÃO escrita, e não só a borda vermelha da linha — cor nunca
             sozinha. E ela diz POR QUE está em risco: "em risco" sem motivo
-            manda procurar em dezesseis colunas.
+            manda procurar nas outras seis colunas.
           {% endcomment %}
           <td>
             {% if linha.em_risco %}
@@ -158,10 +136,49 @@
             {% endif %}
           </td>
         </tr>
-        {% if linha.aberto and linha.escopo %}
+        {% if linha.aberto %}
+          {% comment %}
+            O DETALHE — o que saiu da grade, na linha que o `+` abre. Reusa o
+            `au-folha-dados` do relatório: é a mesma forma (rótulo em cima,
+            valor embaixo, quebrando em quantas colunas couberem) e uma segunda
+            grade de pares divergiria da primeira no primeiro ajuste.
+          {% endcomment %}
           <tr class="au-territorio-escopo">
-            <td colspan="{% if faixa.conteudo.com_satisfacao %}15{% else %}9{% endif %}">
-              <strong>{% trans "O que está instalado" %}:</strong> {{ linha.escopo }}
+            <td colspan="{% if faixa.conteudo.com_satisfacao %}7{% else %}6{% endif %}">
+              <dl class="au-folha-dados">
+                <div><dt>{% trans "Área" %}</dt><dd>{{ linha.area|default:"—" }}</dd></div>
+                <div><dt>{% trans "Serviço" %}</dt><dd>{{ linha.servico|default:"—" }}</dd></div>
+                <div>
+                  <dt>{% trans "MC média" %}</dt>
+                  <dd>{% if linha.mc_media is not None %}R$ {{ linha.mc_media|moeda }}{% else %}—{% endif %}</dd>
+                </div>
+                {% if faixa.conteudo.com_satisfacao %}
+                  {% if linha.sem_pesquisa %}
+                    <div>
+                      <dt>{% trans "Pesquisa" %}</dt>
+                      <dd>{% trans "sem pesquisa na janela" %}</dd>
+                    </div>
+                  {% else %}
+                    <div>
+                      <dt>{% trans "Pesquisas" %}</dt>
+                      <dd>{{ linha.pesquisas }}</dd>
+                    </div>
+                    <div>
+                      <dt>{% trans "Promotores · neutros · detratores" %}</dt>
+                      <dd>{{ linha.promotores }} · {{ linha.neutros }} · {{ linha.detratores }}</dd>
+                    </div>
+                    <div>
+                      <dt>{% trans "Nota média" %}</dt>
+                      <dd>{{ linha.nota_media|numero:1 }}</dd>
+                    </div>
+                  {% endif %}
+                {% endif %}
+              </dl>
+              {% if linha.escopo %}
+                <p class="au-folha-texto">
+                  <strong>{% trans "O que está instalado" %}:</strong> {{ linha.escopo }}
+                </p>
+              {% endif %}
             </td>
           </tr>
         {% endif %}

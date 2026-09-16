@@ -4860,13 +4860,18 @@ tr[data-abre-resumo]:focus-visible {
  * uma lista de vinte chips. */
 .au-chip--perda { border-color: var(--au-danger); }
 
-/* DEFESA DE TERRITÓRIO — até dezesseis colunas numa linha por contrato.
+/* DEFESA DE TERRITÓRIO — sete colunas numa linha por contrato.
  *
- * `overflow-x` no contêiner e não na página: a página inteira rolando de lado
- * leva o trilho e o cabeçalho junto, e a pessoa perde a referência de onde está.
+ * Eram quinze, e a tabela precisava de 68rem: cabia com `overflow-x`, mas ler
+ * exigia rolar de lado, e uma tabela que rola de lado não se varre — a pessoa
+ * perde a linha em que estava no caminho de volta. O resto desceu para o
+ * detalhe do `+`.
+ *
+ * O `overflow-x` fica: 44rem ainda não cabe em telefone. Mas no contêiner e não
+ * na página, senão o trilho e o cabeçalho vão junto.
  */
 .au-tabela--territorio { overflow-x: auto; }
-.au-tabela--territorio table { min-width: 68rem; font-variant-numeric: tabular-nums; }
+.au-tabela--territorio table { min-width: 44rem; font-variant-numeric: tabular-nums; }
 
 /* A LINHA EM RISCO tem barra à esquerda E a coluna "Situação" escrita. A barra
  * chama o olho numa tabela de trinta linhas; o texto diz o que houve, e é o que
@@ -4874,7 +4879,7 @@ tr[data-abre-resumo]:focus-visible {
 .au-territorio--risco > th { border-left: 3px solid var(--au-danger); padding-left: var(--au-2); }
 
 /* A COLUNA DO CONTRATO não encolhe. Sem o mínimo, o nome do cliente quebrava em
- * três linhas para caber o que sobrava depois das quinze colunas numéricas. */
+ * três linhas para caber o que sobrava depois das colunas numéricas. */
 .au-tabela--territorio th[scope="row"] { min-width: 15rem; }
 
 /* A LINHA DO ESCOPO — o que está instalado, aberto pelo `+`. Fundo afundado
@@ -4884,3 +4889,8 @@ tr[data-abre-resumo]:focus-visible {
   font-size: var(--au-t-sm);
   color: var(--au-text-muted);
 }
+
+/* A grade de pares vem do relatório (`au-folha-dados`), e lá ela separa seções
+ * de uma folha inteira. Dentro de uma linha de tabela esse respiro empurra a
+ * próxima linha para longe da que ela detalha. */
+.au-territorio-escopo .au-folha-dados { margin-bottom: var(--au-2); }

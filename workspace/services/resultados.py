@@ -1903,7 +1903,7 @@ class LinhaDeDefesa:
     #: uma venda em risco se defende vendendo de novo.
     natureza: str = ""
     natureza_rotulo: str = ""
-    #: O escopo está aberto nesta linha? E a URL que alterna.
+    #: O detalhe está aberto nesta linha? E a URL que alterna.
     aberto: bool = False
     url_alternar: str = ""
 
