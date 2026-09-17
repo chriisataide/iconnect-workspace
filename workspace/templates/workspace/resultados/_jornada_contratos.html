@@ -1,10 +1,30 @@
 {% load i18n wks %}
+{% comment %}
+  A COBERTURA é um NÚMERO, e era três linhas de texto.
+
+  "12 de 18 contratos têm apontamentos vinculados neste mês (66,7%)" virou um
+  cartão ao lado dos outros: quem olha a tela quer saber de quanto do total ela
+  está falando, e isso é uma fração — não um parágrafo. A ressalva de que
+  cobertura não garante importação desceu para "Como ler estes números".
+{% endcomment %}
 <h3 class="au-subsecao">{% trans "Cobertura dos apontamentos por contrato" %}</h3>
 {% if jornada.cobertura.total %}
-  <p>{{ jornada.cobertura.com_dados }} {% trans "de" %} {{ jornada.cobertura.total }} {% trans "contratos da carteira têm apontamentos vinculados neste mês" %} ({{ jornada.cobertura.percentual|numero:1 }}%).</p>
-  <p class="au-ajuda">{% trans "Cobertura indica presença de registros, não garante que todas as horas tenham sido importadas. Contrato sem registro não equivale a zero horas." %}</p>
+  <div class="au-jornada-indicadores">
+    <div class="au-kpi">
+      <span class="au-kpi-rotulo">{% trans "contratos com apontamento" %}</span>
+      <span class="au-kpi-valor">{{ jornada.cobertura.com_dados }}<small class="au-kpi-sufixo">{% trans "de" %} {{ jornada.cobertura.total }}</small></span>
+      <small>{{ jornada.cobertura.percentual|numero:1 }}% {% trans "da carteira" %}</small>
+    </div>
+    {% if jornada.cobertura.sem_dados %}
+      <div class="au-kpi">
+        <span class="au-kpi-rotulo">{% trans "sem apontamento" %}</span>
+        <span class="au-kpi-valor">{{ jornada.cobertura.sem_dados|length }}</span>
+        <small>{% trans "não equivale a zero horas" %}</small>
+      </div>
+    {% endif %}
+  </div>
   {% if jornada.cobertura.sem_dados %}<details class="au-resultados-consulta" data-resultados-detalhe="jornada-sem-dados"><summary>{% trans "Ver contratos sem apontamentos vinculados" %} ({{ jornada.cobertura.sem_dados|length }})</summary><ul>{% for c in jornada.cobertura.sem_dados %}<li>{{ c.codigo }} · {{ c.cliente }}</li>{% endfor %}</ul></details>{% endif %}
-{% else %}<p class="au-ajuda">{% trans "Sem carteira disponível neste recorte para medir a cobertura contratual." %}</p>{% endif %}
+{% else %}<p class="au-vazio-dica">{% trans "Sem carteira disponível neste recorte para medir a cobertura contratual." %}</p>{% endif %}
 <h3 class="au-subsecao">{% trans "Análise por contrato" %} — {{ jornada.titulo_metrica }}</h3>
 {% for c in jornada.detalhes %}
   <details class="au-resultados-consulta" data-resultados-detalhe="jornada-contrato-{{ c.codigo }}">
@@ -20,4 +40,4 @@
       {% if c.foco %}<a href="#concentracao-{{ c.foco.pk }}">{% trans "Acompanhar ação existente" %}</a>{% else %}<a href="#nova-concentracao" data-concentrar data-tipo="contrato" data-referencia="{{ c.codigo }}" data-chave="{{ c.chave }}" data-titulo="{% trans 'Analisar jornada' %} — {{ c.codigo }}" data-motivo="{{ c.motivo }}">{% trans "Registrar ação para este contrato" %}</a>{% endif %}
     {% endif %}
   </details>
-{% empty %}<p class="au-ajuda">{% trans "O detalhe será preenchido quando a fonte fornecer apontamentos vinculados aos contratos." %}</p>{% endfor %}
+{% empty %}<p class="au-vazio-dica">{% trans "O detalhe será preenchido quando a fonte fornecer apontamentos vinculados aos contratos." %}</p>{% endfor %}
