@@ -244,4 +244,9 @@ cargas = 97.0      # medido 97.39 · conectores, carregador, transporte
 #   contagem de `<th scope="col">`: cada coluna nova precisa passar por ela e
 #   justificar a largura que tira das outras — foi somando uma de cada vez que
 #   a tabela chegou a 68rem e virou algo que se rola, não que se varre.
-minimo = 3743
+# 3743 → 3747: a gaveta de filtros. O que mais protege são os dois testes de
+#   POSIÇÃO: um exige que os campos nasçam depois da abertura da gaveta, o
+#   outro que "PDF" e "Apresentar" nasçam antes dela. Filtro e ação parecem a
+#   mesma coisa numa barra de botões, e o dia em que alguém arrastar "PDF" para
+#   dentro da gaveta, imprimir passa a exigir abrir os filtros.
+minimo = 3747

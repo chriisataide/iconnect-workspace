@@ -3442,10 +3442,31 @@ tr[data-abre-resumo]:focus-visible {
    `preserveAspectRatio="none"` no SVG: a série estica na largura e mantém a
    altura, que é o certo para série temporal. Esticar proporcionalmente
    encolheria as barras num celular até virarem traços. */
+/* NO MÁXIMO TRÊS POR LINHA, e o teto é explícito.
+ *
+ * Era `auto-fit` com piso de 280px, e isso é uma regra que diz "quantos
+ * couberem". Depois que a tela de módulo deixou de ser centrada, coubaram
+ * cinco: os doze meses de receita viraram doze traços de 30px, com os rótulos
+ * de "% do orçado" empilhados uns sobre os outros. Um gráfico que não se lê não
+ * é meio gráfico, é nenhum.
+ *
+ * Contagem fixa e não piso maior: piso maior continua sendo "quantos couberem",
+ * e num monitor mais largo volta a caber um quarto. Três é o limite porque
+ * série de doze meses precisa de ~600px para as barras terem largura.
+ *
+ * A terceira coluna só entra quando há um terceiro gráfico — senão os dois da
+ * tela de projetos ficariam espremidos à esquerda com um buraco ao lado.
+ */
 .au-graficos {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  grid-template-columns: minmax(0, 1fr);
   gap: var(--au-4);
+}
+@media (min-width: 1100px) {
+  .au-graficos:has(> :nth-child(2)) { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (min-width: 1800px) {
+  .au-graficos:has(> :nth-child(3)) { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 }
 .au-grafico { margin: 0; }
 .au-grafico-titulo {
@@ -4374,19 +4395,74 @@ tr[data-abre-resumo]:focus-visible {
 }
 .au-legenda-leitura b { color: var(--au-text); font-weight: 600; }
 
+/* ── A BARRA E A GAVETA DE FILTROS ───────────────────────────────
+ * O painel ficava `position: sticky` no topo e comia um terço da altura útil:
+ * em reunião ele cobria as primeiras linhas de toda tabela que passava por
+ * baixo. Agora fica numa gaveta `popover`, e na tela sobra uma linha.
+ */
+.au-filtro-barra {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--au-2);
+  margin: var(--au-4) 0;
+}
+
+/* A CONTAGEM no botão. Sem ela, "Filtros" fechado não distingue tela inteira de
+ * tela recortada — e as tarjas ao lado dizem QUAIS, não QUANTOS. */
+.au-filtro-barra-conta {
+  min-width: 18px;
+  padding: 1px 6px;
+  font-size: var(--au-t-2xs);
+  font-weight: 650;
+  text-align: center;
+  color: var(--au-btn-fg);
+  background: var(--au-btn-bg);
+  border-radius: var(--au-r-full);
+}
+
+/* A gaveta encosta na direita e vai de topo a base. `100dvh` e não `100vh`: no
+ * celular a barra do navegador entra e sai, e `vh` deixaria o botão "Aplicar"
+ * embaixo dela. */
+.au-gaveta {
+  position: fixed;
+  inset: 0 0 auto auto;
+  width: min(32rem, 100vw);
+  height: 100dvh;
+  max-height: 100dvh;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-left: 1px solid var(--au-border);
+  background: var(--au-surface);
+  color: var(--au-text);
+}
+.au-gaveta::backdrop { background: rgb(0 0 0 / .35); }
+
+.au-gaveta-cabeca {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--au-3);
+  padding: var(--au-4) var(--au-5);
+  border-bottom: 1px solid var(--au-border);
+  background: var(--au-surface);
+}
+.au-gaveta-titulo { margin: 0; font-size: var(--au-t-md); font-weight: 650; }
+
 /* Resultados: grupos alinhados e ações em uma faixa própria. */
 .au-filtros--resultados {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: minmax(0, 1fr);
   gap: var(--au-5);
-  margin: var(--au-4) 0;
+  margin: 0;
   padding: var(--au-5);
   background: var(--au-surface);
-  border: 1px solid var(--au-border);
-  border-radius: var(--au-r-md);
-  position: sticky;
-  top: 0;
-  z-index: 20;
 }
 .au-filtro-grupo { display: flex; min-width: 0; flex-direction: column; gap: var(--au-3); }
 .au-filtro-grupo-titulo {
@@ -4402,7 +4478,7 @@ tr[data-abre-resumo]:focus-visible {
 .au-filtro-grupo-dica { font-weight: 400; color: var(--au-text-muted); }
 .au-filtro-grupo-campos {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(12rem, 1fr));
   align-items: end;
   gap: var(--au-3);
 }
@@ -4422,12 +4498,15 @@ tr[data-abre-resumo]:focus-visible {
 .au-filtros--resultados .au-check { display: inline-block; flex-shrink: 0; }
 .au-filtro-acoes {
   grid-column: 1 / -1;
+  position: sticky;
+  bottom: 0;
   display: flex;
   flex-wrap: wrap;
   align-items: center;
   gap: var(--au-2);
-  padding-top: var(--au-4);
+  padding: var(--au-4) 0;
   border-top: 1px solid var(--au-border);
+  background: var(--au-surface);
 }
 .au-filtro-acoes-divisor { flex: 1; }
 .au-filtro-multi { position: relative; min-width: 0; }
@@ -4467,10 +4546,17 @@ tr[data-abre-resumo]:focus-visible {
   box-shadow: 0 4px 12px rgb(0 0 0 / .1);
 }
 .au-filtro-multi-opcoes .au-marcador { min-height: 36px; overflow-wrap: anywhere; font-size: var(--au-t-sm); }
-.au-filtro-vazio { margin: var(--au-2); color: var(--au-text-muted); font-size: var(--au-t-sm); }
-@media (max-width: 1200px) {
-  .au-filtros--resultados { grid-template-columns: minmax(0, 1fr); position: relative; }
+
+/* DENTRO DA GAVETA a lista entra no fluxo, e não flutua: um filho absoluto é
+ * cortado pelo `overflow-y` do painel que rola, e as opções de baixo ficariam
+ * inalcançáveis. Empurrar o conteúdo para baixo é o preço, e é o certo aqui. */
+.au-gaveta .au-filtro-multi-opcoes {
+  position: static;
+  width: auto;
+  min-width: 0;
+  box-shadow: none;
 }
+.au-filtro-vazio { margin: var(--au-2); color: var(--au-text-muted); font-size: var(--au-t-sm); }
 @media (max-width: 600px) {
   .au-filtros--resultados { padding: var(--au-4); gap: var(--au-4); }
   .au-filtro-grupo-campos { grid-template-columns: minmax(0, 1fr); }
