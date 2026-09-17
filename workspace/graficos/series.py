@@ -1364,24 +1364,47 @@ def dispersao(
     option = _base(altura)
     option.update(
         {
-            # O TOOLTIP USA `{b}`, E NÃO `{@detalhe}` — corrigido em 08/09/2026.
+            # O TOOLTIP É `richText`, E O SEPARADOR É `\n` — corrigido em
+            # 17/09/2026, depois de `<br>` aparecer LITERAL na tela.
             #
-            # `{@dimensão}` só existe no caminho do RÓTULO. Provado no bundle:
-            # o regex `/\{@(.+?)\}/g` aparece em exatamente um `.replace()`,
-            # dentro de `getFormattedLabel`. O formatter de tooltip passa por
-            # `formatTpl`, que só conhece `{a}`, `{b}`, `{c}` e `{d}` — então
-            # `{@detalhe}` chegava à tela **literal**, que foi o defeito
-            # relatado.
+            # ## O caminho até aqui, para ninguém refazer
             #
-            # `{b}` é o `name` do item, e `name` aceita qualquer string. O texto
-            # rico vai ali, já formatado em pt-BR pelo Python — a regra de
-            # formato continua num lugar só.
+            # O texto das três linhas vive no `name` do item, porque é lá que o
+            # pt-BR formatado em Python cabe inteiro — a regra de formato fica
+            # num lugar só. Mas o ECharts **escapa o valor** que substitui em
+            # `{b}`: medido no navegador contra este bundle, `CT-101<br>…`
+            # chegava ao DOM como `CT-101&lt;br&gt;…`.
             #
-            # A correção que o relato sugeria — declarar `dataset.dimensions` e
-            # trocar o formatter por função — não serve aqui: `dimensions` não
-            # muda o caminho do tooltip, e função não sobrevive à serialização
-            # JSON pela qual a `option` viaja.
-            "tooltip": {"trigger": "item", "confine": True, "formatter": "{b}"},
+            # Três saídas foram medidas, e duas não servem:
+            #
+            # 1. `<br>` LITERAL no template do formatter funciona — só o VALOR
+            #    é escapado, o template não. Mas então os números teriam de vir
+            #    por `{a}{b}{c}{d}`, e `{c}` traz o array cru, sem pt-BR.
+            # 2. Dimensões extras em `value` para `{c2}`/`{c3}`: medido, chega
+            #    literal. `{cN}` não existe neste caminho.
+            # 3. `renderMode: "richText"`: o tooltip é desenhado como texto e
+            #    não como HTML, então não há o que escapar, e `\n` quebra linha
+            #    de verdade. Medido: três `<text>` no SVG.
+            #
+            # Função no `formatter` não é opção em nenhuma delas: a `option`
+            # viaja como JSON, e função não sobrevive à serialização.
+            #
+            # O PREÇO do richText é que ele não herda o CSS dos tooltips HTML
+            # das outras telas — daí o estilo explícito abaixo, que repete o
+            # visual padrão. E "abaixo do mínimo" perde o negrito: a cor
+            # vermelha do ponto e a posição sob a linha continuam dizendo o
+            # mesmo, que é a razão de serem três sinais e não um.
+            "tooltip": {
+                "trigger": "item",
+                "confine": True,
+                "renderMode": "richText",
+                "formatter": "{b}",
+                "backgroundColor": "#ffffff",
+                "borderColor": "#cbd5e1",
+                "borderWidth": 1,
+                "padding": [8, 10],
+                "textStyle": {"color": COR_LINHA, "fontSize": 12, "lineHeight": 18},
+            },
             # A UNIDADE NO NOME DO EIXO. Sem ela, "25" no eixo vertical e
             # "30,000" no horizontal são dois números sem grandeza, e a pessoa
             # tem de deduzir qual é qual. Foi a primeira coisa que faltou quando
@@ -1416,9 +1439,9 @@ def dispersao(
                             # `name` É o texto do tooltip. Ver a nota em
                             # `tooltip`, acima.
                             "name": (
-                                f"{rotulo}<br>{rotulo_x}: {formatar_x_exato(x)}"
-                                f"<br>{rotulo_y}: {formatar_y(y)}"
-                                + ("<br><b>abaixo do mínimo</b>" if abaixo(y) else "")
+                                f"{rotulo}\n{rotulo_x}: {formatar_x_exato(x)}"
+                                f"\n{rotulo_y}: {formatar_y(y)}"
+                                + ("\nabaixo do mínimo" if abaixo(y) else "")
                             ),
                             "value": [float(x), float(y)],
                             # O tamanho proporcional, entre 8 e 34 pixels. Sem

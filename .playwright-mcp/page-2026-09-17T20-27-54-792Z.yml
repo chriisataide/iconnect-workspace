@@ -1,0 +1,37 @@
+- generic [ref=e1]:
+  - link "Pular para o formulário" [ref=e3] [cursor=pointer]:
+    - /url: "#entrar"
+  - generic [ref=e4]:
+    - link "Autodefesa Brasil Portal ADB360" [ref=e5] [cursor=pointer]:
+      - /url: /workspace/
+      - img "Autodefesa Brasil" [ref=e6]
+      - generic [ref=e8]: Portal ADB360
+    - main [ref=e9]:
+      - generic [ref=e10]:
+        - heading "Identifique-se para continuar" [level=1] [ref=e11]
+        - paragraph [ref=e12]: O Workspace é aberto — o catálogo, os documentos e as reservas não pedem senha. O que pede é assinar em nome de alguém.
+        - generic [ref=e13]:
+          - generic [ref=e14]:
+            - generic [ref=e15]: E-mail corporativo
+            - textbox "E-mail corporativo" [active] [ref=e16]:
+              - /placeholder: nome@icodev.com.br
+          - generic [ref=e17]:
+            - generic [ref=e18]: Senha
+            - textbox "Senha" [ref=e19]:
+              - /placeholder: ••••••••
+          - button "Continuar" [ref=e20] [cursor=pointer]
+        - paragraph [ref=e21]:
+          - text: Sua conta é a do Workspace, e não a do iConnect Platform — são dois cadastros.
+          - link "Voltar ao Workspace" [ref=e22] [cursor=pointer]:
+            - /url: /workspace/
+      - complementary [ref=e23]:
+        - paragraph [ref=e31]: O que exige o seu nome
+        - list [ref=e32]:
+          - listitem [ref=e33]:
+            - generic [ref=e36]: Aprovar ou devolver o pedido de outra pessoa
+          - listitem [ref=e37]:
+            - generic [ref=e40]: Fechar o acerto de um adiantamento
+          - listitem [ref=e41]:
+            - generic [ref=e44]: Abrir um anexo — atestado, comprovante, contrato
+        - paragraph [ref=e45]: Cada um desses atos fica registrado com o seu nome na linha do tempo do pedido.
+    - paragraph [ref=e46]: iConnect Workspace · a vida corporativa em um lugar

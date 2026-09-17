@@ -256,4 +256,10 @@ cargas = 97.0      # medido 97.39 · conectores, carregador, transporte
 #   está CERTO, porque um total de CC não se atribui a uma área sem inventar o
 #   rateio. Sem esse teste, a massa volta a ser só total de CC no dia em que
 #   alguém mexer no semeador, e a tela volta a responder em branco.
-minimo = 3751
+# 3751 → 3753: o `<br>` literal no tooltip da dispersão. O que mais protege é
+#   a trava GERAL — nenhum gráfico manda `<br`, `<b>`, `<span`, `<div` ou
+#   `&lt;` no JSON da série. O defeito específico já tem o seu teste, mas foi
+#   por esse caminho que a marcação entrou, e é a família de defeito que passa
+#   verde porque não levanta exceção: só fica feio numa tela que ninguém abre
+#   com frequência.
+minimo = 3753
