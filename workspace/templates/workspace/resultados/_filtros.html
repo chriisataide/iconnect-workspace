@@ -1,6 +1,68 @@
 {% load i18n static %}
-  <script src="{% static 'workspace/js/resultados-filtros.js' %}" defer></script>
+{% comment %}
+  OS FILTROS MORAM NUMA GAVETA, e o que fica na tela é uma barra de uma linha.
+
+  O painel era `position: sticky` e ocupava um terço da altura útil: em tela de
+  reunião ele cobria as primeiras linhas de toda tabela que passava por baixo, e
+  a análise acontecia numa fresta.
+
+  ## `popover` e não JavaScript
+
+  O atributo nativo dá camada superior, fecha no Esc, fecha no clique fora e
+  mantém o `aria-expanded` do botão — tudo sem uma linha de script, o que
+  importa aqui porque a CSP é `script-src 'self'` + nonce, sem `unsafe-inline`.
+
+  `popovertarget` e não os comandos de invoker (`command`/`commandfor`): fazem a
+  mesma coisa, mas o segundo só virou Baseline em 12/2025 e pediria polyfill. O
+  primeiro é Baseline desde 01/2025.
+
+  ## As AÇÕES ficam fora da gaveta
+
+  "PDF", "Apresentar" e "De onde vem" não são filtros — são o que se faz com a
+  tela. Enterrá-las junto obrigaria a abrir a gaveta de filtros para imprimir.
+
+  ## O que está filtrado continua visível
+
+  `_tarjas.html` fica na tela, fora daqui, nas três telas que incluem este
+  arquivo. Esconder os controles é uma coisa; esconder o RECORTE seria a
+  principal fonte de "esse número está errado" que não está.
+{% endcomment %}
+<script src="{% static 'workspace/js/resultados-filtros.js' %}" defer></script>
+
+<div class="au-filtro-barra">
+  <button class="au-btn au-btn--sutil" type="button" popovertarget="gaveta-filtros">
+    {% trans "Filtros" %}
+    {% if filtros_ativos %}<span class="au-filtro-barra-conta">{{ filtros_ativos|length }}</span>{% endif %}
+  </button>
+  <span class="au-filtro-acoes-divisor" aria-hidden="true"></span>
+  <a class="au-btn au-btn--fantasma" href="{{ url_apresentar }}">{% trans "Apresentar" %}</a>
+  {% if com_atributos %}
+    <a class="au-btn au-btn--fantasma" href="{{ url_detalhe }}">{% trans "Detalhamento" %}</a>
+    <a class="au-btn au-btn--fantasma"
+       href="{% url 'workspace:resultados_pdf' %}?competencia={{ filtros.competencia|date:'Y-m' }}">{% trans "PDF" %}</a>
+  {% endif %}
+  {% if pode_ver_fontes %}
+    <a class="au-btn au-btn--fantasma" href="{% url 'workspace:fontes' %}">{% trans "De onde vem" %}</a>
+  {% endif %}
+</div>
+
+<div class="au-gaveta" id="gaveta-filtros" popover>
+  <div class="au-gaveta-cabeca">
+    <h2 class="au-gaveta-titulo">{% trans "Filtros" %}</h2>
+    {% comment %}
+      `autofocus` porque `popover` NÃO leva o foco sozinho — ele só promove para
+      a camada de cima. Sem isto, quem abre pelo teclado continua com o foco na
+      página atrás, e o Tab seguinte anda por baixo da gaveta.
+    {% endcomment %}
+    <button class="au-btn au-btn--icone au-btn--sutil" type="button" autofocus
+            popovertarget="gaveta-filtros" popovertargetaction="hide"
+            aria-label="{% trans 'Fechar os filtros' %}">
+      <svg class="au-icon" aria-hidden="true"><use href="#i-x"></use></svg>
+    </button>
+  </div>
   <form aria-label="{% trans 'Filtros de resultados' %}" class="au-filtros--resultados" method="get" action="" data-limpar-vazios="1">
+    {% if hora_selecionada %}<input type="hidden" name="hora" value="{{ hora_selecionada }}">{% endif %}
+    {% if ranking_jornada %}<input type="hidden" name="ranking" value="{{ ranking_jornada }}">{% endif %}
     <div class="au-filtro-grupo">
       <p class="au-filtro-grupo-titulo">{% trans "Quando" %}</p>
       <div class="au-filtro-grupo-campos">
@@ -57,7 +119,7 @@
         </div>
         <div class="au-filtro">
           <label class="au-filtro-rotulo" for="f-cc">{% trans "Centro de custo" %}</label>
-          {% if com_atributos %}
+          {% if com_atributos or com_seletores %}
           <select class="au-input au-input--compacto" id="f-cc" name="cc">
             <option value="">{% trans "Todos" %}</option>
             {% if filtros.centro_custo %}<option value="{{ filtros.centro_custo }}" selected>{{ filtros.centro_custo }}</option>{% endif %}
@@ -73,7 +135,7 @@
         </div>
         <div class="au-filtro">
           <label class="au-filtro-rotulo" for="f-contrato">{% trans "Contrato" %}</label>
-          {% if com_atributos %}
+          {% if com_atributos or com_seletores %}
           <select class="au-input au-input--compacto" id="f-contrato" name="contrato">
             <option value="">{% trans "Todos os contratos" %}</option>
             {% if filtros.contrato %}<option value="{{ filtros.contrato }}" selected>{{ filtros.contrato }}</option>{% endif %}
@@ -126,19 +188,12 @@
     </div>
     {% endif %}
 
+    {% comment %}
+      "Aplicar" GRUDA no fim da gaveta: a lista de campos rola, e um botão que
+      some ao rolar faz a pessoa pensar que precisa voltar ao topo para valer.
+    {% endcomment %}
     <div class="au-filtro-acoes">
       <button class="au-btn au-btn--primario" type="submit">{% trans "Aplicar filtros" %}</button>
-      <span class="au-filtro-acoes-divisor" aria-hidden="true"></span>
-      <a class="au-btn au-btn--fantasma" href="{{ url_apresentar }}">{% trans "Apresentar" %}</a>
-      {% if com_atributos %}
-        <a class="au-btn au-btn--fantasma" href="{{ url_detalhe }}">{% trans "Detalhamento" %}</a>
-      {% endif %}
-      {% if com_atributos %}
-        <a class="au-btn au-btn--fantasma"
-           href="{% url 'workspace:resultados_pdf' %}?competencia={{ filtros.competencia|date:'Y-m' }}">{% trans "PDF" %}</a>
-      {% endif %}
-      {% if pode_ver_fontes %}
-        <a class="au-btn au-btn--fantasma" href="{% url 'workspace:fontes' %}">{% trans "De onde vem" %}</a>
-      {% endif %}
     </div>
   </form>
+</div>

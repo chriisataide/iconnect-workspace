@@ -60,6 +60,19 @@ SERVICOS = (
     "projeto", "monitoramento", "manutencao", "locacao", "projeto_turnkey",
 )
 
+#: A ÁREA COMERCIAL de cada contrato, em rodízio — e uma vazia de propósito.
+#:
+#: Os códigos são os de `semear_areas`, que é CADASTRO e não massa. Se ele não
+#: tiver rodado, o conector resolve a referência como `None` e o contrato entra
+#: sem área: a carga não quebra, e a tela mostra "Sem área".
+#:
+#: A entrada vazia não é descuido. Contrato sem classificação comercial existe —
+#: é o que acabou de ser assinado —, e `SEM_AREA` é um caminho de código que a
+#: massa precisa exercitar. Com todos classificados, o ranking por área nunca
+#: mostraria a fatia que ninguém atribuiu, que é justamente a que some do
+#: relatório de alguém.
+AREAS_DA_CARTEIRA = ("area-01", "area-02", "area-03", "area-04", "area-05", "")
+
 #: Clientes claramente inventados. Nome de cliente real numa massa versionada é
 #: vazamento com aparência de exemplo.
 CLIENTES = (
@@ -298,7 +311,7 @@ def _montar(acaso: random.Random, meses: int) -> dict[str, list[dict]]:
         "projeto": _projetos(acaso, contratos, hoje),
         "marco": _marcos(acaso, hoje),
         "quadro": _quadros(acaso, competencias),
-        "apontamento": _apontamentos(acaso, competencias),
+        "apontamento": _apontamentos(acaso, competencias, contratos),
         "avaliacao": _avaliacoes(contratos, hoje),
         "conta": _contas(acaso, contratos, resultados),
     }
@@ -636,6 +649,8 @@ def _contratos(acaso: random.Random, hoje: date) -> list[dict]:
                 "chave_externa": f"plt-{codigo}",
                 "codigo": codigo,
                 "nome_cliente": CLIENTES[i],
+                # A ÁREA COMERCIAL do contrato — ver `AREAS_DA_CARTEIRA`.
+                "area": AREAS_DA_CARTEIRA[i % len(AREAS_DA_CARTEIRA)],
                 "servico": SERVICOS[i % len(SERVICOS)],
                 "centro_custo": CENTROS[i % len(CENTROS)],
                 "regional": REGIONAIS[i % len(REGIONAIS)],
@@ -912,7 +927,29 @@ def _quadros(acaso, competencias) -> list[dict]:
     return linhas
 
 
-def _apontamentos(acaso, competencias) -> list[dict]:
+#: QUANTOS CONTRATOS A FONTE CONSEGUE VINCULAR.
+#:
+#: Doze dos dezoito, e o resto fica de fora de propósito. Cobertura de 100%
+#: seria a massa mentindo: a fonte de ponto aponta para centro de custo, e
+#: amarrar a hora ao contrato depende de a operação ter preenchido o campo —
+#: coisa que nunca está completa. Zero também mentiria, na direção oposta, e foi
+#: o que a massa fazia até aqui: com nenhum vínculo, "Por área" e "Por contrato"
+#: nasciam vazios para sempre, o filtro por área devolvia tela em branco, e a
+#: cobertura dizia "0 de 18 (0,0%)" como se fosse um número.
+#:
+#: Doze de dezoito dá 66,7% — uma cobertura parcial, que é o caso real e o único
+#: em que a frase "podem cobrir só parte do total" significa alguma coisa.
+CONTRATOS_COM_PONTO = 12
+
+
+def _apontamentos(acaso, competencias, contratos) -> list[dict]:
+    """As horas do mês: o TOTAL por centro de custo, e o detalhe por contrato.
+
+    Os dois convivem, e `providers.base_apontamentos` é quem resolve: no mesmo
+    centro e mês, o total prevalece e os detalhes não entram nos indicadores —
+    senão a mesma hora seria contada duas vezes. Os detalhes servem às visões
+    por área e por contrato, que o total não sabe responder.
+    """
     linhas = []
     for centro in CENTROS:
         for ano, mes in competencias[-12:]:
@@ -925,6 +962,10 @@ def _apontamentos(acaso, competencias) -> list[dict]:
             extra = normais * Decimal("0.021")
             linha = {
                 "chave_externa": f"snk-a-{centro}-{ano}{mes:02d}",
+                # VAZIO e não ausente: é o total do centro, sem contrato. E a
+                # coluna precisa existir já na primeira linha — o CSV tira o
+                # cabeçalho dela, e as linhas de contrato viriam depois.
+                "contrato": "",
                 "centro_custo": centro,
                 "ano": str(ano),
                 "mes": str(mes),
@@ -932,8 +973,22 @@ def _apontamentos(acaso, competencias) -> list[dict]:
                 "he_total": str((ineficiencia + extra).quantize(Decimal("0.01"))),
                 "he_ineficiencia": str(ineficiencia.quantize(Decimal("0.01"))),
                 "he_servico_extra": str(extra.quantize(Decimal("0.01"))),
-                "he_sem_classificacao": "0",
-                "hora_escala": str(normais.quantize(Decimal("0.01"))),
+                # HE SEM CLASSIFICAÇÃO é hora que ninguém classificou, e isso é
+                # um defeito de preenchimento, não um tipo de hora. Era zero em
+                # todo mês, o que deixava o indicador e uma das quatro séries do
+                # gráfico permanentemente em branco. Aparece em dois centros.
+                "he_sem_classificacao": str(
+                    (normais * Decimal("0.004")).quantize(Decimal("0.01"))
+                    if centro in CENTROS[:2] else Decimal(0)
+                ),
+                # HORAS DE ESCALA era IGUAL a horas normais, e o cartão dizia
+                # "100,0% das normais" em todo mês de todo centro. Número que
+                # nunca varia não é indicador — é rótulo. Escala é o regime de
+                # turno, e a fatia dele muda com a operação de cada centro.
+                "hora_escala": str(
+                    (normais * (Decimal("55") + Decimal(_fixo(centro) % 25)) / 100)
+                    .quantize(Decimal("0.01"))
+                ),
                 "hora_abono": str((normais * Decimal("0.006")).quantize(Decimal("0.01"))),
                 "hora_desconto": str((normais * Decimal("0.004")).quantize(Decimal("0.01"))),
                 "hora_noturna": str((normais * Decimal("0.22")).quantize(Decimal("0.01"))),
@@ -948,6 +1003,41 @@ def _apontamentos(acaso, competencias) -> list[dict]:
                 linha["folhas_ponto_pendentes"] = "14"
                 linha["contratos_pendentes_assinatura"] = "3"
             linhas.append(linha)
+
+    for contrato in contratos[:CONTRATOS_COM_PONTO]:
+        centro = contrato["centro_custo"]
+        for ano, mes in competencias[-12:]:
+            # A FATIA do contrato dentro do centro. Fixa por contrato e abaixo de
+            # um inteiro: dois contratos podem dividir o mesmo centro, e a soma
+            # dos detalhes precisa caber no total — senão a tela mostraria um
+            # contrato consumindo mais hora do que o centro inteiro teve.
+            fatia = (Decimal("22") + Decimal(_fixo(contrato["codigo"]) % 18)) / 100
+            normais = ((Decimal("2200") + Decimal(_fixo(centro) % 400)) * fatia)
+            # O pico de maio é operação, e atinge o contrato junto com o centro.
+            ineficiencia = normais * (Decimal("0.11") if mes == 5 else Decimal("0.018"))
+            extra = normais * Decimal("0.021")
+            linhas.append({
+                "chave_externa": f"snk-a-{contrato['codigo']}-{ano}{mes:02d}",
+                "contrato": contrato["codigo"],
+                "centro_custo": centro,
+                "ano": str(ano),
+                "mes": str(mes),
+                "horas_normais": str(normais.quantize(Decimal("0.01"))),
+                "he_total": str((ineficiencia + extra).quantize(Decimal("0.01"))),
+                "he_ineficiencia": str(ineficiencia.quantize(Decimal("0.01"))),
+                "he_servico_extra": str(extra.quantize(Decimal("0.01"))),
+                "he_sem_classificacao": "0",
+                "hora_escala": str(
+                    (normais * (Decimal("55") + Decimal(_fixo(centro) % 25)) / 100)
+                    .quantize(Decimal("0.01"))
+                ),
+                "hora_abono": str((normais * Decimal("0.006")).quantize(Decimal("0.01"))),
+                "hora_desconto": str((normais * Decimal("0.004")).quantize(Decimal("0.01"))),
+                "hora_noturna": str((normais * Decimal("0.22")).quantize(Decimal("0.01"))),
+                "banco_horas_saldo": "0",
+                "folhas_ponto_pendentes": "0",
+                "contratos_pendentes_assinatura": "0",
+            })
     return linhas
 
 

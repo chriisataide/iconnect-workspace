@@ -229,4 +229,37 @@ cargas = 97.0      # medido 97.39 · conectores, carregador, transporte
 #   SOMA ignore o desconhecido: somá-lo como zero faria o total de um mês com
 #   custo ausente parecer completo, e o aviso na tela diria que falta linha
 #   enquanto o número dizia que não.
-minimo = 3682
+# 3682 → 3731: a defesa de território, mais o que as outras telas ganharam
+#   fora destas sessões. Os que mais protegem a defesa: o que exige que quem
+#   NÃO tem `eco.satisfacao` veja a tabela financeira inteira e o dado de
+#   pesquisa nem chegue ao HTML — sem ele, a defesa reabriria por uma porta
+#   lateral o acoplamento que a separação das telas 16 e 17 desfez; e o que
+#   afirma que "sem pesquisa" é `None` e não NPS zero, porque zero seria lido
+#   como "metade promotor, metade detrator".
+# 3731 → 3741: o `+` do escopo e a natureza da receita. O que mais protege é o
+#   que exige que o mapa `servico → natureza` cubra o enum INTEIRO: serviço
+#   novo sem entrada nele apareceria como "—" na coluna, e ninguém notaria que
+#   a linha perdeu a informação que decide a ação da defesa.
+# 3741 → 3743: o corte de quinze colunas para sete. O que mais protege é a
+#   contagem de `<th scope="col">`: cada coluna nova precisa passar por ela e
+#   justificar a largura que tira das outras — foi somando uma de cada vez que
+#   a tabela chegou a 68rem e virou algo que se rola, não que se varre.
+# 3743 → 3747: a gaveta de filtros. O que mais protege são os dois testes de
+#   POSIÇÃO: um exige que os campos nasçam depois da abertura da gaveta, o
+#   outro que "PDF" e "Apresentar" nasçam antes dela. Filtro e ação parecem a
+#   mesma coisa numa barra de botões, e o dia em que alguém arrastar "PDF" para
+#   dentro da gaveta, imprimir passa a exigir abrir os filtros.
+# 3747 → 3751: a jornada por área e por contrato. O que mais protege é o que
+#   exige que filtrar por área NÃO esvazie a faixa: a causa do defeito era a
+#   massa não ligar nenhum apontamento a contrato, e `serie_apontamentos`
+#   descartar os totais de centro de custo quando o recorte é por área — o que
+#   está CERTO, porque um total de CC não se atribui a uma área sem inventar o
+#   rateio. Sem esse teste, a massa volta a ser só total de CC no dia em que
+#   alguém mexer no semeador, e a tela volta a responder em branco.
+# 3751 → 3753: o `<br>` literal no tooltip da dispersão. O que mais protege é
+#   a trava GERAL — nenhum gráfico manda `<br`, `<b>`, `<span`, `<div` ou
+#   `&lt;` no JSON da série. O defeito específico já tem o seu teste, mas foi
+#   por esse caminho que a marcação entrou, e é a família de defeito que passa
+#   verde porque não levanta exceção: só fica feio numa tela que ninguém abre
+#   com frequência.
+minimo = 3753

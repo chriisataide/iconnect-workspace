@@ -175,6 +175,27 @@ body {
   padding: var(--au-10) var(--au-6) var(--au-16);
 }
 
+/* A TELA DE MÓDULO NÃO É CENTRADA — ela ocupa a largura da janela.
+ *
+ * O hub e as telas de leitura vivem bem nos 1440px: são cartões e texto, e
+ * texto largo demais se lê pior. A tela de módulo é outra coisa — trilho à
+ * esquerda mais tabelas e gráficos à direita. Centrada num monitor de 2200px,
+ * ela gastava ~380px de cada lado em nada, o trilho ficava boiando longe da
+ * borda e a defesa de território rolava de lado com meia tela vazia ao redor.
+ *
+ * Redefinir o TOKEN e não escrever `max-width` aqui: o rodapé usa o mesmo
+ * token, e sobrescrever só o `.au-main` deixaria a assinatura recuada 380px da
+ * borda do conteúdo que ela fecha.
+ *
+ * O que protege a leitura são as medidas de cada bloco, que já existem e não
+ * mudam: `au-leitura` 72ch, `au-artigo` 720px, `au-folha` 76ch. Largura de
+ * página nunca foi o que segurava linha de texto.
+ *
+ * ponytail: sem teto. Num ultrawide de 3440px a tabela estica; se incomodar,
+ * o teto vai aqui e não em cada bloco.
+ */
+body:has(.au-modulo) { --au-content-max: none; }
+
 .au-secao { margin-top: var(--au-12); }
 .au-secao:first-child { margin-top: 0; }
 
@@ -3421,10 +3442,31 @@ tr[data-abre-resumo]:focus-visible {
    `preserveAspectRatio="none"` no SVG: a série estica na largura e mantém a
    altura, que é o certo para série temporal. Esticar proporcionalmente
    encolheria as barras num celular até virarem traços. */
+/* NO MÁXIMO TRÊS POR LINHA, e o teto é explícito.
+ *
+ * Era `auto-fit` com piso de 280px, e isso é uma regra que diz "quantos
+ * couberem". Depois que a tela de módulo deixou de ser centrada, coubaram
+ * cinco: os doze meses de receita viraram doze traços de 30px, com os rótulos
+ * de "% do orçado" empilhados uns sobre os outros. Um gráfico que não se lê não
+ * é meio gráfico, é nenhum.
+ *
+ * Contagem fixa e não piso maior: piso maior continua sendo "quantos couberem",
+ * e num monitor mais largo volta a caber um quarto. Três é o limite porque
+ * série de doze meses precisa de ~600px para as barras terem largura.
+ *
+ * A terceira coluna só entra quando há um terceiro gráfico — senão os dois da
+ * tela de projetos ficariam espremidos à esquerda com um buraco ao lado.
+ */
 .au-graficos {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  grid-template-columns: minmax(0, 1fr);
   gap: var(--au-4);
+}
+@media (min-width: 1100px) {
+  .au-graficos:has(> :nth-child(2)) { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (min-width: 1800px) {
+  .au-graficos:has(> :nth-child(3)) { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 }
 .au-grafico { margin: 0; }
 .au-grafico-titulo {
@@ -4353,19 +4395,74 @@ tr[data-abre-resumo]:focus-visible {
 }
 .au-legenda-leitura b { color: var(--au-text); font-weight: 600; }
 
+/* ── A BARRA E A GAVETA DE FILTROS ───────────────────────────────
+ * O painel ficava `position: sticky` no topo e comia um terço da altura útil:
+ * em reunião ele cobria as primeiras linhas de toda tabela que passava por
+ * baixo. Agora fica numa gaveta `popover`, e na tela sobra uma linha.
+ */
+.au-filtro-barra {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--au-2);
+  margin: var(--au-4) 0;
+}
+
+/* A CONTAGEM no botão. Sem ela, "Filtros" fechado não distingue tela inteira de
+ * tela recortada — e as tarjas ao lado dizem QUAIS, não QUANTOS. */
+.au-filtro-barra-conta {
+  min-width: 18px;
+  padding: 1px 6px;
+  font-size: var(--au-t-2xs);
+  font-weight: 650;
+  text-align: center;
+  color: var(--au-btn-fg);
+  background: var(--au-btn-bg);
+  border-radius: var(--au-r-full);
+}
+
+/* A gaveta encosta na direita e vai de topo a base. `100dvh` e não `100vh`: no
+ * celular a barra do navegador entra e sai, e `vh` deixaria o botão "Aplicar"
+ * embaixo dela. */
+.au-gaveta {
+  position: fixed;
+  inset: 0 0 auto auto;
+  width: min(32rem, 100vw);
+  height: 100dvh;
+  max-height: 100dvh;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-left: 1px solid var(--au-border);
+  background: var(--au-surface);
+  color: var(--au-text);
+}
+.au-gaveta::backdrop { background: rgb(0 0 0 / .35); }
+
+.au-gaveta-cabeca {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--au-3);
+  padding: var(--au-4) var(--au-5);
+  border-bottom: 1px solid var(--au-border);
+  background: var(--au-surface);
+}
+.au-gaveta-titulo { margin: 0; font-size: var(--au-t-md); font-weight: 650; }
+
 /* Resultados: grupos alinhados e ações em uma faixa própria. */
 .au-filtros--resultados {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: minmax(0, 1fr);
   gap: var(--au-5);
-  margin: var(--au-4) 0;
+  margin: 0;
   padding: var(--au-5);
   background: var(--au-surface);
-  border: 1px solid var(--au-border);
-  border-radius: var(--au-r-md);
-  position: sticky;
-  top: 0;
-  z-index: 20;
 }
 .au-filtro-grupo { display: flex; min-width: 0; flex-direction: column; gap: var(--au-3); }
 .au-filtro-grupo-titulo {
@@ -4381,7 +4478,7 @@ tr[data-abre-resumo]:focus-visible {
 .au-filtro-grupo-dica { font-weight: 400; color: var(--au-text-muted); }
 .au-filtro-grupo-campos {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(12rem, 1fr));
   align-items: end;
   gap: var(--au-3);
 }
@@ -4401,12 +4498,15 @@ tr[data-abre-resumo]:focus-visible {
 .au-filtros--resultados .au-check { display: inline-block; flex-shrink: 0; }
 .au-filtro-acoes {
   grid-column: 1 / -1;
+  position: sticky;
+  bottom: 0;
   display: flex;
   flex-wrap: wrap;
   align-items: center;
   gap: var(--au-2);
-  padding-top: var(--au-4);
+  padding: var(--au-4) 0;
   border-top: 1px solid var(--au-border);
+  background: var(--au-surface);
 }
 .au-filtro-acoes-divisor { flex: 1; }
 .au-filtro-multi { position: relative; min-width: 0; }
@@ -4446,10 +4546,17 @@ tr[data-abre-resumo]:focus-visible {
   box-shadow: 0 4px 12px rgb(0 0 0 / .1);
 }
 .au-filtro-multi-opcoes .au-marcador { min-height: 36px; overflow-wrap: anywhere; font-size: var(--au-t-sm); }
-.au-filtro-vazio { margin: var(--au-2); color: var(--au-text-muted); font-size: var(--au-t-sm); }
-@media (max-width: 1200px) {
-  .au-filtros--resultados { grid-template-columns: minmax(0, 1fr); position: relative; }
+
+/* DENTRO DA GAVETA a lista entra no fluxo, e não flutua: um filho absoluto é
+ * cortado pelo `overflow-y` do painel que rola, e as opções de baixo ficariam
+ * inalcançáveis. Empurrar o conteúdo para baixo é o preço, e é o certo aqui. */
+.au-gaveta .au-filtro-multi-opcoes {
+  position: static;
+  width: auto;
+  min-width: 0;
+  box-shadow: none;
 }
+.au-filtro-vazio { margin: var(--au-2); color: var(--au-text-muted); font-size: var(--au-t-sm); }
 @media (max-width: 600px) {
   .au-filtros--resultados { padding: var(--au-4); gap: var(--au-4); }
   .au-filtro-grupo-campos { grid-template-columns: minmax(0, 1fr); }
@@ -4774,6 +4881,10 @@ tr[data-abre-resumo]:focus-visible {
 .au-resumo-detalhe { display: block; color: var(--au-text-muted); margin-top: var(--au-1); }
 .au-resumo-acoes { display: flex; flex-wrap: wrap; gap: var(--au-3); }
 .au-resumo-critico { color: var(--au-danger-text); }
+.au-jornada-indicadores { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: var(--au-2); margin: var(--au-4) 0; }
+.au-jornada-indicadores .au-kpi-valor { font-size: var(--au-t-lg); }
+.au-jornada-rankings { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 320px), 1fr)); gap: var(--au-4); }
+.au-jornada-rankings > div { min-width: 0; }
 
 .au-concentracao {
   padding: var(--au-3) 0;
@@ -4855,3 +4966,46 @@ tr[data-abre-resumo]:focus-visible {
  * lista mistura `C2023` e `P2023`, e a letra sozinha exige leitura atenta de
  * uma lista de vinte chips. */
 .au-chip--perda { border-color: var(--au-danger); }
+
+/* DEFESA DE TERRITÓRIO — sete colunas numa linha por contrato.
+ *
+ * Eram quinze, e a tabela precisava de 68rem: cabia com `overflow-x`, mas ler
+ * exigia rolar de lado, e uma tabela que rola de lado não se varre — a pessoa
+ * perde a linha em que estava no caminho de volta. O resto desceu para o
+ * detalhe do `+`.
+ *
+ * O `overflow-x` fica: 44rem ainda não cabe em telefone. Mas no contêiner e não
+ * na página, senão o trilho e o cabeçalho vão junto.
+ */
+.au-tabela--territorio { overflow-x: auto; }
+.au-tabela--territorio table { min-width: 44rem; font-variant-numeric: tabular-nums; }
+
+/* A LINHA EM RISCO tem barra à esquerda E a coluna "Situação" escrita. A barra
+ * chama o olho numa tabela de trinta linhas; o texto diz o que houve, e é o que
+ * sobrevive à impressão em preto-e-branco. */
+.au-territorio--risco > th { border-left: 3px solid var(--au-danger); padding-left: var(--au-2); }
+
+/* A COLUNA DO CONTRATO não encolhe. Sem o mínimo, o nome do cliente quebrava em
+ * três linhas para caber o que sobrava depois das colunas numéricas. */
+.au-tabela--territorio th[scope="row"] { min-width: 15rem; }
+
+/* O CÓDIGO DO CONTRATO cabe no que ele mede, e não nos `6ch` da tabela
+ * contábil — lá a coluna 2 é fixa para os códigos de conta ficarem alinhados
+ * entre si, e aqui `CT-100` é o menor que existe: um código de sete dígitos
+ * quebraria no meio. O nome do cliente continua na coluna elástica. */
+.au-tabela--territorio .au-contabil-abrir {
+  grid-template-columns: 1em auto minmax(0, 1fr);
+}
+
+/* A LINHA DO ESCOPO — o que está instalado, aberto pelo `+`. Fundo afundado
+ * para ela ler como detalhe da linha acima, e não como mais um contrato. */
+.au-territorio-escopo > td {
+  background: var(--au-surface-sunken);
+  font-size: var(--au-t-sm);
+  color: var(--au-text-muted);
+}
+
+/* A grade de pares vem do relatório (`au-folha-dados`), e lá ela separa seções
+ * de uma folha inteira. Dentro de uma linha de tabela esse respiro empurra a
+ * próxima linha para longe da que ela detalha. */
+.au-territorio-escopo .au-folha-dados { margin-bottom: var(--au-2); }

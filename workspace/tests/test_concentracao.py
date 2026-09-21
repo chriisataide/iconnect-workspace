@@ -90,6 +90,17 @@ def test_formulario_salva_proximo_passo_e_vinculo(client, diretor):
     assert Concentracao.objects.get(alerta_chave="b" * 64).proximo_passo == "Conferir despesas"
 
 
+def test_retorno_da_acao_preserva_quadro_e_recusa_url_externa(client, diretor):
+    client.force_login(diretor)
+    foco = _abrir(diretor)
+    url = reverse("workspace:concentracao_atualizar", args=[foco.pk])
+    retorno = reverse("workspace:quadro") + "?contrato=CT-107&ranking=proporcional#jornada-acoes"
+    assert client.post(url, {"proximo_passo": "Conferir jornada", "retorno": retorno})["Location"] == retorno
+    for externo in ("https://outro.test/workspace/quadro/", "//outro.test/workspace/quadro/", "/admin/", "https://["):
+        resposta = client.post(url, {"proximo_passo": "Conferir jornada", "retorno": externo})
+        assert resposta["Location"].startswith(reverse("workspace:resultados"))
+
+
 def test_passo_respeita_permissao_e_encerramento(client, diretor, leitor):
     foco = _abrir(diretor)
     url = reverse("workspace:concentracao_atualizar", args=[foco.pk])
@@ -262,7 +273,16 @@ def _tela(client):
     return client.get(reverse("workspace:resultados")).content.decode()
 
 
-def test_a_lista_aparece_MESMO_sem_cartao_disparando(client, diretor):
+@pytest.fixture
+def contrato_visivel(db):
+    from resultados.models import Contrato, Fonte
+    return Contrato.objects.create(
+        fonte=Fonte.PLATFORM, chave_externa="foco-ct107", codigo="CT-107",
+        nome_cliente="Cliente do foco", centro_custo="1042", valor_mensal=Decimal(1000),
+    )
+
+
+def test_a_lista_aparece_MESMO_sem_cartao_disparando(client, diretor, contrato_visivel):
     """A concentração é decisão humana e existe independentemente de o mês estar
     tranquilo — aliás, é no mês tranquilo que ela mais importa, porque é quando
     dá para atacar o que se decidiu em vez de apagar incêndio."""
@@ -271,11 +291,12 @@ def test_a_lista_aparece_MESMO_sem_cartao_disparando(client, diretor):
 
     corpo = _tela(client)
 
-    assert "Concentrações" in corpo
+    assert "Contratos em concentração" in corpo
     assert "Recuperar CT-107" in corpo
+    assert "Cliente do foco" in corpo
 
 
-def test_quem_nao_pode_marcar_VE_a_lista_e_nao_o_formulario(client, diretor, leitor):
+def test_quem_nao_pode_marcar_VE_a_lista_e_nao_o_formulario(client, diretor, leitor, contrato_visivel):
     _abrir(diretor, titulo="Recuperar CT-107")
     client.force_login(leitor)
 
@@ -283,6 +304,16 @@ def test_quem_nao_pode_marcar_VE_a_lista_e_nao_o_formulario(client, diretor, lei
 
     assert "Recuperar CT-107" in corpo
     assert "Marcar uma concentração" not in corpo
+
+
+def test_focos_tecnicos_e_contratos_fora_do_recorte_nao_aparecem(client, diretor, contrato_visivel):
+    _abrir(diretor, titulo="Corrigir integração", origem_tipo="indicador", origem_ref="fonte")
+    _abrir(diretor, titulo="Contrato fora do recorte", origem_ref="OUTRO")
+    client.force_login(diretor)
+    corpo = _tela(client)
+    assert "Corrigir integração" not in corpo
+    assert "Contrato fora do recorte" not in corpo
+    assert Concentracao.objects.count() == 2
 
 
 def test_abrir_e_encerrar_pela_tela(client, diretor):

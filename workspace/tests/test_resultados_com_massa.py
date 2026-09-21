@@ -27,6 +27,11 @@ def diretoria_com_massa(db):
     # — o seeder avisa e segue —, e a faixa contábil diria "sem lançamento"
     # num teste cuja afirmação é justamente que NENHUMA faixa fica sem dado.
     call_command("semear_plano_de_contas", "--aplicar", verbosity=0)
+    # AS ÁREAS antes da massa, pela mesma razão do plano de contas: elas são
+    # CADASTRO, o contrato aponta para elas por código, e sem elas a carteira
+    # inteira entra como "Sem área" — o ranking por área viraria uma barra só e
+    # o filtro por área não teria o que recortar.
+    call_command("semear_areas", "--aplicar", verbosity=0)
     call_command("semear_resultados", "--aplicar", verbosity=0)
     pessoa = f.pessoa("diretoria", nome="Diretoria")
     f.lotar(pessoa)
@@ -265,3 +270,66 @@ def test_a_tela_de_fontes_lista_todas_e_a_divergencia(client, diretoria_com_mass
     assert len(resposta.context["fontes"]) == 5
     assert resposta.context["divergencias"], "a massa planta uma"
     assert resposta.context["historico"], "as três cargas ficaram registradas"
+
+
+# ── A jornada por área e por contrato ───────────────────────────────
+
+
+def test_o_filtro_por_area_NAO_esvazia_a_jornada(client, diretoria_com_massa):
+    """Era o defeito de imagem 01: escolher uma área devolvia tela branca.
+
+    A causa não era a tela, era a massa. Apontamento sem contrato é total de
+    centro de custo, e `serie_apontamentos` DESCARTA os totais quando o recorte
+    é por área — um total de CC não pode ser atribuído a uma área sem inventar
+    o rateio. Como nenhum apontamento tinha contrato, filtrar por área deixava
+    zero linhas, e a tela caía inteira no estado vazio.
+    """
+    client.force_login(diretoria_com_massa)
+
+    inteira = client.get(reverse("workspace:quadro")).context["jornada"]
+    de_uma_area = client.get(
+        reverse("workspace:quadro"), {"area": "area-01"}
+    ).context["jornada"]
+
+    assert de_uma_area["disponivel"], "a faixa não pode sumir por causa do filtro"
+    assert de_uma_area["kpis"], "e os números continuam"
+    assert de_uma_area["cobertura"]["total"] < inteira["cobertura"]["total"], (
+        "o recorte é menor que o todo — senão o filtro não filtrou"
+    )
+
+
+def test_as_TRES_dimensoes_do_ranking_tem_barra(client, diretoria_com_massa):
+    """Área e contrato nasciam vazias para sempre: a massa só criava total por
+    centro de custo. Duas das três fatias da tela eram um título sobre um
+    parágrafo de desculpa, e o gráfico do meio ficava espremido entre elas."""
+    client.force_login(diretoria_com_massa)
+
+    jornada = client.get(reverse("workspace:quadro")).context["jornada"]
+
+    assert len(jornada["rankings"]) == 3
+    for grafico in jornada["rankings"]:
+        assert grafico.linhas, f"{grafico.titulo} sem barra"
+
+
+def test_a_cobertura_por_contrato_e_PARCIAL(client, diretoria_com_massa):
+    """Nem 0% nem 100%: a fonte de ponto aponta para centro de custo, e o
+    vínculo com o contrato depende de a operação ter preenchido o campo. Só na
+    cobertura parcial a frase "podem cobrir só parte do total" quer dizer algo —
+    e só nela a lista de "contratos sem apontamento" tem o que mostrar."""
+    client.force_login(diretoria_com_massa)
+
+    cobertura = client.get(reverse("workspace:quadro")).context["jornada"]["cobertura"]
+
+    assert 0 < cobertura["com_dados"] < cobertura["total"]
+    assert cobertura["sem_dados"], "e os que faltam são nomeados"
+
+
+def test_horas_de_escala_nao_sao_as_horas_normais(client, diretoria_com_massa):
+    """O cartão dizia "100,0% das normais" em todo mês de todo centro, porque a
+    massa copiava o valor. Número que nunca varia não é indicador, é rótulo."""
+    client.force_login(diretoria_com_massa)
+
+    kpis = {k["titulo"]: k for k in client.get(reverse("workspace:quadro")).context["jornada"]["kpis"]}
+
+    assert kpis["Horas de escala"]["valor"] != kpis["Horas normais"]["valor"]
+    assert 0 < kpis["Horas de escala"]["percentual"] < 100

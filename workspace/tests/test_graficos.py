@@ -1599,3 +1599,51 @@ def test_a_capsula_do_percentual_e_legivel():
     """O valor da razão não pode se perder onde o traço cruza a barra escura —
     é a cápsula que carrega o número, e é por isso que o traço pode ceder ali."""
     assert _contraste(series.COR_LINHA_ETIQUETA, "#ffffff") >= 7.0
+
+
+# ── O tooltip da dispersão não pode carregar HTML ───────────────────
+
+
+def test_o_tooltip_da_dispersao_quebra_linha_SEM_html():
+    """`<br>` chegava LITERAL à tela: o ECharts escapa o valor que substitui em
+    `{b}`, e `CT-101<br>…` virava `CT-101&lt;br&gt;…` no DOM — medido no
+    navegador contra este bundle.
+
+    A saída é `renderMode: "richText"`, em que o tooltip é desenhado como texto
+    e não como HTML: não há o que escapar, e `\\n` quebra linha de verdade.
+    Função no `formatter` não resolveria — a `option` viaja como JSON.
+    """
+    bloco = series.dispersao(
+        [("CT-101", Decimal("140000"), Decimal("20.8"), Decimal("1"))],
+        chave="d", titulo="t", limiar_y=Decimal("10"),
+    )
+
+    assert bloco.option["tooltip"]["renderMode"] == "richText"
+    nome = bloco.option["series"][0]["data"][0]["name"]
+    assert "\n" in nome, "as linhas se separam por quebra, não por marcação"
+    assert "<" not in nome and ">" not in nome, "nada de HTML no texto do tooltip"
+
+
+def test_NENHUM_grafico_manda_html_no_texto_de_serie():
+    """A trava geral: qualquer `<tag>` num rótulo, nome de item ou formatter
+    chega à tela como texto. Foi assim que o `<br>` apareceu, e é o tipo de
+    defeito que passa verde porque não levanta exceção — só fica feio."""
+    import json
+
+    casos = [
+        series.dispersao(
+            [("A", Decimal("1"), Decimal("1"), Decimal("1"))],
+            chave="a", titulo="t", limiar_y=Decimal("9"),
+        ),
+        series.barras_por_categoria(
+            [series.Ponto(rotulo="A", valor=Decimal("1"))], chave="b", titulo="t"
+        ),
+        series.cascata([("A", Decimal("1"))], chave="c", titulo="t"),
+        series.rosca([("A", Decimal("1"))], chave="d", titulo="t"),
+        series.bullet([("A", Decimal("1"), Decimal("1"))], chave="e", titulo="t"),
+    ]
+
+    for bloco in casos:
+        cru = json.dumps(bloco.option, default=str)
+        for marca in ("<br", "<b>", "<span", "<div", "&lt;"):
+            assert marca not in cru, f"{bloco.chave} manda {marca} para a tela"

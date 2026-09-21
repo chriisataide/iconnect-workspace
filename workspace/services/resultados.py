@@ -258,6 +258,12 @@ class Filtros:
     numeros: str = MODO_ABSOLUTO
     #: A safra escolhida — `C2023` ou `P2019`. Vazio mostra a lista.
     safra: str = ""
+    #: Os contratos com o escopo ABERTO na defesa de território.
+    #:
+    #: Na URL, como a expansão da tabela contábil: o escopo é a resposta a "que
+    #: contrato é este?", e mandar o link já aberto no contrato certo é o que
+    #: faz a conversa andar.
+    escopos_abertos: tuple[str, ...] = ()
 
     @property
     def tudo_aberto(self) -> bool:
@@ -392,6 +398,7 @@ def ler_filtros(parametros, hoje: date | None = None) -> Filtros:
         expandidos=_expandidos(parametros),
         numeros=_modo_dos_numeros(parametros),
         safra=(parametros.get("safra") or "").strip().upper()[:6],
+        escopos_abertos=_lista_separada(parametros.get("ver"), 40),
         dimensao=(parametros.get("dim") or "").strip()[:20],
     )
 
@@ -536,6 +543,7 @@ DEFINICOES: dict[str, tuple[str, str]] = {
     "dinheiro": ("Resultado financeiro", "sankhya"),
     "contabil": ("Composição do resultado", "sankhya"),
     "contratos": ("Nossa carteira", "iconnect_platform"),
+    "territorio": ("Defesa de território", "iconnect_platform"),
     "vencimentos": ("O que está prestes a vencer", "iconnect_platform"),
     "projetos": ("Os projetos", "monday"),
     "pessoas": ("As pessoas e a jornada", "sankhya"),
@@ -1182,6 +1190,21 @@ def _sobre(valor: Decimal, base: Decimal) -> Decimal | None:
 #: que cabe numa tela sem a linha de total sair de vista, e a linha de total é o
 #: que faz a tabela ser conferível.
 MAXIMO_EXPANDIDO = 8
+
+
+def _lista_separada(bruto, tamanho: int) -> tuple[str, ...]:
+    """`"a,b,a"` → `("a", "b")`. Sem repetição, na ordem em que vieram.
+
+    Compartilhado pela expansão da tabela contábil e pelo escopo aberto da
+    defesa de território: duas listas por vírgula na mesma query string, e duas
+    cópias da mesma limpeza divergiriam no primeiro caso de borda.
+    """
+    vistos: list[str] = []
+    for item in (bruto or "").split(","):
+        limpo = item.strip()[:tamanho]
+        if limpo and limpo not in vistos:
+            vistos.append(limpo)
+    return tuple(vistos[:MAXIMO_EXPANDIDO])
 
 
 def _expandidos(parametros) -> tuple[str, ...]:
@@ -1847,6 +1870,242 @@ def contratos(escopo: contrato.Escopo, filtros: Filtros) -> Faixa:
     return faixa
 
 
+# ── DEFESA DE TERRITÓRIO ────────────────────────────────────────────
+#
+# Uma linha por contrato, com o que decide se ele se defende sozinho ou precisa
+# de ação: quanto ele rende, o que o cliente acha dele, e quando ele vence.
+#
+# As três coisas já existiam na tela — em três faixas diferentes, e a satisfação
+# nem estava aqui (saiu para a 17 por permissão). Separadas, a pergunta "este
+# contrato está em risco?" exigia abrir três telas e cruzar de cabeça.
+
+#: A janela FINANCEIRA da defesa. Sete meses — é o recorte do relatório que a
+#: diretoria já usa, e não uma escolha nossa.
+MESES_DA_DEFESA = 7
+
+#: A janela da SATISFAÇÃO. Doze, e diferente da financeira de propósito: pesquisa
+#: de cliente é esparsa, e sete meses deixam contrato sem nenhuma resposta —
+#: "sem amostra" onde existe opinião, só que mais antiga.
+MESES_DA_SATISFACAO = 12
+
+
+@dataclass
+class LinhaDeDefesa:
+    """Um contrato, com o que decide a defesa dele."""
+
+    codigo: str
+    cliente: str
+    area: str
+    servico: str
+    escopo: str
+    #: `recorrente`, `locacao` ou `venda` — e o rótulo pronto. Na defesa, a
+    #: distinção decide a AÇÃO: um recorrente em risco se defende renovando;
+    #: uma venda em risco se defende vendendo de novo.
+    natureza: str = ""
+    natureza_rotulo: str = ""
+    #: O detalhe está aberto nesta linha? E a URL que alterna.
+    aberto: bool = False
+    url_alternar: str = ""
+
+    #: Média mensal na janela financeira.
+    rob_medio: Decimal | None = None
+    mc_media: Decimal | None = None
+    margem_pct: Decimal | None = None
+    #: Meses que de fato entraram na média. Três meses e sete meses produzem o
+    #: mesmo "médio" com confianças muito diferentes.
+    meses: int = 0
+
+    fim_vigencia: date | None = None
+    dias_para_vencer: int | None = None
+
+    #: NPS na janela de satisfação. `None` = sem pesquisa, e não zero.
+    promotores: int = 0
+    neutros: int = 0
+    detratores: int = 0
+    pesquisas: int = 0
+    satisfacao_pct: Decimal | None = None
+    nota_media: Decimal | None = None
+
+    @property
+    def sem_pesquisa(self) -> bool:
+        return self.pesquisas == 0
+
+    @property
+    def nps(self) -> Decimal | None:
+        """Promotores menos detratores, em pontos. `None` sem pesquisa."""
+        if not self.pesquisas:
+            return None
+        return (
+            Decimal(self.promotores - self.detratores)
+            / Decimal(self.pesquisas)
+            * 100
+        ).quantize(Decimal("0.1"))
+
+    @property
+    def em_risco(self) -> bool:
+        """Vence na janela de vencimento OU tem detrator OU margem abaixo do mínimo.
+
+        Três portas e não uma: um contrato rentável com cliente insatisfeito se
+        perde na renovação, e um contrato querido que dá prejuízo não se
+        sustenta. A defesa precisa das duas leituras, e do prazo.
+
+        O prazo é `FAIXAS_DE_VENCIMENTO[-1]` — a mesma definição de "prestes a
+        vencer" que a faixa 4 usa. O primeiro corte foi de 365 dias e acendeu
+        para a carteira INTEIRA: alerta que sempre acende ensina a ignorar a
+        coluna, e uma tabela em que todas as linhas estão em risco não ordena
+        nada.
+        """
+        return bool(
+            (
+                self.dias_para_vencer is not None
+                and self.dias_para_vencer <= FAIXAS_DE_VENCIMENTO[-1]
+            )
+            or self.detratores
+            or (self.margem_pct is not None and self.margem_pct < MARGEM_MINIMA)
+        )
+
+
+def defesa_de_territorio(
+    provedor_financeiro, carteira, avaliacoes, filtros: Filtros
+) -> list[LinhaDeDefesa]:
+    """A tabela da defesa — uma linha por contrato.
+
+    Recebe o que já foi buscado em vez de consultar de novo: a carteira vem da
+    faixa dos contratos, a série da faixa do dinheiro e as avaliações do
+    provedor de satisfação. Uma quarta consulta aqui daria um quarto caminho
+    para os mesmos números — e o dia em que discordasse, discordaria dentro da
+    mesma tela.
+    """
+    de = _recuar(filtros.competencia, MESES_DA_DEFESA - 1)
+    serie = (
+        provedor_financeiro.serie_competencia(
+            _escopo_da_carteira(carteira), de, filtros.ate
+        )
+        if provedor_financeiro
+        else []
+    )
+
+    por_contrato: dict[str, list] = {}
+    for linha in serie:
+        if linha.contrato:
+            por_contrato.setdefault(linha.contrato, []).append(linha)
+
+    pesquisas: dict[str, list] = {}
+    limite = _recuar(filtros.competencia, MESES_DA_SATISFACAO - 1)
+    for avaliacao in avaliacoes or ():
+        if avaliacao.contrato and avaliacao.data and avaliacao.data >= limite:
+            pesquisas.setdefault(avaliacao.contrato, []).append(avaliacao)
+
+    hoje = timezone.localdate()
+    linhas = [
+        _linha_de_defesa(
+            c, por_contrato.get(c.codigo, []), pesquisas.get(c.codigo, []), hoje
+        )
+        for c in carteira
+    ]
+    _com_escopo_aberto(linhas, filtros)
+    # Em risco primeiro, e dentro deles o de maior receita: a defesa começa
+    # pelo que dói mais perder.
+    return sorted(
+        linhas, key=lambda linha: (not linha.em_risco, -(linha.rob_medio or 0))
+    )
+
+
+def _com_escopo_aberto(linhas, filtros: Filtros) -> None:
+    """O `+` de cada linha, e a URL que ele leva.
+
+    Montada em Python como toda URL desta tela: só o servidor sabe quais filtros
+    preservar ao mudar um deles.
+    """
+    from django.urls import reverse
+
+    base = reverse("workspace:resultados")
+    abertos = filtros.escopos_abertos
+    for linha in linhas:
+        linha.aberto = linha.codigo in abertos
+        novos = (
+            tuple(c for c in abertos if c != linha.codigo)
+            if linha.aberto
+            else (*abertos, linha.codigo)
+        )
+        linha.url_alternar = _url_com(base, filtros, ver=",".join(novos))
+
+
+def _escopo_da_carteira(carteira) -> contrato.Escopo:
+    """O escopo dos contratos que a tela JÁ mostra.
+
+    Derivado da carteira e não recalculado de `escopo_de`: se a pessoa filtrou
+    por área, a carteira já está recortada, e uma consulta com o escopo original
+    traria contratos que a tela não lista — a tabela mostraria linha a mais que
+    o bloco logo acima.
+    """
+    return contrato.Escopo(contratos=tuple(c.codigo for c in carteira) or ("",))
+
+
+def _linha_de_defesa(contrato_dto, competencias, avaliacoes, hoje) -> LinhaDeDefesa:
+    receitas = [
+        linha.receita_bruta for linha in competencias if linha.receita_bruta is not None
+    ]
+    # `None` e não zero quando não há margem conhecida — o custo pode estar
+    # ausente, e a média de "desconhecido" não é zero.
+    margens = [
+        linha.margem_contribuicao
+        for linha in competencias
+        if linha.margem_contribuicao is not None
+    ]
+    rob = _media(receitas)
+    mc = _media(margens)
+
+    por_classe = {"promotor": 0, "neutro": 0, "detrator": 0}
+    for avaliacao in avaliacoes:
+        if avaliacao.classificacao in por_classe:
+            por_classe[avaliacao.classificacao] += 1
+    total = len(avaliacoes)
+
+    return LinhaDeDefesa(
+        codigo=contrato_dto.codigo,
+        cliente=contrato_dto.nome_cliente,
+        area=contrato_dto.area_nome or "Sem área",
+        servico=contrato_dto.servico,
+        escopo=contrato_dto.escopo,
+        natureza=contrato_dto.natureza,
+        natureza_rotulo=contrato_dto.natureza_rotulo,
+        rob_medio=rob,
+        mc_media=mc,
+        margem_pct=(
+            (mc / rob * 100).quantize(Decimal("0.1")) if rob and mc is not None else None
+        ),
+        meses=len(competencias),
+        fim_vigencia=contrato_dto.fim_vigencia,
+        dias_para_vencer=(
+            (contrato_dto.fim_vigencia - hoje).days
+            if contrato_dto.fim_vigencia
+            else None
+        ),
+        promotores=por_classe["promotor"],
+        neutros=por_classe["neutro"],
+        detratores=por_classe["detrator"],
+        pesquisas=total,
+        satisfacao_pct=(
+            (Decimal(por_classe["promotor"]) / total * 100).quantize(Decimal("0.1"))
+            if total
+            else None
+        ),
+        nota_media=(
+            (Decimal(sum(a.nota for a in avaliacoes)) / total).quantize(Decimal("0.1"))
+            if total
+            else None
+        ),
+    )
+
+
+def _media(valores) -> Decimal | None:
+    """`None` com a lista vazia — e `None` não é zero."""
+    if not valores:
+        return None
+    return (sum(valores, Decimal("0")) / len(valores)).quantize(Decimal("0.01"))
+
+
 # ── C5 · as safras ──────────────────────────────────────────────────
 
 
@@ -1937,6 +2196,101 @@ def grafico_da_safra(serie, carteira, safra: str, filtros: Filtros):
         rotulo_linha="% contra o mesmo mês do ano anterior",
         linha=tendencia,
     )
+
+
+def territorio(escopo: contrato.Escopo, filtros: Filtros) -> Faixa:
+    """A defesa de território — uma linha por contrato.
+
+    ## A satisfação por contrato volta para a tela 10, e ATRÁS da permissão dela
+
+    Quadro e satisfação saíram para as telas 16 e 17 porque dar o turnover de um
+    centro de custo a quem responde por gente significava dar junto a margem de
+    todo contrato. Aqui o movimento é o inverso e o risco é o mesmo: as colunas
+    de pesquisa só aparecem para quem tem `eco.satisfacao`, e quem não tem vê a
+    tabela financeira inteira sem elas.
+
+    Sem isso, a defesa de território reabriria por uma porta lateral exatamente
+    o acoplamento que a separação das telas desfez.
+    """
+    faixa = _faixa("territorio", filtros.competencia)
+    provedor = contrato.obter(contrato.ProvedorCarteira)
+    if provedor is None:
+        return _sem_fonte(faixa, "iConnect Platform")
+
+    carteira = _filtrar_carteira(provedor.contratos(escopo, filtros.competencia), filtros)
+    if not carteira:
+        return _sem_dado(faixa, "contrato na carteira")
+
+    faixa.conteudo = {
+        # SEM as colunas de pesquisa. Elas entram em `_com_satisfacao`, que roda
+        # depois e sabe quem está olhando — o montador recebe escopo e filtros, e
+        # escopo não responde "esta pessoa pode ver satisfação?".
+        "linhas": defesa_de_territorio(
+            contrato.obter(contrato.ProvedorResultadoFinanceiro),
+            carteira,
+            None,
+            filtros,
+        ),
+        "meses_financeiro": MESES_DA_DEFESA,
+        "meses_satisfacao": MESES_DA_SATISFACAO,
+        "com_satisfacao": False,
+    }
+    return faixa
+
+
+def _com_satisfacao(faixas: dict, escopo, pessoa, filtros: Filtros, cache=None) -> None:
+    """Acrescenta as colunas de pesquisa à defesa de território — se a pessoa
+    puder vê-las.
+
+    Fora do montador porque ele não conhece a pessoa, e fora do template porque
+    esconder coluna por CSS deixaria o dado no HTML. Aqui a consulta nem
+    acontece para quem não tem a permissão.
+    """
+    faixa = faixas.get("territorio")
+    if faixa is None or not faixa.disponivel or not faixa.conteudo:
+        return
+    if not tem_acesso_a_satisfacao(pessoa, cache=cache):
+        return
+
+    provedor = contrato.obter(contrato.ProvedorSatisfacao)
+    if provedor is None:
+        return
+
+    de = _recuar(filtros.competencia, MESES_DA_SATISFACAO - 1)
+    avaliacoes = provedor.avaliacoes(escopo, de, filtros.ate)
+    carteira = {linha.codigo for linha in faixa.conteudo["linhas"]}
+    pesquisas: dict[str, list] = {}
+    for avaliacao in avaliacoes:
+        if avaliacao.contrato in carteira:
+            pesquisas.setdefault(avaliacao.contrato, []).append(avaliacao)
+
+    for linha in faixa.conteudo["linhas"]:
+        _com_pesquisa(linha, pesquisas.get(linha.codigo, []))
+    faixa.conteudo["com_satisfacao"] = True
+    # A ordem muda: com pesquisa, o detrator entra no critério de risco.
+    faixa.conteudo["linhas"].sort(
+        key=lambda linha: (not linha.em_risco, -(linha.rob_medio or 0))
+    )
+
+
+def _com_pesquisa(linha: "LinhaDeDefesa", avaliacoes) -> None:
+    por_classe = {"promotor": 0, "neutro": 0, "detrator": 0}
+    for avaliacao in avaliacoes:
+        if avaliacao.classificacao in por_classe:
+            por_classe[avaliacao.classificacao] += 1
+    total = len(avaliacoes)
+
+    linha.promotores = por_classe["promotor"]
+    linha.neutros = por_classe["neutro"]
+    linha.detratores = por_classe["detrator"]
+    linha.pesquisas = total
+    if total:
+        linha.satisfacao_pct = (
+            Decimal(por_classe["promotor"]) / total * 100
+        ).quantize(Decimal("0.1"))
+        linha.nota_media = (
+            Decimal(sum(a.nota for a in avaliacoes)) / total
+        ).quantize(Decimal("0.1"))
 
 
 def _filtrar_carteira(carteira, filtros: Filtros):
@@ -2546,6 +2900,10 @@ def _cartoes_de_pessoas(faixa: Faixa | None) -> list[Destaque]:
 # na apresentação, sem consultar novamente o provedor.
 MONTADORES = (
     ("contratos", contratos),
+    # A DEFESA vem logo depois dos contratos: ela é a mesma carteira vista pela
+    # pergunta "este contrato se defende sozinho?", e lê-la antes de saber
+    # quantos contratos existem é ler a resposta sem a pergunta.
+    ("territorio", territorio),
     ("dinheiro", dinheiro),
     ("contabil", contabil),
     ("vencimentos", vencimentos),
@@ -2591,6 +2949,7 @@ def _painel(
     if perfura:
         _com_perfuracao(faixas["dinheiro"], recorte, filtros)
     _com_graficos(faixas, filtros)
+    _com_satisfacao(faixas, recorte, pessoa, filtros, cache=cache)
     _com_leitura(faixas, filtros)
 
     opcoes = _opcoes_de_atributo(escopo)
@@ -2657,7 +3016,7 @@ def painel(pessoa, parametros, cache: dict | None = None) -> dict:
 
 
 def painel_de_pessoas(pessoa, parametros, cache: dict | None = None) -> dict:
-    return _painel(
+    painel = _painel(
         pessoa,
         parametros,
         permissao=PERMISSAO_PESSOAS,
@@ -2666,6 +3025,26 @@ def painel_de_pessoas(pessoa, parametros, cache: dict | None = None) -> dict:
         recusa="Esta tela é de quem responde por gente.",
         cache=cache,
     )
+    from workspace.services.jornada import montar
+    from django.urls import reverse
+    painel["jornada"] = montar(painel["escopo"], painel["filtros"], parametros.get("hora", "he_total"),
+        lambda **mudancas: _url_com(reverse("workspace:quadro"), painel["filtros"], **mudancas), ranking=parametros.get("ranking", "volume"))
+    painel["contratos_resumo"] = painel["jornada"].get("carteira", [])
+    clientes = {c.codigo: c.nome_cliente for c in painel["contratos_resumo"]}
+    for campo in ("concentracoes", "concentracoes_encerradas"):
+        painel[campo] = [f for f in painel[campo] if f.origem_tipo == "contrato" and f.origem_ref in clientes]
+        for foco in painel[campo]:
+            foco.cliente_resumo = clientes[foco.origem_ref]
+    painel["origens_de_concentracao"] = [("contrato", "Contrato")]
+    focos = {f.origem_ref: f for f in painel["concentracoes"]}
+    for item in painel["jornada"].get("detalhes", []):
+        item["foco"] = focos.get(item["codigo"])
+    painel["ranking_jornada"] = painel["jornada"].get("ranking", "volume")
+    painel["retorno_concentracao"] = _url_com(reverse("workspace:quadro"), painel["filtros"], hora=parametros.get("hora", "he_total"), ranking=painel["ranking_jornada"]) + "#jornada-acoes"
+    painel["hora_selecionada"] = painel["jornada"].get("metrica", "he_total")
+    painel["comparacoes"] = ()
+    painel["url_apresentar"] = _url_com(reverse("workspace:quadro"), painel["filtros"], apresentacao="1", hora=painel["hora_selecionada"], ranking=painel["ranking_jornada"])
+    return painel
 
 
 def painel_de_satisfacao(pessoa, parametros, cache: dict | None = None) -> dict:
@@ -2827,6 +3206,7 @@ def _url_com(base: str, filtros: Filtros, **mudancas) -> str:
         # deixaria `?numeros=reais` em todo link que alguém compartilha.
         "numeros": "" if filtros.numeros == MODO_ABSOLUTO else filtros.numeros,
         "safra": filtros.safra,
+        "ver": ",".join(filtros.escopos_abertos),
         "dim": filtros.dimensao,
     }
     if filtros.deficitario:

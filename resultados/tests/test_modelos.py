@@ -141,3 +141,32 @@ def test_a_procedencia_aparece_e_e_somente_leitura():
     """
     assert "chave_externa" in adm.ContratoAdmin.readonly_fields
     assert "importado_em" in adm.ContratoAdmin.readonly_fields
+
+
+def test_o_lancamento_por_conta_se_identifica_pelo_codigo_e_mes(db):
+    """`__str__` aparece no admin e em log de carga. Sem ele, "objeto (17)" não
+    diz qual lançamento é."""
+    from decimal import Decimal
+
+    from resultados.models import ResultadoPorConta
+
+    linha = ResultadoPorConta(
+        codigo_origem="41101001", ano=2026, mes=9,
+        valor_realizado=Decimal("100"),
+    )
+
+    assert str(linha) == "41101001 · 09/2026"
+
+
+def test_o_edital_se_identifica_pelo_numero_de_controle(db):
+    """O número do PNCP é único no país — é ele que identifica o edital em
+    qualquer lugar, e o objeto truncado diz do que se trata."""
+    from resultados.models import EditalPublico
+
+    edital = EditalPublico(
+        numero_controle="00509968000148-1-004225/2025",
+        objeto="Contratação de serviços de vigilância armada para o campus",
+    )
+
+    assert str(edital).startswith("00509968000148-1-004225/2025 · ")
+    assert "vigilância" in str(edital)

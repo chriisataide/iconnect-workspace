@@ -91,7 +91,7 @@ def concentracao_abrir(request: HttpRequest) -> HttpResponse:
         messages.error(request, str(erro))
     else:
         messages.success(request, "Concentração aberta.")
-    return redirect(f"{reverse('workspace:resultados')}#destaques")
+    return redirect(_retorno_concentracao(request, f"{reverse('workspace:resultados')}#destaques"))
 
 
 @login_required
@@ -107,7 +107,7 @@ def concentracao_atualizar(request: HttpRequest, pk: int) -> HttpResponse:
         messages.error(request, str(erro))
     else:
         messages.success(request, "Próximo passo atualizado.")
-    return redirect(f"{reverse('workspace:resultados')}#concentracao-{pk}")
+    return redirect(_retorno_concentracao(request, f"{reverse('workspace:resultados')}#concentracao-{pk}"))
 
 
 @login_required
@@ -128,7 +128,21 @@ def concentracao_encerrar(request: HttpRequest, pk: int) -> HttpResponse:
         messages.error(request, str(erro))
     else:
         messages.success(request, f"{alvo.titulo} — encerrada.")
-    return redirect(f"{reverse('workspace:resultados')}#destaques")
+    return redirect(_retorno_concentracao(request, f"{reverse('workspace:resultados')}#destaques"))
+
+
+def _retorno_concentracao(request, padrao):
+    from urllib.parse import urlsplit
+    retorno = request.POST.get("retorno", "")
+    try:
+        url = urlsplit(retorno)
+    except ValueError:
+        return padrao
+    if (not url.scheme and not url.netloc and
+            url.path in (reverse("workspace:quadro"), reverse("workspace:resultados")) and
+            not any(ord(c) < 32 for c in retorno)):
+        return retorno
+    return padrao
 
 
 def _pessoa(bruto):

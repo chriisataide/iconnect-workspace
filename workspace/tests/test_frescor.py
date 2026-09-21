@@ -33,7 +33,17 @@ from workspace.services import frescor as frs
 TEMPLATES = Path(__file__).resolve().parent.parent / "templates"
 
 #: A marca de uma faixa de números agregados no template. Ver `frescor.BLOCOS`.
-LINHA_AGREGADA = "au-kpi-linha"
+#:
+#: `au-kpi-valor` e não `au-kpi-linha`, desde 16/09/2026. A pergunta do guarda é
+#: "esta tela AFIRMA um número?", e quem responde isso é o valor — `au-kpi-linha`
+#: é classe de LAYOUT, e só por acaso correlacionava.
+#:
+#: O acaso acabou quando `_jornada.html` e `_vencimentos.html` passaram a montar
+#: os indicadores num wrapper próprio: eles afirmam números, carimbam, e o
+#: guarda os acusava de carimbar sem ter o que carimbar. Conferido: os dez
+#: templates com `au-kpi-linha` têm `au-kpi-valor` também, então o marcador novo
+#: cobre tudo o que o antigo cobria.
+LINHA_AGREGADA = "au-kpi-valor"
 
 
 # ── As estruturais: bloco novo nasce carimbado ──────────────────────

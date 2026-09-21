@@ -80,7 +80,7 @@ BOOLEANOS = frozenset({"bloqueado", "tratativa_aberta"})
 #: `conta` aponta para `ContaContabil` pelo CÓDIGO contábil, e não por `codigo`
 #: como as outras duas — o campo se chama `codigo` lá também, mas a coluna do
 #: CSV é `conta` e o valor é o código de nove dígitos.
-REFERENCIAS = {"contrato": "codigo", "projeto": "codigo", "conta": "codigo"}
+REFERENCIAS = {"contrato": "codigo", "projeto": "codigo", "conta": "codigo", "area": "codigo"}
 
 #: Colunas em que VAZIO quer dizer `None`, e não "não mandei".
 #:
@@ -166,6 +166,8 @@ class ConectorCSV(ConectorBase):
             if coluna.startswith("_") or coluna in ("chave_externa",):
                 continue
             convertido = _converter_valor(coluna, valor)
+            if entidade == "apontamento" and coluna == "contrato" and valor and str(valor).strip() and convertido is None:
+                raise ValueError(f"Contrato de apontamento não encontrado: {valor}")
             if convertido is not _IGNORAR:
                 dados[coluna] = convertido
 
@@ -215,10 +217,14 @@ def _resolver_referencia(coluna: str, codigo: str):
     caso normal quando os arquivos vêm em ordem qualquer. O carregador recusa
     depois, se a chave de negócio exigir — e aí a rejeição diz o que falta.
     """
-    from resultados.models import ContaContabil, Contrato, Projeto
+    from resultados.models import Area, ContaContabil, Contrato, Projeto
 
     modelo = {
         "contrato": Contrato, "projeto": Projeto, "conta": ContaContabil,
+        # `area` é CADASTRO, e não massa: quem a cria é `semear_areas`. Se ela
+        # não existir, o contrato entra sem área e a tela mostra "Sem área" —
+        # que é o estado real de um contrato ainda não classificado.
+        "area": Area,
     }[coluna]
     # `None` quando não existe, e a linha entra assim mesmo. Para `conta` isso
     # é o comportamento CERTO e não uma tolerância: código fora do plano vira

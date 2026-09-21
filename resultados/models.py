@@ -385,6 +385,56 @@ class ServicoContrato(models.TextChoices):
     PROJETO_TURNKEY = "projeto_turnkey", "Projeto turnkey"
 
 
+class NaturezaReceita(models.TextChoices):
+    """COMO a receita do contrato se comporta — outro eixo, não outro nome.
+
+    `ServicoContrato` diz como o contrato foi vendido; isto diz o que ele faz
+    com o caixa, e as duas perguntas são diferentes:
+
+        RECORRENTE  entra todo mês enquanto o contrato viver. Perder um é
+                    perder a receita inteira dele daqui para a frente.
+        LOCACAO     também é mensal, mas com ativo NOSSO do outro lado: perder
+                    um devolve equipamento ao estoque, e o prejuízo é a
+                    depreciação que continua correndo.
+        VENDA       entra uma vez. Não se "perde" na renovação — acaba, e o que
+                    se perde é o próximo projeto.
+
+    Na defesa de território a distinção decide a AÇÃO: um recorrente em risco
+    se defende renovando; uma venda em risco se defende vendendo de novo.
+
+    ## Derivada do serviço, e não gravada
+
+    O mapa está logo abaixo. Um campo próprio seria um segundo lugar guardando o
+    mesmo fato, e o dia em que discordasse do serviço ninguém saberia qual das
+    duas está certa. Quando existir contrato cuja natureza NÃO siga o serviço —
+    um projeto vendido como assinatura, por exemplo —, aí o campo se justifica.
+    """
+
+    RECORRENTE = "recorrente", "Recorrente"
+    LOCACAO = "locacao", "Locação"
+    VENDA = "venda", "Venda"
+
+
+#: `servico → natureza`. Ver `NaturezaReceita` para por que é derivado.
+NATUREZA_POR_SERVICO: dict[str, str] = {
+    "monitoramento": NaturezaReceita.RECORRENTE,
+    "manutencao": NaturezaReceita.RECORRENTE,
+    "locacao": NaturezaReceita.LOCACAO,
+    "projeto": NaturezaReceita.VENDA,
+    "projeto_turnkey": NaturezaReceita.VENDA,
+}
+
+
+def natureza_de(servico: str) -> str:
+    """A natureza da receita, ou `""` para serviço desconhecido.
+
+    Vazio e não um palpite: serviço novo que ninguém mapeou aparece sem natureza
+    na tela, e isso é uma pergunta — chutar "recorrente" seria uma resposta
+    errada que ninguém iria conferir.
+    """
+    return NATUREZA_POR_SERVICO.get(servico, "")
+
+
 class StatusContrato(models.TextChoices):
     ATIVO = "ativo", "Ativo"
     ENCERRADO = "encerrado", "Encerrado"
@@ -650,6 +700,7 @@ class QuadroPessoas(ProcedenciaMixin):
 
 
 class Apontamento(ProcedenciaMixin):
+    contrato = models.ForeignKey("Contrato", null=True, blank=True, on_delete=models.PROTECT, related_name="apontamentos")
     centro_custo = models.CharField(max_length=20, db_index=True)
     ano = models.PositiveSmallIntegerField(db_index=True)
     mes = models.PositiveSmallIntegerField(db_index=True)
@@ -675,7 +726,12 @@ class Apontamento(ProcedenciaMixin):
                 fields=["fonte", "chave_externa"], name="res_apontamento_origem_unica"
             ),
             models.UniqueConstraint(
-                fields=["centro_custo", "ano", "mes"], name="res_apontamento_cc_unico"
+                fields=["centro_custo", "ano", "mes"], name="res_apontamento_cc_unico",
+                condition=models.Q(contrato__isnull=True)
+            ),
+            models.UniqueConstraint(
+                fields=["contrato", "centro_custo", "ano", "mes"], name="res_apontamento_contrato_unico",
+                condition=models.Q(contrato__isnull=False)
             ),
         ]
 

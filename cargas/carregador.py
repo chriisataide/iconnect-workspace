@@ -95,7 +95,7 @@ CHAVE_DE_NEGOCIO = {
     "projeto": ("codigo",),
     "marco": ("projeto", "titulo"),
     "quadro": ("centro_custo", "ano", "mes"),
-    "apontamento": ("centro_custo", "ano", "mes"),
+    "apontamento": ("contrato", "centro_custo", "ano", "mes"),
     "avaliacao": ("contrato", "data"),
     # O número de controle do PNCP é único no país e estável no tempo — é a
     # chave de negócio óbvia. Diferente dos outros, aqui ela COINCIDE com a
@@ -393,7 +393,7 @@ def _regras_de(entidade: str) -> dict[str, str]:
 #: e quando `conta` chegou com o mesmo formato o `if` a rejeitou em silêncio —
 #: 258 linhas de rateio recusadas com "faltam campos da chave de negócio", numa
 #: carga que continuou verde porque rejeição não é falha.
-CONTRATO_OPCIONAL = frozenset({"competencia", "conta"})
+CONTRATO_OPCIONAL = frozenset({"competencia", "conta", "apontamento"})
 
 
 def _filtro_de_negocio(entidade: str, dados: dict) -> dict | None:

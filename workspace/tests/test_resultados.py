@@ -488,3 +488,60 @@ def test_o_sem_amostra_do_contrato_e_o_mesmo_do_espelho():
     from resultados.services import SEM_AMOSTRA as DO_ESPELHO
 
     assert svc.SEM_AMOSTRA == DO_ESPELHO
+
+
+# ── A gaveta de filtros ─────────────────────────────────────────────
+
+
+def _corpo(client, pessoa, **params):
+    client.force_login(pessoa)
+    return client.get(reverse("workspace:resultados"), params).content.decode()
+
+
+def test_os_campos_de_filtro_ficam_DENTRO_da_gaveta(client, espelho, diretoria):
+    """O painel era `sticky` e comia um terço da altura útil: em reunião ele
+    cobria as primeiras linhas de toda tabela que passava por baixo, e a análise
+    acontecia numa fresta."""
+    corpo = _corpo(client, diretoria)
+    gaveta = corpo.index('id="gaveta-filtros"')
+
+    assert 'popovertarget="gaveta-filtros"' in corpo, "o botão que abre"
+    # Posição e não fatia: o formulário inteiro nasce depois da abertura da
+    # gaveta, e um `split` num `</div>` qualquer passaria verde com os campos
+    # de volta na página.
+    assert corpo.index("au-filtros--resultados") > gaveta
+    assert corpo.index('id="f-mes"') > gaveta
+    assert corpo.index('id="f-periodo"') > gaveta
+
+
+def test_as_ACOES_ficam_fora_da_gaveta(client, espelho, diretoria):
+    """"PDF" e "Apresentar" não são filtros — são o que se faz com a tela.
+    Enterrá-las junto obrigaria a abrir a gaveta de filtros para imprimir."""
+    corpo = _corpo(client, diretoria)
+    gaveta = corpo.index('id="gaveta-filtros"')
+
+    assert corpo.index(">PDF<") < gaveta
+    assert corpo.index(">Apresentar<") < gaveta
+    assert corpo.index(">Detalhamento<") < gaveta
+    # E o único botão que sobrou dentro do formulário é o que aplica.
+    assert corpo.count("Aplicar filtros") == 1
+
+
+def test_o_botao_CONTA_os_filtros_ativos(client, espelho, diretoria):
+    """Fechada, a gaveta não distingue tela inteira de tela recortada. As tarjas
+    ao lado dizem QUAIS; o número no botão diz QUANTOS, antes de abrir."""
+    limpo = _corpo(client, diretoria)
+    recortado = _corpo(client, diretoria, cc="1042", servico="monitoramento")
+
+    assert "au-filtro-barra-conta" not in limpo
+    assert "au-filtro-barra-conta" in recortado
+
+
+def test_a_gaveta_abre_SEM_javascript(client, espelho, diretoria):
+    """`popovertarget` é atributo nativo: camada superior, Esc e clique-fora sem
+    uma linha de script — que é o que a CSP desta casa exige, já que `script-src`
+    é `'self'` + nonce e não aceita `unsafe-inline`."""
+    corpo = _corpo(client, diretoria)
+
+    assert "popover>" in corpo or 'popover="' in corpo
+    assert 'popovertargetaction="hide"' in corpo, "e fecha pelo X também"

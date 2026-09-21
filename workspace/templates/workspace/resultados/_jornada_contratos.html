@@ -1,0 +1,43 @@
+{% load i18n wks %}
+{% comment %}
+  A COBERTURA é um NÚMERO, e era três linhas de texto.
+
+  "12 de 18 contratos têm apontamentos vinculados neste mês (66,7%)" virou um
+  cartão ao lado dos outros: quem olha a tela quer saber de quanto do total ela
+  está falando, e isso é uma fração — não um parágrafo. A ressalva de que
+  cobertura não garante importação desceu para "Como ler estes números".
+{% endcomment %}
+<h3 class="au-subsecao">{% trans "Cobertura dos apontamentos por contrato" %}</h3>
+{% if jornada.cobertura.total %}
+  <div class="au-jornada-indicadores">
+    <div class="au-kpi">
+      <span class="au-kpi-rotulo">{% trans "contratos com apontamento" %}</span>
+      <span class="au-kpi-valor">{{ jornada.cobertura.com_dados }}<small class="au-kpi-sufixo">{% trans "de" %} {{ jornada.cobertura.total }}</small></span>
+      <small>{{ jornada.cobertura.percentual|numero:1 }}% {% trans "da carteira" %}</small>
+    </div>
+    {% if jornada.cobertura.sem_dados %}
+      <div class="au-kpi">
+        <span class="au-kpi-rotulo">{% trans "sem apontamento" %}</span>
+        <span class="au-kpi-valor">{{ jornada.cobertura.sem_dados|length }}</span>
+        <small>{% trans "não equivale a zero horas" %}</small>
+      </div>
+    {% endif %}
+  </div>
+  {% if jornada.cobertura.sem_dados %}<details class="au-resultados-consulta" data-resultados-detalhe="jornada-sem-dados"><summary>{% trans "Ver contratos sem apontamentos vinculados" %} ({{ jornada.cobertura.sem_dados|length }})</summary><ul>{% for c in jornada.cobertura.sem_dados %}<li>{{ c.codigo }} · {{ c.cliente }}</li>{% endfor %}</ul></details>{% endif %}
+{% else %}<p class="au-vazio-dica">{% trans "Sem carteira disponível neste recorte para medir a cobertura contratual." %}</p>{% endif %}
+<h3 class="au-subsecao">{% trans "Análise por contrato" %} — {{ jornada.titulo_metrica }}</h3>
+{% for c in jornada.detalhes %}
+  <details class="au-resultados-consulta" data-resultados-detalhe="jornada-contrato-{{ c.codigo }}">
+    <summary id="jornada-detalhe-{{ c.codigo }}" data-posicao>{{ c.codigo }} · {{ c.cliente }} — {{ c.atual|numero:2 }} h</summary>
+    <p>{% trans "Mês anterior" %}: {{ c.anterior|numero:2 }} h · {% trans "Diferença" %}: {{ c.diferenca|numero:2 }} h {% if c.variacao is not None %}({{ c.variacao|numero:1 }}%){% endif %}</p>
+    {% if c.diferenca is None %}<p class="au-ajuda">{% trans "Sem registros comparáveis nos dois meses." %}</p>{% elif c.anterior == 0 %}<p class="au-ajuda">{% trans "O mês anterior tem valor zero; a variação percentual não é calculável." %}</p>{% endif %}
+    <div class="au-colunas">
+      <div class="au-tabela"><table><caption>{% trans "Evolução mensal" %} — {{ jornada.titulo_metrica }}</caption><thead><tr><th scope="col">{% trans "Mês" %}</th><th scope="col" class="num">{% trans "Horas" %}</th></tr></thead><tbody>{% for ponto in c.serie %}<tr><th scope="row">{{ ponto.mes|date:"m/Y" }}</th><td class="num">{{ ponto.valor|numero:2 }}</td></tr>{% endfor %}</tbody></table></div>
+      <div class="au-tabela"><table><caption>{% trans "Composição das horas extras no mês" %}</caption><thead><tr><th scope="col">{% trans "Classificação" %}</th><th scope="col" class="num">{% trans "Horas" %}</th><th scope="col" class="num">{% trans "% das HE" %}</th></tr></thead><tbody>{% for parte in c.partes %}<tr><th scope="row">{{ parte.titulo }}</th><td class="num">{{ parte.valor|numero:2 }}</td><td class="num">{% if parte.percentual is not None %}{{ parte.percentual|numero:1 }}%{% else %}—{% endif %}</td></tr>{% endfor %}</tbody><tfoot><tr><th scope="row">{% trans "HE total informada" %}</th><td class="num">{{ c.he_total|numero:2 }}</td><td></td></tr></tfoot></table></div>
+    </div>
+    {% if c.diferenca_composicao %}<p class="au-ajuda au-ajuda--alerta">{% trans "A soma das classificações difere da HE total informada em" %} {{ c.diferenca_composicao|numero:2 }} h. {% trans "Confira a classificação na fonte." %}</p>{% endif %}
+    {% if pode_concentrar and c.atual is not None %}
+      {% if c.foco %}<a href="#concentracao-{{ c.foco.pk }}">{% trans "Acompanhar ação existente" %}</a>{% else %}<a href="#nova-concentracao" data-concentrar data-tipo="contrato" data-referencia="{{ c.codigo }}" data-chave="{{ c.chave }}" data-titulo="{% trans 'Analisar jornada' %} — {{ c.codigo }}" data-motivo="{{ c.motivo }}">{% trans "Registrar ação para este contrato" %}</a>{% endif %}
+    {% endif %}
+  </details>
+{% empty %}<p class="au-vazio-dica">{% trans "O detalhe será preenchido quando a fonte fornecer apontamentos vinculados aos contratos." %}</p>{% endfor %}
