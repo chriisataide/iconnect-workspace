@@ -1,0 +1,26 @@
+# O README manda `cp .env.example .env` desde a primeira versão e prometia que
+# o arquivo estava ignorado. Ele não estava: este .gitignore não existia.
+#
+# Dentro do `.env` moram a senha do Postgres, a chave de criptografia do n8n, a
+# chave da Evolution API e o token do Portal. Um `git add .` sem esta linha
+# publica as quatro.
+.env
+.env.*
+!.env.example
+
+# Saída do gerador, quando alguém compara com o versionado.
+/tmp/
+node_modules/
+
+# macOS
+.DS_Store
+
+# A planilha de verdade. `ajuste-de-ponto.xlsx` traz nome, CPF, a senha do
+# totem e o telefone de 57 pessoas. Commit é para sempre: uma vez no histórico,
+# tirar exige reescrever o repositório inteiro e reclonar em toda máquina.
+#
+# O arquivo precisa existir NO DISCO — o compose o monta em
+# /home/node/.n8n-files. Ele só não pode existir no Git.
+arquivos/*.xlsx
+arquivos/*.xls
+arquivos/*.csv

@@ -152,6 +152,19 @@ class ItemCatalogo(models.Model):
         help_text="Preenchido, o card abre este endereço em vez do formulário.",
     )
 
+    # O item que não abre formulário e sim uma TELA do próprio Portal. Existe
+    # separado de `url_externa` porque o sinal é o oposto: aquele marca o card
+    # como saída do produto, e este é uma porta interna — a pessoa continua
+    # aqui, com a mesma sessão e a mesma casca.
+    #
+    # Guarda o NOME da rota (`workspace:pendencias_ponto`), nunca o caminho:
+    # caminho gravado em banco é o que quebra em silêncio no dia em que a URL
+    # muda, e o nome quebra alto, no `reverse`.
+    rota_interna = models.CharField(
+        max_length=100, blank=True,
+        help_text="Nome da rota Django. Preenchido, o card abre essa tela em vez do formulário.",
+    )
+
     ativo = models.BooleanField(default=True, db_index=True)
     ordem = models.PositiveSmallIntegerField(default=100)
     criado_em = models.DateTimeField(auto_now_add=True)

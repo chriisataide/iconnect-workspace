@@ -224,6 +224,22 @@ urlpatterns = [
     path("universidade/painel/", views.universidade_painel, name="universidade_painel"),
     path("notificacoes/", views.notificacoes, name="notificacoes"),
     path("notificacoes/lidas/", views.marcar_lidas, name="marcar_lidas"),
+    # RH — pendências de ponto. §41. Uma tela operacional, e não um item de
+    # catálogo: o card `pendencias-ponto` leva para cá em vez de abrir o
+    # formulário de pedido, porque quem opera isto é o R.H. e não o colaborador.
+    path("rh/pendencias-ponto/", views.pendencias_ponto, name="pendencias_ponto"),
+    path("rh/pendencias-ponto/importar/", views.ponto_importar, name="ponto_importar"),
+    path("rh/pendencias-ponto/historico/", views.ponto_historico, name="ponto_historico"),
+    path("rh/pendencias-ponto/lote/<int:pk>/", views.ponto_lote, name="ponto_lote"),
+    path("rh/pendencias-ponto/lote/<int:pk>/selecionar/", views.ponto_selecionar,
+         name="ponto_selecionar"),
+    path("rh/pendencias-ponto/lote/<int:pk>/enviar/", views.ponto_enviar, name="ponto_enviar"),
+    path("rh/pendencias-ponto/lote/<int:pk>/progresso/", views.ponto_progresso,
+         name="ponto_progresso"),
+    path("rh/pendencias-ponto/colaborador/<int:pk>/telefone/", views.ponto_corrigir,
+         name="ponto_corrigir"),
+    path("rh/pendencias-ponto/colaborador/<int:pk>/mensagem/", views.ponto_mensagem,
+         name="ponto_mensagem"),
     # Serviços.
     path("servicos/", views.catalogo, name="servicos"),
     path("servicos/<slug:chave>/", views.pedir, name="pedir"),

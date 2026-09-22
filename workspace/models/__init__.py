@@ -123,6 +123,16 @@ from .plano import (
     VerificacaoPlano,
 )
 from .evento import AcaoSolicitacao, EventoSolicitacao
+from .ponto import (
+    AcaoPonto,
+    ColaboradorPonto,
+    EnvioPonto,
+    EventoPonto,
+    LotePonto,
+    ModoEnvio,
+    SituacaoEnvio,
+    SituacaoLote,
+)
 from .conteudo import (
     ConfirmacaoLeitura,
     Documento,
@@ -133,6 +143,14 @@ from .comunicacao import Prioridade, Publicacao, TipoPublicacao
 from .orcamento import Compromisso, SituacaoCompromisso, competencia_de
 
 __all__ = [
+    "AcaoPonto",
+    "ColaboradorPonto",
+    "EnvioPonto",
+    "EventoPonto",
+    "LotePonto",
+    "ModoEnvio",
+    "SituacaoEnvio",
+    "SituacaoLote",
     "AcaoDesenvolvimento",
     "Concentracao",
     "OrigemConcentracao",

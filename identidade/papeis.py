@@ -266,6 +266,22 @@ PAPEIS_V1 = [
             # lista diz quem se candidatou a quê e quem foi reprovado — que muda
             # a relação de uma pessoa com o gestor dela.
             "rh.recrutar.global",
+            # §32 — as pendências de ponto. TRÊS permissões e não uma: o R.H.
+            # importa a planilha, revisa e dispara o teste no próprio celular.
+            #
+            # `rh.ponto_enviar` NÃO está aqui, e é a decisão mais importante
+            # desta lista. Ela libera WhatsApp para os colaboradores de verdade
+            # e é a única ação do produto sem desfazer — quem a recebe precisa
+            # receber por ato deliberado, em /admin/identidade/atribuicaopapel/,
+            # e não por estar no papel que todo mundo do R.H. tem.
+            #
+            # Os nomes usam `_` e não `.` de propósito: o casamento de
+            # permissão é por PREFIXO, então `rh.ponto.ler` faria uma concessão
+            # `rh.ponto.global` cobrir também `rh.ponto.enviar`. Com underscore
+            # nenhuma das quatro é prefixo da outra.
+            "rh.ponto_ler.global",
+            "rh.ponto_importar.global",
+            "rh.ponto_testar.global",
             # Lê os quadros para acompanhar a COBERTURA do ciclo — quantos
             # rascunhos, quantos aprovados. NÃO aprova e NÃO define: metas são
             # combinadas entre a pessoa e quem a lidera, e um R.H. que homologa

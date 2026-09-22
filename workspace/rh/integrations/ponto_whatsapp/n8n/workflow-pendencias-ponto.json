@@ -1,0 +1,387 @@
+{
+  "id": "ponto-pendencias-seguro",
+  "name": "RH - Pendências de Ponto - WhatsApp (modo seguro)",
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "manual-trigger",
+      "name": "Executar manualmente",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        -1000,
+        120
+      ]
+    },
+    {
+      "parameters": {
+        "fileSelector": "/home/node/.n8n-files/ajuste-de-ponto.xlsx",
+        "options": {}
+      },
+      "id": "read-xlsx",
+      "name": "Ler ajuste-de-ponto.xlsx",
+      "type": "n8n-nodes-base.readWriteFile",
+      "typeVersion": 1.1,
+      "position": [
+        -780,
+        120
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "xlsx",
+        "options": {}
+      },
+      "id": "extract-xlsx",
+      "name": "Converter XLSX para JSON",
+      "type": "n8n-nodes-base.extractFromFile",
+      "typeVersion": 1,
+      "position": [
+        -560,
+        120
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "function clean(value) {\n  if (value === undefined || value === null) return '';\n  return String(value).trim();\n}\n\nfunction testModeFromEnvironment(value) {\n  return clean(value).toLowerCase() !== 'false';\n}\n\nfunction normalizePhone(value) {\n  const raw = clean(value);\n  if (!raw || raw.startsWith('=')) return '';\n\n  let digits = raw.replace(/\\D/g, '');\n  if (digits.length === 10 || digits.length === 11) digits = '55' + digits;\n  return /^55[1-9]\\d[2-9]\\d{7,8}$/.test(digits) ? digits : '';\n}\n\nfunction formatDate(value) {\n  if (typeof value === 'number' && Number.isFinite(value)) {\n    const date = new Date(Date.UTC(1899, 11, 30) + Math.round(value * 86400000));\n    const day = String(date.getUTCDate()).padStart(2, '0');\n    const month = String(date.getUTCMonth() + 1).padStart(2, '0');\n    const year = date.getUTCFullYear();\n    return { display: day + '/' + month + '/' + year, sortKey: year * 10000 + Number(month) * 100 + Number(day) };\n  }\n\n  const raw = clean(value);\n  const br = raw.match(/^(\\d{1,2})\\/(\\d{1,2})\\/(\\d{4})$/);\n  if (br) {\n    const day = br[1].padStart(2, '0');\n    const month = br[2].padStart(2, '0');\n    const year = br[3];\n    return { display: day + '/' + month + '/' + year, sortKey: Number(year + month + day) };\n  }\n\n  const iso = raw.match(/^(\\d{4})-(\\d{2})-(\\d{2})/);\n  if (iso) {\n    return { display: iso[3] + '/' + iso[2] + '/' + iso[1], sortKey: Number(iso[1] + iso[2] + iso[3]) };\n  }\n\n  return { display: raw || 'data não informada', sortKey: Number.MAX_SAFE_INTEGER };\n}\n\nfunction joinMissing(parts) {\n  if (parts.length === 1) return parts[0];\n  return parts.slice(0, -1).join(', ') + ' e ' + parts[parts.length - 1];\n}\n\nfunction buildReason(row) {\n  const missing = [];\n  if (!clean(row['Entrada'])) missing.push('entrada');\n  if (!clean(row['Pausa'])) missing.push('pausa');\n  if (!clean(row['Retorno'])) missing.push('retorno');\n  if (!clean(row['Saída'])) missing.push('saída');\n\n  if (missing.length) return 'ausência de marcação de ' + joinMissing(missing);\n  return clean(row['Observação']).replace(/\\s+/g, ' ').replace(/\\s*\\.\\s*$/, '') || 'pendência na apuração do ponto';\n}\n\nconst testMode = testModeFromEnvironment($env.TEST_MODE);\nconst testPhone = normalizePhone($env.TEST_PHONE);\nconst groups = new Map();\n\nfor (const item of $input.all()) {\n  const row = item.json;\n  const employee = clean(row['Funcionário']).replace(/\\s+/g, ' ');\n  if (!employee) continue;\n\n  const key = employee.toLocaleUpperCase('pt-BR');\n  const originalPhone = clean(row['Telefone']);\n  const normalizedPhone = normalizePhone(originalPhone);\n  if (!groups.has(key)) {\n    groups.set(key, {\n      funcionario: employee,\n      telefoneOriginal: originalPhone,\n      telefonePlanilha: normalizedPhone,\n      pendencias: new Map(),\n    });\n  }\n\n  const group = groups.get(key);\n  if (!group.telefoneOriginal && originalPhone) group.telefoneOriginal = originalPhone;\n  if (!group.telefonePlanilha && normalizedPhone) group.telefonePlanilha = normalizedPhone;\n\n  const date = formatDate(row['Data']);\n  const reason = buildReason(row);\n  group.pendencias.set(date.display + '|' + reason.toLocaleUpperCase('pt-BR'), {\n    data: date.display,\n    motivo: reason,\n    sortKey: date.sortKey,\n  });\n}\n\nconst output = [];\nfor (const group of groups.values()) {\n  const pendencias = Array.from(group.pendencias.values())\n    .sort((a, b) => a.sortKey - b.sortKey || a.motivo.localeCompare(b.motivo, 'pt-BR'))\n    .map(({ data, motivo }) => ({ data, motivo }));\n  const pendenciasTexto = pendencias.map((item) => '• ' + item.data + ' — ' + item.motivo).join('\\n');\n  const mensagem = 'Prezado(a) colaborador(a),\\n\\n' +\n    'Identificamos pendências na apuração do seu ponto nos dias listados abaixo:\\n\\n' +\n    pendenciasTexto + '\\n\\n' +\n    'Solicitamos que realize a regularização o quanto antes.\\n\\n' +\n    'Lembramos que o registro no aplicativo PontoTel deve ser feito em tempo real, no momento exato da ação, como no início da jornada, nos intervalos e no término do expediente. A reincidência nessas ausências de marcação poderá acarretar medidas disciplinares.\\n\\n' +\n    'Estamos à disposição.\\n\\n' +\n    'Recursos Humanos';\n  const telefoneDestino = testMode ? testPhone : group.telefonePlanilha;\n  const podeEnviar = Boolean(telefoneDestino);\n\n  output.push({\n    json: {\n      nome: group.funcionario,\n      telefoneOriginal: group.telefoneOriginal,\n      telefonePlanilha: group.telefonePlanilha,\n      telefoneDestino,\n      modoTeste: testMode,\n      quantidadePendencias: pendencias.length,\n      pendencias,\n      mensagem,\n      status: podeEnviar ? 'pronto_para_envio' : 'telefone_invalido',\n      processadoEm: null,\n      retornoEvolutionApi: null,\n      erro: podeEnviar ? null : (testMode ? 'TEST_PHONE ausente ou inválido' : 'Telefone da planilha ausente, inválido ou contém fórmula'),\n      podeEnviar,\n    },\n  });\n}\n\nreturn output;"
+      },
+      "id": "aggregate",
+      "name": "Normalizar, agrupar e montar mensagens",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -320,
+        120
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "podeEnviar-condition",
+              "leftValue": "={{ $json.podeEnviar }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "valid-phone",
+      "name": "Telefone de destino válido?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        -60,
+        120
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "function clean(value) {\n  if (value === undefined || value === null) return '';\n  return String(value).trim();\n}\n\nfunction normalizePhone(value) {\n  const raw = clean(value);\n  if (!raw || raw.startsWith('=')) return '';\n  let digits = raw.replace(/\\D/g, '');\n  if (digits.length === 10 || digits.length === 11) digits = '55' + digits;\n  return /^55[1-9]\\d[2-9]\\d{7,8}$/.test(digits) ? digits : '';\n}\n\nconst environmentTestMode = clean($env.TEST_MODE).toLowerCase() !== 'false';\nconst expectedTestPhone = normalizePhone($env.TEST_PHONE);\n\nreturn $input.all().map((item) => {\n  const data = { ...item.json };\n  const destination = normalizePhone(data.telefoneDestino);\n  const mismatch = environmentTestMode && (!expectedTestPhone || destination !== expectedTestPhone);\n  const safe = data.podeEnviar === true && Boolean(destination) && !mismatch;\n\n  if (!safe) {\n    data.status = mismatch ? 'bloqueado_seguranca' : data.status;\n    data.erro = mismatch\n      ? 'Barreira de segurança: em TEST_MODE o telefoneDestino deve ser exatamente igual ao TEST_PHONE'\n      : (data.erro || 'Destino inválido antes do envio');\n  }\n\n  data.telefoneDestino = destination;\n  data.modoTeste = environmentTestMode;\n  data.podeEnviarSeguro = safe;\n  return { json: data };\n});"
+      },
+      "id": "security-guard",
+      "name": "Segunda validação de segurança",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        180,
+        20
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "podeEnviarSeguro-condition",
+              "leftValue": "={{ $json.podeEnviarSeguro }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "safe-destination",
+      "name": "Destino passou na barreira?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        420,
+        20
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.EVOLUTION_URL + '/message/sendText/' + $env.EVOLUTION_INSTANCE }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "apikey",
+              "value": "={{ $env.EVOLUTION_API_KEY }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "raw",
+        "rawContentType": "application/json",
+        "body": "={{ JSON.stringify({ number: $json.telefoneDestino, text: $json.mensagem }) }}",
+        "options": {
+          "response": {
+            "response": {
+              "fullResponse": true,
+              "neverError": true,
+              "responseFormat": "json"
+            }
+          },
+          "timeout": 30000
+        }
+      },
+      "id": "send-evolution",
+      "name": "Enviar via Evolution API",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        680,
+        -80
+      ],
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "const origins = $('Segunda validação de segurança').all()\n  .filter((item) => item.json.podeEnviarSeguro === true);\n\nreturn $input.all().map((item, index) => {\n  const response = item.json;\n  const origin = origins[index] ? origins[index].json : {};\n  const statusCode = Number(response.statusCode || 0);\n  const failed = Boolean(response.error) || statusCode >= 400;\n  return {\n    json: {\n      ...origin,\n      status: failed ? 'erro_envio' : 'enviado',\n      processadoEm: new Date().toISOString(),\n      retornoEvolutionApi: response,\n      erro: failed ? String(response.error?.message || response.message || ('HTTP ' + statusCode)) : null,\n    },\n  };\n});"
+      },
+      "id": "log-sent",
+      "name": "Registrar resultado do envio",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        940,
+        -80
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "return $input.all().map((item) => ({\n  json: {\n    ...item.json,\n    processadoEm: new Date().toISOString(),\n    retornoEvolutionApi: null,\n  },\n}));"
+      },
+      "id": "log-rejected",
+      "name": "Registrar bloqueio ou telefone inválido",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        680,
+        220
+      ]
+    },
+    {
+      "parameters": {},
+      "id": "results",
+      "name": "Resultados finais",
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [
+        1180,
+        80
+      ]
+    },
+    {
+      "parameters": {
+        "content": "## MODO DE TESTE ATIVO — TODAS AS MENSAGENS SERÃO REDIRECIONADAS\n\nCom `TEST_MODE=true`, o destino vem exclusivamente de `TEST_PHONE`. Uma segunda barreira imediatamente antes do HTTP bloqueia qualquer divergência.",
+        "height": 240,
+        "width": 500,
+        "color": 5
+      },
+      "id": "test-note",
+      "name": "MODO DE TESTE ATIVO",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        80,
+        -360
+      ]
+    },
+    {
+      "parameters": {
+        "content": "## Remetente\n\nConecte somente um WhatsApp pessoal na instância `teste-pessoal`. O número corporativo **+55 19 99631-8785** não é conectado nem alterado por este workflow.",
+        "height": 210,
+        "width": 430,
+        "color": 7
+      },
+      "id": "sender-note",
+      "name": "REMETENTE DE TESTE",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        650,
+        -360
+      ]
+    }
+  ],
+  "connections": {
+    "Executar manualmente": {
+      "main": [
+        [
+          {
+            "node": "Ler ajuste-de-ponto.xlsx",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Ler ajuste-de-ponto.xlsx": {
+      "main": [
+        [
+          {
+            "node": "Converter XLSX para JSON",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Converter XLSX para JSON": {
+      "main": [
+        [
+          {
+            "node": "Normalizar, agrupar e montar mensagens",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Normalizar, agrupar e montar mensagens": {
+      "main": [
+        [
+          {
+            "node": "Telefone de destino válido?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Telefone de destino válido?": {
+      "main": [
+        [
+          {
+            "node": "Segunda validação de segurança",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Registrar bloqueio ou telefone inválido",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Segunda validação de segurança": {
+      "main": [
+        [
+          {
+            "node": "Destino passou na barreira?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Destino passou na barreira?": {
+      "main": [
+        [
+          {
+            "node": "Enviar via Evolution API",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Registrar bloqueio ou telefone inválido",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Enviar via Evolution API": {
+      "main": [
+        [
+          {
+            "node": "Registrar resultado do envio",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Registrar resultado do envio": {
+      "main": [
+        [
+          {
+            "node": "Resultados finais",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Registrar bloqueio ou telefone inválido": {
+      "main": [
+        [
+          {
+            "node": "Resultados finais",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "timezone": "America/Sao_Paulo",
+    "saveDataErrorExecution": "all",
+    "saveDataSuccessExecution": "all"
+  },
+  "versionId": "fe69df89-fd50-4a48-91ab-ddd624c03d1f",
+  "meta": {
+    "templateCredsSetupCompleted": true
+  },
+  "pinData": {},
+  "tags": []
+}

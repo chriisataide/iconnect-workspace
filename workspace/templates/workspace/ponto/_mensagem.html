@@ -1,0 +1,65 @@
+{% extends "workspace/_shell_modulo.html" %}
+{% load i18n %}
+
+{% comment %}
+  A prévia da mensagem — §17.
+
+  Tela própria e não modal: o texto tem oito linhas e o R.H. lê, volta, corrige
+  e lê de novo. Um modal desse tamanho cobre a tabela que a pessoa está
+  conferindo, e num celular vira rolagem dentro de rolagem.
+
+  NÃO há botão de enviar aqui, de propósito. O §17 pede isso e a razão é boa: a
+  tela de conferir e a tela de disparar não podem ser a mesma, senão a
+  conferência vira um passo que se pula clicando no botão que está ali do lado.
+{% endcomment %}
+
+{% block titulo %}{% trans "Prévia da mensagem" %}{% endblock %}
+
+{% block rail %}{% include "workspace/_rail_servicos.html" with aba="ponto" %}{% endblock %}
+
+{% block trilha %}
+  <a class="au-migalha" href="{% url 'workspace:modulo' 'rh' %}">{% trans "RH" %}</a>
+  <a class="au-migalha" href="{% url 'workspace:pendencias_ponto' %}?lote={{ colaborador.lote_id }}">
+    {% trans "Pendências de Ponto" %}
+  </a>
+  <span class="au-migalha au-migalha--atual">{% trans "Prévia" %}</span>
+{% endblock %}
+
+{% block pagina_titulo %}{% trans "Prévia da mensagem" %}{% endblock %}
+{% block voltar_url %}{% url 'workspace:pendencias_ponto' %}?lote={{ colaborador.lote_id }}{% endblock %}
+{% block voltar_rotulo %}{% trans "Voltar para a revisão" %}{% endblock %}
+
+{% block corpo %}
+<section class="au-secao">
+  <div class="au-folha-dados">
+    <p class="au-folha-linha">
+      <span class="au-folha-rotulo">{% trans "Destinatário" %}</span>
+      <strong>{{ colaborador.nome }}</strong>
+    </p>
+    <p class="au-folha-linha">
+      <span class="au-folha-rotulo">{% trans "Telefone" %}</span>
+      {% if colaborador.pode_produzir %}
+        <span class="au-codigo">{{ colaborador.telefone_mascarado }}</span>
+      {% else %}
+        <span class="au-etiqueta au-etiqueta--atrasado">{{ colaborador.motivo_sem_telefone }}</span>
+      {% endif %}
+    </p>
+    <p class="au-folha-linha">
+      <span class="au-folha-rotulo">{% trans "Pendências" %}</span>
+      {{ colaborador.quantidade_pendencias }}
+    </p>
+  </div>
+</section>
+
+<section class="au-secao">
+  <div class="au-secao-cabeca">
+    <h2 class="au-secao-titulo">{% trans "Mensagem" %}</h2>
+  </div>
+  {% comment %}
+    `white-space: pre-line` via `au-folha-texto`: a mensagem é montada com
+    quebras de linha reais, e deixar o HTML colapsá-las mostraria ao R.H. um
+    parágrafo corrido que não é o que o colaborador vai receber.
+  {% endcomment %}
+  <pre class="au-folha-texto">{{ mensagem }}</pre>
+</section>
+{% endblock %}

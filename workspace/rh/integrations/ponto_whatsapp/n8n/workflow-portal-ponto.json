@@ -1,0 +1,229 @@
+{
+  "id": "ponto-pendencias-portal",
+  "name": "RH - Pendencias de Ponto - Portal (webhook)",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "ponto-pendencias",
+        "responseMode": "lastNode",
+        "options": {}
+      },
+      "id": "portal-webhook",
+      "name": "Receber do Portal",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        -820,
+        120
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const corpo = $input.first().json.body || {};\n\n/* O token do Portal. Confere ANTES de qualquer coisa: webhook aberto é\n   convite a mandar WhatsApp em nome da empresa. */\nconst esperado = String($env.N8N_PONTO_TOKEN || '');\nconst recebido = String($('Receber do Portal').first().json.headers?.authorization || '')\n  .replace(/^Bearer\\s+/i, '');\nif (esperado && recebido !== esperado) {\n  throw new Error('Token invalido');\n}\n\nconst mensagens = Array.isArray(corpo.mensagens) ? corpo.mensagens : [];\nif (!mensagens.length) return [];\nreturn mensagens.map((m) => ({ json: { ...m } }));"
+      },
+      "id": "portal-split",
+      "name": "Conferir token e separar",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -580,
+        120
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const entrada = $('Receber do Portal').first().json.body || {};\nconst modoTeste = entrada.modoTeste === true;\nconst telefoneTeste = String(entrada.telefoneTeste || '').replace(/\\D/g, '');\n\nreturn $input.all().map((item) => {\n  const dado = { ...item.json };\n  const destino = String(dado.telefoneDestino || '').replace(/\\D/g, '');\n\n  /* Em modo de teste, destino diferente do telefone de teste NÃO é enviado.\n     O Portal já garante isso antes de chamar; esta é a última barreira, e ela\n     existe para o caso de a chamada não ter vindo de onde se espera. */\n  const divergente = modoTeste && (!telefoneTeste || destino !== telefoneTeste);\n  const seguro = Boolean(destino) && !divergente;\n\n  dado.loteId = entrada.loteId;\n  dado.telefoneDestino = destino;\n  dado.modoTeste = modoTeste;\n  dado.podeEnviarSeguro = seguro;\n  if (!seguro) {\n    dado.status = divergente ? 'bloqueado_seguranca' : 'telefone_invalido';\n    dado.erro = divergente\n      ? 'Barreira de seguranca: em modo de teste o destino deve ser igual ao telefone de teste'\n      : 'Destino invalido antes do envio';\n  }\n  return { json: dado };\n});"
+      },
+      "id": "portal-guard",
+      "name": "Barreira de seguranca (Portal)",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -340,
+        120
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "podeEnviarSeguro-condition",
+              "leftValue": "={{ $json.podeEnviarSeguro }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "portal-safe",
+      "name": "Destino passou na barreira? (Portal)",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        -100,
+        120
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.EVOLUTION_URL + '/message/sendText/' + $env.EVOLUTION_INSTANCE }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "apikey",
+              "value": "={{ $env.EVOLUTION_API_KEY }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "raw",
+        "rawContentType": "application/json",
+        "body": "={{ JSON.stringify({ number: $json.telefoneDestino, text: $json.mensagem }) }}",
+        "options": {
+          "response": {
+            "response": {
+              "fullResponse": true,
+              "neverError": true,
+              "responseFormat": "json"
+            }
+          },
+          "timeout": 30000
+        }
+      },
+      "id": "portal-send",
+      "name": "Enviar via Evolution API (Portal)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        160,
+        20
+      ],
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "const enviados = $('Enviar via Evolution API (Portal)').all();\nconst origens = $('Barreira de seguranca (Portal)').all()\n  .filter((i) => i.json.podeEnviarSeguro === true);\n\nconst resultados = origens.map((origem, indice) => {\n  const resposta = enviados[indice] ? enviados[indice].json : {};\n  const codigo = Number(resposta.statusCode || 0);\n  const falhou = Boolean(resposta.error) || codigo >= 400;\n  return {\n    envioId: origem.json.envioId,\n    status: falhou ? 'erro_envio' : 'enviado',\n    erro: falhou\n      ? String(resposta.error?.message || resposta.message || ('HTTP ' + codigo))\n      : null,\n  };\n});\n\nconst bloqueados = $('Barreira de seguranca (Portal)').all()\n  .filter((i) => i.json.podeEnviarSeguro !== true)\n  .map((i) => ({ envioId: i.json.envioId, status: i.json.status, erro: i.json.erro }));\n\nreturn [{ json: { resultados: resultados.concat(bloqueados) } }];"
+      },
+      "id": "portal-result",
+      "name": "Responder ao Portal",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        420,
+        120
+      ]
+    },
+    {
+      "parameters": {
+        "content": "## ENTRADA DO PORTAL\n\nEste workflow NAO le Excel e NAO escolhe destinatario. Ele recebe do Portal a lista ja validada com `loteId` e devolve o resultado por `envioId`.\n\nA barreira de modo de teste continua aqui, comparando cada destino com o `telefoneTeste` do corpo.\n\nExige `N8N_PONTO_TOKEN` no header `Authorization: Bearer`.",
+        "height": 300,
+        "width": 520,
+        "color": 5
+      },
+      "id": "portal-note",
+      "name": "COMO ESTE WORKFLOW E CHAMADO",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -820,
+        -280
+      ]
+    }
+  ],
+  "connections": {
+    "Receber do Portal": {
+      "main": [
+        [
+          {
+            "node": "Conferir token e separar",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Conferir token e separar": {
+      "main": [
+        [
+          {
+            "node": "Barreira de seguranca (Portal)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Barreira de seguranca (Portal)": {
+      "main": [
+        [
+          {
+            "node": "Destino passou na barreira? (Portal)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Destino passou na barreira? (Portal)": {
+      "main": [
+        [
+          {
+            "node": "Enviar via Evolution API (Portal)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Responder ao Portal",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Enviar via Evolution API (Portal)": {
+      "main": [
+        [
+          {
+            "node": "Responder ao Portal",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "timezone": "America/Sao_Paulo",
+    "saveDataErrorExecution": "all",
+    "saveDataSuccessExecution": "all"
+  },
+  "versionId": "7c1f0b52-6d4a-4f0e-9d2b-3a5e8c41f7d9",
+  "meta": {
+    "templateCredsSetupCompleted": true
+  },
+  "pinData": {},
+  "tags": []
+}

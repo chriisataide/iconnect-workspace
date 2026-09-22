@@ -1,0 +1,350 @@
+{% extends "workspace/_shell_modulo.html" %}
+{% load i18n wks %}
+
+{% comment %}
+  A tela operacional das pendências de ponto — §6 a §27.
+
+  Uma tela só, com as cinco etapas em sequência, e NÃO um assistente de cinco
+  páginas. O R.H. revisa, corrige um telefone, volta a revisar e só então
+  dispara; um passo por página faria cada correção custar duas navegações, e a
+  etapa 3 é justamente onde a pessoa fica.
+
+  O que está aqui vem do portal: `au-trilha` é o mesmo stepper dos pedidos de
+  catálogo, `au-kpi` é o mesmo número do painel, `au-tabela` é a mesma tabela.
+  Nenhuma classe nova foi inventada — a tela precisa parecer o Portal porque
+  ela É o Portal.
+{% endcomment %}
+
+{% block titulo %}{% trans "Pendências de Ponto" %}{% endblock %}
+
+{% block rail %}{% include "workspace/_rail_servicos.html" with aba="ponto" %}{% endblock %}
+
+{% block trilha %}
+  <a class="au-migalha" href="{% url 'workspace:modulo' 'rh' %}">{% trans "RH" %}</a>
+  <span class="au-migalha au-migalha--atual">{% trans "Pendências de Ponto" %}</span>
+{% endblock %}
+
+{% block pagina_titulo %}{% trans "Pendências de Ponto" %}{% endblock %}
+{% block voltar_url %}{% url 'workspace:modulo' 'rh' %}{% endblock %}
+{% block voltar_rotulo %}{% trans "Voltar para RH" %}{% endblock %}
+
+{% block pagina_descricao %}
+  <p class="au-pagina-desc">
+    {% trans "Envie, revise e acompanhe notificações de ajustes de ponto." %}
+  </p>
+{% endblock %}
+
+{% block corpo %}
+
+{# ── O stepper — §6 ─────────────────────────────────────────────── #}
+<ol class="au-trilha">
+  <li class="au-trilha-passo {% if etapa > 1 %}au-trilha-passo--feito{% elif etapa == 1 or not lote %}au-trilha-passo--atual{% endif %}"
+      {% if etapa == 1 or not lote %}aria-current="step"{% endif %}>
+    <span class="au-trilha-num" aria-hidden="true">1</span>
+    <span class="au-trilha-titulo">{% trans "Importar" %}</span>
+  </li>
+  <li class="au-trilha-passo {% if etapa > 2 %}au-trilha-passo--feito{% elif etapa == 2 %}au-trilha-passo--atual{% else %}au-trilha-passo--depois{% endif %}"
+      {% if etapa == 2 %}aria-current="step"{% endif %}>
+    <span class="au-trilha-num" aria-hidden="true">2</span>
+    <span class="au-trilha-titulo">{% trans "Validar" %}</span>
+  </li>
+  <li class="au-trilha-passo {% if etapa > 3 %}au-trilha-passo--feito{% elif etapa == 3 %}au-trilha-passo--atual{% else %}au-trilha-passo--depois{% endif %}"
+      {% if etapa == 3 %}aria-current="step"{% endif %}>
+    <span class="au-trilha-num" aria-hidden="true">3</span>
+    <span class="au-trilha-titulo">{% trans "Revisar" %}</span>
+  </li>
+  <li class="au-trilha-passo {% if etapa > 4 %}au-trilha-passo--feito{% elif etapa == 4 %}au-trilha-passo--atual{% else %}au-trilha-passo--depois{% endif %}"
+      {% if etapa == 4 %}aria-current="step"{% endif %}>
+    <span class="au-trilha-num" aria-hidden="true">4</span>
+    <span class="au-trilha-titulo">{% trans "Testar" %}</span>
+  </li>
+  <li class="au-trilha-passo {% if etapa == 5 %}au-trilha-passo--atual{% else %}au-trilha-passo--depois{% endif %}"
+      {% if etapa == 5 %}aria-current="step"{% endif %}>
+    <span class="au-trilha-num" aria-hidden="true">5</span>
+    <span class="au-trilha-titulo">{% trans "Enviar" %}</span>
+  </li>
+</ol>
+
+{% if not lote %}
+
+  {# ── Estado vazio — §36 ──────────────────────────────────────── #}
+  <section class="au-secao">
+    <div class="au-vazio">
+      <p class="au-vazio-titulo">{% trans "Nenhuma planilha processada." %}</p>
+      <p class="au-vazio-dica">
+        {% trans "Envie um arquivo de pendências de ponto para começar." %}
+      </p>
+    </div>
+    {% if pode_importar %}{% include "workspace/ponto/_upload.html" %}{% endif %}
+  </section>
+
+{% else %}
+
+  {# ── O painel — §7 ───────────────────────────────────────────── #}
+  <section class="au-secao">
+    <div class="au-secao-cabeca">
+      <h2 class="au-secao-titulo">{% trans "Validação concluída" %}</h2>
+      <a class="au-btn au-btn--sutil au-btn--pequeno"
+         href="{% url 'workspace:ponto_historico' %}">{% trans "Histórico" %}</a>
+    </div>
+
+    <div class="au-colunas au-colunas--quatro">
+      <div class="au-kpi">
+        <span class="au-kpi-valor">{{ resumo.pendencias }}</span>
+        <span class="au-kpi-rotulo">{% trans "Pendências" %}</span>
+      </div>
+      <div class="au-kpi">
+        <span class="au-kpi-valor">{{ resumo.colaboradores }}</span>
+        <span class="au-kpi-rotulo">{% trans "Colaboradores" %}</span>
+      </div>
+      <div class="au-kpi au-kpi--destaque">
+        <span class="au-kpi-valor">{{ resumo.prontos }}</span>
+        <span class="au-kpi-rotulo">{% trans "Prontos para envio" %}</span>
+      </div>
+      <div class="au-kpi {% if resumo.com_erro %}au-kpi--alerta{% endif %}">
+        <span class="au-kpi-valor">{{ resumo.com_erro }}</span>
+        <span class="au-kpi-rotulo">{% trans "Com erro" %}</span>
+      </div>
+    </div>
+
+    <p class="au-ajuda">
+      {% blocktrans with arquivo=lote.arquivo_nome quem=lote.quem_importou %}
+        {{ arquivo }} · importado por {{ quem }}
+      {% endblocktrans %}
+      · {{ lote.criado_em|date:"d/m/Y H:i" }}
+      · {{ resumo.enviados }} {% trans "enviados" %}
+    </p>
+  </section>
+
+  {# ── O banner do modo de teste — §18 ─────────────────────────── #}
+  {% if lote.em_teste %}
+    <div class="au-aviso au-aviso--warning">
+      <strong>{% trans "MODO DE TESTE ATIVO" %}</strong>
+      <p>{% trans "Nenhuma mensagem será enviada aos colaboradores. Todas serão redirecionadas para o número de teste abaixo." %}</p>
+    </div>
+  {% else %}
+    <div class="au-aviso au-aviso--error">
+      <strong>{% trans "MODO DE PRODUÇÃO" %}</strong>
+      <p>{% trans "As mensagens vão para os colaboradores. Confira a lista antes de disparar." %}</p>
+    </div>
+  {% endif %}
+
+  {# ── Revisão — §13 e §15 ─────────────────────────────────────── #}
+  <form method="post" action="{% url 'workspace:ponto_selecionar' lote.pk %}">
+    {% csrf_token %}
+    <section class="au-secao">
+      <div class="au-secao-cabeca">
+        <h2 class="au-secao-titulo">{% trans "Colaboradores" %}</h2>
+        <span class="au-secao-contagem">{{ colaboradores|length }}</span>
+      </div>
+
+      <table class="au-tabela">
+        <thead>
+          <tr>
+            <th scope="col"><span class="au-sr">{% trans "Selecionar" %}</span></th>
+            <th scope="col">{% trans "Colaborador" %}</th>
+            <th scope="col">{% trans "Pendências" %}</th>
+            <th scope="col">{% trans "Telefone" %}</th>
+            <th scope="col">{% trans "Validação" %}</th>
+            <th scope="col">{% trans "Ação" %}</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for c in colaboradores %}
+            <tr>
+              <td>
+                {% comment %}
+                  §15: quem não pode produzir nasce desmarcado E desabilitado. A
+                  seleção de inválido é barrada no servidor também — ver
+                  `ponto_selecionar`.
+                {% endcomment %}
+                <input class="au-check" type="checkbox" name="colaborador" value="{{ c.pk }}"
+                       {% if c.selecionado %}checked{% endif %}
+                       {% if not c.pode_produzir %}disabled{% endif %}
+                       aria-label="{% blocktrans with nome=c.nome %}Selecionar {{ nome }}{% endblocktrans %}">
+              </td>
+              <td>
+                <strong>{{ c.nome }}</strong>
+                {% if c.local %}<br><span class="au-list-meta">{{ c.local }}</span>{% endif %}
+              </td>
+              <td>{{ c.quantidade_pendencias }}</td>
+              <td>
+                {% if c.pode_produzir %}
+                  <span class="au-codigo">{{ c.telefone_mascarado }}</span>
+                  {% if c.telefone_corrigido %}
+                    <span class="au-etiqueta">{% trans "corrigido" %}</span>
+                  {% endif %}
+                {% else %}
+                  <span class="au-list-meta">—</span>
+                {% endif %}
+              </td>
+              <td>
+                {% if c.pode_produzir %}
+                  <span class="au-etiqueta au-etiqueta--concluida">{% trans "Pronto" %}</span>
+                {% else %}
+                  <span class="au-etiqueta au-etiqueta--atrasado">{{ c.motivo_sem_telefone }}</span>
+                {% endif %}
+              </td>
+              <td>
+                <a class="au-btn au-btn--sutil au-btn--pequeno"
+                   href="{% url 'workspace:ponto_mensagem' c.pk %}">{% trans "Ver mensagem" %}</a>
+              </td>
+            </tr>
+
+            {% if not c.pode_produzir and pode_importar %}
+              <tr>
+                <td></td>
+                <td colspan="5">
+                  <details>
+                    <summary>{% trans "Corrigir telefone neste lote" %}</summary>
+                    <p class="au-ajuda">
+                      {% trans "A correção vale só para este lote — o cadastro da pessoa não é alterado." %}
+                    </p>
+                  </details>
+                </td>
+              </tr>
+            {% endif %}
+          {% empty %}
+            <tr><td colspan="6">
+              <p class="au-vazio-dica">{% trans "Nenhum colaborador neste lote." %}</p>
+            </td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+
+      <div class="au-form-acoes">
+        <button class="au-btn au-btn--sutil" type="submit">
+          {% trans "Salvar seleção" %}
+        </button>
+      </div>
+    </section>
+  </form>
+
+  {# ── Correção de telefone — §14. Fora da tabela: formulário dentro de #}
+  {# formulário não existe em HTML, e aninhar quebraria a seleção acima. #}
+  {% if pode_importar %}
+    {% for c in colaboradores %}
+      {% if not c.pode_produzir %}
+        <form class="au-form-linha" method="post"
+              action="{% url 'workspace:ponto_corrigir' c.pk %}">
+          {% csrf_token %}
+          <label class="au-campo" for="tel-{{ c.pk }}">
+            {% blocktrans with nome=c.nome %}Telefone de {{ nome }}{% endblocktrans %}
+          </label>
+          <input class="au-input au-input--compacto" id="tel-{{ c.pk }}" name="telefone"
+                 type="tel" inputmode="tel" required placeholder="(19) 99999-9999">
+          <button class="au-btn au-btn--sutil au-btn--pequeno" type="submit">
+            {% trans "Corrigir" %}
+          </button>
+        </form>
+      {% endif %}
+    {% endfor %}
+  {% endif %}
+
+  {# ── Testar — §18, §19, §20 ──────────────────────────────────── #}
+  {% if pode_testar %}
+    <section class="au-secao">
+      <div class="au-secao-cabeca">
+        <h2 class="au-secao-titulo">{% trans "Enviar teste" %}</h2>
+      </div>
+      <form class="au-form" method="post" action="{% url 'workspace:ponto_enviar' lote.pk %}">
+        {% csrf_token %}
+        <input type="hidden" name="modo" value="{{ MODO_TESTE }}">
+        <div class="au-campo">
+          <label class="au-rotulo" for="telefone-teste">
+            {% trans "Número para teste" %} <span class="au-obrigatorio">*</span>
+          </label>
+          <input class="au-input" id="telefone-teste" name="telefone_teste" type="tel"
+                 inputmode="tel" required placeholder="(19) 99999-9999"
+                 value="{{ lote.telefone_teste }}">
+          <p class="au-ajuda">
+            {% trans "Todas as mensagens selecionadas vão exclusivamente para este número." %}
+          </p>
+        </div>
+        <div class="au-form-acoes">
+          <button class="au-btn au-btn--primario" type="submit">
+            {% trans "Enviar teste" %}
+          </button>
+        </div>
+      </form>
+    </section>
+  {% endif %}
+
+  {# ── Produção — §21. Só aparece para quem tem a permissão própria, e #}
+  {# o servidor confere de novo em `ponto_enviar`.                      #}
+  {% if pode_enviar %}
+    <section class="au-secao">
+      <div class="au-secao-cabeca">
+        <h2 class="au-secao-titulo">{% trans "Preparar envio real" %}</h2>
+      </div>
+      <div class="au-aviso au-aviso--error">
+        <strong>{% trans "ATENÇÃO" %}</strong>
+        <p>
+          {% blocktrans with n=resumo.prontos %}
+            Você está prestes a enviar {{ n }} mensagens para {{ n }} colaboradores.
+          {% endblocktrans %}
+        </p>
+      </div>
+      <form class="au-form" method="post" action="{% url 'workspace:ponto_enviar' lote.pk %}">
+        {% csrf_token %}
+        <input type="hidden" name="modo" value="{{ MODO_PRODUCAO }}">
+        <div class="au-campo">
+          <label class="au-rotulo" for="confirmacao">
+            {% trans "Digite ENVIAR para confirmar" %} <span class="au-obrigatorio">*</span>
+          </label>
+          <input class="au-input" id="confirmacao" name="confirmacao" type="text"
+                 required autocomplete="off" pattern="ENVIAR"
+                 title="{% trans 'Digite exatamente ENVIAR' %}">
+        </div>
+        <div class="au-form-acoes">
+          <button class="au-btn au-btn--perigo" type="submit">
+            {% trans "Confirmar envio" %}
+          </button>
+        </div>
+      </form>
+    </section>
+  {% endif %}
+
+  {# ── Resultado — §27 ─────────────────────────────────────────── #}
+  {% if progresso.total %}
+    <section class="au-secao" data-ponto-progresso="{% url 'workspace:ponto_progresso' lote.pk %}">
+      <div class="au-secao-cabeca">
+        <h2 class="au-secao-titulo">
+          {% if progresso.terminou %}{% trans "Envio concluído" %}
+          {% else %}{% trans "Enviando mensagens" %}{% endif %}
+        </h2>
+      </div>
+      <p class="au-dado-forte" data-ponto-contagem>
+        {{ progresso.enviados }}/{{ progresso.total }}
+      </p>
+      <p class="au-ajuda">
+        {% trans "Enviadas" %}: <strong data-ponto-enviadas>{{ progresso.enviados }}</strong> ·
+        {% trans "Falhas" %}: <strong data-ponto-falhas>{{ progresso.falhas }}</strong> ·
+        {% trans "Restantes" %}: <strong data-ponto-restantes>{{ progresso.restantes }}</strong>
+      </p>
+      <div class="au-form-acoes">
+        <a class="au-btn au-btn--sutil" href="{% url 'workspace:ponto_lote' lote.pk %}">
+          {% trans "Ver detalhes" %}
+        </a>
+        <a class="au-btn au-btn--sutil" href="{% url 'workspace:pendencias_ponto' %}">
+          {% trans "Novo processamento" %}
+        </a>
+      </div>
+    </section>
+  {% endif %}
+
+  {% if pode_importar %}
+    <section class="au-secao">
+      <div class="au-secao-cabeca">
+        <h2 class="au-secao-titulo">{% trans "Importar outra planilha" %}</h2>
+      </div>
+      {% include "workspace/ponto/_upload.html" %}
+    </section>
+  {% endif %}
+
+{% endif %}
+{% endblock %}
+
+{% block scripts %}
+  <script src="{% estatico 'workspace/js/ponto.js' %}" defer></script>
+{% endblock %}

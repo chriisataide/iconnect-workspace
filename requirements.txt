@@ -44,3 +44,4 @@ gunicorn==26.0.0
 # PDF dos relatórios de campo. Python puro — ver a nota no topo deste arquivo
 # sobre por que não é weasyprint.
 reportlab==5.0.0
+openpyxl==3.1.5

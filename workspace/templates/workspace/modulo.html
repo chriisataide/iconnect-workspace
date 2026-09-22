@@ -54,7 +54,24 @@
             que muda de produto sem avisar é o que faz alguém perder o que
             digitou do outro lado.
           {% endcomment %}
-          {% if entrada.item.leva_para_fora %}
+          {% if entrada.item.rota_interna %}
+            {% comment %}
+              Item que abre uma TELA daqui (§41): Pendências de Ponto é operado
+              pelo R.H. numa página própria, e não pedido num formulário. Sem
+              selo e sem `target`: a pessoa não está saindo do produto, então
+              avisar que sai seria mentir.
+            {% endcomment %}
+            <a class="au-app au-app--ativo" href="{% url entrada.item.rota_interna %}">
+              <span class="au-app-topo">
+                <span class="au-app-icone">
+                  <svg class="au-icon" aria-hidden="true"><use href="#i-{{ entrada.item.icone }}"></use></svg>
+                </span>
+                <svg class="au-app-seta" aria-hidden="true"><use href="#i-seta"></use></svg>
+              </span>
+              <span class="au-app-nome">{{ entrada.item.nome }}</span>
+              <span class="au-app-desc">{{ entrada.item.descricao_curta }}</span>
+            </a>
+          {% elif entrada.item.leva_para_fora %}
             <a class="au-app au-app--ativo au-app--externo" href="{{ entrada.item.url_externa }}"
                target="_blank" rel="noopener">
               <span class="au-app-topo">

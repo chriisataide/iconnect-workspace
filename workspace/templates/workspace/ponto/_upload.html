@@ -1,0 +1,37 @@
+{% load i18n %}
+
+{% comment %}
+  A área de importação — §8.
+
+  `<input type="file">` nativo e não uma zona de arrastar feita em JavaScript:
+  o input do navegador já aceita arrastar, já abre o seletor, já anuncia o
+  arquivo escolhido ao leitor de tela e já funciona no celular. Uma zona
+  própria seria cem linhas para reimplementar o que vem de graça — e pior em
+  todas as quatro coisas.
+{% endcomment %}
+
+<form class="au-form" method="post" enctype="multipart/form-data"
+      action="{% url 'workspace:ponto_importar' %}">
+  {% csrf_token %}
+
+  <div class="au-campo">
+    <label class="au-rotulo" for="planilha">
+      {% trans "Planilha de pendências" %} <span class="au-obrigatorio">*</span>
+    </label>
+    <input class="au-input au-input--arquivo" id="planilha" name="planilha" type="file"
+           accept=".xlsx,.csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,text/csv"
+           required>
+    <p class="au-ajuda">
+      {% trans "XLSX ou CSV · até 10 MB. Colunas necessárias: Data, Funcionário, Entrada, Pausa, Retorno e Saída." %}
+    </p>
+    <p class="au-ajuda">
+      {% trans "As colunas CPF e Senha, se existirem no arquivo, são descartadas na leitura e nunca são gravadas." %}
+    </p>
+  </div>
+
+  <div class="au-form-acoes">
+    <button class="au-btn au-btn--primario" type="submit">
+      {% trans "Processar planilha" %}
+    </button>
+  </div>
+</form>

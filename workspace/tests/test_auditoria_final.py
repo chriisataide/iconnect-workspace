@@ -157,6 +157,14 @@ def test_todo_modelo_tem_porta_ou_e_derivado():
         # destaques. No admin ela seria editável fora do contexto do número que
         # a motivou — e o motivo, que é o campo que importa, viraria texto solto.
         "Concentracao",
+        # Pendências de ponto. O lote inteiro tem tela própria — importar,
+        # revisar, testar, enviar, histórico e detalhe —, e as outras três não
+        # se digitam: `ColaboradorPonto` sai da planilha (o único campo que uma
+        # pessoa muda é o telefone, e ele tem formulário na revisão),
+        # `EnvioPonto` é o registro do que foi entregue e `EventoPonto` é a
+        # auditoria. Editar um livro de auditoria pelo admin é exatamente o que
+        # faria ele deixar de ser auditoria.
+        "LotePonto", "ColaboradorPonto", "EnvioPonto", "EventoPonto",
     }
 
     registrados = {model.__name__ for model in admin.site._registry}

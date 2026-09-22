@@ -40,7 +40,7 @@ class Command(BaseCommand):
     CAMPOS_SINCRONIZADOS = (
         "nome", "descricao_curta", "termos", "grupo", "icone", "dominio",
         "prazo_prometido_dias", "exige_valor", "exige_centro_custo",
-        "limite_auto_aprovacao", "campos",
+        "limite_auto_aprovacao", "campos", "rota_interna", "url_externa",
     )
 
     def add_arguments(self, parser):

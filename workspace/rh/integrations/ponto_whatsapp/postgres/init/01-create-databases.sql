@@ -1,0 +1,2 @@
+CREATE DATABASE evolution;
+CREATE DATABASE n8n;

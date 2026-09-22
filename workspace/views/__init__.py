@@ -81,6 +81,17 @@ from .iconnect import campo, chamados
 from .home import home
 from .marketing import marketing, oportunidade_decidir, oportunidade_registrar
 from .recrutamento import candidaturas
+from .ponto import (
+    pendencias_ponto,
+    ponto_corrigir,
+    ponto_enviar,
+    ponto_historico,
+    ponto_importar,
+    ponto_lote,
+    ponto_mensagem,
+    ponto_progresso,
+    ponto_selecionar,
+)
 from .meu_dia import marcar_lidas, meu_dia, notificacoes
 from .modulo import modulo
 from .reserva import (
@@ -200,6 +211,15 @@ __all__ = [
     "home",
     "candidaturas",
     "marketing",
+    "pendencias_ponto",
+    "ponto_corrigir",
+    "ponto_enviar",
+    "ponto_historico",
+    "ponto_importar",
+    "ponto_lote",
+    "ponto_mensagem",
+    "ponto_progresso",
+    "ponto_selecionar",
     "oportunidade_decidir",
     "oportunidade_registrar",
     "indicadores",

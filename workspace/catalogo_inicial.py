@@ -225,6 +225,10 @@ CATALOGO_INICIAL = [
         # ponto ser separada da de férias no dia em que isso importar.
         "dominio": "rh.ponto",
         "prazo_prometido_dias": 5,
+        # O card não abre formulário: leva à tela operacional. Quem opera isto
+        # é o R.H., que importa a planilha e dispara — e não o colaborador
+        # pedindo uma correção sua. Ver §41 de docs/rh-pendencias-ponto.md.
+        "rota_interna": "workspace:pendencias_ponto",
         "campos": [
             {"chave": "dia", "rotulo": "Dia da pendência", "tipo": TipoCampo.DATA,
              "obrigatorio": True},

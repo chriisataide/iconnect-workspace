@@ -441,3 +441,16 @@ CARGAS_CSV_DIR = _env("CARGAS_CSV_DIR", "")
 # em vez de mostrar um número inventado, que é o erro que faria o dinheiro ir
 # para o lugar errado.
 CONTA_BANCARIA_EMPRESA = _env("CONTA_BANCARIA_EMPRESA", "")
+
+# ── Pendências de ponto → WhatsApp ──────────────────────────────────
+
+# O Portal fala com o n8n, e só com ele. A chave da Evolution API nunca chega
+# aqui: quem a conhece é o workflow, do outro lado do webhook. Um segredo a
+# menos neste processo é um segredo a menos para vazar num traceback.
+PONTO_N8N_WEBHOOK_URL = _env("N8N_PONTO_WEBHOOK_URL", "")
+PONTO_N8N_TOKEN = _env("N8N_PONTO_TOKEN", "")
+PONTO_N8N_TIMEOUT = int(_env("PONTO_WHATSAPP_TIMEOUT", "30"))
+
+# O teto de mensagens num disparo real. Não é limite técnico: é o que impede
+# que uma planilha errada vire dois mil WhatsApps antes de alguém perceber.
+PONTO_MAXIMO_POR_LOTE = int(_env("PONTO_MAXIMO_POR_LOTE", "500"))

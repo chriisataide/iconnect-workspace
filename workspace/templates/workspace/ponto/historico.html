@@ -1,0 +1,80 @@
+{% extends "workspace/_shell_modulo.html" %}
+{% load i18n %}
+
+{% comment %}
+  O histórico — §28. Uma linha por lote, e o modo em destaque.
+
+  A coluna MODO é a primeira que o olho precisa achar: "38 enviados" significa
+  coisas opostas em teste e em produção, e uma tabela que não separa os dois
+  faria o R.H. comemorar um disparo que foi todo para o próprio celular.
+{% endcomment %}
+
+{% block titulo %}{% trans "Histórico de envios" %}{% endblock %}
+
+{% block rail %}{% include "workspace/_rail_servicos.html" with aba="ponto" %}{% endblock %}
+
+{% block trilha %}
+  <a class="au-migalha" href="{% url 'workspace:modulo' 'rh' %}">{% trans "RH" %}</a>
+  <a class="au-migalha" href="{% url 'workspace:pendencias_ponto' %}">
+    {% trans "Pendências de Ponto" %}
+  </a>
+  <span class="au-migalha au-migalha--atual">{% trans "Histórico" %}</span>
+{% endblock %}
+
+{% block pagina_titulo %}{% trans "Histórico de envios" %}{% endblock %}
+{% block voltar_url %}{% url 'workspace:pendencias_ponto' %}{% endblock %}
+{% block voltar_rotulo %}{% trans "Voltar" %}{% endblock %}
+
+{% block corpo %}
+<section class="au-secao">
+  <table class="au-tabela">
+    <thead>
+      <tr>
+        <th scope="col">{% trans "Data" %}</th>
+        <th scope="col">{% trans "Arquivo" %}</th>
+        <th scope="col">{% trans "Usuário" %}</th>
+        <th scope="col">{% trans "Modo" %}</th>
+        <th scope="col">{% trans "Colaboradores" %}</th>
+        <th scope="col">{% trans "Sucesso" %}</th>
+        <th scope="col">{% trans "Falha" %}</th>
+        <th scope="col">{% trans "Status" %}</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for lote in lotes %}
+        <tr>
+          <td>{{ lote.criado_em|date:"d/m/Y H:i" }}</td>
+          <td>
+            <a class="au-list-link" href="{% url 'workspace:ponto_lote' lote.pk %}">
+              {{ lote.arquivo_nome }}
+            </a>
+          </td>
+          <td>{{ lote.quem_importou|default:"—" }}</td>
+          <td>
+            {% if lote.em_teste %}
+              <span class="au-etiqueta au-etiqueta--rascunho">{% trans "TESTE" %}</span>
+            {% else %}
+              <span class="au-etiqueta au-etiqueta--forte">{% trans "PRODUÇÃO" %}</span>
+            {% endif %}
+          </td>
+          <td>{{ lote.n_colaboradores }}</td>
+          <td>{{ lote.n_sucesso }}</td>
+          <td>{{ lote.n_falha }}</td>
+          <td>
+            <span class="au-etiqueta">{{ lote.get_situacao_display }}</span>
+          </td>
+        </tr>
+      {% empty %}
+        <tr><td colspan="8">
+          <div class="au-vazio">
+            <p class="au-vazio-titulo">{% trans "Nenhum lote processado ainda." %}</p>
+            <p class="au-vazio-dica">
+              {% trans "O histórico começa na primeira planilha importada." %}
+            </p>
+          </div>
+        </td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</section>
+{% endblock %}

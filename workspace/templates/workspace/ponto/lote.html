@@ -1,0 +1,137 @@
+{% extends "workspace/_shell_modulo.html" %}
+{% load i18n %}
+
+{% comment %}
+  O detalhe de um lote — §29. Cabeçalho, uma linha por envio, e a auditoria.
+
+  A coluna DESTINO mostra para onde a mensagem FOI, mascarada. Em teste isso é
+  sempre o telefone de teste, e ver a mesma máscara repetida em todas as linhas
+  é justamente a prova visual de que o modo funcionou.
+{% endcomment %}
+
+{% block titulo %}{% trans "Detalhes do lote" %}{% endblock %}
+
+{% block rail %}{% include "workspace/_rail_servicos.html" with aba="ponto" %}{% endblock %}
+
+{% block trilha %}
+  <a class="au-migalha" href="{% url 'workspace:modulo' 'rh' %}">{% trans "RH" %}</a>
+  <a class="au-migalha" href="{% url 'workspace:ponto_historico' %}">{% trans "Histórico" %}</a>
+  <span class="au-migalha au-migalha--atual">{{ lote.arquivo_nome }}</span>
+{% endblock %}
+
+{% block pagina_titulo %}{{ lote.arquivo_nome }}{% endblock %}
+{% block voltar_url %}{% url 'workspace:ponto_historico' %}{% endblock %}
+{% block voltar_rotulo %}{% trans "Voltar ao histórico" %}{% endblock %}
+
+{% block corpo %}
+
+<section class="au-secao">
+  <div class="au-folha-dados">
+    <p class="au-folha-linha">
+      <span class="au-folha-rotulo">{% trans "Responsável" %}</span>
+      <strong>{{ lote.quem_importou|default:"—" }}</strong>
+    </p>
+    <p class="au-folha-linha">
+      <span class="au-folha-rotulo">{% trans "Data/hora" %}</span>
+      {{ lote.criado_em|date:"d/m/Y H:i" }}
+    </p>
+    <p class="au-folha-linha">
+      <span class="au-folha-rotulo">{% trans "Modo" %}</span>
+      {% if lote.em_teste %}
+        <span class="au-etiqueta au-etiqueta--rascunho">{% trans "TESTE" %}</span>
+      {% else %}
+        <span class="au-etiqueta au-etiqueta--forte">{% trans "PRODUÇÃO" %}</span>
+      {% endif %}
+    </p>
+    {% if lote.em_teste and telefone_teste_mascarado %}
+      <p class="au-folha-linha">
+        <span class="au-folha-rotulo">{% trans "Telefone de teste" %}</span>
+        <span class="au-codigo">{{ telefone_teste_mascarado }}</span>
+      </p>
+    {% endif %}
+    <p class="au-folha-linha">
+      <span class="au-folha-rotulo">{% trans "Status" %}</span>
+      <span class="au-etiqueta">{{ lote.get_situacao_display }}</span>
+    </p>
+  </div>
+
+  <div class="au-colunas au-colunas--quatro">
+    <div class="au-kpi">
+      <span class="au-kpi-valor">{{ resumo.colaboradores }}</span>
+      <span class="au-kpi-rotulo">{% trans "Total" %}</span>
+    </div>
+    <div class="au-kpi au-kpi--destaque">
+      <span class="au-kpi-valor">{{ resumo.enviados }}</span>
+      <span class="au-kpi-rotulo">{% trans "Enviados" %}</span>
+    </div>
+    <div class="au-kpi {% if resumo.com_erro %}au-kpi--alerta{% endif %}">
+      <span class="au-kpi-valor">{{ resumo.com_erro }}</span>
+      <span class="au-kpi-rotulo">{% trans "Sem telefone" %}</span>
+    </div>
+    <div class="au-kpi">
+      <span class="au-kpi-valor">{{ resumo.pendencias }}</span>
+      <span class="au-kpi-rotulo">{% trans "Pendências" %}</span>
+    </div>
+  </div>
+</section>
+
+<section class="au-secao">
+  <div class="au-secao-cabeca">
+    <h2 class="au-secao-titulo">{% trans "Envios" %}</h2>
+    <span class="au-secao-contagem">{{ envios|length }}</span>
+  </div>
+
+  <table class="au-tabela">
+    <thead>
+      <tr>
+        <th scope="col">{% trans "Funcionário" %}</th>
+        <th scope="col">{% trans "Pendências" %}</th>
+        <th scope="col">{% trans "Destino" %}</th>
+        <th scope="col">{% trans "Status" %}</th>
+        <th scope="col">{% trans "Horário" %}</th>
+        <th scope="col">{% trans "Erro" %}</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for envio in envios %}
+        <tr>
+          <td>{{ envio.colaborador.nome }}</td>
+          <td>{{ envio.colaborador.quantidade_pendencias }}</td>
+          <td><span class="au-codigo">{{ envio.destino_mascarado }}</span></td>
+          <td>
+            {% if envio.situacao == "enviado" %}
+              <span class="au-etiqueta au-etiqueta--concluida">{{ envio.get_situacao_display }}</span>
+            {% elif envio.situacao == "erro" %}
+              <span class="au-etiqueta au-etiqueta--atrasado">{{ envio.get_situacao_display }}</span>
+            {% else %}
+              <span class="au-etiqueta">{{ envio.get_situacao_display }}</span>
+            {% endif %}
+          </td>
+          <td>{{ envio.enviado_em|date:"d/m/Y H:i"|default:"—" }}</td>
+          <td>{{ envio.erro|default:"—" }}</td>
+        </tr>
+      {% empty %}
+        <tr><td colspan="6">
+          <p class="au-vazio-dica">{% trans "Este lote ainda não teve envio." %}</p>
+        </td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</section>
+
+<section class="au-secao">
+  <div class="au-secao-cabeca">
+    <h2 class="au-secao-titulo">{% trans "Auditoria" %}</h2>
+  </div>
+  <ol class="au-timeline">
+    {% for evento in eventos %}
+      <li class="au-timeline-item">
+        <span class="au-timeline-quando">{{ evento.quando|date:"d/m/Y H:i" }}</span>
+        <span class="au-timeline-acao">{{ evento.get_acao_display }}</span>
+        {% if evento.quem %}<strong>{{ evento.quem }}</strong>{% endif %}
+        {% if evento.detalhe %}<span class="au-list-meta">{{ evento.detalhe }}</span>{% endif %}
+      </li>
+    {% endfor %}
+  </ol>
+</section>
+{% endblock %}
