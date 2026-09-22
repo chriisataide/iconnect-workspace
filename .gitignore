@@ -64,3 +64,4 @@ monday_inventario*.md
 *.swp
 *.swo
 *~
+.playwright-mcp/
