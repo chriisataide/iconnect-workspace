@@ -65,7 +65,7 @@ def reservas(request: HttpRequest) -> HttpResponse:
 
     return render(
         request,
-        "workspace/reservas.html",
+        "workspace/reserva/reservas.html",
         {
             "grupos": grupos,
             "dia": dia,
@@ -123,7 +123,7 @@ def reservar(request: HttpRequest, codigo: str) -> HttpResponse:
 
     return render(
         request,
-        "workspace/reservar.html",
+        "workspace/reserva/reservar.html",
         {
             "recurso": recurso,
             "agenda": list(res.agenda_do_dia(recurso, dia)),
@@ -163,7 +163,7 @@ def minhas_reservas(request: HttpRequest) -> HttpResponse:
     consulta = res.minhas(request.user)
     return render(
         request,
-        "workspace/minhas_reservas.html",
+        "workspace/reserva/minhas_reservas.html",
         {
             "reservas": consulta,
             "futuras": consulta.confirmadas().futuras().count(),

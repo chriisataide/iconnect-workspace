@@ -53,7 +53,7 @@ def chamados(request: HttpRequest) -> HttpResponse:
 
     return render(
         request,
-        "workspace/chamados.html",
+        "workspace/iconnect/chamados.html",
         {
             "chamados": lista,
             "aviso": aviso,
@@ -87,7 +87,7 @@ def campo(request: HttpRequest) -> HttpResponse:
 
     return render(
         request,
-        "workspace/campo.html",
+        "workspace/iconnect/campo.html",
         {
             "posicoes": posicoes,
             "ordens": ordens,

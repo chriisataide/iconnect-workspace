@@ -83,7 +83,7 @@ def metas(request: HttpRequest, pessoa_id: int | None = None) -> HttpResponse:
     contexto["resumo"] = (
         svc.resumo_por_situacao(ciclo) if contexto["equipe"] else None
     )
-    return render(request, "workspace/metas.html", contexto)
+    return render(request, "workspace/metas/metas.html", contexto)
 
 
 @require_POST
@@ -154,7 +154,7 @@ def meta_editar(request: HttpRequest, quadro_id: int) -> HttpResponse:
 
     return render(
         request,
-        "workspace/meta_editar.html",
+        "workspace/metas/meta_editar.html",
         {
             "quadro": quadro,
             "meta": meta,
@@ -268,7 +268,7 @@ def desenvolvimento(request: HttpRequest, pessoa_id: int | None = None) -> HttpR
     plano = svc.pdi_de(alvo, ciclo)
     return render(
         request,
-        "workspace/desenvolvimento.html",
+        "workspace/metas/desenvolvimento.html",
         {
             "alvo": alvo,
             "ciclo": ciclo,

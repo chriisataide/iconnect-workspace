@@ -208,7 +208,7 @@ TELAS_DE_LISTA = (
     "workspace/estoque.html",
     "workspace/frota.html",
     "workspace/marketing.html",
-    "workspace/documentos.html",
+    "workspace/conteudo/documentos.html",
     "workspace/relatorios/lista.html",
     "workspace/publicacoes/lista.html",
 )

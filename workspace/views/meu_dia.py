@@ -33,7 +33,7 @@ def _cache(request: HttpRequest) -> dict:
 @login_required
 def meu_dia(request: HttpRequest) -> HttpResponse:
     contexto = md.para(request.user, cache=_cache(request))
-    return render(request, "workspace/meu_dia.html", contexto)
+    return render(request, "workspace/meu_dia/meu_dia.html", contexto)
 
 
 @login_required
@@ -47,7 +47,7 @@ def notificacoes(request: HttpRequest) -> HttpResponse:
     itens = list(nt.para(request.user, limite=LIMITE_HISTORICO))
     return render(
         request,
-        "workspace/notificacoes.html",
+        "workspace/meu_dia/notificacoes.html",
         {
             "notificacoes": itens,
             "nao_lidas": sum(1 for n in itens if not n.lida),

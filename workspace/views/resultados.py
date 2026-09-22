@@ -55,7 +55,7 @@ def resultados(request: HttpRequest) -> HttpResponse:
 
     return render(
         request,
-        "workspace/resultados.html",
+        "workspace/resultados/resultados.html",
         {
             **panorama,
             "apresentacao": apresentacao,
@@ -174,7 +174,7 @@ def quadro(request: HttpRequest) -> HttpResponse:
 
     return render(
         request,
-        "workspace/quadro.html",
+        "workspace/resultados/quadro.html",
         {**panorama, "apresentacao": request.GET.get("apresentacao") == "1"},
     )
 
@@ -196,7 +196,7 @@ def satisfacao(request: HttpRequest) -> HttpResponse:
 
     return render(
         request,
-        "workspace/satisfacao.html",
+        "workspace/resultados/satisfacao.html",
         {**panorama, "apresentacao": request.GET.get("apresentacao") == "1"},
     )
 
@@ -251,7 +251,7 @@ def fontes(request: HttpRequest) -> HttpResponse:
 
     return render(
         request,
-        "workspace/fontes.html",
+        "workspace/resultados/fontes.html",
         {
             **svc.panorama_das_fontes(),
             "pode_recarregar": svc.pode_recarregar(

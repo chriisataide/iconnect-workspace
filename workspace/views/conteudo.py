@@ -62,7 +62,7 @@ def documentacao(request: HttpRequest) -> HttpResponse:
     ]
     return render(
         request,
-        "workspace/documentacao.html",
+        "workspace/conteudo/documentacao.html",
         {
             "grupos": grupos,
             "autenticado": quem is not None,
@@ -97,7 +97,7 @@ def documento(request: HttpRequest, slug: str) -> HttpResponse:
     substituto = doc.revogado_por.filter(situacao="vigente").first()
     return render(
         request,
-        "workspace/documento.html",
+        "workspace/conteudo/documento.html",
         {
             "documento": doc,
             "autenticado": True,
@@ -212,7 +212,7 @@ def documentos(request: HttpRequest) -> HttpResponse:
 
     return render(
         request,
-        "workspace/documentos.html",
+        "workspace/conteudo/documentos.html",
         {
             "documentos": list(cnt.redacao(request.user, cache=cache)),
             "a_vencer": list(cnt.a_vencer()),
@@ -270,7 +270,7 @@ def documento_editar(request: HttpRequest, slug: str | None = None) -> HttpRespo
     alvo_unidades, alvo_departamentos = cnt.alvo_para_tela(doc)
     return render(
         request,
-        "workspace/documento_editar.html",
+        "workspace/conteudo/documento_editar.html",
         {
             "documento": doc,
             # ATA fica FORA da redação. Ela é gerada ao fechar um ciclo, com

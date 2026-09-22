@@ -46,7 +46,7 @@ def planos(request: HttpRequest) -> HttpResponse:
         panorama = svc.painel(request.user, cache=_cache(request))
     except svc.SemPlanos as sem:
         raise PermissionDenied(str(sem))
-    return render(request, "workspace/planos.html", panorama)
+    return render(request, "workspace/planos/planos.html", panorama)
 
 
 @login_required
@@ -101,7 +101,7 @@ def plano_novo(request: HttpRequest) -> HttpResponse:
 
     return render(
         request,
-        "workspace/plano_editar.html",
+        "workspace/planos/plano_editar.html",
         {
             "regra": regra,
             "ocorrencia": ocorrencia,
@@ -125,7 +125,7 @@ def plano(request: HttpRequest, pk: int) -> HttpResponse:
 
     return render(
         request,
-        "workspace/plano.html",
+        "workspace/planos/plano.html",
         {
             "plano": alvo,
             "regra": regra,

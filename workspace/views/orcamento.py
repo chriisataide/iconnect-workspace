@@ -86,7 +86,7 @@ def orcamento(request: HttpRequest) -> HttpResponse:
 
     return render(
         request,
-        "workspace/orcamento.html",
+        "workspace/orcamento/orcamento.html",
         {
             "linhas": linhas,
             "ano": ano,
@@ -111,7 +111,7 @@ def orcamento_centro(request: HttpRequest, codigo: str, ano: int) -> HttpRespons
     grade = svc.grade_anual(codigo, ano)
     return render(
         request,
-        "workspace/orcamento_centro.html",
+        "workspace/orcamento/orcamento_centro.html",
         {
             "centro": centro,
             "ano": ano,

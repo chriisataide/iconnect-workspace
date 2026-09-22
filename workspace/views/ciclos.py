@@ -57,7 +57,7 @@ def ciclos(request: HttpRequest) -> HttpResponse:
         panorama = svc.painel(request.user, cache=_cache(request))
     except svc.SemCiclos as sem:
         raise PermissionDenied(str(sem))
-    return render(request, "workspace/ciclos.html", panorama)
+    return render(request, "workspace/ciclos/ciclos.html", panorama)
 
 
 @login_required
@@ -74,7 +74,7 @@ def ciclo(request: HttpRequest, chave: str, ano: int = 0, mes: int = 0) -> HttpR
         cache=_cache(request),
     )
     contexto["apresentacao"] = request.GET.get("apresentacao") == "1"
-    return render(request, "workspace/ciclo.html", contexto)
+    return render(request, "workspace/ciclos/ciclo.html", contexto)
 
 
 def _competencia(ano: int, mes: int) -> tuple[int, int]:
