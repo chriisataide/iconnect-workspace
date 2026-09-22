@@ -16,11 +16,12 @@
       "position": [
         -820,
         120
-      ]
+      ],
+      "webhookId": "a3f81d64-9c27-4e5b-b0a8-2f6d94e7c015"
     },
     {
       "parameters": {
-        "jsCode": "const corpo = $input.first().json.body || {};\n\n/* O token do Portal. Confere ANTES de qualquer coisa: webhook aberto é\n   convite a mandar WhatsApp em nome da empresa. */\nconst esperado = String($env.N8N_PONTO_TOKEN || '');\nconst recebido = String($('Receber do Portal').first().json.headers?.authorization || '')\n  .replace(/^Bearer\\s+/i, '');\nif (esperado && recebido !== esperado) {\n  throw new Error('Token invalido');\n}\n\nconst mensagens = Array.isArray(corpo.mensagens) ? corpo.mensagens : [];\nif (!mensagens.length) return [];\nreturn mensagens.map((m) => ({ json: { ...m } }));"
+        "jsCode": "const corpo = $input.first().json.body || {};\n\n/* O token do Portal. Confere ANTES de qualquer coisa: webhook aberto e\n   convite a mandar WhatsApp em nome da empresa.\n\n   FALHA FECHADA. A versao anterior so conferia quando o token existia,\n   que pula a conferencia inteira quando a variavel nao chega ao container — e\n   foi exatamente o que aconteceu: N8N_PONTO_TOKEN estava no .env mas nao no\n   environment: do compose, e o webhook aceitou uma chamada sem token\n   nenhuma com HTTP 200. Token ausente agora e recusa, nao liberacao. */\nconst esperado = String($env.N8N_PONTO_TOKEN || '');\nif (!esperado) {\n  throw new Error('N8N_PONTO_TOKEN nao configurado no n8n — recusando por seguranca');\n}\nconst recebido = String($('Receber do Portal').first().json.headers?.authorization || '')\n  .replace(/^Bearer\\s+/i, '');\nif (recebido !== esperado) {\n  throw new Error('Token invalido');\n}\n\nconst mensagens = Array.isArray(corpo.mensagens) ? corpo.mensagens : [];\nif (!mensagens.length) return [];\nreturn mensagens.map((m) => ({ json: { ...m } }));"
       },
       "id": "portal-split",
       "name": "Conferir token e separar",
@@ -121,7 +122,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const enviados = $('Enviar via Evolution API (Portal)').all();\nconst origens = $('Barreira de seguranca (Portal)').all()\n  .filter((i) => i.json.podeEnviarSeguro === true);\n\nconst resultados = origens.map((origem, indice) => {\n  const resposta = enviados[indice] ? enviados[indice].json : {};\n  const codigo = Number(resposta.statusCode || 0);\n  const falhou = Boolean(resposta.error) || codigo >= 400;\n  return {\n    envioId: origem.json.envioId,\n    status: falhou ? 'erro_envio' : 'enviado',\n    erro: falhou\n      ? String(resposta.error?.message || resposta.message || ('HTTP ' + codigo))\n      : null,\n  };\n});\n\nconst bloqueados = $('Barreira de seguranca (Portal)').all()\n  .filter((i) => i.json.podeEnviarSeguro !== true)\n  .map((i) => ({ envioId: i.json.envioId, status: i.json.status, erro: i.json.erro }));\n\nreturn [{ json: { resultados: resultados.concat(bloqueados) } }];"
+        "jsCode": "/* O HTTP pode NAO ter rodado: quando todo item e bloqueado pela barreira, o\n   ramo verdadeiro do IF fica vazio e referenciar o no levanta\n   \"hasn't been executed\". Sem este try o Portal recebia 500 justamente no\n   caso em que mais precisa da resposta — o de saber por que nada foi enviado. */\nlet enviados = [];\ntry {\n  enviados = $('Enviar via Evolution API (Portal)').all();\n} catch (e) {\n  enviados = [];\n}\nconst origens = $('Barreira de seguranca (Portal)').all()\n  .filter((i) => i.json.podeEnviarSeguro === true);\n\nconst resultados = origens.map((origem, indice) => {\n  const resposta = enviados[indice] ? enviados[indice].json : {};\n  const codigo = Number(resposta.statusCode || 0);\n  const falhou = Boolean(resposta.error) || codigo >= 400;\n  return {\n    envioId: origem.json.envioId,\n    status: falhou ? 'erro_envio' : 'enviado',\n    erro: falhou\n      ? String(resposta.error?.message || resposta.message || ('HTTP ' + codigo))\n      : null,\n  };\n});\n\nconst bloqueados = $('Barreira de seguranca (Portal)').all()\n  .filter((i) => i.json.podeEnviarSeguro !== true)\n  .map((i) => ({ envioId: i.json.envioId, status: i.json.status, erro: i.json.erro }));\n\nreturn [{ json: { resultados: resultados.concat(bloqueados) } }];"
       },
       "id": "portal-result",
       "name": "Responder ao Portal",

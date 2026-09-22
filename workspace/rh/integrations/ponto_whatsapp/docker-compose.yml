@@ -137,6 +137,10 @@ services:
       EVOLUTION_INSTANCE: ${EVOLUTION_INSTANCE:-teste-pessoal}
       TEST_MODE: ${TEST_MODE:-true}
       TEST_PHONE: ${TEST_PHONE:?Defina TEST_PHONE no arquivo .env}
+      # O token que o Portal manda no header. Obrigatorio: o workflow do
+      # Portal recusa toda chamada quando ele nao chega, entao esquecer esta
+      # linha derruba o envio em vez de abrir o webhook.
+      N8N_PONTO_TOKEN: ${N8N_PONTO_TOKEN:?Defina N8N_PONTO_TOKEN no arquivo .env}
     healthcheck:
       test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:5678/healthz').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))"]
       interval: 10s

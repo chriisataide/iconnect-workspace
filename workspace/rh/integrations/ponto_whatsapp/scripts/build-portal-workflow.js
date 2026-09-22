@@ -54,12 +54,21 @@ return $input.all().map((item) => {
 
 const splitCode = `const corpo = $input.first().json.body || {};
 
-/* O token do Portal. Confere ANTES de qualquer coisa: webhook aberto é
-   convite a mandar WhatsApp em nome da empresa. */
+/* O token do Portal. Confere ANTES de qualquer coisa: webhook aberto e
+   convite a mandar WhatsApp em nome da empresa.
+
+   FALHA FECHADA. A versao anterior so conferia quando o token existia,
+   que pula a conferencia inteira quando a variavel nao chega ao container — e
+   foi exatamente o que aconteceu: N8N_PONTO_TOKEN estava no .env mas nao no
+   environment: do compose, e o webhook aceitou uma chamada sem token
+   nenhuma com HTTP 200. Token ausente agora e recusa, nao liberacao. */
 const esperado = String($env.N8N_PONTO_TOKEN || '');
+if (!esperado) {
+  throw new Error('N8N_PONTO_TOKEN nao configurado no n8n — recusando por seguranca');
+}
 const recebido = String($('Receber do Portal').first().json.headers?.authorization || '')
   .replace(/^Bearer\\s+/i, '');
-if (esperado && recebido !== esperado) {
+if (recebido !== esperado) {
   throw new Error('Token invalido');
 }
 
@@ -67,7 +76,16 @@ const mensagens = Array.isArray(corpo.mensagens) ? corpo.mensagens : [];
 if (!mensagens.length) return [];
 return mensagens.map((m) => ({ json: { ...m } }));`;
 
-const resultCode = `const enviados = $('Enviar via Evolution API (Portal)').all();
+const resultCode = `/* O HTTP pode NAO ter rodado: quando todo item e bloqueado pela barreira, o
+   ramo verdadeiro do IF fica vazio e referenciar o no levanta
+   "hasn't been executed". Sem este try o Portal recebia 500 justamente no
+   caso em que mais precisa da resposta — o de saber por que nada foi enviado. */
+let enviados = [];
+try {
+  enviados = $('Enviar via Evolution API (Portal)').all();
+} catch (e) {
+  enviados = [];
+}
 const origens = $('Barreira de seguranca (Portal)').all()
   .filter((i) => i.json.podeEnviarSeguro === true);
 
@@ -120,6 +138,12 @@ const workflow = {
       type: 'n8n-nodes-base.webhook',
       typeVersion: 2,
       position: [-820, 120],
+      /* O `webhookId` e o que faz a rota ser `/webhook/ponto-pendencias` e nao
+         o caminho composto `/webhook/<id>/<nome do no>/<path>`. A interface
+         gera este UUID ao criar o no; um JSON importado sem ele ativa o
+         workflow e nao registra rota nenhuma — o sintoma e um 404 com
+         "Activated workflow" no log, que nao parece erro de import. */
+      webhookId: 'a3f81d64-9c27-4e5b-b0a8-2f6d94e7c015',
     },
     {
       parameters: { jsCode: splitCode },
