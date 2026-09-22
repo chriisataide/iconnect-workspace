@@ -208,6 +208,42 @@ CATALOGO_INICIAL = [
         # Contratação é decisão de custo recorrente: sempre passa pela cadeia.
         "exige_centro_custo": True,
     },
+    {
+        "chave": "pendencias-ponto",
+        "termos": [
+            "ponto", "pendencia de ponto", "folha de ponto", "espelho de ponto",
+            "batida", "esqueci de bater", "marcacao", "nao registrei",
+            "abono de hora", "ajuste de ponto", "correcao de ponto",
+        ],
+        "nome": "Pendências de Ponto",
+        "descricao_curta": "Justificar uma marcação que faltou no seu espelho",
+        "grupo": GrupoCatalogo.TRABALHO,
+        "icone": "relogio",
+        # `rh.ponto` e não `rh.` puro: o domínio é hierárquico e a regra de
+        # revisão de área casa por PREFIXO, então o item nasce coberto pela
+        # cadeia que já existe. Sub-domínio próprio é o que deixa a fila do
+        # ponto ser separada da de férias no dia em que isso importar.
+        "dominio": "rh.ponto",
+        "prazo_prometido_dias": 5,
+        "campos": [
+            {"chave": "dia", "rotulo": "Dia da pendência", "tipo": TipoCampo.DATA,
+             "obrigatorio": True},
+            # Opcional porque a pendência tanto pode ser UMA batida perdida
+            # quanto o dia inteiro sem registro. Exigir a hora obrigaria quem
+            # faltou o dia todo a inventar um horário para o campo aceitar.
+            {"chave": "horario", "rotulo": "Horário que faltou",
+             "tipo": TipoCampo.HORA, "obrigatorio": False,
+             "ajuda": "Em branco, se o dia inteiro ficou sem registro."},
+            {"chave": "motivo", "rotulo": "O que aconteceu",
+             "tipo": TipoCampo.TEXTO_LONGO, "obrigatorio": True},
+            {"chave": "comprovante", "rotulo": "Comprovante",
+             "tipo": TipoCampo.ARQUIVO, "obrigatorio": False,
+             "ajuda": "Opcional — declaração, e-mail, o que sustente a correção."},
+        ],
+        # Sem `limite_auto_aprovacao`: correção de ponto passa pelo gestor de
+        # propósito. É ele quem sabe se a pessoa estava lá — aprovar sozinho
+        # transformaria o espelho em campo de digitação livre.
+    },
     # ── Dinheiro ────────────────────────────────────────────────────
     {
         "chave": "prestacao-contas",
