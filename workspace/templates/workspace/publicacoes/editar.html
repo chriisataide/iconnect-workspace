@@ -223,7 +223,7 @@
   <form class="au-form-linha" method="post"
         action="{% url 'workspace:publicacao_acao' publicacao.pk %}">
     {% csrf_token %}
-    <button class="au-btn au-btn--sutil au-btn--pequeno" type="submit"
+    <button class="au-btn au-btn--perigo au-btn--pequeno" type="submit"
             name="acao" value="excluir">{% trans "Excluir rascunho" %}</button>
   </form>
 {% endif %}

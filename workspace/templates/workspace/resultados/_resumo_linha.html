@@ -1,5 +1,15 @@
 {% load i18n %}
-<li class="au-resumo-linha">
+{% comment %}
+  A severidade vira CLASSE, e não só a palavra "Crítico" no começo da frase.
+
+  Sem ela, "margem de 23,6%" (bom) e "margem de 5,1%" (crítico) são duas linhas
+  idênticas de texto preto, e a única diferença mora dentro da frase — quem
+  varre a lista precisa LER cada uma para saber qual é qual. Com a classe, a
+  barra à esquerda diz isso antes da leitura.
+
+  A palavra continua onde estava: cor nunca sozinha.
+{% endcomment %}
+<li class="au-resumo-linha au-resumo-linha--{{ item.sinal.severidade|default:'neutro' }}">
   <div>
     {% if item.sinal.severidade == "critico" %}<strong class="au-resumo-critico">{% trans "Crítico" %} · </strong>{% endif %}
     <strong>{{ item.sinal.titulo }}: {{ item.sinal.valor }}</strong>

@@ -219,7 +219,7 @@
                 <input class="au-input" id="just-{{ s.pk }}" name="justificativa"
                        form="devolver-{{ s.pk }}" type="text" required
                        placeholder="{% trans 'faltou a nota fiscal' %}">
-                <button class="au-btn au-btn--sutil au-btn--pequeno" type="submit"
+                <button class="au-btn au-btn--cautela au-btn--pequeno" type="submit"
                         form="devolver-{{ s.pk }}">{% trans "Devolver com este motivo" %}</button>
               </div>
             </details>
@@ -246,7 +246,7 @@
                 <input class="au-input" id="recusa-{{ s.pk }}" name="justificativa"
                        form="rejeitar-{{ s.pk }}" type="text" required
                        placeholder="{% trans 'fora do orçamento deste ano' %}">
-                <button class="au-btn au-btn--sutil au-btn--pequeno" type="submit"
+                <button class="au-btn au-btn--perigo au-btn--pequeno" type="submit"
                         form="rejeitar-{{ s.pk }}">{% trans "Reprovar em definitivo" %}</button>
               </div>
             </details>

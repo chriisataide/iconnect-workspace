@@ -839,3 +839,205 @@
     });
   }, { passive: true });
 })();
+
+/* ─────────────────────────────────────────────────────────────────────
+ * AS NOTAS DE LEITURA, RECOLHIDAS.
+ *
+ * As telas deste produto explicam o que mostram — por que a margem é mediana e
+ * não média, por que a janela da pesquisa é de 12 meses e a do dinheiro de 7.
+ * O texto é bom e a decisão de tê-lo está certa. O problema é que ele fica
+ * ABERTO em toda seção de toda tela: quem já sabe lê o mesmo parágrafo pela
+ * quinquagésima vez, e o parágrafo compete com o número que ele explica.
+ *
+ * Aqui a nota longa vira um "?" ao lado do título do bloco. O texto não sai do
+ * sistema: ele continua no DOM, dentro de um `<details>` que o "?" abre.
+ *
+ * ## Por que em JavaScript e não no template
+ *
+ * São 137 ocorrências em 35 telas. Recolher uma a uma no template é a mesma
+ * mudança escrita 137 vezes, e a 138ª nasceria aberta. Aqui a regra é uma só.
+ *
+ * ## Sem JavaScript
+ *
+ * A nota aparece aberta, como sempre apareceu. O conteúdo nunca depende disto.
+ *
+ * ## O que NÃO é recolhido
+ *
+ * Nota curta (cabe numa linha, e recolher custaria mais clique do que leitura),
+ * nota de estado vazio (é a única coisa na tela — recolhê-la deixaria a seção
+ * muda) e nota de alerta, que é aviso e não explicação.
+ */
+(function () {
+  'use strict';
+
+  var MINIMO = 90;          // caracteres; abaixo disso a nota já é uma linha
+  var TITULOS = '.au-secao-titulo, .au-gr-titulo, .au-subsecao, h2, h3';
+
+  /* O bloco a que a nota pertence. Sobe só até onde uma moldura existe: fora
+     dela não há título que seja "o desta nota". */
+  function blocoDe(nota) {
+    return nota.closest('.au-secao-faixa, .au-secao, .au-gr, .au-card');
+  }
+
+  /* O título que a nota explica: o primeiro dentro do mesmo bloco. */
+  function tituloDe(bloco) {
+    if (!bloco) return null;
+    var t = bloco.querySelector(TITULOS);
+    return t && blocoDe(t) === bloco ? t : null;
+  }
+
+  function recolher(nota, titulo) {
+    /* O bloco pode ter mais de uma nota, e quatro "?" enfileirados ao lado do
+       mesmo título é a poluição de volta com outra roupa. A partir da segunda,
+       a nota entra no balão que já existe. */
+    var existente = titulo && titulo.querySelector(':scope > .au-comoler');
+    if (existente) {
+      existente.querySelector('.au-comoler-corpo').appendChild(nota);
+      return;
+    }
+
+    var detalhe = document.createElement('details');
+    detalhe.className = 'au-comoler';
+
+    var resumo = document.createElement('summary');
+    resumo.className = 'au-comoler-botao';
+    resumo.textContent = '?';
+    /* O rótulo acessível diz o que o "?" abre. Um botão cujo nome é "?" não
+       informa nada a quem ouve a tela. */
+    resumo.setAttribute('aria-label', 'Como ler este bloco');
+    resumo.setAttribute('title', 'Como ler este bloco');
+
+    var corpo = document.createElement('div');
+    corpo.className = 'au-comoler-corpo';
+
+    detalhe.appendChild(resumo);
+    detalhe.appendChild(corpo);
+
+    /* `replaceWith` antes de mover o conteúdo: a nota sai do fluxo onde
+       ocupava uma linha inteira, e o texto dela passa a viver dentro do
+       `<details>`, sem nunca ser recriado como string. */
+    nota.replaceWith(detalhe);
+    corpo.appendChild(nota);
+
+    if (titulo) titulo.appendChild(detalhe);
+  }
+
+  function iniciar() {
+    var notas = document.querySelectorAll('p.au-ajuda');
+
+    Array.prototype.forEach.call(notas, function (nota) {
+      if (nota.classList.contains('au-ajuda--alerta')) return;
+      if (nota.closest('.au-comoler, .au-vazio, .au-empty, form')) return;
+      if (nota.textContent.trim().length < MINIMO) return;
+
+      var bloco = blocoDe(nota);
+      if (!bloco) return;
+
+      /* Um bloco cuja única coisa é a nota não tem o que explicar: recolher ali
+         deixaria uma seção com um "?" e mais nada. */
+      if (bloco.textContent.trim() === nota.textContent.trim()) return;
+
+      recolher(nota, tituloDe(bloco));
+    });
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', iniciar);
+  } else {
+    iniciar();
+  }
+})();
+
+/* ─────────────────────────────────────────────────────────────────────
+ * RECOLHER O TRILHO.
+ *
+ * Numa tela de tabela larga, 224px de menu são uma coluna de dados a menos. O
+ * botão devolve esse espaço e o estado fica gravado, porque quem recolhe quer
+ * que continue recolhido na próxima tela — recolher de novo a cada navegação é
+ * pior do que não poder recolher.
+ *
+ * ## `localStorage` e não `sessionStorage`
+ *
+ * Diferente da rolagem e dos grupos abertos, que são "onde eu estava" e devem
+ * zerar ao fechar a aba, a largura do menu é PREFERÊNCIA: quem trabalha o dia
+ * inteiro numa planilha quer o trilho estreito sempre.
+ *
+ * ## Os grupos, ao recolher
+ *
+ * Um `<details>` fechado não mostra os itens, e recolhido não há rótulo de
+ * grupo para clicar. Quem resolve isso é o CSS, revelando os itens sem abrir o
+ * `<details>` — ver `.au-rail-secao:not([open])` na folha de estilo.
+ *
+ * Abrir os grupos aqui seria o caminho óbvio e está ERRADO: o script que
+ * lembra quais grupos ficaram abertos escuta `toggle`, então recolher o trilho
+ * gravaria "todos abertos" e essa mudança sobreviveria ao expandir. Um controle
+ * de largura não pode reescrever a preferência de outro controle.
+ *
+ * ## Sem JavaScript
+ *
+ * O botão não existe e o trilho fica expandido, que é o estado completo.
+ */
+(function () {
+  'use strict';
+
+  var trilho = document.querySelector('.au-rail');
+  var modulo = document.querySelector('.au-modulo');
+  if (!trilho || !modulo) return;
+
+  var CHAVE = 'au-trilho-recolhido';
+
+  function ler() {
+    try { return window.localStorage.getItem(CHAVE) === '1'; } catch (e) { return false; }
+  }
+  function gravar(recolhido) {
+    try { window.localStorage.setItem(CHAVE, recolhido ? '1' : '0'); } catch (e) { /* ignora */ }
+  }
+
+  var botao = document.createElement('button');
+  botao.type = 'button';
+  botao.className = 'au-rail-recolher';
+
+  var rotulo = document.createElement('span');
+  rotulo.className = 'au-rail-recolher-rotulo';
+  rotulo.textContent = 'Recolher';
+
+  /* O ícone é o mesmo `#i-seta` do resto do produto, girado — em vez de uma
+     segunda seta quase igual no sprite. */
+  var icone = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+  icone.setAttribute('class', 'au-icon');
+  icone.setAttribute('aria-hidden', 'true');
+  var uso = document.createElementNS('http://www.w3.org/2000/svg', 'use');
+  uso.setAttribute('href', '#i-seta');
+  icone.appendChild(uso);
+
+  botao.appendChild(rotulo);
+  botao.appendChild(icone);
+
+  function aplicar(recolhido, comFoco) {
+    modulo.setAttribute('data-trilho', recolhido ? 'recolhido' : 'expandido');
+    botao.setAttribute('aria-expanded', recolhido ? 'false' : 'true');
+    botao.setAttribute('aria-label', recolhido ? 'Expandir o menu' : 'Recolher o menu');
+    botao.setAttribute('title', botao.getAttribute('aria-label'));
+
+    /* Recolhido, o rótulo do item vira invisível; o `title` é o que devolve o
+       nome a quem passa o ponteiro. */
+    Array.prototype.forEach.call(trilho.querySelectorAll('.au-rail-item'), function (item) {
+      if (recolhido) {
+        if (!item.getAttribute('title')) item.setAttribute('title', item.textContent.trim());
+      } else {
+        item.removeAttribute('title');
+      }
+    });
+
+    if (comFoco) botao.focus();
+  }
+
+  botao.addEventListener('click', function () {
+    var recolhido = modulo.getAttribute('data-trilho') !== 'recolhido';
+    aplicar(recolhido, false);
+    gravar(recolhido);
+  });
+
+  trilho.insertBefore(botao, trilho.firstChild);
+  aplicar(ler(), false);
+})();

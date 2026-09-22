@@ -7,6 +7,16 @@
   {% if not apresentacao %}{% include "workspace/_rail_servicos.html" with aba="painel" %}{% endif %}
 {% endblock %}
 
+{% comment %}
+  A tela desenha a curva de receita, e o motor do gráfico precisa vir junto.
+  Sem estes dois, a moldura pinta e o miolo fica em branco — era o que
+  acontecia aqui, enquanto Resultados, Satisfação e Quadro carregavam.
+{% endcomment %}
+{% block scripts %}
+  <script src="{% estatico 'workspace/js/echarts.min.js' %}" defer></script>
+  <script src="{% estatico 'workspace/js/echarts-adb.js' %}" defer></script>
+{% endblock %}
+
 {% block trilha %}<span>{% trans "Painel da empresa" %}</span>{% endblock %}
 {% block pagina_titulo %}{% trans "Painel da empresa" %}{% endblock %}
 {% block voltar_url %}{% url 'workspace:home' %}{% endblock %}
@@ -17,7 +27,13 @@
   </p>
 {% endblock %}
 
-{% block conteudo %}
+{% comment %}
+  `corpo` e NÃO `conteudo`: sobrescrever `conteudo` descarta a casca de módulo
+  inteira — trilho, trilha, título e Voltar —, e era o que acontecia aqui. Os
+  blocos `rail`, `trilha`, `pagina_titulo` e `pagina_descricao` acima ficavam
+  definidos e sem efeito, que é o sinal de que a troca foi engano e não escolha.
+{% endcomment %}
+{% block corpo %}
 {% comment %}
   O PAINEL DA EMPRESA — §I1.
 

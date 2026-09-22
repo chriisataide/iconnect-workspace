@@ -174,7 +174,7 @@
                     <form method="post"
                           action="{% url 'workspace:documento_revogar' d.slug %}">
                       {% csrf_token %}
-                      <button class="au-btn au-btn--sutil au-btn--pequeno" type="submit">
+                      <button class="au-btn au-btn--perigo au-btn--pequeno" type="submit">
                         {% trans "Revogar" %}
                       </button>
                     </form>

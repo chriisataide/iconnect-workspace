@@ -1,0 +1,299 @@
+- generic [active] [ref=f3e1]:
+  - link "Pular para o conteúdo" [ref=f3e3] [cursor=pointer]:
+    - /url: "#conteudo"
+  - banner [ref=f3e4]:
+    - link "Autodefesa Brasil Portal ADB360" [ref=f3e5] [cursor=pointer]:
+      - /url: /workspace/
+      - img "Autodefesa Brasil" [ref=f3e6]
+      - generic [ref=f3e8]: Portal ADB360
+    - generic [ref=f3e9]:
+      - button "Buscar" [ref=f3e10] [cursor=pointer]
+      - group [ref=f3e13]:
+        - generic "0 notificações não lidas" [ref=f3e14] [cursor=pointer]
+      - generic "Diretoria (perfil) · Diretoria" [ref=f3e17]:
+        - generic [ref=f3e18]: Diretoria
+        - generic [ref=f3e19]: Diretoria
+      - button "Sair" [ref=f3e21] [cursor=pointer]
+  - main [ref=f3e24]:
+    - generic [ref=f3e25]:
+      - navigation "Navegação do módulo" [ref=f3e26]:
+        - button "Recolher o menu" [expanded] [ref=f3e27] [cursor=pointer]:
+          - generic [ref=f3e28]: Recolher
+        - group [ref=f3e31]:
+          - generic "Hoje" [ref=f3e32] [cursor=pointer]
+        - group [ref=f3e33]:
+          - generic "Consultar" [ref=f3e34] [cursor=pointer]
+        - group [ref=f3e35]:
+          - generic "Pedir" [ref=f3e36] [cursor=pointer]
+        - group [ref=f3e37]:
+          - generic "Resultados da empresa" [ref=f3e38] [cursor=pointer]
+          - link "Painel da empresa" [ref=f3e39] [cursor=pointer]:
+            - /url: /workspace/painel/
+          - link "Indicadores de atendimento" [ref=f3e42] [cursor=pointer]:
+            - /url: /workspace/indicadores/
+          - link "Ciclos de planejamento" [ref=f3e45] [cursor=pointer]:
+            - /url: /workspace/ciclos/
+          - link "Exceções" [ref=f3e48] [cursor=pointer]:
+            - /url: /workspace/excecoes/
+          - link "Planos de ação 2" [ref=f3e51] [cursor=pointer]:
+            - /url: /workspace/planos/
+            - text: Planos de ação
+            - generic [ref=f3e54]: "2"
+          - link "Orçamento" [ref=f3e55] [cursor=pointer]:
+            - /url: /workspace/orcamento/
+          - link "Resultados" [ref=f3e58] [cursor=pointer]:
+            - /url: /workspace/resultados/
+          - link "Quadro e jornada" [ref=f3e61] [cursor=pointer]:
+            - /url: /workspace/quadro/
+          - link "Satisfação do cliente" [ref=f3e64] [cursor=pointer]:
+            - /url: /workspace/satisfacao/
+          - link "Fontes de dados" [ref=f3e67] [cursor=pointer]:
+            - /url: /workspace/resultados/fontes/
+        - group [ref=f3e70]:
+          - generic "Gestão" [ref=f3e71] [cursor=pointer]
+        - group [ref=f3e72]:
+          - generic "Aprovar" [ref=f3e73] [cursor=pointer]
+      - generic [ref=f3e74]:
+        - navigation "Trilha" [ref=f3e75]:
+          - link "Workspace" [ref=f3e76] [cursor=pointer]:
+            - /url: /workspace/
+          - generic [ref=f3e77]: /Painel da empresa
+        - generic [ref=f3e78]:
+          - generic [ref=f3e79]:
+            - heading "Painel da empresa" [level=1] [ref=f3e80]
+            - paragraph [ref=f3e81]: A empresa inteira em 09/2026. Cada bloco leva ao detalhe.
+          - link "Voltar" [ref=f3e82] [cursor=pointer]:
+            - /url: /workspace/
+        - list [ref=f3e86]:
+          - listitem [ref=f3e87]:
+            - link "R$ 1,30 Mi Receita bruta +21,3% vs mês +9,2% vs ano" [ref=f3e88] [cursor=pointer]:
+              - /url: /workspace/resultados/?mes=2026-09#dinheiro
+              - generic [ref=f3e89]: R$ 1,30 Mi
+              - generic [ref=f3e90]: Receita bruta
+              - generic [ref=f3e91]:
+                - generic [ref=f3e92]:
+                  - text: +21,3%
+                  - generic [ref=f3e93]: vs mês
+                - generic [ref=f3e94]:
+                  - text: +9,2%
+                  - generic [ref=f3e95]: vs ano
+          - listitem [ref=f3e96]:
+            - link "15,1% Margem de contribuição -0,5 p vs mês -1,0 p vs ano" [ref=f3e97] [cursor=pointer]:
+              - /url: /workspace/resultados/?mes=2026-09#dinheiro
+              - generic [ref=f3e98]: 15,1%
+              - generic [ref=f3e99]: Margem de contribuição
+              - generic [ref=f3e100]:
+                - generic [ref=f3e101]:
+                  - text: "-0,5 p"
+                  - generic [ref=f3e102]: vs mês
+                - generic [ref=f3e103]:
+                  - text: "-1,0 p"
+                  - generic [ref=f3e104]: vs ano
+          - listitem [ref=f3e105]:
+            - link "R$ -96 Mil EBITDA +26,1% vs mês -181,2% vs ano" [ref=f3e106] [cursor=pointer]:
+              - /url: /workspace/resultados/?mes=2026-09#dinheiro
+              - generic [ref=f3e107]: R$ -96 Mil
+              - generic [ref=f3e108]: EBITDA
+              - generic [ref=f3e109]:
+                - generic [ref=f3e110]:
+                  - text: +26,1%
+                  - generic [ref=f3e111]: vs mês
+                - generic [ref=f3e112]:
+                  - text: "-181,2%"
+                  - generic [ref=f3e113]: vs ano
+          - listitem [ref=f3e114]:
+            - link "R$ 1,12 Mi Carteira mensal" [ref=f3e115] [cursor=pointer]:
+              - /url: /workspace/resultados/?mes=2026-09#contratos
+              - generic [ref=f3e116]: R$ 1,12 Mi
+              - generic [ref=f3e117]: Carteira mensal
+          - listitem [ref=f3e118]:
+            - link "18 Contratos ativos" [ref=f3e119] [cursor=pointer]:
+              - /url: /workspace/resultados/?mes=2026-09#contratos
+              - generic [ref=f3e120]: "18"
+              - generic [ref=f3e121]: Contratos ativos
+        - generic [ref=f3e122]:
+          - heading "Por área" [level=2] [ref=f3e124]:
+            - text: Por área
+            - group [ref=f3e125]:
+              - generic "Como ler este bloco" [ref=f3e126]: "?"
+          - table [ref=f3e128]:
+            - rowgroup [ref=f3e129]:
+              - row [ref=f3e130]:
+                - columnheader "Área" [ref=f3e131]
+                - columnheader "Contratos" [ref=f3e132]
+                - columnheader "Carteira mensal" [ref=f3e133]
+                - columnheader "Margem mediana" [ref=f3e134]
+                - columnheader "Situação" [ref=f3e135]
+            - rowgroup [ref=f3e136]:
+              - row [ref=f3e137]:
+                - rowheader [ref=f3e138]:
+                  - link "Área 01" [ref=f3e139] [cursor=pointer]:
+                    - /url: /workspace/resultados/?mes=2026-09&area=area-01
+                - cell "3" [ref=f3e140]
+                - cell "R$ 240.000,00" [ref=f3e141]
+                - cell "7,4%" [ref=f3e142]
+                - cell "crítico" [ref=f3e143]
+              - row [ref=f3e145]:
+                - rowheader [ref=f3e146]:
+                  - link "Área 02" [ref=f3e147] [cursor=pointer]:
+                    - /url: /workspace/resultados/?mes=2026-09&area=area-02
+                - cell "3" [ref=f3e148]
+                - cell "R$ 240.000,00" [ref=f3e149]
+                - cell "21,5%" [ref=f3e150]
+                - cell "bom" [ref=f3e151]
+              - row [ref=f3e153]:
+                - rowheader [ref=f3e154]:
+                  - link "Área 03" [ref=f3e155] [cursor=pointer]:
+                    - /url: /workspace/resultados/?mes=2026-09&area=area-03
+                - cell "3" [ref=f3e156]
+                - cell "R$ 196.000,00" [ref=f3e157]
+                - cell "17,4%" [ref=f3e158]
+                - cell "atenção" [ref=f3e159]
+              - row [ref=f3e161]:
+                - rowheader [ref=f3e162]:
+                  - link "Sem área" [ref=f3e163] [cursor=pointer]:
+                    - /url: /workspace/resultados/?mes=2026-09&area=sem-area
+                - cell "3" [ref=f3e164]
+                - cell "R$ 190.000,00" [ref=f3e165]
+                - cell "19,6%" [ref=f3e166]
+                - cell "atenção" [ref=f3e167]
+              - row [ref=f3e169]:
+                - rowheader [ref=f3e170]:
+                  - link "Área 04" [ref=f3e171] [cursor=pointer]:
+                    - /url: /workspace/resultados/?mes=2026-09&area=area-04
+                - cell "3" [ref=f3e172]
+                - cell "R$ 128.000,00" [ref=f3e173]
+                - cell "8,8%" [ref=f3e174]
+                - cell "crítico" [ref=f3e175]
+              - row [ref=f3e177]:
+                - rowheader [ref=f3e178]:
+                  - link "Área 05" [ref=f3e179] [cursor=pointer]:
+                    - /url: /workspace/resultados/?mes=2026-09&area=area-05
+                - cell "3" [ref=f3e180]
+                - cell "R$ 128.000,00" [ref=f3e181]
+                - cell "18,2%" [ref=f3e182]
+                - cell "atenção" [ref=f3e183]
+        - figure "Receita, 24 meses" [ref=f3e186]:
+          - 'img "This is a chart with type Bar chart named Receita, 24 meses.The first 10 items are: the data for 10/24 is 0, 1101580.2, R$ 1,10 Mi, the data for 11/24 is 1, 1021492, R$ 1,02 Mi, the data for 12/24 is 2, 833961.6, R$ 834 Mil, the data for 01/25 is 3, 853406.8, R$ 853 Mil, the data for 02/25 is 4, 978682.88, R$ 979 Mil, the data for 03/25 is 5, 1219308.16, R$ 1,22 Mi, the data for 04/25 is 6, 1061289.6, R$ 1,06 Mi, the data for 05/25 is 7, 1051580, R$ 1,05 Mi, the data for 06/25 is 8, 1005209.52, R$ 1,01 Mi, the data for 07/25 is 9, 1028604.2, R$ 1,03 Mi." [ref=f3e188]':
+            - img [ref=f3e190]:
+              - generic [ref=f3e192]:
+                - generic [ref=f3e193]: "0"
+                - generic [ref=f3e194]: 300,000
+                - generic [ref=f3e195]: 600,000
+                - generic [ref=f3e196]: 900,000
+                - generic [ref=f3e197]: 1,200,000
+                - generic [ref=f3e198]: 1,500,000
+                - generic [ref=f3e199]: 10/24
+                - generic [ref=f3e200]: 11/24
+                - generic [ref=f3e201]: 12/24
+                - generic [ref=f3e202]: 01/25
+                - generic [ref=f3e203]: 02/25
+                - generic [ref=f3e204]: 03/25
+                - generic [ref=f3e205]: 04/25
+                - generic [ref=f3e206]: 05/25
+                - generic [ref=f3e207]: 06/25
+                - generic [ref=f3e208]: 07/25
+                - generic [ref=f3e209]: 08/25
+                - generic [ref=f3e210]: 09/25
+                - generic [ref=f3e211]: 10/25
+                - generic [ref=f3e212]: 11/25
+                - generic [ref=f3e213]: 12/25
+                - generic [ref=f3e214]: 01/26
+                - generic [ref=f3e215]: 02/26
+                - generic [ref=f3e216]: 03/26
+                - generic [ref=f3e217]: 04/26
+                - generic [ref=f3e218]: 05/26
+                - generic [ref=f3e219]: 06/26
+                - generic [ref=f3e220]: 07/26
+                - generic [ref=f3e221]: 08/26
+                - generic [ref=f3e222]: 09/26
+                - generic [ref=f3e247]: R$ 1,10 Mi
+                - generic [ref=f3e248]: R$ 1,02 Mi
+                - generic [ref=f3e249]: R$ 834 Mil
+                - generic [ref=f3e250]: R$ 853 Mil
+                - generic [ref=f3e251]: R$ 979 Mil
+                - generic [ref=f3e252]: R$ 1,22 Mi
+                - generic [ref=f3e253]: R$ 1,06 Mi
+                - generic [ref=f3e254]: R$ 1,05 Mi
+                - generic [ref=f3e255]: R$ 1,01 Mi
+                - generic [ref=f3e256]: R$ 1,03 Mi
+                - generic [ref=f3e257]: R$ 1,08 Mi
+                - generic [ref=f3e258]: R$ 1,19 Mi
+                - generic [ref=f3e259]: R$ 1,09 Mi
+                - generic [ref=f3e260]: R$ 1,04 Mi
+                - generic [ref=f3e261]: R$ 823 Mil
+                - generic [ref=f3e262]: R$ 859 Mil
+                - generic [ref=f3e263]: R$ 954 Mil
+                - generic [ref=f3e264]: R$ 1,21 Mi
+                - generic [ref=f3e265]: R$ 1,07 Mi
+                - generic [ref=f3e266]: R$ 1,03 Mi
+                - generic [ref=f3e267]: R$ 1,04 Mi
+                - generic [ref=f3e268]: R$ 1,06 Mi
+                - generic [ref=f3e269]: R$ 1,07 Mi
+                - generic [ref=f3e270]: R$ 1,30 Mi
+          - group [ref=f3e271]:
+            - generic "Ver os números" [ref=f3e272] [cursor=pointer]
+        - generic [ref=f3e273]:
+          - heading "Dependência de cliente" [level=2] [ref=f3e275]
+          - paragraph [ref=f3e276]:
+            - generic [ref=f3e277]: atenção
+            - text: 51,9% da carteira está nos 5 maiores clientes.
+          - list [ref=f3e278]:
+            - listitem [ref=f3e279]: Grupo Meridiano — R$ 140.000,00 (12,5%)
+            - listitem [ref=f3e280]: Rede Aurora — R$ 140.000,00 (12,5%)
+            - listitem [ref=f3e281]: Têxtil Bandeirante — R$ 140.000,00 (12,5%)
+            - listitem [ref=f3e282]: Distribuidora Caravela — R$ 90.000,00 (8,0%)
+            - listitem [ref=f3e283]: Cooperativa Vale Verde — R$ 72.000,00 (6,4%)
+        - generic [ref=f3e284]:
+          - heading "O que pode ser perdido" [level=2] [ref=f3e286]
+          - list [ref=f3e287]:
+            - listitem [ref=f3e288]:
+              - link [ref=f3e289] [cursor=pointer]:
+                - /url: /workspace/resultados/#vencimentos
+                - strong [ref=f3e290]: até 30 dias
+                - text: 1 contrato · R$ 28.000,00/mês
+            - listitem [ref=f3e291]:
+              - link [ref=f3e292] [cursor=pointer]:
+                - /url: /workspace/resultados/#vencimentos
+                - strong [ref=f3e293]: até 60 dias
+                - text: 1 contrato · R$ 140.000,00/mês
+            - listitem [ref=f3e294]:
+              - link [ref=f3e295] [cursor=pointer]:
+                - /url: /workspace/resultados/#vencimentos
+                - strong [ref=f3e296]: até 90 dias
+                - text: 0 contratos · R$ 0,00/mês
+            - listitem [ref=f3e297]:
+              - link [ref=f3e298] [cursor=pointer]:
+                - /url: /workspace/resultados/#vencimentos
+                - strong [ref=f3e299]: até 180 dias
+                - text: 0 contratos · R$ 0,00/mês
+        - generic [ref=f3e300]:
+          - generic [ref=f3e301]:
+            - heading [level=3] [ref=f3e302]:
+              - link "Pessoas" [ref=f3e303] [cursor=pointer]:
+                - /url: /workspace/quadro/
+            - paragraph [ref=f3e304]: 186 no efetivo
+            - paragraph [ref=f3e305]: "Turnover: 2,6%"
+            - paragraph [ref=f3e306]: "Absenteísmo: 2,2%"
+            - paragraph [ref=f3e307]: "HE de ineficiência: 518,6h"
+          - generic [ref=f3e308]:
+            - heading [level=3] [ref=f3e309]:
+              - link "Projetos" [ref=f3e310] [cursor=pointer]:
+                - /url: /workspace/resultados/#projetos
+            - paragraph [ref=f3e311]: 12 em execução
+            - paragraph [ref=f3e312]: 0 atrasados
+            - paragraph [ref=f3e313]: 3 bloqueados
+          - generic [ref=f3e314]:
+            - heading [level=3] [ref=f3e315]:
+              - link "Cliente" [ref=f3e316] [cursor=pointer]:
+                - /url: /workspace/satisfacao/
+            - paragraph [ref=f3e317]: "Nota média: 7,6"
+            - paragraph [ref=f3e318]: 2 detratores
+            - paragraph [ref=f3e319]: 1 sem tratativa
+        - paragraph [ref=f3e320]:
+          - link "De onde vêm estes números" [ref=f3e321] [cursor=pointer]:
+            - /url: /workspace/resultados/fontes/
+  - contentinfo [ref=f3e322]:
+    - generic [ref=f3e324]: Portal ADB360 · a vida corporativa em um lugar
+  - group [ref=f3e325]:
+    - generic "Abrir o assistente" [ref=f3e326] [cursor=pointer]

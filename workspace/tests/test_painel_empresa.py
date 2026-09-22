@@ -265,13 +265,24 @@ def test_a_tela_tem_NO_MAXIMO_nove_blocos():
 
 
 def test_o_modo_apresentacao_existe_aqui_tambem(client, diretoria, espelho):
+    """O trilho some em apresentação — e o que se mede é `au-rail-item`.
+
+    A casca de módulo emite sempre o `<nav class="au-rail">`; o que o modo
+    apresentação esvazia é o `{% block rail %}` dentro dele. Medir `au-rail`
+    media o container da casca, e não a navegação: a asserção passava só
+    enquanto esta tela sobrescrevia `conteudo` em vez de `corpo` e, com isso,
+    descartava a casca inteira — inclusive em modo normal, onde o trilho
+    deveria existir. É o mesmo critério de `test_resultados.py`.
+    """
     client.force_login(diretoria)
 
-    corpo = client.get(
+    normal = client.get(reverse("workspace:painel")).content.decode()
+    reuniao = client.get(
         reverse("workspace:painel") + "?apresentacao=1"
     ).content.decode()
 
-    assert "au-rail" not in corpo, "o trilho some em apresentação"
+    assert "au-rail-item" in normal, "fora de apresentação o trilho existe"
+    assert "au-rail-item" not in reuniao, "o trilho some em apresentação"
 
 
 def test_o_rodape_leva_a_tela_de_fontes(client, diretoria, espelho):

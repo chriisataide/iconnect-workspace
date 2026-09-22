@@ -1,0 +1,87 @@
+- generic [active] [ref=f1e1]:
+  - link "Pular para o conteúdo" [ref=f1e3] [cursor=pointer]:
+    - /url: "#conteudo"
+  - banner [ref=f1e4]:
+    - link "Autodefesa Brasil Portal ADB360" [ref=f1e5] [cursor=pointer]:
+      - /url: /workspace/
+      - img "Autodefesa Brasil" [ref=f1e6]
+      - generic [ref=f1e8]: Portal ADB360
+    - generic [ref=f1e9]:
+      - button "Buscar" [ref=f1e10] [cursor=pointer]
+      - group [ref=f1e13]:
+        - generic "0 notificações não lidas" [ref=f1e14] [cursor=pointer]
+      - generic "Diretoria (perfil) · Diretoria" [ref=f1e17]:
+        - generic [ref=f1e18]: Diretoria
+        - generic [ref=f1e19]: Diretoria
+      - button "Sair" [ref=f1e21] [cursor=pointer]
+  - main [ref=f1e24]:
+    - generic [ref=f1e25]:
+      - navigation "Navegação do módulo" [ref=f1e26]:
+        - button "Recolher o menu" [expanded] [ref=f1e27] [cursor=pointer]:
+          - generic [ref=f1e28]: Recolher
+        - group [ref=f1e31]:
+          - generic "Hoje" [ref=f1e32] [cursor=pointer]
+          - link "Meu dia" [ref=f1e33] [cursor=pointer]:
+            - /url: /workspace/meu-dia/
+          - link "Notificações" [ref=f1e36] [cursor=pointer]:
+            - /url: /workspace/notificacoes/
+        - group [ref=f1e39]:
+          - generic "Consultar" [ref=f1e40] [cursor=pointer]
+        - group [ref=f1e41]:
+          - generic "Pedir" [ref=f1e42] [cursor=pointer]
+        - group [ref=f1e43]:
+          - generic "Resultados da empresa" [ref=f1e44] [cursor=pointer]
+        - group [ref=f1e45]:
+          - generic "Gestão" [ref=f1e46] [cursor=pointer]
+        - group [ref=f1e47]:
+          - generic "Aprovar" [ref=f1e48] [cursor=pointer]
+      - generic [ref=f1e49]:
+        - navigation "Trilha" [ref=f1e50]:
+          - link "Workspace" [ref=f1e51] [cursor=pointer]:
+            - /url: /workspace/
+          - generic [ref=f1e52]: /Meu dia
+        - generic [ref=f1e53]:
+          - generic [ref=f1e54]:
+            - heading "Bem-vindo, Diretoria" [level=1] [ref=f1e55]
+            - paragraph [ref=f1e56]: Diretoria · Diretoria · Base Salvador
+            - paragraph [ref=f1e57]:
+              - text: 5 itens exigem você.
+              - strong [ref=f1e58]: 5 não podem esperar.
+          - link "Voltar" [ref=f1e59] [cursor=pointer]:
+            - /url: /workspace/
+        - generic [ref=f1e63]:
+          - generic [ref=f1e64]:
+            - heading "Leitura obrigatória" [level=2] [ref=f1e68]
+            - generic [ref=f1e69]: "5"
+          - list [ref=f1e70]:
+            - listitem [ref=f1e71]:
+              - link "Manual do vigilante" [ref=f1e72] [cursor=pointer]:
+                - /url: /workspace/documentacao/manual-do-vigilante/
+              - generic [ref=f1e73]: Manual · v5.0
+              - generic [ref=f1e74]: obrigatório
+            - listitem [ref=f1e76]:
+              - link "Norma de uniforme e EPI" [ref=f1e77] [cursor=pointer]:
+                - /url: /workspace/documentacao/norma-uniforme-e-epi/
+              - generic [ref=f1e78]: Norma · v2.3
+              - generic [ref=f1e79]: obrigatório
+            - listitem [ref=f1e81]:
+              - link "Política de imagens de CFTV e LGPD" [ref=f1e82] [cursor=pointer]:
+                - /url: /workspace/documentacao/politica-de-privacidade-cftv/
+              - generic [ref=f1e83]: Política · v1.2
+              - generic [ref=f1e84]: obrigatório
+            - listitem [ref=f1e86]:
+              - link "POP-001 · Ronda noturna em posto fixo" [ref=f1e87] [cursor=pointer]:
+                - /url: /workspace/documentacao/pop-ronda-noturna/
+              - generic [ref=f1e88]: POP — procedimento operacional · v3.1
+              - generic [ref=f1e89]: obrigatório
+            - listitem [ref=f1e91]:
+              - link "POP-002 · Revista e controle de acesso" [ref=f1e92] [cursor=pointer]:
+                - /url: /workspace/documentacao/pop-revista-de-acesso/
+              - generic [ref=f1e93]: POP — procedimento operacional · v2.0
+              - generic [ref=f1e94]: obrigatório
+          - link "Ver a documentação" [ref=f1e97] [cursor=pointer]:
+            - /url: /workspace/documentacao/
+  - contentinfo [ref=f1e98]:
+    - generic [ref=f1e100]: Portal ADB360 · a vida corporativa em um lugar
+  - group [ref=f1e101]:
+    - generic "Abrir o assistente" [ref=f1e102] [cursor=pointer]

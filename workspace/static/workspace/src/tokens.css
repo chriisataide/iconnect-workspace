@@ -130,6 +130,76 @@
   --au-e-2:0 4px 6px -1px rgb(15 23 42/.07), 0 2px 4px -2px rgb(15 23 42/.06);
   --au-e-3:0 12px 20px -6px rgb(15 23 42/.12), 0 4px 8px -4px rgb(15 23 42/.08);
 
+  /* ── Gradientes ────────────────────────────────────────────────
+   *
+   * SEMPRE 135°, sempre do tom base para o tom escuro da MESMA família. É a
+   * regra do manual de identidade, e ela existe porque gradiente entre famílias
+   * diferentes vira decoração: a peça passa a chamar atenção pela cor e não
+   * pelo que ela diz.
+   *
+   * As famílias aqui são as do Aurora — navy da marca e a semântica —, e não as
+   * do manual, que é de outro produto. O que se importou foi a GRAMÁTICA
+   * (ângulo, par base→escuro, uso), não os valores.
+   *
+   * Para que servem: superfície de ação (botão primário), faixa de acento no
+   * topo de um número, e ícone de bloco. Nunca para pintar área grande — fundo
+   * de página, cartão ou linha de tabela seguem chapados. */
+  --au-grad-marca:    linear-gradient(135deg, var(--au-accent-700), var(--au-accent-800));
+  --au-grad-acao:     linear-gradient(135deg, var(--au-accent-600), var(--au-accent-700));
+  --au-grad-success:  linear-gradient(135deg, #059669, #047857);
+  --au-grad-warning:  linear-gradient(135deg, #d97706, #b45309);
+  --au-grad-danger:   linear-gradient(135deg, #dc2626, #b91c1c);
+  --au-grad-neutral:  linear-gradient(135deg, var(--au-brand-500), var(--au-brand-600));
+
+  /* ── Bordô: o segundo tom da marca ─────────────────────────────
+   *
+   * A paleta do produto vive entre o navy e o bordô. O navy é a cor de
+   * trabalho — navegação, ação, estrutura. O bordô é ORNAMENTO: ele aparece
+   * onde a marca assina, e em nenhum lugar onde algo tem estado.
+   *
+   * ESSA RESTRIÇÃO NÃO É ESTILO, É LEITURA. Medido, `#7f1d1d` está a 1,55:1 do
+   * `--au-danger-text` e a 2,07:1 do `--au-danger`. Em escala de cinza são a
+   * mesma cor. Se o bordô marcasse estado, "assinatura da marca" e "isto
+   * venceu" seriam indistinguíveis — e o vermelho de erro é o único que não
+   * pode admitir dúvida.
+   *
+   * Escala medida (22/09/2026):
+   *
+   *            #ffffff   #0b1220
+   *   400       3,81      4,92
+   *   700      10,02      1,87
+   *
+   * Por isso ele TROCA de ponta no escuro: 10,02:1 sobre branco e 1,87:1 sobre
+   * o fundo escuro é a mesma cor sumindo de um lado para brilhar do outro. O
+   * claro usa o 700; o escuro usa o 400. */
+  --au-bordo-400:#d15f5f;
+  --au-bordo-700:#7f1d1d;
+  --au-bordo:     var(--au-bordo-700);
+  --au-bordo-bg:  rgb(127 29 29 / .08);
+
+  /* ── Sombra colorida de hover ──────────────────────────────────
+   *
+   * O manual chama de "gramática de hover": o cartão sobe 3px, o botão sobe 1px
+   * e ganha a sombra DA PRÓPRIA COR em alfa .35. O alfa é o que mantém o efeito
+   * como resposta ao ponteiro e não como destaque permanente. */
+  --au-hover-marca:   0 4px 12px rgb(46 49 146 / .35);
+  --au-hover-success: 0 4px 12px rgb(5 150 105 / .35);
+  --au-hover-warning: 0 4px 12px rgb(217 119 6 / .35);
+  --au-hover-danger:  0 4px 12px rgb(220 38 38 / .35);
+  --au-hover-card:    0 8px 25px rgb(15 23 42 / .12);
+
+  /* ── Bloco de conteúdo ─────────────────────────────────────── */
+  /* A moldura de um assunto inteiro — a faixa de Resultados, um agrupamento de
+     tela de gestão. Existe separada de `--au-border` porque o bloco e o que
+     mora DENTRO dele não podem ter a mesma borda: com um valor só, a tabela
+     encostada na parede do bloco lê como se fosse a parede, e o olho perde
+     onde um assunto termina e o próximo começa. O bloco fica um degrau mais
+     firme; cartão e tabela seguem em `--au-border`. */
+  --au-bloco-borda:  var(--au-border-strong);
+  --au-bloco-raio:   var(--au-r-lg);
+  --au-bloco-pad:    var(--au-5);
+  --au-bloco-cabeca: var(--au-border);   /* o fio sob o título do bloco */
+
   /* ── Tipografia ────────────────────────────────────────────── */
   --au-font:'InterVariable','Inter',system-ui,-apple-system,'Segoe UI',sans-serif;
   --au-mono:'JetBrains Mono',ui-monospace,'SF Mono',monospace;
@@ -145,8 +215,13 @@
   --au-focus:0 0 0 2px var(--au-surface), 0 0 0 4px var(--au-accent-600);
 
   /* ── Layout ────────────────────────────────────────────────── */
-  --au-sidebar-w:236px;
-  --au-sidebar-w-collapsed:60px;
+  /* 240px expandida e 72px recolhida. O manual especifica 224, e a diferença é
+     deliberada: os itens deste produto são "Indicadores de atendimento" e
+     "Ciclos de planejamento", não "Vendas" e "RH". Em 224px eles quebram em
+     duas linhas, e um menu de rótulos de duas linhas é mais difícil de varrer
+     do que um menu 16px mais largo. A recolhida cabe o ícone e o alvo de toque. */
+  --au-sidebar-w:240px;
+  --au-sidebar-w-collapsed:72px;
   --au-topbar-h:52px;
   --au-content-max:1440px;
 }
@@ -183,6 +258,16 @@
     --au-btn-bg:          var(--au-accent-300);   /* 7,77:1 com o fg abaixo */
     --au-btn-bg-hover:    var(--au-accent-200);
     --au-btn-fg:          #0f1029;
+    /* No escuro a ação primária INVERTE: fundo claro, texto escuro. O gradiente
+       tem de inverter junto, senão o botão fica navy escuro com texto escuro em
+       cima. Mesma direção, mesma família — só o par muda de ponta. */
+    --au-grad-acao:       linear-gradient(135deg, var(--au-accent-300), var(--au-accent-400));
+    --au-grad-marca:      linear-gradient(135deg, var(--au-accent-400), var(--au-accent-500));
+    /* O bordô troca de ponta: o 700 dá 1,87:1 aqui e some. */
+    --au-bordo:           var(--au-bordo-400);
+    --au-bordo-bg:        rgb(209 95 95 / .14);
+    --au-hover-marca:     0 4px 12px rgb(160 162 225 / .35);
+    --au-hover-card:      0 8px 25px rgb(0 0 0 / .45);
 
     --au-focus:0 0 0 2px var(--au-surface), 0 0 0 4px var(--au-accent-300);
   }
@@ -215,6 +300,16 @@
   --au-btn-bg:          var(--au-accent-300);   /* 7,77:1 com o fg abaixo */
   --au-btn-bg-hover:    var(--au-accent-200);
   --au-btn-fg:          #0f1029;
+  /* No escuro a ação primária INVERTE: fundo claro, texto escuro. O gradiente
+     tem de inverter junto, senão o botão fica navy escuro com texto escuro em
+     cima. Mesma direção, mesma família — só o par muda de ponta. */
+  --au-grad-acao:       linear-gradient(135deg, var(--au-accent-300), var(--au-accent-400));
+  --au-grad-marca:      linear-gradient(135deg, var(--au-accent-400), var(--au-accent-500));
+  /* O bordô troca de ponta: o 700 dá 1,87:1 aqui e some. */
+  --au-bordo:           var(--au-bordo-400);
+  --au-bordo-bg:        rgb(209 95 95 / .14);
+  --au-hover-marca:     0 4px 12px rgb(160 162 225 / .35);
+  --au-hover-card:      0 8px 25px rgb(0 0 0 / .45);
 
   --au-focus:0 0 0 2px var(--au-surface), 0 0 0 4px var(--au-accent-300);
 }
