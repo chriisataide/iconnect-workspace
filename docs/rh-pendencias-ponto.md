@@ -195,7 +195,8 @@ envio. `CPF` e `Senha` nunca são lidos.
 
 ## Configuração
 
-No `.env` do **Django**:
+No `.env` da **raiz do projeto** — carregado automaticamente por
+`settings/base.py`, sem precisar exportar nada antes do `runserver`:
 
 ```dotenv
 N8N_PONTO_WEBHOOK_URL=http://localhost:5678/webhook/ponto-pendencias

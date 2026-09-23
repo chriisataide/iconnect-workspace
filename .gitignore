@@ -65,4 +65,3 @@ monday_inventario*.md
 *.swo
 *~
 .playwright-mcp/
-.env.ponto.local

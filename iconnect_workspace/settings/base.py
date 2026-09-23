@@ -30,6 +30,45 @@ from pathlib import Path
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
 
 
+def _carregar_env(caminho: Path) -> None:
+    """Põe o `.env` da raiz dentro de `os.environ`, se ele existir.
+
+    Sem isto, toda variável precisava estar exportada ANTES do `runserver`, e
+    um servidor iniciado numa aba de terminal sem o `source` respondia que a
+    integração não estava configurada — com o arquivo de configuração ali, ao
+    lado do `manage.py`. Aconteceu duas vezes com a mesma pessoa no mesmo dia.
+
+    `setdefault` e não atribuição: o ambiente de verdade SEMPRE vence. Em
+    produção quem manda é o systemd, o Docker ou o painel do provedor, e um
+    `.env` esquecido no servidor não pode sobrescrever o segredo que veio de
+    lá. O arquivo é conveniência de desenvolvimento, não fonte de verdade.
+
+    Escrito à mão e não `python-dotenv`: são doze linhas contra uma dependência
+    a mais em todo deploy, e o formato que este projeto usa é `CHAVE=valor`.
+    """
+    try:
+        texto = caminho.read_text(encoding="utf-8")
+    except (OSError, UnicodeDecodeError):
+        return
+
+    for linha in texto.splitlines():
+        linha = linha.strip()
+        # `export CHAVE=valor` também vale: é como os arquivos deste projeto
+        # são escritos para poderem ser passados ao `source`.
+        if linha.startswith("export "):
+            linha = linha[7:].lstrip()
+        if not linha or linha.startswith("#") or "=" not in linha:
+            continue
+        chave, _, valor = linha.partition("=")
+        valor = valor.strip()
+        if len(valor) >= 2 and valor[0] == valor[-1] and valor[0] in "\"'":
+            valor = valor[1:-1]
+        os.environ.setdefault(chave.strip(), valor)
+
+
+_carregar_env(BASE_DIR / ".env")
+
+
 def _env(chave: str, default: str = "") -> str:
     return os.environ.get(chave, default)
 
