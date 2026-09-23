@@ -389,12 +389,20 @@ def agrupar(linhas: list[dict]) -> list[Colaborador]:
 
 
 def _chave_do_colaborador(linha: dict, nome: str) -> str:
-    """Quem é a mesma pessoa.
+    """Quem é a mesma pessoa. `Código` quando existe, nome como reserva.
 
-    Hoje é o nome, porque é o que a automação usava e é o único identificador
-    que sobrevive a todas as planilhas vistas. `Código` existe no export e
-    seria melhor — é estável quando a pessoa muda de nome —, mas nem toda
-    competência o traz preenchido, e trocar a chave sem ter os dois lados
-    conferidos juntaria duas pessoas numa mensagem só.
+    O nome sozinho não serve: dois "JOSE DA SILVA" diferentes colapsavam num
+    colaborador só — o segundo nunca recebia mensagem e o primeiro recebia
+    dias que não eram dele. Num quadro de centenas de pessoas isso não é
+    hipótese remota, é questão de tempo.
+
+    `Código` é a matrícula do PontoTel. Medido na planilha de setembro/2026:
+    presente em 94 das 94 linhas, 57 códigos para 57 nomes, nenhum código com
+    mais de um nome. Ele também é estável quando alguém muda de sobrenome.
+
+    O nome continua como reserva porque uma competência pode vir sem a coluna,
+    e sem chave nenhuma o agrupamento não acontece. §11 pede que isto seja
+    trocável por CPF ou matrícula depois; é esta linha, e só ela.
     """
-    return nome.upper()
+    codigo = str(linha.get("Código") or "").strip()
+    return f"cod:{codigo}" if codigo else f"nome:{nome.upper()}"

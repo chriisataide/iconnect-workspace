@@ -113,10 +113,19 @@ def conferir_arquivo(arquivo) -> bytes:
     o cabeçalho. Quem decide é a assinatura do arquivo, lida aqui.
     """
     nome = (getattr(arquivo, "name", "") or "").lower()
+    if nome.endswith(".xls"):
+        # `.xls` é selecionável no seletor de propósito — fora do `accept` ele
+        # aparece cinza e a pessoa conclui que a planilha sumiu. Chega até aqui
+        # para receber a instrução em vez do silêncio.
+        raise UploadInvalido(
+            "O formato .xls é o do Excel antigo e não pode ser lido. "
+            "Abra a planilha no Excel, use “Salvar como” e escolha "
+            "“Pasta de Trabalho do Excel (.xlsx)”. Depois envie o arquivo novo."
+        )
     if not nome.endswith(EXTENSOES):
         raise UploadInvalido(
-            "Formato não aceito. Envie um arquivo .xlsx ou .csv. "
-            "Se a sua planilha é .xls, abra no Excel e salve como .xlsx."
+            f"Formato não aceito{(' (' + nome.rsplit('.', 1)[-1] + ')') if '.' in nome else ''}. "
+            "Envie um arquivo .xlsx ou .csv."
         )
 
     tamanho = getattr(arquivo, "size", 0)

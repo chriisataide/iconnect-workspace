@@ -3,31 +3,54 @@
 {% comment %}
   A área de importação — §8.
 
-  `<input type="file">` nativo e não uma zona de arrastar feita em JavaScript:
-  o input do navegador já aceita arrastar, já abre o seletor, já anuncia o
-  arquivo escolhido ao leitor de tela e já funciona no celular. Uma zona
-  própria seria cem linhas para reimplementar o que vem de graça — e pior em
-  todas as quatro coisas.
+  ## Por que existe uma zona de arrastar
+
+  A primeira versão era só o `<input type="file">` nativo, com um comentário
+  explicando que ele "já aceita arrastar". Aceita — mas o alvo de soltar é o
+  retângulo de 200px do próprio input, e não a área onde a pessoa mira. Soltar
+  o arquivo em qualquer outro lugar faz o NAVEGADOR abrir a planilha e sair da
+  página, perdendo o que estava na tela.
+
+  O `<label>` envolve o input e vira o alvo: clicar nele abre o seletor sem uma
+  linha de JavaScript. O script só acrescenta o realce ao arrastar e o nome do
+  arquivo escolhido.
+
+  ## Sem JavaScript
+
+  Continua um `<label>` com um `<input type="file">` dentro. Clicar abre o
+  seletor, escolher mostra o nome pelo texto nativo do input, e o botão envia.
+  Arrastar deixa de funcionar — é o único enfeite que depende do script.
 {% endcomment %}
 
 <form class="au-form" method="post" enctype="multipart/form-data"
-      action="{% url 'workspace:ponto_importar' %}">
+      action="{% url 'workspace:ponto_importar' %}" data-ponto-upload>
   {% csrf_token %}
 
-  <div class="au-campo">
-    <label class="au-rotulo" for="planilha">
-      {% trans "Planilha de pendências" %} <span class="au-obrigatorio">*</span>
-    </label>
-    <input class="au-input au-input--arquivo" id="planilha" name="planilha" type="file"
-           accept=".xlsx,.csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,text/csv"
+  <label class="au-ponto-solta" for="planilha" data-ponto-solta>
+    <svg class="au-icon" aria-hidden="true"><use href="#i-file"></use></svg>
+    <span class="au-ponto-solta-titulo">{% trans "Arraste sua planilha aqui" %}</span>
+    <span class="au-ponto-solta-ou">{% trans "ou clique para selecionar" %}</span>
+
+    {% comment %}
+      `.xls` entra no `accept` de propósito, mesmo sem ser lido: sem ele o
+      arquivo aparece CINZA no seletor e a pessoa conclui que a planilha
+      sumiu. Melhor deixar escolher e responder, no servidor, que é preciso
+      salvar como .xlsx — um erro que se lê é melhor que um arquivo invisível.
+    {% endcomment %}
+    <input class="au-ponto-solta-input" id="planilha" name="planilha" type="file"
+           accept=".xlsx,.xls,.csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel,text/csv"
            required>
-    <p class="au-ajuda">
-      {% trans "XLSX ou CSV · até 10 MB. Colunas necessárias: Data, Funcionário, Entrada, Pausa, Retorno e Saída." %}
-    </p>
-    <p class="au-ajuda">
-      {% trans "As colunas CPF e Senha, se existirem no arquivo, são descartadas na leitura e nunca são gravadas." %}
-    </p>
-  </div>
+
+    <span class="au-ponto-solta-arquivo" data-ponto-nome></span>
+    <span class="au-ponto-solta-formatos">{% trans "XLSX ou CSV · até 10 MB" %}</span>
+  </label>
+
+  <p class="au-ajuda">
+    {% trans "Colunas necessárias: Data, Funcionário, Entrada, Pausa, Retorno e Saída. A ordem não importa — elas são reconhecidas pelo nome." %}
+  </p>
+  <p class="au-ajuda">
+    {% trans "As colunas CPF e Senha, se existirem no arquivo, são descartadas na leitura e nunca são gravadas." %}
+  </p>
 
   <div class="au-form-acoes">
     <button class="au-btn au-btn--primario" type="submit">

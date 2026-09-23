@@ -5625,3 +5625,83 @@ tr[data-abre-resumo]:focus-visible {
  * de uma folha inteira. Dentro de uma linha de tabela esse respiro empurra a
  * próxima linha para longe da que ela detalha. */
 .au-territorio-escopo .au-folha-dados { margin-bottom: var(--au-2); }
+
+/* ── Importar planilha de ponto ──────────────────────────────────────
+ *
+ * A zona de arrastar do §8. Tudo em token: `--au-bloco-raio`, `--au-border`,
+ * `--au-accent-600`. Nenhum valor solto, para que o dia/noite e um ajuste de
+ * paleta alcancem esta área junto com o resto.
+ *
+ * `border-style: dashed` é o que diz "solte aqui" antes de qualquer texto:
+ * borda tracejada é a convenção de alvo de arquivo desde sempre, e contorno
+ * cheio leria como cartão. */
+.au-ponto-solta {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--au-2);
+  padding: var(--au-8) var(--au-5);
+  border: 2px dashed var(--au-border-strong);
+  border-radius: var(--au-bloco-raio);
+  background: var(--au-surface-sunken);
+  cursor: pointer;
+  text-align: center;
+  transition: border-color .15s, background .15s;
+}
+
+.au-ponto-solta:hover,
+.au-ponto-solta:focus-within {
+  border-color: var(--au-accent-600);
+  background: var(--au-surface);
+}
+
+/* O realce enquanto o arquivo paira. Classe e não `:hover`: arrastar não
+   dispara hover em todo navegador. */
+.au-ponto-solta--ativa {
+  border-color: var(--au-accent-600);
+  border-style: solid;
+  background: var(--au-surface);
+}
+
+/* `:focus-within` acima devolve o anel de foco ao teclado: o input está
+   escondido, e sem isso quem navega por Tab não vê onde está. */
+.au-ponto-solta .au-icon {
+  width: 28px;
+  height: 28px;
+  color: var(--au-text-muted);
+}
+
+.au-ponto-solta-titulo {
+  font-weight: 600;
+  color: var(--au-text);
+}
+
+.au-ponto-solta-ou,
+.au-ponto-solta-formatos {
+  font-size: var(--au-t-sm);
+  color: var(--au-text-muted);
+}
+
+/* O input some da vista, não da acessibilidade: continua focável e continua
+   sendo o alvo do `<label>`. `display:none` o tiraria da ordem de tabulação. */
+.au-ponto-solta-input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+.au-ponto-solta-arquivo:not(:empty) {
+  margin-top: var(--au-2);
+  padding: var(--au-1) var(--au-3);
+  border-radius: var(--au-r-sm);
+  background: var(--au-surface-sunken);
+  font-family: var(--au-mono);
+  font-size: var(--au-t-sm);
+  color: var(--au-text);
+}

@@ -212,7 +212,13 @@ def test_um_colaborador_com_cinco_linhas_vira_uma_mensagem():
 
 
 def test_pessoas_diferentes_viram_grupos_diferentes():
-    linhas = [linha(Funcionário="JOAO SILVA"), linha(Funcionário="MARIA LIMA")]
+    # Códigos distintos porque pessoas distintas TÊM matrículas distintas. A
+    # versão anterior deste teste dava o mesmo `Código` a dois nomes, e passava
+    # só enquanto a chave era o nome.
+    linhas = [
+        linha(Código="1001", Funcionário="JOAO SILVA"),
+        linha(Código="2002", Funcionário="MARIA LIMA"),
+    ]
     assert len(ponto.agrupar(ponto.ler_planilha(planilha(linhas), "a.xlsx"))) == 2
 
 
@@ -301,3 +307,50 @@ def test_a_planilha_de_verdade_e_processada_inteira():
     assert len(colaboradores) == 57
     assert sum(len(c.pendencias) for c in colaboradores) == 94
     assert all(c.tem_telefone for c in colaboradores)
+
+
+# ── A chave do agrupamento — §11 ────────────────────────────────────
+
+
+def test_pessoas_diferentes_com_o_mesmo_nome_nao_se_misturam():
+    """O `Código` separa homônimos. Com o nome como chave, o segundo JOSE
+    nunca recebia mensagem e o primeiro recebia dias que não eram dele."""
+    linhas = [
+        linha(Código="1001", Funcionário="JOSE DA SILVA", Data="15/09/2026",
+              Entrada="", Telefone="(019) 98111-1111"),
+        linha(Código="2002", Funcionário="JOSE DA SILVA", Data="16/09/2026",
+              Entrada="", Telefone="(019) 98222-2222"),
+    ]
+    colaboradores = ponto.agrupar(ponto.ler_planilha(planilha(linhas), "a.xlsx"))
+
+    assert len(colaboradores) == 2
+    assert {c.codigo for c in colaboradores} == {"1001", "2002"}
+    assert {c.telefone_normalizado for c in colaboradores} == {
+        "5519981111111", "5519982222222",
+    }
+
+
+def test_a_mesma_pessoa_com_grafias_diferentes_do_nome_continua_uma_so():
+    """O outro lado: o `Código` é o que sobrevive a um nome redigitado."""
+    linhas = [
+        linha(Código="1511", Funcionário="MARIA DE TESTE", Data="14/09/2026", Entrada=""),
+        linha(Código="1511", Funcionário="Maria  de Teste", Data="16/09/2026", Entrada=""),
+    ]
+    colaboradores = ponto.agrupar(ponto.ler_planilha(planilha(linhas), "a.xlsx"))
+
+    assert len(colaboradores) == 1
+    assert len(colaboradores[0].pendencias) == 2
+
+
+def test_sem_coluna_de_codigo_o_nome_ainda_agrupa():
+    """Uma competência sem a coluna não pode deixar de agrupar."""
+    cabecalho = ["Data", "Funcionário", "Entrada", "Pausa", "Retorno", "Saída", "Telefone"]
+    linhas = [
+        linha(Data="14/09/2026", Entrada=""),
+        linha(Data="16/09/2026", Entrada=""),
+    ]
+    colaboradores = ponto.agrupar(
+        ponto.ler_planilha(planilha(linhas, cabecalho=cabecalho), "a.xlsx")
+    )
+    assert len(colaboradores) == 1
+    assert len(colaboradores[0].pendencias) == 2
