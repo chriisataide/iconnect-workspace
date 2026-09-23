@@ -210,8 +210,13 @@ def despachar(lote: LotePonto, envios: list[EnvioPonto]) -> Resultado:
     """
     url = (settings.PONTO_N8N_WEBHOOK_URL or "").strip()
     if not url:
+        # Marca ANTES de levantar. Sem isto os envios ficavam em `pendente`
+        # para sempre num lote fechado como "concluído com erros" — a tela
+        # dizia que terminou e a linha de cada pessoa dizia que ainda ia sair.
+        _marcar_falha(envios, "integração não configurada")
         raise FalhaDeIntegracao(
-            "A integração não está configurada. Defina N8N_PONTO_WEBHOOK_URL no ambiente."
+            "A integração com o n8n não está configurada neste servidor. "
+            "Defina N8N_PONTO_WEBHOOK_URL no ambiente e reinicie."
         )
 
     payload = montar_payload(lote, envios)

@@ -26,6 +26,12 @@
   if (!painel) return;
 
   var url = painel.getAttribute('data-ponto-progresso');
+  if (!url) return;
+
+  /* O estado no momento em que a pagina abriu. Se ja estava pronto, nao ha
+     transicao para observar e nao ha por que recarregar. */
+  var jaTerminou = painel.getAttribute('data-ponto-terminou') === '1';
+
   var INTERVALO = 3000;
   var MAXIMO = 200;          // ~10 minutos, e então desiste em vez de insistir
   var tentativas = 0;
@@ -53,11 +59,13 @@
       .then(function (estado) {
         aplicar(estado);
         if (estado.terminou) {
-          /* Terminou enquanto a pessoa olhava: recarrega uma vez para que o
-             resto da tela — etapa, painel, botões — acompanhe o novo estado.
-             Atualizar tudo por JavaScript seria manter uma segunda cópia da
-             lógica que o template já tem. */
-          window.location.reload();
+          /* Recarrega UMA vez, e so se o lote terminou enquanto a pessoa
+             olhava. Sem o `jaTerminou`, abrir um lote ja concluido entrava em
+             recarga infinita: perguntar, ver `terminou`, recarregar, repetir.
+             O template tambem nao emite mais o gancho nesse caso; as duas
+             guardas existem porque uma recarga em laco apaga o que a pessoa
+             esta digitando, e isso nao pode depender de um `if` so. */
+          if (!jaTerminou) window.location.reload();
           return;
         }
         window.setTimeout(perguntar, INTERVALO);

@@ -307,7 +307,16 @@
 
   {# ── Resultado — §27 ─────────────────────────────────────────── #}
   {% if progresso.total %}
-    <section class="au-secao" data-ponto-progresso="{% url 'workspace:ponto_progresso' lote.pk %}">
+    {% comment %}
+      O gancho de polling SO existe enquanto ha o que acompanhar. Emiti-lo num
+      lote ja concluido fazia o script perguntar, receber `terminou: true` e
+      recarregar — e a pagina recarregada emitia o gancho de novo. Recarga
+      infinita a cada tres segundos, apagando o que a pessoa estivesse
+      digitando no campo do telefone de teste.
+    {% endcomment %}
+    <section class="au-secao"
+             data-ponto-terminou="{% if progresso.terminou %}1{% else %}0{% endif %}"
+             {% if not progresso.terminou %}data-ponto-progresso="{% url 'workspace:ponto_progresso' lote.pk %}"{% endif %}>
       <div class="au-secao-cabeca">
         <h2 class="au-secao-titulo">
           {% if progresso.terminou %}{% trans "Envio concluído" %}

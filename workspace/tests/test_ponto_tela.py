@@ -344,3 +344,75 @@ def test_progresso_responde_json(client, rh):
 
     assert resposta.status_code == 200
     assert resposta.json()["total"] == 0
+
+
+# ── A recarga em laço ───────────────────────────────────────────────
+
+
+def _lote_concluido(rh):
+    """Um lote que já terminou, com envios registrados."""
+    lote = LotePonto.objects.create(
+        arquivo_nome="a.xlsx",
+        quem_importou=rh,
+        situacao=SituacaoLote.CONCLUIDO_COM_ERROS,
+        telefone_teste="11955550001",
+    )
+    colaborador = ColaboradorPonto.objects.create(
+        lote=lote, nome="João", telefone_normalizado="5519995550001", selecionado=True
+    )
+    EnvioPonto.objects.create(
+        lote=lote, colaborador=colaborador, modo=ModoEnvio.TESTE,
+        destino="5511955550001", situacao="erro", erro="falhou",
+    )
+    return lote
+
+
+def test_lote_concluido_nao_pede_polling(client, rh):
+    """A recarga infinita: o gancho num lote pronto fazia o script perguntar,
+    ver `terminou`, recarregar — e a página recarregada pedia de novo. A cada
+    três segundos, apagando o que a pessoa digitava no telefone de teste."""
+    lote = _lote_concluido(rh)
+    client.force_login(rh)
+
+    with liberar(rh, lot.PERM_LER):
+        resposta = client.get(f"{reverse('workspace:pendencias_ponto')}?lote={lote.pk}")
+
+    corpo = resposta.content.decode()
+    assert "data-ponto-progresso" not in corpo, "lote pronto não pode pedir polling"
+    assert 'data-ponto-terminou="1"' in corpo, "e o JS precisa saber que já estava pronto"
+
+
+def test_lote_em_andamento_pede_polling(client, rh):
+    """O outro lado: enquanto roda, a tela precisa acompanhar."""
+    lote = _lote_concluido(rh)
+    lote.situacao = SituacaoLote.PROCESSANDO
+    lote.save(update_fields=["situacao"])
+    client.force_login(rh)
+
+    with liberar(rh, lot.PERM_LER):
+        corpo = client.get(
+            f"{reverse('workspace:pendencias_ponto')}?lote={lote.pk}"
+        ).content.decode()
+
+    assert "data-ponto-progresso" in corpo
+    assert 'data-ponto-terminou="0"' in corpo
+
+
+def test_sem_webhook_os_envios_nao_ficam_pendentes(client, rh, settings):
+    """O lote fechava como "concluído com erros" e cada linha dizia `pendente`:
+    a tela afirmava que terminou e a pessoa afirmava que ainda ia sair."""
+    settings.PONTO_N8N_WEBHOOK_URL = ""
+    client.force_login(rh)
+
+    with liberar(rh, lot.PERM_LER, lot.PERM_IMPORTAR, lot.PERM_TESTAR):
+        client.post(reverse("workspace:ponto_importar"), {"planilha": arquivo()})
+        lote = LotePonto.objects.get()
+        resposta = client.post(
+            reverse("workspace:ponto_enviar", args=[lote.pk]),
+            {"modo": ModoEnvio.TESTE, "telefone_teste": TELEFONE_TESTE},
+            follow=True,
+        )
+
+    assert b"n8n n\xc3\xa3o est\xc3\xa1 configurada" in resposta.content
+    situacoes = set(EnvioPonto.objects.values_list("situacao", flat=True))
+    assert situacoes == {"erro"}, f"nenhum envio pode ficar pendente: {situacoes}"
