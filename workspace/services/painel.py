@@ -261,16 +261,55 @@ def _quem_sou(pessoa) -> dict:
         .select_related("departamento", "unidade")
         .first()
     )
+    cargo = lotacao.cargo if lotacao else ""
+    area = lotacao.departamento.nome if lotacao and lotacao.departamento else ""
+    unidade = lotacao.unidade.nome if lotacao and lotacao.unidade else ""
+
+    # O PERCENTUAL DE PERFIL COMPLETO SAI DAQUI, e não de um método de `Pessoa`.
+    #
+    # Três dos cinco itens medidos — cargo, área e unidade — moram em
+    # `identidade.Lotacao`, e `Lotacao.user` já aponta para `contas.Pessoa`.
+    # Calcular isso dentro do modelo obrigaria `contas` a importar `identidade`
+    # no sentido contrário ao da dependência que já existe. Aqui não custa nada:
+    # a lotação já foi buscada na linha de cima.
+    #
+    # Nome e e-mail entram na conta mesmo estando sempre preenchidos na prática:
+    # o denominador é "o que um perfil tem", não "o que costuma faltar", e tirar
+    # os dois faria 100% significar apenas "a lotação está cadastrada".
+    itens = [bool(pessoa.nome), bool(pessoa.email), bool(cargo), bool(area),
+             bool(getattr(pessoa, "avatar", None))]
     return {
         "nome": pessoa.get_short_name() or pessoa.get_full_name(),
         "nome_completo": pessoa.get_full_name(),
-        "cargo": lotacao.cargo if lotacao else "",
+        "cargo": cargo,
         # A ÁREA, que é o que a pessoa reconhece como "onde eu trabalho". O
         # código do departamento fica de fora: "OPS" não diz nada para quem não
         # convive com a tabela.
-        "area": lotacao.departamento.nome if lotacao and lotacao.departamento else "",
-        "unidade": lotacao.unidade.nome if lotacao and lotacao.unidade else "",
+        "area": area,
+        "unidade": unidade,
+        "avatar": pessoa.avatar.url if getattr(pessoa, "avatar", None) else "",
+        # As INICIAIS são o que aparece sem foto. Duas letras no máximo: com três
+        # o círculo de 44px vira um bloco de texto, e a terceira inicial não
+        # distingue ninguém que as duas primeiras já não distinguiam.
+        "iniciais": _iniciais(pessoa.get_full_name()),
+        "perfil_completo": round(100 * sum(itens) / len(itens)),
     }
+
+
+def _iniciais(nome: str) -> str:
+    """Primeira letra do primeiro e do último nome.
+
+    Só pedaços que COMEÇAM COM LETRA entram. Sem esse filtro a conta de teste
+    "Diretoria (perfil)" virava "D(" — o último pedaço era "(perfil)" e o
+    parêntese contava como inicial. Vale para qualquer nome com aposto entre
+    parênteses, que é como as contas de papel são nomeadas aqui.
+    """
+    partes = [p for p in nome.replace(".", " ").split() if p and p[0].isalpha()]
+    if not partes:
+        return "?"
+    if len(partes) == 1:
+        return partes[0][:2].upper()
+    return (partes[0][0] + partes[-1][0]).upper()
 
 
 # ── Os cards da home — §50 ──────────────────────────────────────────

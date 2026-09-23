@@ -74,7 +74,7 @@
 <section class="au-secao">
   <div class="au-secao-cabeca">
     <h2 class="au-secao-titulo">{% trans "Todos os documentos" %}</h2>
-    <a class="au-btn au-btn--primario au-btn--pequeno" href="{% url 'workspace:documento_novo' %}">
+    <a class="au-btn au-btn--positivo au-btn--pequeno" href="{% url 'workspace:documento_novo' %}">
       {% trans "Novo documento" %}
     </a>
   </div>
@@ -161,7 +161,7 @@
               </td>
               <td>
                 <div class="au-acoes-linha">
-                  <a class="au-btn au-btn--sutil au-btn--pequeno"
+                  <a class="au-btn au-btn--primario au-btn--pequeno"
                      href="{% url 'workspace:documento_editar' d.slug %}">
                     {% trans "Editar" %}
                   </a>

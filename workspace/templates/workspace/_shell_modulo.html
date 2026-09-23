@@ -1,5 +1,5 @@
 {% extends "workspace/_shell.html" %}
-{% load i18n %}
+{% load i18n static wks %}
 
 {% comment %}
   Casca de módulo: rail de navegação + breadcrumb + área principal.
@@ -16,7 +16,41 @@
 {% block conteudo %}
 <div class="au-modulo">
   <nav class="au-rail" aria-label="{% trans 'Navegação do módulo' %}">
-    {% block rail %}{% endblock %}
+    {% comment %}
+      A MARCA MORA NO TRILHO, e some da topbar enquanto ele existe.
+
+      Nas telas sem trilho — a home, a entrada, o erro 500 — ela continua na
+      topbar, que é onde sempre esteve. Duas posições e não duas cópias: o CSS
+      esconde a da topbar com `body:has(.au-modulo)`, então a marca aparece uma
+      vez só em qualquer tela.
+
+      Duas imagens porque o trilho recolhe para 72px e a assinatura horizontal
+      não cabe em 72px sem virar um borrão. Recolhido, entra o escudo sozinho.
+      O `width`/`height` de cada uma é o do ARQUIVO, para o navegador reservar a
+      caixa antes de a imagem chegar e o trilho não saltar.
+    {% endcomment %}
+    {% comment %}
+      O TOPO NÃO ROLA. A rolagem é da lista, e só dela.
+
+      Antes o `overflow-y` era do `<nav>` inteiro, então a marca subia junto com
+      os itens e sumia: bastava descer no menu para perder a assinatura e o
+      botão de recolher, que é justamente o controle que se procura quando o
+      menu está comprido demais. Agora o `<nav>` é a caixa de altura fixa, o
+      topo é `flex: none` e quem tem `overflow` é `.au-rail-lista`.
+    {% endcomment %}
+    <div class="au-rail-topo">
+      <a class="au-rail-marca" href="{% url 'workspace:home' %}">
+        <img class="au-rail-marca-logo" src="{% static 'workspace/img/adb-wordmark.png' %}"
+             alt="{% marca %}" width="600" height="189">
+        <img class="au-rail-marca-selo" src="{% static 'workspace/img/favicon-aba.png' %}"
+             alt="" aria-hidden="true" width="512" height="512">
+      </a>
+      {# O botão de recolher é injetado aqui pelo JS — ver `workspace.js`. #}
+    </div>
+
+    <div class="au-rail-lista">
+      {% block rail %}{% endblock %}
+    </div>
   </nav>
 
   <div class="au-modulo-corpo">

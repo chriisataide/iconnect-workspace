@@ -15,7 +15,7 @@
 
 {% block corpo %}
 <div class="au-form-linha">
-  <a class="au-btn au-btn--primario" href="{% url 'workspace:publicacao_nova' %}">
+  <a class="au-btn au-btn--positivo" href="{% url 'workspace:publicacao_nova' %}">
     <svg class="au-icon au-icon--mini" aria-hidden="true"><use href="#i-megafone"></use></svg>
     {% trans "Escrever" %}
   </a>
@@ -77,13 +77,13 @@
                       action="{% url 'workspace:publicacao_acao' p.pk %}">
                   {% csrf_token %}
                   {% if p.publicado %}
-                    <button class="au-btn au-btn--sutil au-btn--pequeno" type="submit"
+                    <button class="au-btn au-btn--perigo au-btn--pequeno" type="submit"
                             name="acao" value="despublicar">{% trans "Tirar do ar" %}</button>
                   {% else %}
-                    <button class="au-btn au-btn--primario au-btn--pequeno" type="submit"
+                    <button class="au-btn au-btn--positivo au-btn--pequeno" type="submit"
                             name="acao" value="publicar">{% trans "Publicar" %}</button>
                   {% endif %}
-                  <button class="au-btn au-btn--sutil au-btn--pequeno" type="submit"
+                  <button class="au-btn au-btn--perigo au-btn--pequeno" type="submit"
                           name="acao" value="arquivar">{% trans "Arquivar" %}</button>
                 </form>
               </td>

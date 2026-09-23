@@ -14,16 +14,7 @@
   conteúdo no HTML, e o leitor de tela leria uma navegação que ninguém pode ver.
 {% endcomment %}
 {% block rail %}
-  {% comment %}
-  AS TARJAS vêm ANTES do bloco escondido em apresentação — e é o ponto.
-
-  Antes desta onda, `?apresentacao=1&layer=1` escondia a barra de filtros
-  inteira e mostrava números recortados sem nada dizendo que eram. Numa reunião,
-  projetado.
-{% endcomment %}
-{% include "workspace/resultados/_tarjas.html" %}
-
-{% if not apresentacao %}{% include "workspace/_rail_servicos.html" with aba="resultados" %}{% endif %}
+  {% if not apresentacao %}{% include "workspace/_rail_servicos.html" with aba="resultados" %}{% endif %}
 {% endblock %}
 
 {% block trilha %}<span>{% trans "Resultados" %}</span>{% endblock %}
@@ -56,6 +47,21 @@
 
 {% block corpo %}
 <div class="au-resultados{% if apresentacao %} au-resultados--apresentacao{% endif %}">
+
+{% comment %}
+  AS TARJAS ficam no CORPO, e vêm antes do bloco escondido em apresentação.
+
+  Moradia anterior: `{% templatetag openblock %} block rail {% templatetag closeblock %}`,
+  o que as punha DENTRO do menu lateral — uma frase de período solta em cima da
+  navegação, que lia como erro de layout e que o usuário pediu para tirar de lá.
+  No corpo elas ficam ao lado dos números de que falam.
+
+  Continuam fora do `{% templatetag openblock %} if not apresentacao {% templatetag closeblock %}`
+  de propósito: `?apresentacao=1&layer=1` esconde a barra de filtros inteira, e
+  sem isto a tela mostraria números recortados sem nada dizendo que são. Numa
+  reunião, projetado.
+{% endcomment %}
+{% include "workspace/resultados/_tarjas.html" %}
 
 {% if not apresentacao %}
   {% comment %}

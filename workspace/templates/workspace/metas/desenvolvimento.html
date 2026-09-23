@@ -50,7 +50,7 @@
   <label class="au-rotulo" for="aspiracao_longa">{% trans "Onde quero estar em 3 a 5 anos" %}</label>
   <textarea class="au-input" id="aspiracao_longa" name="aspiracao_longa" rows="2">{{ plano.aspiracao_longa|default:'' }}</textarea>
 
-  <button class="au-btn au-btn--primario" type="submit">{% trans "Salvar plano" %}</button>
+  <button class="au-btn au-btn--positivo" type="submit">{% trans "Salvar plano" %}</button>
 </form>
 {% elif plano %}
   <dl class="au-pdi">
@@ -81,7 +81,7 @@
               <input type="hidden" name="ciclo" value="{{ ciclo.chave }}">
               <input type="hidden" name="acao" value="concluir">
               <input type="hidden" name="item" value="{{ a.pk }}">
-              <button class="au-btn au-btn--sutil au-btn--pequeno" type="submit">{% trans "Concluir" %}</button>
+              <button class="au-btn au-btn--positivo au-btn--pequeno" type="submit">{% trans "Concluir" %}</button>
             </form>
           {% endif %}
         </li>
@@ -103,7 +103,7 @@
       <input class="au-input" type="number" id="mes" name="mes" min="1" max="12" required>
       <label class="au-rotulo" for="ano">{% trans "Ano" %}</label>
       <input class="au-input" type="number" id="ano" name="ano" min="2020" max="2100" required>
-      <button class="au-btn au-btn--primario" type="submit">{% trans "Registrar ação" %}</button>
+      <button class="au-btn au-btn--positivo" type="submit">{% trans "Registrar ação" %}</button>
     </form>
   {% endif %}
 </section>

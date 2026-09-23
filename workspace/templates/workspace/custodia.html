@@ -60,7 +60,7 @@
           </span>
           <form method="post" action="{% url 'workspace:aceitar_custodia' c.pk %}">
             {% csrf_token %}
-            <button class="au-btn au-btn--primario au-btn--pequeno" type="submit">
+            <button class="au-btn au-btn--positivo au-btn--pequeno" type="submit">
               {% trans "Confirmo que recebi" %}
             </button>
           </form>
@@ -174,7 +174,7 @@
                           <option value="{{ valor }}">{{ rotulo }}</option>
                         {% endfor %}
                       </select>
-                      <button class="au-btn au-btn--sutil au-btn--pequeno" type="submit">
+                      <button class="au-btn au-btn--positivo au-btn--pequeno" type="submit">
                         {% trans "Devolveu" %}
                       </button>
                     </form>
@@ -270,7 +270,7 @@
       </div>
 
       <div class="au-form-acoes">
-        <button class="au-btn au-btn--primario" type="submit">
+        <button class="au-btn au-btn--positivo" type="submit">
           {% trans "Entregar e avisar" %}
         </button>
       </div>

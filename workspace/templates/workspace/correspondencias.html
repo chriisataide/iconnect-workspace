@@ -59,7 +59,7 @@
             <form method="post"
                   action="{% url 'workspace:confirmar_correspondencia' c.pk %}">
               {% csrf_token %}
-              <button class="au-btn au-btn--primario au-btn--pequeno" type="submit">
+              <button class="au-btn au-btn--positivo au-btn--pequeno" type="submit">
                 {% trans "Confirmo que recebi" %}
               </button>
             </form>
@@ -147,7 +147,7 @@
                   <option value="{{ p.pk }}">{{ p.get_full_name|default:p.get_username }}</option>
                 {% endfor %}
               </select>
-              <button class="au-btn au-btn--primario au-btn--pequeno" type="submit">
+              <button class="au-btn au-btn--positivo au-btn--pequeno" type="submit">
                 {% trans "Identificar" %}
               </button>
             </form>
@@ -213,7 +213,7 @@
                     <form method="post"
                           action="{% url 'workspace:entregar_correspondencia' c.pk %}">
                       {% csrf_token %}
-                      <button class="au-btn au-btn--sutil au-btn--pequeno" type="submit">
+                      <button class="au-btn au-btn--positivo au-btn--pequeno" type="submit">
                         {% trans "Retirada" %}
                       </button>
                     </form>
@@ -290,7 +290,7 @@
       </div>
 
       <div class="au-form-acoes">
-        <button class="au-btn au-btn--primario" type="submit">
+        <button class="au-btn au-btn--positivo" type="submit">
           {% trans "Registrar e avisar" %}
         </button>
       </div>

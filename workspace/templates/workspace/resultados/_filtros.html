@@ -30,7 +30,7 @@
 <script src="{% static 'workspace/js/resultados-filtros.js' %}" defer></script>
 
 <div class="au-filtro-barra">
-  <button class="au-btn au-btn--sutil" type="button" popovertarget="gaveta-filtros">
+  <button class="au-btn au-btn--primario" type="button" popovertarget="gaveta-filtros">
     {% trans "Filtros" %}
     {% if filtros_ativos %}<span class="au-filtro-barra-conta">{{ filtros_ativos|length }}</span>{% endif %}
   </button>
@@ -54,7 +54,7 @@
       a camada de cima. Sem isto, quem abre pelo teclado continua com o foco na
       página atrás, e o Tab seguinte anda por baixo da gaveta.
     {% endcomment %}
-    <button class="au-btn au-btn--icone au-btn--sutil" type="button" autofocus
+    <button class="au-btn au-btn--sutil au-btn--icone" type="button" autofocus
             popovertarget="gaveta-filtros" popovertargetaction="hide"
             aria-label="{% trans 'Fechar os filtros' %}">
       <svg class="au-icon" aria-hidden="true"><use href="#i-x"></use></svg>

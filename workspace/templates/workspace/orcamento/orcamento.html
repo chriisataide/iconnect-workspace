@@ -21,7 +21,7 @@
       <option value="{{ a }}" {% if a == ano %}selected{% endif %}>{{ a }}</option>
     {% endfor %}
   </select>
-  <button class="au-btn au-btn--sutil" type="submit">{% trans "Ver" %}</button>
+  <button class="au-btn au-btn--fantasma" type="submit">{% trans "Ver" %}</button>
 </form>
 
 {% if linhas %}
@@ -31,9 +31,9 @@
       <thead>
         <tr>
           <th>{% trans "Centro de custo" %}</th>
-          <th>{% trans "Orçado no ano" %}</th>
-          <th>{% trans "Consumido" %}</th>
-          <th>{% trans "Meses estourados" %}</th>
+          <th class="num">{% trans "Orçado no ano" %}</th>
+          <th class="num">{% trans "Consumido" %}</th>
+          <th class="num">{% trans "Meses estourados" %}</th>
         </tr>
       </thead>
       <tbody>
@@ -51,7 +51,7 @@
             {% endcomment %}
             <td class="au-num">{% if l.orcado is not None %}{{ l.orcado|moeda }}{% else %}—{% endif %}</td>
             <td class="au-num">{{ l.consumido|moeda }}</td>
-            <td>
+            <td class="num">
               {% if l.estourados %}
                 <span class="au-estourou">{% blocktrans count n=l.estourados|length %}{{ n }} mês{% plural %}{{ n }} meses{% endblocktrans %}</span>
               {% else %}—{% endif %}

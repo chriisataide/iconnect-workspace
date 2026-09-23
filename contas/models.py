@@ -79,6 +79,26 @@ class Pessoa(AbstractBaseUser, PermissionsMixin):
 
     nome = models.CharField("nome completo", max_length=160, blank=True)
 
+    # A FOTO É OPCIONAL E SEMPRE SERÁ.
+    #
+    # O menu de perfil cai nas iniciais quando não há foto, e isso não é um
+    # estado degradado: conta criada pelo SSO nasce sem imagem, conta de serviço
+    # nunca terá uma, e um menu que só funciona com foto obrigaria a inventar
+    # avatar para robô. As iniciais identificam igual dentro de uma empresa onde
+    # todo mundo já sabe quem é quem.
+    #
+    # `avatares/` dentro de `MEDIA_ROOT` de propósito, ao contrário dos anexos do
+    # Workspace, que moram fora por regra de segurança: anexo é documento de
+    # pedido, com conteúdo que só algumas pessoas podem ver. Foto de perfil é o
+    # oposto — ela existe justamente para ser mostrada a todo mundo que abre uma
+    # tela onde a pessoa aparece, e servi-la direto pelo servidor web é o certo.
+    avatar = models.ImageField(
+        "foto de perfil",
+        upload_to="avatares/",
+        blank=True,
+        help_text="Opcional. Sem foto, o portal usa as iniciais do nome.",
+    )
+
     # ── Vínculo com o diretório corporativo ─────────────────────────
     #
     # `oid` e não e-mail como chave de reconciliação: o e-mail muda quando a

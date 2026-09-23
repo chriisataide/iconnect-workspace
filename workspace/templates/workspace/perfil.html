@@ -1,0 +1,107 @@
+{% extends "workspace/_shell_modulo.html" %}
+{% load i18n %}
+
+{% block titulo %}{% trans "Meu perfil" %}{% endblock %}
+{% block rail %}{% include "workspace/_rail_servicos.html" with aba="perfil" %}{% endblock %}
+{% block trilha %}<span>{% trans "Meu perfil" %}</span>{% endblock %}
+{% block pagina_titulo %}{% trans "Meu perfil" %}{% endblock %}
+{% block voltar_url %}{% url 'workspace:home' %}{% endblock %}
+
+{% block pagina_descricao %}
+  <p class="au-pagina-desc">
+    {% trans "Como você aparece para as outras pessoas no portal." %}
+  </p>
+{% endblock %}
+
+{% block corpo %}
+
+{% comment %}
+  DUAS SEÇÕES, e a divisão é quem manda no dado.
+
+  A primeira é a única coisa que a pessoa controla. A segunda é o que o
+  diretório diz sobre ela, mostrado em vez de escondido: quem vê o próprio cargo
+  errado precisa descobrir na tela que quem corrige é o R.H., senão abre chamado
+  no lugar errado.
+{% endcomment %}
+
+<section class="au-secao">
+  <h2 class="au-secao-titulo">{% trans "Foto" %}</h2>
+
+  <div class="au-perfil-editor">
+    <div class="au-perfil-editor-previa">
+      {% if eu.avatar %}
+        <img class="au-perfil-foto au-perfil-foto--enorme" src="{{ eu.avatar }}"
+             alt="{% trans 'A sua foto de perfil' %}">
+      {% else %}
+        <span class="au-perfil-iniciais au-perfil-iniciais--enorme" aria-hidden="true">{{ eu.iniciais }}</span>
+      {% endif %}
+    </div>
+
+    <div class="au-perfil-editor-corpo">
+      <p class="au-ajuda">
+        {% trans "PNG, JPEG ou WebP, até 2 MB. Sem foto, o portal usa as suas iniciais." %}
+      </p>
+
+      <form method="post" enctype="multipart/form-data" class="au-perfil-editor-form">
+        {% csrf_token %}
+        <label class="au-rotulo" for="avatar">{% trans "Arquivo da foto" %}</label>
+        <input class="au-input" type="file" name="avatar" id="avatar"
+               accept="image/png,image/jpeg,image/webp" required>
+        <button class="au-btn au-btn--positivo" type="submit">
+          {% trans "Salvar foto" %}
+        </button>
+      </form>
+
+      {% if eu.avatar %}
+        <form method="post" class="au-perfil-editor-form">
+          {% csrf_token %}
+          <input type="hidden" name="acao" value="remover">
+          <button class="au-btn au-btn--perigo au-btn--pequeno" type="submit">
+            {% trans "Remover a foto" %}
+          </button>
+        </form>
+      {% endif %}
+    </div>
+  </div>
+</section>
+
+<section class="au-secao">
+  <h2 class="au-secao-titulo">{% trans "Os seus dados" %}</h2>
+
+  <div class="au-tabela">
+    <table>
+      <tbody>
+        <tr>
+          <th scope="row">{% trans "Nome" %}</th>
+          <td>{{ eu.nome_completo }}</td>
+        </tr>
+        <tr>
+          <th scope="row">{% trans "E-mail" %}</th>
+          <td>{{ request.user.email }}</td>
+        </tr>
+        <tr>
+          <th scope="row">{% trans "Cargo" %}</th>
+          <td>{{ eu.cargo|default:"—" }}</td>
+        </tr>
+        <tr>
+          <th scope="row">{% trans "Área" %}</th>
+          <td>{{ eu.area|default:"—" }}</td>
+        </tr>
+        <tr>
+          <th scope="row">{% trans "Unidade" %}</th>
+          <td>{{ eu.unidade|default:"—" }}</td>
+        </tr>
+        <tr>
+          <th scope="row">{% trans "Último acesso" %}</th>
+          <td>{{ request.user.last_login|date:"d/m/Y H:i"|default:"—" }}</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <p class="au-ajuda">
+    {% trans "Nome e e-mail vêm do login corporativo; cargo, área e unidade vêm da sua lotação. Se algo estiver errado, quem corrige é o R.H. — mudar aqui criaria uma segunda versão de quem faz o quê, e é a lotação que decide quem aprova o quê." %}
+  </p>
+</section>
+
+{% endblock %}

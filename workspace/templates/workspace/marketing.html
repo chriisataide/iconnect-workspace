@@ -141,9 +141,9 @@
         </div>
       </div>
       <div class="au-filtro-acoes">
-        <button class="au-btn" type="submit">{% trans "Filtrar" %}</button>
+        <button class="au-btn au-btn--primario" type="submit">{% trans "Filtrar" %}</button>
         {% if editais.filtrando %}
-          <a class="au-btn au-btn--fantasma"
+          <a class="au-btn au-btn--sutil"
              href="{% url 'workspace:marketing' %}{% if situacao_atual %}?situacao={{ situacao_atual }}{% endif %}">{% trans "Limpar" %}</a>
         {% endif %}
       </div>
@@ -348,7 +348,7 @@
                       <input class="au-input au-input--compacto" id="mot-{{ o.pk }}"
                              name="motivo" type="text" maxlength="300"
                              placeholder="{% trans 'por quê?' %}">
-                      <button class="au-btn au-btn--sutil au-btn--pequeno" type="submit">
+                      <button class="au-btn au-btn--positivo au-btn--pequeno" type="submit">
                         {% trans "Registrar" %}
                       </button>
                     </form>
@@ -487,7 +487,7 @@
       </div>
 
       <div class="au-form-acoes">
-        <button class="au-btn au-btn--primario" type="submit">
+        <button class="au-btn au-btn--positivo" type="submit">
           {% trans "Registrar" %}
         </button>
       </div>

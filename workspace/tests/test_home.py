@@ -209,8 +209,13 @@ def test_pagina_carrega_tokens_e_script(client):
 
 @pytest.mark.django_db
 def test_nenhum_script_inline(client):
-    """A CSP de produção não tem `unsafe-inline`. Um `<script>` sem src aqui
-    passa em dev e quebra calado em produção."""
+    """A CSP de produção não tem `unsafe-inline` em `script-src` — mas TEM
+    nonce na mesma diretiva, e navegador moderno ignora `unsafe-inline` quando
+    há nonce (`iconnect_workspace/settings/base.py`, § A CSP). Um `<script>`
+    sem `src` E sem `nonce` passa em dev e quebra calado em produção; um com
+    `nonce` é exatamente o padrão que o produto já usa nos blocos de dado dos
+    gráficos (`workspace/templatetags/graficos.py`) e agora também no script
+    que aplica o tema salvo antes da primeira pintura, na casca."""
     corpo = client.get(reverse("workspace:home")).content.decode()
-    inline = re.findall(r"<script(?![^>]*\ssrc=)[^>]*>", corpo)
-    assert not inline, f"script inline encontrado: {inline}"
+    inline = re.findall(r"<script(?![^>]*\ssrc=)(?![^>]*\snonce=)[^>]*>", corpo)
+    assert not inline, f"script inline sem nonce encontrado: {inline}"

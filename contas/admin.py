@@ -24,7 +24,17 @@ class PessoaAdmin(UserAdmin):
 
     fieldsets = (
         (None, {"fields": ("email", "password")}),
-        ("Pessoa", {"fields": ("nome",)}),
+        (
+            "Pessoa",
+            {
+                "fields": ("nome", "avatar"),
+                "description": (
+                    "A foto é opcional — sem ela o portal mostra as iniciais do "
+                    "nome. É por aqui que se define, porque o portal ainda não "
+                    "tem tela de edição de perfil."
+                ),
+            },
+        ),
         (
             "Diretório corporativo",
             {

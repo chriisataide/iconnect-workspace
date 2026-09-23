@@ -254,19 +254,35 @@ def _css() -> str:
 
 def test_o_trilho_rola_por_conta_propria():
     """`position: sticky` sem altura máxima é uma promessa quebrada: o que
-    passa da borda de baixo não é alcançável por rolagem nenhuma."""
+    passa da borda de baixo não é alcançável por rolagem nenhuma.
+
+    A GARANTIA É A MESMA, repartida em dois blocos. O `overflow` ficava no
+    `.au-rail` inteiro, e por isso a marca e o botão de recolher rolavam junto
+    com os itens e sumiam. Agora `.au-rail` é a caixa com teto e `.au-rail-lista`
+    é quem rola, com o topo parado entre os dois. O que não pode voltar a
+    acontecer é um trilho pregado, mais alto que a tela e sem rolagem própria em
+    lugar nenhum — é isso que este teste protege.
+    """
     import re
 
     css = _css()
-    bloco = re.search(r"(?m)^\.au-rail \{(.*?)\}", css, re.S)
-    assert bloco, "o bloco .au-rail sumiu"
-    corpo = bloco.group(1)
 
-    assert "max-height" in corpo, ".au-rail é sticky e não tem teto de altura"
-    assert "overflow-y: auto" in corpo, ".au-rail não rola sozinho"
+    caixa = re.search(r"(?m)^\.au-rail \{(.*?)\}", css, re.S)
+    assert caixa, "o bloco .au-rail sumiu"
+    assert "max-height" in caixa.group(1), ".au-rail é sticky e não tem teto de altura"
+
+    lista = re.search(r"(?m)^\.au-rail-lista \{(.*?)\}", css, re.S)
+    assert lista, "o bloco .au-rail-lista sumiu — quem rola dentro do trilho"
+    corpo = lista.group(1)
+
+    assert "overflow-y: auto" in corpo, ".au-rail-lista não rola sozinha"
     assert "overscroll-behavior: contain" in corpo, (
         "sem `overscroll-behavior`, chegar ao fim do trilho continua rolando a "
         "página atrás — o gesto 'descer no menu' vira 'descer na tela'"
+    )
+    assert "min-height: 0" in corpo, (
+        "filho flex sem `min-height: 0` se recusa a encolher, e a lista estoura "
+        "o teto do trilho em vez de rolar"
     )
 
 

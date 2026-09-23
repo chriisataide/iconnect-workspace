@@ -24,13 +24,13 @@
   do envio faz a pessoa tentar por adivinhação.
 {% endcomment %}
 <div class="au-faixa au-faixa--dia">
-  <a class="au-btn au-btn--sutil au-btn--pequeno" href="?dia={{ ontem|date:'Y-m-d' }}">
+  <a class="au-btn au-btn--fantasma au-btn--pequeno" href="?dia={{ ontem|date:'Y-m-d' }}">
     ← {{ ontem|date:"d/m" }}
   </a>
   <span class="au-faixa-texto">
     <b>{{ dia|data_extenso }}</b>{% if e_hoje %} · {% trans "hoje" %}{% endif %}
   </span>
-  <a class="au-btn au-btn--sutil au-btn--pequeno" href="?dia={{ amanha|date:'Y-m-d' }}">
+  <a class="au-btn au-btn--fantasma au-btn--pequeno" href="?dia={{ amanha|date:'Y-m-d' }}">
     {{ amanha|date:"d/m" }} →
   </a>
 </div>

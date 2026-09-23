@@ -163,7 +163,7 @@
             <label class="au-sr" for="texto-{{ s.pk }}">{% trans "Comentar" %}</label>
             <textarea class="au-input" id="texto-{{ s.pk }}" name="texto" rows="2"
                       placeholder="{% trans 'Pergunte ou complemente sem devolver o pedido' %}"></textarea>
-            <button class="au-btn au-btn--sutil au-btn--pequeno" type="submit">
+            <button class="au-btn au-btn--positivo au-btn--pequeno" type="submit">
               {% trans "Comentar" %}
             </button>
           </form>
@@ -238,7 +238,7 @@
           <input class="au-input au-input--compacto" type="text" name="motivo" required
                  aria-label="{% trans 'O que continua sem resolver' %}"
                  placeholder="{% trans 'o que continua sem resolver' %}">
-          <button class="au-btn au-btn--sutil au-btn--pequeno" type="submit">
+          <button class="au-btn au-btn--positivo au-btn--pequeno" type="submit">
             {% trans "Reabrir" %}
           </button>
         </form>
@@ -247,11 +247,11 @@
 
     <footer class="au-form-acoes">
       {% if s.adiantamento_id %}
-        <a class="au-btn au-btn--sutil" href="{% url 'workspace:acerto' s.pk %}">
+        <a class="au-btn au-btn--fantasma" href="{% url 'workspace:acerto' s.pk %}">
           {% trans "Ver o acerto" %}
         </a>
       {% endif %}
-      <button class="au-btn au-btn--primario" type="button" data-fecha-modal>
+      <button class="au-btn au-btn--sutil" type="button" data-fecha-modal>
         {% trans "Fechar" %}
       </button>
     </footer>

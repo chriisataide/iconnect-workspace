@@ -108,7 +108,7 @@
                   esperando a mesma van.
                 {% endcomment %}
                 {% if v.reservavel %}
-                  <a class="au-btn au-btn--sutil au-btn--pequeno"
+                  <a class="au-btn au-btn--positivo au-btn--pequeno"
                      href="{% url 'workspace:reservar' v.recurso.codigo %}">
                     {% trans "Reservar" %}
                   </a>
@@ -117,7 +117,7 @@
                 {% endif %}
               </td>
               <td>
-                <a class="au-btn au-btn--sutil au-btn--pequeno" href="?placa={{ v.placa }}">
+                <a class="au-btn au-btn--fantasma au-btn--pequeno" href="?placa={{ v.placa }}">
                   {% trans "Abrir" %}
                 </a>
               </td>
@@ -411,7 +411,7 @@
         </div>
 
         <div class="au-form-acoes">
-          <button class="au-btn au-btn--primario" type="submit">
+          <button class="au-btn au-btn--positivo" type="submit">
             {% trans "Lançar" %}
           </button>
         </div>
@@ -481,7 +481,7 @@
         </div>
 
         <div class="au-form-acoes">
-          <button class="au-btn au-btn--primario" type="submit">
+          <button class="au-btn au-btn--positivo" type="submit">
             {% trans "Salvar" %}
           </button>
         </div>
@@ -560,7 +560,7 @@
       </div>
 
       <div class="au-form-acoes">
-        <button class="au-btn au-btn--primario" type="submit">
+        <button class="au-btn au-btn--positivo" type="submit">
           {% trans "Cadastrar" %}
         </button>
       </div>

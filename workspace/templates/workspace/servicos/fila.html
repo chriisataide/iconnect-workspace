@@ -85,7 +85,7 @@
       <p class="au-vazio-dica">
         {% blocktrans %}A fila continua com trabalho — é este filtro que não encontra nenhum.{% endblocktrans %}
       </p>
-      <p><a class="au-btn au-btn--sutil" href="{% url 'workspace:fila' %}">
+      <p><a class="au-btn au-btn--fantasma" href="{% url 'workspace:fila' %}">
         {% trans "Ver a fila inteira" %}
       </a></p>
     </div>
@@ -112,7 +112,7 @@
           <th>{% trans "Esperando há" %}</th>
           <th class="num">{% trans "Valor" %}</th>
           <th>{% trans "Atendente" %}</th>
-          <th></th>
+          <th class="au-tabela-col-acoes"></th>
         </tr>
       </thead>
       <tbody>
@@ -165,17 +165,17 @@
                 <span class="au-list-meta">{% trans "ninguém ainda" %}</span>
               {% endif %}
             </td>
-            <td>
+            <td class="au-tabela-col-acoes">
               <form method="post" action="{% url 'workspace:atender' s.pk %}"
                     class="au-form-acoes au-form-acoes--linha">
                 {% csrf_token %}
                 {% if not s.atendente %}
-                  <button class="au-btn au-btn--sutil au-btn--pequeno" type="submit"
+                  <button class="au-btn au-btn--positivo au-btn--pequeno" type="submit"
                           name="acao" value="assumir">
                     {% trans "Assumir" %}
                   </button>
                 {% endif %}
-                <button class="au-btn au-btn--primario au-btn--pequeno" type="submit"
+                <button class="au-btn au-btn--positivo au-btn--pequeno" type="submit"
                         name="acao" value="concluir">
                   {% trans "Concluir" %}
                 </button>
@@ -197,7 +197,7 @@
                 <input class="au-input au-input--compacto" id="motivo-{{ s.pk }}"
                        type="text" name="motivo"
                        placeholder="{% trans 'motivo, para devolver' %}">
-                <button class="au-btn au-btn--sutil au-btn--pequeno" type="submit"
+                <button class="au-btn au-btn--cautela au-btn--pequeno" type="submit"
                         name="acao" value="devolver">
                   {% trans "Devolver" %}
                 </button>
@@ -215,7 +215,7 @@
                 contrato cobre isso" não é assunto de quem pediu.
               {% endcomment %}
               <details class="au-devolver">
-                <summary class="au-btn au-btn--sutil au-btn--pequeno">
+                <summary class="au-btn au-btn--positivo au-btn--pequeno">
                   {% trans "Comentar" %}
                   {% if s.comentarios.all %}
                     <span class="au-selo">{{ s.comentarios.all|length }}</span>
@@ -248,7 +248,7 @@
                       <input class="au-check" id="int-{{ s.pk }}" name="interno" type="checkbox">
                       {% trans "Só a área vê" %}
                     </label>
-                    <button class="au-btn au-btn--sutil au-btn--pequeno" type="submit"
+                    <button class="au-btn au-btn--positivo au-btn--pequeno" type="submit"
                             name="acao" value="comentar">
                       {% trans "Comentar" %}
                     </button>

@@ -82,7 +82,7 @@
       impedimento — é ele o registro.
     {% endcomment %}
     {% if impedimentos %}<input type="hidden" name="confirmar" value="1">{% endif %}
-    <button class="au-btn au-btn--primario" type="submit">
+    <button class="au-btn au-btn--positivo" type="submit">
       {% if impedimentos %}
         {% blocktrans count n=impedimentos|length %}Abrir mesmo assim ({{ n }} fonte com atraso){% plural %}Abrir mesmo assim ({{ n }} fontes com atraso){% endblocktrans %}
       {% else %}
@@ -112,13 +112,13 @@
 
     <nav class="au-passo-navegacao" aria-label="{% trans 'Navegação da pauta' %}">
       {% if anterior %}
-        <a class="au-btn au-btn--sutil"
+        <a class="au-btn au-btn--fantasma"
            href="?etapa={{ anterior.codigo }}{% if apresentacao %}&amp;apresentacao=1{% endif %}">
           {{ anterior.codigo }} ←
         </a>
       {% endif %}
       {% if proximo %}
-        <a class="au-btn au-btn--sutil"
+        <a class="au-btn au-btn--fantasma"
            href="?etapa={{ proximo.codigo }}{% if apresentacao %}&amp;apresentacao=1{% endif %}">
           → {{ proximo.codigo }}
         </a>
@@ -175,7 +175,7 @@
         <label class="au-rotulo" for="prazo">{% trans "Prazo do encaminhamento (opcional)" %}</label>
         <input class="au-input" type="date" id="prazo" name="prazo">
 
-        <button class="au-btn au-btn--primario" type="submit">{% trans "Anotar" %}</button>
+        <button class="au-btn au-btn--positivo" type="submit">{% trans "Anotar" %}</button>
       </form>
     {% endif %}
   </section>
@@ -216,7 +216,7 @@
   <form class="au-ciclo-fechar" method="post"
         action="{% url 'workspace:fechar_ciclo' chave=ciclo.chave ano=ano mes=mes %}">
     {% csrf_token %}
-    <button class="au-btn au-btn--primario" type="submit">
+    <button class="au-btn au-btn--positivo" type="submit">
       {% trans "Fechar a reunião e gerar a ATA" %}
     </button>
     <p class="au-ciclo-aviso">

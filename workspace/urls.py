@@ -115,6 +115,10 @@ urlpatterns = [
     path("campo/", views.campo, name="campo"),
     # Meu dia e notificações.
     path("meu-dia/", views.meu_dia, name="meu_dia"),
+    # A própria conta. Só a foto se edita aqui — cargo, área e unidade vêm da
+    # lotação, e uma segunda verdade sobre quem faz o quê é o que a bandeja de
+    # aprovação consulta para decidir quem aprova.
+    path("perfil/", views.perfil, name="perfil"),
     path("indicadores/", views.indicadores, name="indicadores"),
     # A Apresentação de Resultados (10) e a tela irmã de fontes (99).
     #

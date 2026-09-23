@@ -53,7 +53,7 @@
             ignorar botão.
           {% endcomment %}
           {% if d.pode_responder %}
-            <a class="au-btn au-btn--sutil au-btn--pequeno"
+            <a class="au-btn au-btn--positivo au-btn--pequeno"
                href="{% url 'workspace:plano_novo' %}?regra={{ d.regra.chave }}&amp;ocorrencia={{ d.chave|urlencode }}">
               {% trans "Responder" %}
             </a>

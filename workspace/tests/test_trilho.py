@@ -44,10 +44,18 @@ def _abertos(corpo: str) -> list[str]:
     # o JS que lembra os grupos abertos, e uma regex que exigia os dois grudados
     # passou a devolver lista vazia — ou seja, o teste reprovava por causa de si
     # mesmo, e não do trilho.
+    #
+    # O nome agora vem de `.au-rail-grupo-nome` e não do texto solto do
+    # `<summary>`: o rótulo ganhou um ícone ao lado — é por ele que se reconhece
+    # o grupo com o trilho recolhido —, e `([^<]*)` depois do `<summary>` passou
+    # a capturar a string vazia antes do `<svg>`. Mesmo defeito de antes, outra
+    # causa: a regex descrevia a marcação em vez do dado.
     return re.findall(
         r'<details class="au-rail-secao"[^>]*?\bopen\b[^>]*>'
-        r'\s*<summary class="au-rail-grupo">([^<]*)<',
+        r'\s*<summary class="au-rail-grupo">.*?'
+        r'<span class="au-rail-grupo-nome">([^<]*)</span>',
         corpo,
+        re.S,
     )
 
 
@@ -181,7 +189,9 @@ def test_acompanhar_virou_dois_grupos(client, diretor):
     client.force_login(diretor)
 
     corpo = _trilho(client, "/workspace/meu-dia/")
-    grupos = re.findall(r'au-rail-grupo">([^<]*)</summary>', corpo)
+    # O nome do grupo mora em `.au-rail-grupo-nome` desde que o rótulo ganhou
+    # ícone ao lado — ver a nota em `_abertos()`.
+    grupos = re.findall(r'<span class="au-rail-grupo-nome">([^<]*)</span>', corpo)
 
     assert "Acompanhar" not in grupos
     assert "Resultados da empresa" in grupos

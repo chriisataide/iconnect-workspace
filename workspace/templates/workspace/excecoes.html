@@ -115,7 +115,7 @@
             {% endcomment %}
             <form method="post" action="{% url 'workspace:notificar_excecao' a.regra.chave %}">
               {% csrf_token %}
-              <button class="au-btn au-btn--sutil" type="submit">
+              <button class="au-btn au-btn--primario" type="submit">
                 {% trans "Avisar quem responde" %}
               </button>
             </form>

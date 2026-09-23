@@ -67,7 +67,7 @@
                 {% if retorno_concentracao %}<input type="hidden" name="retorno" value="{{ retorno_concentracao }}">{% endif %}
                 <label class="au-sr" for="passo-{{ foco.pk }}">{% trans "Próximo passo" %}</label>
                 <input class="au-input" id="passo-{{ foco.pk }}" name="proximo_passo" value="{{ foco.proximo_passo }}" maxlength="500" required>
-                <button class="au-btn" type="submit">{% trans "Salvar" %}</button>
+                <button class="au-btn au-btn--positivo" type="submit">{% trans "Salvar" %}</button>
               </form>
             </details>
             {% comment %}
@@ -83,7 +83,7 @@
               <input class="au-input au-input--compacto" id="resultado-{{ foco.pk }}"
                      name="resultado" type="text" maxlength="500"
                      placeholder="{% trans 'O que aconteceu?' %}">
-              <button class="au-btn au-btn--fantasma" type="submit">{% trans "Encerrar" %}</button>
+              <button class="au-btn au-btn--perigo" type="submit">{% trans "Encerrar" %}</button>
             </form>
           {% endif %}
         </li>
@@ -174,8 +174,8 @@
           <input class="au-input" id="c-passo" name="proximo_passo" maxlength="500" placeholder="{% trans 'Qual será a próxima ação concreta?' %}">
         </div>
         <div class="au-form-acoes">
-          <button class="au-btn" type="submit">{% trans "Marcar" %}</button>
-          <button class="au-btn au-btn--fantasma" type="reset">{% trans "Limpar formulário" %}</button>
+          <button class="au-btn au-btn--positivo" type="submit">{% trans "Marcar" %}</button>
+          <button class="au-btn au-btn--sutil" type="reset">{% trans "Limpar formulário" %}</button>
         </div>
       </form>
     </details>

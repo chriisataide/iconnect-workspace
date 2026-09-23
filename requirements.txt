@@ -45,3 +45,9 @@ gunicorn==26.0.0
 # sobre por que não é weasyprint.
 reportlab==5.0.0
 openpyxl==3.1.5
+
+# Foto de perfil. `ImageField` do Django não funciona sem Pillow — ele valida
+# que o arquivo é mesmo uma imagem na hora de salvar, e sem a biblioteca o campo
+# nem passa no `check`. Também é o que os testes de ícone usam para conferir que
+# o favicon é quadrado e que o apple-touch não tem transparência.
+Pillow==12.3.0

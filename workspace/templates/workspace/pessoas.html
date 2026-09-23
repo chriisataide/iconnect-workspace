@@ -183,7 +183,7 @@
     </div>
 
     <div class="au-form-acoes">
-      <button class="au-btn au-btn--primario" type="submit">{% trans "Salvar centro de custo" %}</button>
+      <button class="au-btn au-btn--positivo" type="submit">{% trans "Salvar centro de custo" %}</button>
     </div>
   </form>
 </section>
@@ -247,7 +247,7 @@
     </div>
 
     <div class="au-form-acoes">
-      <button class="au-btn au-btn--primario" type="submit">{% trans "Conceder" %}</button>
+      <button class="au-btn au-btn--positivo" type="submit">{% trans "Conceder" %}</button>
     </div>
   </form>
 </section>
@@ -324,7 +324,7 @@
                          name="centro_custo_codigo" type="text" maxlength="20"
                          value="{{ linha.lotacao.centro_custo_codigo }}">
                 {% endif %}
-                <button class="au-btn au-btn--sutil au-btn--pequeno" type="submit">
+                <button class="au-btn au-btn--positivo au-btn--pequeno" type="submit">
                   {% trans "Salvar" %}
                 </button>
               </form>
@@ -347,7 +347,7 @@
                     {% endif %}
                   </span>
                   {% if not atribuicao.vigencia_fim %}
-                    <button class="au-btn au-btn--sutil au-btn--pequeno" type="submit">
+                    <button class="au-btn au-btn--perigo au-btn--pequeno" type="submit">
                       {% trans "Encerrar" %}
                     </button>
                   {% endif %}

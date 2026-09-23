@@ -25,7 +25,7 @@
         <option value="{{ c.chave }}" {% if c.pk == ciclo.pk %}selected{% endif %}>{{ c.nome }}</option>
       {% endfor %}
     </select>
-    <button class="au-btn au-btn--sutil" type="submit">{% trans "Ver" %}</button>
+    <button class="au-btn au-btn--fantasma" type="submit">{% trans "Ver" %}</button>
   </form>
 {% endif %}
 
@@ -46,7 +46,7 @@
     <form method="post" action="{% url 'workspace:abrir_quadro' pessoa_id=alvo.pk %}">
       {% csrf_token %}
       <input type="hidden" name="ciclo" value="{{ ciclo.chave }}">
-      <button class="au-btn au-btn--primario" type="submit">{% trans "Abrir quadro em rascunho" %}</button>
+      <button class="au-btn au-btn--positivo" type="submit">{% trans "Abrir quadro em rascunho" %}</button>
     </form>
   {% endif %}
 
@@ -131,7 +131,7 @@
 
             {% if pode_definir %}
               <p class="au-meta-acoes">
-                <a class="au-btn au-btn--sutil au-btn--pequeno"
+                <a class="au-btn au-btn--primario au-btn--pequeno"
                    href="{% url 'workspace:meta_editar' quadro_id=quadro.pk %}?meta={{ m.pk }}">
                   {% trans "Editar" %}
                 </a>
@@ -148,7 +148,7 @@
 
     {% if pode_definir %}
       <p class="au-meta-acoes">
-        <a class="au-btn au-btn--primario"
+        <a class="au-btn au-btn--positivo"
            href="{% url 'workspace:meta_editar' quadro_id=quadro.pk %}">
           {% trans "Escrever meta" %}
         </a>
@@ -186,14 +186,14 @@
         <form method="post" action="{% url 'workspace:quadro_acao' quadro_id=quadro.pk %}">
           {% csrf_token %}
           <input type="hidden" name="acao" value="aprovar">
-          <button class="au-btn au-btn--primario" type="submit">{% trans "Aprovar o quadro" %}</button>
+          <button class="au-btn au-btn--positivo" type="submit">{% trans "Aprovar o quadro" %}</button>
           <p class="au-ajuda">{% trans "Depois de aprovado, o quadro não muda mais." %}</p>
         </form>
       {% elif quadro.situacao == "aprovado" %}
         <form method="post" action="{% url 'workspace:quadro_acao' quadro_id=quadro.pk %}">
           {% csrf_token %}
           <input type="hidden" name="acao" value="apurar">
-          <button class="au-btn au-btn--primario" type="submit">{% trans "Apurar o ciclo" %}</button>
+          <button class="au-btn au-btn--positivo" type="submit">{% trans "Apurar o ciclo" %}</button>
           <p class="au-ajuda">{% trans "A apuração lê o espelho e congela o realizado, com o carimbo da fonte." %}</p>
         </form>
         <form method="post" action="{% url 'workspace:quadro_acao' quadro_id=quadro.pk %}">
@@ -201,14 +201,14 @@
           <input type="hidden" name="acao" value="reabrir">
           <label class="au-rotulo" for="motivo">{% trans "Motivo para reabrir" %}</label>
           <input class="au-input" type="text" id="motivo" name="motivo" maxlength="300" required>
-          <button class="au-btn au-btn--sutil" type="submit">{% trans "Reabrir" %}</button>
+          <button class="au-btn au-btn--positivo" type="submit">{% trans "Reabrir" %}</button>
         </form>
       {% endif %}
     </section>
   {% endif %}
 
   <p class="au-meta-acoes">
-    <a class="au-btn au-btn--sutil"
+    <a class="au-btn au-btn--fantasma"
        href="{% if sou_eu %}{% url 'workspace:desenvolvimento' %}{% else %}{% url 'workspace:desenvolvimento_de' pessoa_id=alvo.pk %}{% endif %}?ciclo={{ ciclo.chave }}">
       {% trans "Plano de desenvolvimento" %}
     </a>

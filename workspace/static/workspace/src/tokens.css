@@ -58,8 +58,15 @@
      sobre roxo. */
   --au-sobre-acento:#ffffff;
 
-  --au-marca:#ed3a5b;
-  --au-marca-bg:rgb(237 58 91 / .10);
+  /* O ORNAMENTO DE MARCA APONTA PARA O BORDÔ.
+     Era o crimson #ed3a5b do logo. A paleta do produto passou a viver entre o
+     navy e o bordô, e o crimson é vivo demais para esse intervalo — além de
+     ficar a 4,3:1 do vermelho de erro, perto o bastante para confundir.
+     Alias e não valor novo: os dois usos vivos (a faixa do ladrilho e a arte da
+     tela de entrada) seguem lendo `--au-marca`, e trocar a assinatura da marca
+     volta a ser a edição de uma linha. */
+  --au-marca:var(--au-bordo);
+  --au-marca-bg:var(--au-bordo-bg);
 
   /* ── Superfície e texto ────────────────────────────────────── */
   --au-bg:              var(--au-brand-50);
@@ -146,10 +153,32 @@
    * de página, cartão ou linha de tabela seguem chapados. */
   --au-grad-marca:    linear-gradient(135deg, var(--au-accent-700), var(--au-accent-800));
   --au-grad-acao:     linear-gradient(135deg, var(--au-accent-600), var(--au-accent-700));
-  --au-grad-success:  linear-gradient(135deg, #059669, #047857);
+  /* O verde começa no 700 e não no 600: branco sobre `#059669` mede 3,77:1 e
+     reprova AA. Enquanto o positivo era só o "Aprovar" de uma confirmação, o
+     erro passava; ele agora carrega todo "Salvar" do sistema. Sobre `#047857`
+     são 5,48:1 e sobre `#065f46`, 7,68:1. */
+  --au-grad-success:  linear-gradient(135deg, #047857, #065f46);
   --au-grad-warning:  linear-gradient(135deg, #d97706, #b45309);
   --au-grad-danger:   linear-gradient(135deg, #dc2626, #b91c1c);
   --au-grad-neutral:  linear-gradient(135deg, var(--au-brand-500), var(--au-brand-600));
+
+  /* O VERMELHO DE EXCLUIR TERMINA NO BORDÔ — e agora é DESSATURADO.
+     Exceção deliberada à regra "base→escuro da mesma família", e a única. O
+     pedido foi que destruir fosse "vermelho bordô"; o bordô puro não serve
+     porque está a 2,07:1 do `--au-danger` e um "Excluir" nele seria
+     indistinguível de um aviso de erro. Começar no vermelho de perigo e
+     terminar no bordô resolve os dois: lê vermelho à primeira vista e assina a
+     marca no fim do gradiente.
+
+     Valores próprios e não mais `var(--au-danger)`/`var(--au-bordo-700))`: a
+     primeira versão usava o vermelho de ERRO puro, e numa tela com vários
+     "Encerrar" em fila — papéis de uma pessoa, por exemplo — a fileira de
+     vermelho vivo lia como uma sequência de alarmes, não de botões. A mesma
+     matiz em ~65% de saturação (mesma luminosidade, cor mais discreta) lê como
+     "isto encerra algo" sem gritar "isto está errado". Medido: branco mede
+     5,12:1 na ponta clara — ainda folgado sobre o piso AA de 4,5:1 — e 10,03:1
+     na escura. */
+  --au-grad-perigo:   linear-gradient(135deg, #bc4646, #6e2e2e);
 
   /* ── Bordô: o segundo tom da marca ─────────────────────────────
    *
@@ -262,7 +291,11 @@
        tem de inverter junto, senão o botão fica navy escuro com texto escuro em
        cima. Mesma direção, mesma família — só o par muda de ponta. */
     --au-grad-acao:       linear-gradient(135deg, var(--au-accent-300), var(--au-accent-400));
-    --au-grad-marca:      linear-gradient(135deg, var(--au-accent-400), var(--au-accent-500));
+    /* 500→600 e não 400→500: o item ativo do trilho leva texto BRANCO sobre este
+       gradiente, e branco sobre o accent-400 mede 3,99:1 — reprova AA. Sobre o
+       500 são 6,70:1 e sobre o 600, 9,09:1. O bloco continua bem mais claro que
+       o fundo #0b1220, então nada se perde em destaque. */
+    --au-grad-marca:      linear-gradient(135deg, var(--au-accent-500), var(--au-accent-600));
     /* O bordô troca de ponta: o 700 dá 1,87:1 aqui e some. */
     --au-bordo:           var(--au-bordo-400);
     --au-bordo-bg:        rgb(209 95 95 / .14);
@@ -304,7 +337,11 @@
      tem de inverter junto, senão o botão fica navy escuro com texto escuro em
      cima. Mesma direção, mesma família — só o par muda de ponta. */
   --au-grad-acao:       linear-gradient(135deg, var(--au-accent-300), var(--au-accent-400));
-  --au-grad-marca:      linear-gradient(135deg, var(--au-accent-400), var(--au-accent-500));
+  /* 500→600 e não 400→500: o item ativo do trilho leva texto BRANCO sobre este
+     gradiente, e branco sobre o accent-400 mede 3,99:1 — reprova AA. Sobre o
+     500 são 6,70:1 e sobre o 600, 9,09:1. O bloco continua bem mais claro que
+     o fundo #0b1220, então nada se perde em destaque. */
+  --au-grad-marca:      linear-gradient(135deg, var(--au-accent-500), var(--au-accent-600));
   /* O bordô troca de ponta: o 700 dá 1,87:1 aqui e some. */
   --au-bordo:           var(--au-bordo-400);
   --au-bordo-bg:        rgb(209 95 95 / .14);

@@ -144,7 +144,7 @@
           <a class="au-btn au-btn--sutil" href="{% url 'workspace:minhas_solicitacoes' %}">
             {% trans "Depois" %}
           </a>
-          <button class="au-btn au-btn--primario" type="submit">
+          <button class="au-btn au-btn--positivo" type="submit">
             {% if conta.devolver %}{% trans "Registrar devolução" %}
             {% elif conta.receber %}{% trans "Enviar dados e fechar" %}
             {% else %}{% trans "Confirmar" %}{% endif %}

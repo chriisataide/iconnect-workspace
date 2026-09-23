@@ -29,7 +29,7 @@
     {% endcomment %}
     <form class="au-form-linha" method="post" action="{% url 'workspace:marcar_lidas' %}">
       {% csrf_token %}
-      <button class="au-btn au-btn--sutil au-btn--pequeno" type="submit">
+      <button class="au-btn au-btn--fantasma au-btn--pequeno" type="submit">
         <svg class="au-icon au-icon--mini" aria-hidden="true"><use href="#i-check"></use></svg>
         {% trans "Marcar todas como lidas" %}
       </button>

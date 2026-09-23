@@ -12,6 +12,7 @@ Os três que mais protegem esta onda:
 
 from __future__ import annotations
 
+import re
 from datetime import timedelta
 
 import pytest
@@ -280,15 +281,27 @@ def test_papel_sem_dono_aparece_como_ninguem_e_nao_em_branco(regras):
 def test_a_grade_nao_traz_documento_nem_e_mail(client, regras):
     """Quem abre a tela tem o PAPEL da regra, e não o direito de ver dado
     pessoal de terceiro. Grade com CPF é o que a leitura do benchmark marcou
-    como não copiar."""
+    como não copiar.
+
+    A asserção procura e-mail DE TERCEIRO, e não o domínio solto na página.
+    Era o domínio, e isso passou a acusar o menu da conta na topbar, que mostra
+    o e-mail de QUEM ESTÁ OLHANDO — o próprio, para a pessoa que já o conhece,
+    em toda tela do produto. Excluir a conta logada e reprovar qualquer outra é
+    mais estrito que a versão anterior, não menos: antes bastava não conter a
+    string; agora o teste diz o nome de cada e-mail alheio que vazar.
+    """
     orfa = f.pessoa("orfa", nome="Pessoa Sem CC")
     f.lotar(orfa, centro_custo_codigo="")
-    client.force_login(_com_papel("dir", "diretoria", ["exc.ler.global"]))
+    eu = _com_papel("dir", "diretoria", ["exc.ler.global"])
+    client.force_login(eu)
 
     conteudo = client.get(reverse("workspace:excecoes")).content.decode()
 
     assert "Pessoa Sem CC" in conteudo, "o nome aparece — é como se sabe de quem se fala"
-    assert "@icodev.com.br" not in conteudo, "o e-mail, não"
+    de_terceiro = {
+        e for e in re.findall(r"[\w.+-]+@icodev\.com\.br", conteudo) if e != eu.email
+    }
+    assert not de_terceiro, f"o e-mail de terceiro, não: {sorted(de_terceiro)}"
 
 
 # ── Tendência ───────────────────────────────────────────────────────

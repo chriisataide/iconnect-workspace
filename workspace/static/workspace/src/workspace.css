@@ -152,12 +152,35 @@ body {
               color var(--au-dur-fast) var(--au-ease);
 }
 
-/* A AÇÃO PRINCIPAL TEM SUPERFÍCIE, e não só uma cor chapada.
+/* ── A COR DIZ O QUE O CLIQUE FAZ ────────────────────────────────────
  *
- * O gradiente de 135° e a sombra da própria cor no hover vêm da gramática do
- * manual de identidade: é o par que faz um botão parecer pressionável em vez de
- * parecer um retângulo pintado. Uma tela tem UM botão assim — se dois disputam,
- * nenhum é primário. */
+ * NENHUMA VARIANTE É SÓ BORDA. Esta é a regra que governa o bloco inteiro:
+ * botão sem preenchimento não lê como botão — lê como moldura em volta de um
+ * texto —, e o sistema tinha 94 deles, mais da metade do total. Todo modificador
+ * abaixo pinta o fundo.
+ *
+ * A escala tem DUAS dimensões, e é isso que a faz caber em quatro matizes:
+ *
+ *   MATIZ = consequência          PESO = importância dentro do matiz
+ *   navy     ação, ver, editar      gradiente = ação da tela
+ *   verde    grava, confirma, cria  chapado   = ação secundária
+ *   vermelho destrói, encerra
+ *   cinza    sai sem fazer nada
+ *
+ * Aplicada:
+ *
+ *   primário   gradiente navy, branco    → Editar, Filtrar, Buscar, Entrar
+ *   fantasma   navy claro, texto navy    → Ver, Abrir, Detalhes, Histórico
+ *   positivo   gradiente verde, branco   → Salvar, Confirmar, Criar, Reabrir
+ *   perigo     vermelho→bordô, branco    → Excluir, Remover, Encerrar
+ *   cautela    âmbar chapado             → Devolver para correção
+ *   sutil      cinza chapado             → Cancelar, Voltar, Fechar
+ *
+ * Caiu aqui a regra do "UM primário por tela". Ela valia enquanto o gradiente
+ * navy era a única coisa colorida da interface e qualquer segundo uso diluía o
+ * primeiro; com a cor passando a significar CONSEQUÊNCIA, "Editar" e "Filtrar"
+ * são azuis porque são azuis, e a ação que grava não disputa com eles — ela é
+ * verde. Duas peças navy na mesma tela deixaram de ser ambiguidade. */
 .au-btn--primario {
   background: var(--au-grad-acao);
   color: var(--au-btn-fg);
@@ -170,30 +193,39 @@ body {
    isso que dá a sensação de afundar. */
 .au-btn--primario:active { transform: translateY(0); box-shadow: none; }
 
-.au-btn--sutil {
-  background: transparent;
-  border-color: var(--au-border);
-  color: var(--au-text-muted);
+/* O NAVY CLARO — ver sem fazer.
+ *
+ * Mesma família do primário de propósito: "Ver detalhes" e "Editar" são o mesmo
+ * tipo de gesto, só que um não muda nada. Separá-los por matiz sugeriria que
+ * consultar é outra categoria de risco, e não é; separá-los por PESO diz o
+ * certo. Texto a 9,71:1 sobre o fundo no claro, 6,33:1 no escuro. */
+.au-btn--fantasma {
+  background: var(--au-accent-bg);
+  border-color: var(--au-accent-300);
+  color: var(--au-accent-text);
+  font-weight: 600;
 }
-.au-btn--sutil:hover { background: var(--au-surface-sunken); color: var(--au-text); }
+.au-btn--fantasma:hover {
+  background: var(--au-accent-100);
+  border-color: var(--au-accent);
+  color: var(--au-accent-text);
+}
 
-/* ── O BOTÃO DIZ O QUE O CLIQUE FAZ ──────────────────────────────────
+/* O CINZA É SAÍDA, e por isso não some.
  *
- * Havia um primário e um sutil, e mais nada. "Aprovar", "Devolver" e "Reprovar
- * em definitivo" apareciam lado a lado com exatamente o mesmo cinza — três
- * consequências diferentes, uma aparência só, e a leitura da cor não ajudava
- * ninguém a não clicar no errado.
- *
- * As variantes abaixo são ESTADO e não enfeite, e por isso usam a semântica já
- * existente: verde confirma, vermelho encerra, âmbar devolve para correção. O
- * bordô da marca fica de fora de propósito — ele é ornamento e está a 1,55:1 do
- * vermelho de erro; um "Reprovar" em bordô seria indistinguível de um em
- * perigo, e essa é a distinção que menos pode falhar.
- *
- * Continua valendo UM primário por tela: estes não competem com ele, porque
- * aparecem depois de uma confirmação aberta, e não soltos no cabeçalho. */
+ * Era transparente e foi o principal motivo da queixa: "Cancelar" ao lado de
+ * "Salvar" parecia texto solto, não a outra metade da escolha. Chapado, ele
+ * continua claramente subordinado — cinza contra verde não disputa nada — mas
+ * existe. Texto a 16,30:1. */
+.au-btn--sutil {
+  background: var(--au-surface-sunken);
+  border-color: var(--au-border-strong);
+  color: var(--au-text);
+}
+.au-btn--sutil:hover { background: var(--au-border); color: var(--au-text); }
+
 .au-btn--perigo {
-  background: var(--au-grad-danger);
+  background: var(--au-grad-perigo);
   border-color: transparent;
   color: var(--au-sobre-acento);
 }
@@ -204,12 +236,21 @@ body {
 }
 .au-btn--perigo:active { transform: translateY(0); box-shadow: none; }
 
+/* Âmbar chapado e não gradiente: branco sobre `--au-warning` mede 3,01:1 e
+   reprova AA, então este é o único matiz que se preenche com o próprio tom a
+   10% e escreve por cima — 4,50:1 no claro, 10,10:1 no escuro. Devolver para
+   correção não é destruir nem confirmar, e é a única ação que sobrou fora dos
+   quatro matizes porque nenhum dos quatro diria isso. */
 .au-btn--cautela {
-  background: transparent;
+  background: var(--au-warning-bg);
   border-color: var(--au-warning);
   color: var(--au-warning-text);
 }
-.au-btn--cautela:hover { background: var(--au-warning-bg); color: var(--au-warning-text); }
+.au-btn--cautela:hover {
+  background: var(--au-warning);
+  border-color: var(--au-warning);
+  color: var(--au-sobre-acento);
+}
 
 .au-btn--positivo {
   background: var(--au-grad-success);
@@ -232,7 +273,13 @@ body {
 .au-main {
   max-width: var(--au-content-max);
   margin: 0 auto;
-  padding: var(--au-10) var(--au-6) var(--au-16);
+  /* Topo e esquerda em 24px — subiram de 12 para 18 e agora para 24, sempre
+     por pedido explícito. Coincide com o token `--au-6`, e por isso volta a
+     usar variável em vez de literal. Direita continua em 12px (`--au-3`): é
+     quem baliza a borda da tela junto com a barra de rolagem, e não teve
+     pedido de mudança. O rodapé segue largo (`--au-16`): respiro de fim de
+     página, não encaixe com o breadcrumb. */
+  padding: var(--au-6) var(--au-3) var(--au-16) var(--au-6);
 }
 
 /* A REDE DE SEGURANÇA DOS LINKS SEM CLASSE.
@@ -246,7 +293,11 @@ body {
  * `:not([class])` de propósito: pega exatamente os que não têm regra própria e
  * não disputa com nenhum componente. Um link que ganhar classe amanhã sai
  * daqui sozinho. */
-.au-main a:not([class]) { color: var(--au-accent-text); }
+/* Sem sublinhado em repouso, pela mesma razão dos títulos-link: dentro de uma
+   tabela com dezenas de linhas, uma risca sob cada nome vira textura e a coluna
+   inteira fica suja. A cor já diz que leva a algum lugar; o sublinhado no hover
+   confirma qual dos nomes está sob o ponteiro. */
+.au-main a:not([class]) { color: var(--au-accent-text); text-decoration: none; }
 .au-main a:not([class]):hover { text-decoration: underline; }
 
 /* A TELA DE MÓDULO NÃO É CENTRADA — ela ocupa a largura da janela.
@@ -797,14 +848,29 @@ body:has(.au-modulo) { --au-content-max: none; }
   color: inherit;
   text-decoration: none;
 }
-.au-list-link:hover .au-list-titulo { color: var(--au-accent-text); }
+.au-list-link:hover .au-list-titulo { color: var(--au-accent); }
 
+/* TÍTULO QUE É LINK NASCE AZUL, E SEM SUBLINHADO.
+ *
+ * Convenção que vale para todos os títulos-link do sistema — este,
+ * `.au-doc-titulo`, `.au-dia-link`, `a.au-notif-titulo`, `.au-recurso-nome a`,
+ * `.au-sino-link`, `.au-contabil-abrir` e `.au-painel-numero-titulo`.
+ *
+ * Todos herdavam a cor do texto e só viravam azuis no `:hover`, o que os
+ * deixava idênticos ao texto que não leva a lugar nenhum: para descobrir onde
+ * dá para clicar era preciso varrer a tela com o mouse. Ao lado deles, os links
+ * SEM classe já eram azuis por `.au-main a:not([class])` — dois regimes na
+ * mesma tela, e a inconsistência aparecia dentro de uma mesma tabela.
+ *
+ * Sem sublinhado em repouso porque são títulos de item numa lista de dezenas:
+ * uma linha sob cada um vira textura. A cor basta; o hover escurece. */
 .au-list-titulo {
   display: flex;
   align-items: center;
   gap: var(--au-1);
   font-size: var(--au-t-base);
   font-weight: 550;
+  color: var(--au-accent-text);
   line-height: 1.35;
 }
 
@@ -954,29 +1020,85 @@ body:has(.au-modulo) { --au-content-max: none; }
  * branco, cantos arredondados e o conteúdo respirando ao lado. */
 .au-rail {
   position: sticky;
-  top: calc(var(--au-topbar-h) + var(--au-5));
+  /* Encostado no topo do conteúdo, e não flutuando abaixo dele: a folga era
+     `--au-5` e punha a testa do cartão bem mais baixa que o breadcrumb ao lado,
+     como se o menu tivesse escorregado. `--au-6` porque é o padding-top que
+     `.au-main` usa agora — os dois continuam começando na mesma linha. */
+  top: calc(var(--au-topbar-h) + var(--au-6));
   display: flex;
   flex-direction: column;
-  gap: 2px;
   padding: var(--au-3);
   background: var(--au-surface);
   border: 1px solid var(--au-border);
   border-radius: var(--au-r-lg);
   box-shadow: var(--au-e-1);
-  /* O TRILHO ROLA SOZINHO.
-     `sticky` prega o topo na viewport; quando a lista é mais alta que a tela —
-     que é o caso de quem atende fila, publica, mantém acervo e administra
-     papéis ao mesmo tempo —, o que passa da borda de baixo fica INALCANÇÁVEL:
-     rolar a página não move um elemento pregado. Com altura máxima e rolagem
-     própria, os últimos itens voltam a existir.
-     `overscroll-behavior: contain` é o que separa as duas rolagens. Sem ele,
-     chegar ao fim do trilho continua a rolagem na página atrás — o gesto
-     "descer no menu" vira "descer na tela", que é justamente a confusão que
-     esta caixa existe para acabar. */
-  max-height: calc(100vh - var(--au-topbar-h) - var(--au-8));
-  overflow-y: auto;
-  overscroll-behavior: contain;
+  /* A CAIXA tem altura máxima; quem ROLA é a lista lá dentro.
+     `sticky` prega o topo na viewport; quando o menu é mais alto que a tela —
+     o caso de quem atende fila, publica, mantém acervo e administra papéis ao
+     mesmo tempo —, o que passa da borda de baixo fica INALCANÇÁVEL: rolar a
+     página não move um elemento pregado.
+     O `overflow` ficava AQUI, e por isso a marca e o botão de recolher subiam
+     junto com os itens e sumiam. Passou para `.au-rail-lista`. */
+  max-height: calc(100vh - var(--au-topbar-h) - var(--au-6));
+  overflow: hidden;
 }
+
+/* A testa do trilho: marca à esquerda, seta de recolher à direita. `flex: none`
+   é o que a mantém parada enquanto a lista rola. */
+.au-rail-topo {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: var(--au-2);
+  padding-bottom: var(--au-3);
+  margin-bottom: var(--au-2);
+  border-bottom: 1px solid var(--au-border);
+}
+
+.au-rail-lista {
+  flex: 1 1 auto;
+  min-height: 0;             /* sem isto o filho flex se recusa a encolher */
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  overflow-y: auto;
+  /* A BARRA FICA PERTO DA BORDA DO CARTÃO, e não a 12px dela.
+   *
+   * `.au-rail` tem `padding: var(--au-3)` nos quatro lados, e a barra de
+   * rolagem nasce na borda do BOX que rola — ou seja, na borda direita de
+   * `.au-rail-lista`, que herdava o recuo inteiro do padding do pai. Isso
+   * deixava a barra a 12px do canto do cartão, meio solta no meio do respiro.
+   *
+   * A margem negativa "invade" 8px daquele padding e o padding equivalente na
+   * lista devolve o mesmo espaço ao CONTEÚDO — os itens continuam na mesma
+   * posição horizontal de antes. Só a barra, que ignora padding e nasce na
+   * borda do box, migra: dos 12px originais sobram 4px até o canto do cartão. */
+  margin-right: calc(var(--au-2) * -1);
+  padding-right: var(--au-2);
+  /* `contain` separa as duas rolagens: sem ele, chegar ao fim do menu continua
+     rolando a página atrás, e o gesto "descer no menu" vira "descer na tela". */
+  overscroll-behavior: contain;
+  /* A BARRA DE ROLAGEM FINA, nos dois motores.
+     A padrão do macOS ocupava ~15px de um menu de 240px — 6% da largura do
+     trilho gastos numa barra que só aparece para quem tem muitos papéis. */
+  scrollbar-width: thin;
+  scrollbar-color: var(--au-border-strong) transparent;
+  /* SOBRA NO FIM DA LISTA.
+     Sem isto o último grupo — "Aprovar", para quem também aprova — terminava
+     rente ao canto arredondado do cartão sempre que os grupos de cima estavam
+     abertos e a lista rolava até o fim: nada de respiro entre o último item e
+     a borda, e o canto do cartão cortava o próprio raio da curva por cima do
+     texto. O padding do `.au-rail` não ajuda aqui porque é a LISTA que rola —
+     o pai já tem o teto de altura fixo e não vê o fim do conteúdo. */
+  padding-bottom: var(--au-3);
+}
+.au-rail-lista::-webkit-scrollbar { width: 4px; }
+.au-rail-lista::-webkit-scrollbar-track { background: transparent; }
+.au-rail-lista::-webkit-scrollbar-thumb {
+  background: var(--au-border-strong);
+  border-radius: var(--au-r-full);
+}
+.au-rail-lista::-webkit-scrollbar-thumb:hover { background: var(--au-text-subtle); }
 
 /* ── Recolher o trilho ───────────────────────────────────────────────
  *
@@ -987,30 +1109,25 @@ body:has(.au-modulo) { --au-content-max: none; }
  *
  * Só aparece com JavaScript, porque é ele quem faz o botão funcionar — um
  * controle que não controla nada é pior que a ausência dele. */
+/* SÓ UMA SETA, do tamanho da que abre um grupo.
+ *
+ * Era uma faixa com a palavra "RECOLHER" em caixa alta ocupando a largura
+ * inteira do trilho — um rótulo permanente para uma ação que se usa uma vez por
+ * sessão, e que competia em peso com os nomes dos grupos logo abaixo. A seta
+ * sozinha, encostada na borda direita ao lado da marca, diz a mesma coisa e não
+ * ocupa linha nenhuma. O nome continua no `aria-label` e no `title`. */
 .au-rail-recolher {
-  /* Preso ao topo do próprio trilho, que rola: sem isto o botão sobe junto com
-     a lista e some, e a pessoa passa a ter de rolar o menu para cima só para
-     encontrar o controle que estreita o menu. */
-  position: sticky;
-  top: 0;
-  z-index: 1;
+  flex: none;
+  margin-left: auto;
   display: flex;
   align-items: center;
-  justify-content: flex-end;
-  gap: var(--au-2);
-  width: 100%;
-  margin-bottom: var(--au-2);
-  padding: var(--au-2);
-  background: var(--au-surface);
+  justify-content: center;
+  width: 24px; height: 24px;
+  padding: 0;
+  background: transparent;
   border: 0;
   border-radius: var(--au-r-sm);
-  background: transparent;
   color: var(--au-text-subtle);
-  font: inherit;
-  font-size: var(--au-t-2xs);
-  font-weight: 700;
-  letter-spacing: .09em;
-  text-transform: uppercase;
   cursor: pointer;
   transition: background var(--au-dur-fast) var(--au-ease),
               color var(--au-dur-fast) var(--au-ease);
@@ -1020,49 +1137,144 @@ body:has(.au-modulo) { --au-content-max: none; }
 /* `#i-seta` aponta para a direita. Expandido, a ação é recolher — a seta olha
    para a esquerda; recolhido, ela volta a apontar para onde o trilho vai abrir. */
 .au-rail-recolher .au-icon {
+  width: 14px; height: 14px;
   transform: rotate(180deg);
   transition: transform var(--au-dur) var(--au-ease);
 }
+.au-rail-recolher-rotulo {
+  /* No DOM para o leitor de tela, fora da vista para todo mundo. */
+  position: absolute;
+  width: 1px; height: 1px;
+  margin: -1px; padding: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
 
-.au-modulo[data-trilho="recolhido"] .au-rail-recolher { justify-content: center; }
 .au-modulo[data-trilho="recolhido"] .au-rail-recolher .au-icon { transform: rotate(0deg); }
-/* O rótulo do botão some junto com os demais textos — ver a regra de `font-size`
-   logo abaixo, que é a mesma técnica. */
-.au-modulo[data-trilho="recolhido"] .au-rail-recolher-rotulo { display: none; }
 
-/* ── O trilho recolhido ──────────────────────────────────────────────
+/* ── O trilho recolhido: SÓ OS GRUPOS ────────────────────────────────
  *
- * `font-size: 0` no item e tamanho próprio no que precisa sobreviver: é o que
- * esconde um texto que mora SOLTO dentro do `<a>`, sem `<span>` em volta dele.
- * Envolver os 40 rótulos em `<span>` seria a alternativa, e ela mexe em markup
- * de navegação para ganhar exatamente o mesmo resultado visual.
+ * Recolhido ele mostrava os ícones de TODOS os itens — quarenta e poucos, numa
+ * faixa de 72px. Virava uma coluna de símbolos sem hierarquia nenhuma, mais
+ * longa que a tela, onde nada dizia que "Orçamento" e "Resultados" pertencem ao
+ * mesmo assunto e "Bandeja" a outro.
  *
- * O texto continua no DOM e continua sendo lido por leitor de tela — some da
- * vista, não da página. */
-.au-modulo[data-trilho="recolhido"] .au-rail-item {
+ * Agora sobra uma linha por GRUPO — sete ícones em vez de quarenta. É o índice
+ * do menu, não o menu: clicar em um deles expande o trilho e abre aquele grupo,
+ * que é o que o JS faz. Os itens continuam no DOM e continuam sendo lidos por
+ * leitor de tela; somem da vista, não da página. */
+.au-modulo[data-trilho="recolhido"] .au-rail-item { display: none; }
+.au-modulo[data-trilho="recolhido"] .au-rail-grupo {
   justify-content: center;
   gap: 0;
-  padding-left: var(--au-2);
-  padding-right: var(--au-2);
-  font-size: 0;
+  padding-left: 0;
+  padding-right: 0;
+  margin-bottom: var(--au-1);
 }
-.au-modulo[data-trilho="recolhido"] .au-rail-grupo { display: none; }
+/* O nome e a seta não cabem em 72px, e a seta ainda mentiria: recolhido, clicar
+   no grupo não o abre no lugar — abre o trilho inteiro. */
+.au-modulo[data-trilho="recolhido"] .au-rail-grupo-nome,
+.au-modulo[data-trilho="recolhido"] .au-rail-grupo::after { display: none; }
+.au-modulo[data-trilho="recolhido"] .au-rail-grupo-icone {
+  width: 20px; height: 20px;
+}
+/* O grupo do item ativo fica marcado: sem isto, recolhido, nada na tela diz em
+   que assunto a pessoa está. */
+.au-modulo[data-trilho="recolhido"] .au-rail-secao:has(.au-rail-item--ativo) > .au-rail-grupo {
+  background: var(--au-grad-marca);
+}
+.au-modulo[data-trilho="recolhido"] .au-rail-secao:has(.au-rail-item--ativo) > .au-rail-grupo .au-rail-grupo-icone {
+  color: var(--au-sobre-acento);
+}
 .au-modulo[data-trilho="recolhido"] .au-rail-secao { margin-bottom: var(--au-2); }
 
-/* OS ITENS APARECEM MESMO COM O GRUPO FECHADO.
+/* ── A marca no trilho ───────────────────────────────────────────────
  *
- * Recolhido não há rótulo de grupo para clicar, então um `<details>` fechado
- * esconderia os ícones dentro dele sem deixar ninguém abri-los. O agente do
- * navegador esconde os filhos não-`summary` de um `details` fechado, e essa
- * regra é sobrescrevível — é o que se faz aqui.
- *
- * Por CSS e não abrindo os `<details>` no script: quem lembra os grupos abertos
- * escuta `toggle`, e abrir tudo ao recolher gravaria "todos abertos" como
- * preferência da pessoa. O estado dos grupos fica intacto e volta inteiro
- * quando o trilho expande. */
-.au-modulo[data-trilho="recolhido"] .au-rail-secao:not([open]) .au-rail-item {
+ * Centralizada e com um fio embaixo: ela é a testa do cartão, e sem o fio a
+ * assinatura encostava no primeiro rótulo de grupo como se fosse mais um item
+ * do menu. */
+/* O fio e o respiro embaixo saíram daqui e foram para `.au-rail-topo`, que é
+   quem agora fecha a testa do cartão — a marca divide essa linha com a seta. */
+.au-rail-marca {
+  flex: 1 1 auto;
+  min-width: 0;
   display: flex;
+  align-items: center;
+  justify-content: center;
 }
+/* Largura e não altura: a assinatura é horizontal, então é a largura que
+   decide o quanto ela ocupa do trilho. O teto de 152px deixa uma margem de ar
+   de cada lado dentro dos 216px úteis, sem a peça boiar no meio do vazio. */
+.au-rail-marca-logo { display: block; width: 100%; max-width: 152px; height: auto; }
+/* O escudo só existe recolhido, e o inverso para a assinatura horizontal.
+   `display: none` nos dois estados e não `opacity`: o que está fora de uso não
+   pode ocupar caixa, senão o trilho de 72px ganha uma faixa vazia no topo. */
+/* 38px agora que o arquivo é o `favicon-aba.png`, recortado no desenho.
+   Com o `adb-512.png` o escudo ocupava 45% do quadrado, e a caixa precisava ir a
+   48px para o pássaro aparecer com ~32px. Recortado, ele ocupa 90% — a mesma
+   presença cabe em 38px de caixa, e o trilho de 72px ganha o respiro de volta. */
+.au-rail-marca-selo { display: none; height: 38px; width: 38px; }
+.au-modulo[data-trilho="recolhido"] .au-rail-marca-logo { display: none; }
+.au-modulo[data-trilho="recolhido"] .au-rail-marca-selo { display: block; }
+/* Recolhido, marca e seta EMPILHAM: lado a lado, o escudo de 48px mais o botão
+   de 24px não cabem nos 72px do trilho sem espremer os dois. */
+.au-modulo[data-trilho="recolhido"] .au-rail-topo {
+  flex-direction: column;
+  gap: var(--au-1);
+}
+.au-modulo[data-trilho="recolhido"] .au-rail-recolher { margin-left: 0; }
+
+/* NO ESCURO A ASSINATURA GANHA UMA PLACA CLARA.
+ *
+ * O `adb-wordmark.png` é a águia vermelha mais "AUTODEFESA BRASIL" em navy
+ * escuro, e esse navy sobre o trilho escuro some — sobra a águia flutuando
+ * sobre um borrão. Filtro de inversão resolveria o texto e estragaria o
+ * vermelho da marca, que é a única cor que a assinatura tem.
+ *
+ * A placa é o que um manual de identidade manda fazer quando o fundo não
+ * garante contraste: a marca não muda, o fundo dela sim. Só a assinatura
+ * horizontal precisa — o escudo recolhido é vermelho puro e lê nos dois temas,
+ * então ele fica sem placa para não virar um quadrado branco de 40px. */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .au-rail-marca-logo,
+  :root:not([data-theme="light"]) .au-brand-logo {
+    background: var(--au-sobre-acento);
+    border-radius: var(--au-r-sm);
+    padding: 3px var(--au-2);
+  }
+}
+:root[data-theme="dark"] .au-rail-marca-logo,
+:root[data-theme="dark"] .au-brand-logo {
+  background: var(--au-sobre-acento);
+  border-radius: var(--au-r-sm);
+  padding: 3px var(--au-2);
+}
+
+/* A TOPBAR PERDE O LOGO ENQUANTO O TRILHO EXISTE.
+ *
+ * Sem isto a marca apareceria duas vezes na mesma dobra, uma em cima da outra.
+ * Some a imagem e o divisor, e fica o nome do produto — que continua sendo o
+ * link para a home e mantém a topbar com uma âncora à esquerda.
+ *
+ * SÓ ACIMA DE 1080px, que é onde o trilho é de fato uma coluna ao lado. Abaixo
+ * disso ele vira uma faixa no fluxo do conteúdo (ver o `@media` do responsivo),
+ * e a marca dele desce para longe do topo — esconder a da topbar deixaria a
+ * barra sem marca nenhuma, porque a `@media` de 640px já esconde o nome do
+ * produto. Foi o que aconteceu: no telefone o canto superior esquerdo ficou
+ * vazio. */
+@media (min-width: 1081px) {
+  body:has(.au-modulo) .au-brand-logo,
+  body:has(.au-modulo) .au-brand-divisor { display: none; }
+}
+
+/* Recolhido não há rótulo de grupo para clicar, então os itens de um grupo
+   fechado precisam aparecer assim mesmo. Quem resolve isso é o script, que
+   abre os `<details>` ao recolher — tentar por CSS aqui não funciona: medido, o
+   item recebia `display: flex` e continuava com 0x0, porque o navegador esconde
+   o conteúdo de um `details` fechado por um mecanismo próprio que a declaração
+   do filho não alcança. A preferência de grupo não se perde nisso; ver a guarda
+   no gravador, em `workspace.js`. */
 /* A contagem vira um ponto: o número não cabe em 40px de largura, mas "existe
    algo aqui" é justamente o que não pode sumir ao recolher. */
 .au-modulo[data-trilho="recolhido"] .au-rail-contagem {
@@ -1084,23 +1296,35 @@ body:has(.au-modulo) { --au-content-max: none; }
 .au-rail-secao { margin: var(--au-4) 0 0; }
 .au-rail-secao:first-of-type { margin-top: 0; }
 
+/* O GRUPO É UMA LINHA DE MENU, e não uma etiqueta.
+ *
+ * Era `--au-t-2xs` em caixa alta com `padding: var(--au-1)` — 4px de respiro
+ * vertical. Ao lado de itens com 8px, a linha que ABRE o grupo era a mais fina
+ * da lista, o que é o contrário da hierarquia: ela é a opção principal e os
+ * itens é que são o desdobramento. Agora tem a altura de um item, ganha ícone
+ * como eles, e é o modificador de PESO — não de tamanho — que a mantém acima.
+ *
+ * O ícone também é o que sobra quando o trilho recolhe: é por ele que se
+ * reconhece o grupo a 72px de largura. */
 .au-rail-grupo {
   display: flex;
   align-items: center;
   gap: var(--au-2);
   margin: 0 0 var(--au-1);
-  padding: var(--au-1) var(--au-2);
+  padding: var(--au-2) var(--au-3);
   border-radius: var(--au-r-sm);
-  font-size: var(--au-t-2xs);
+  font-size: var(--au-t-sm);
   font-weight: 700;
-  letter-spacing: .09em;
-  text-transform: uppercase;
-  color: var(--au-text-subtle);
+  letter-spacing: .02em;
+  color: var(--au-text);
   cursor: pointer;
   list-style: none;          /* o triângulo padrão do Firefox */
 }
+.au-rail-grupo-icone { flex: none; color: var(--au-text-subtle); }
+.au-rail-grupo-nome { flex: 1 1 auto; min-width: 0; }
 .au-rail-grupo::-webkit-details-marker { display: none; }
-.au-rail-grupo:hover { background: var(--au-surface-sunken); color: var(--au-text-muted); }
+.au-rail-grupo:hover { background: var(--au-surface-sunken); }
+.au-rail-grupo:hover .au-rail-grupo-icone { color: var(--au-accent); }
 
 /* A seta é DESENHADA, e gira ao abrir. Sem ela, um grupo fechado parece um
    título solto e ninguém descobre que ele clica. */
@@ -1151,7 +1375,17 @@ body:has(.au-modulo) { --au-content-max: none; }
   box-shadow: 0 2px 8px rgb(46 49 146 / .25);
 }
 .au-rail-item--ativo .au-icon { color: var(--au-sobre-acento); }
-.au-rail-item--ativo:hover { color: var(--au-sobre-acento); }
+/* `background` também precisa ser dito aqui, e não só `color`.
+   `.au-rail-item:hover` declara `background: var(--au-surface-sunken)` com a
+   MESMA especificidade — duas classes — e cada propriedade CSS é resolvida
+   separada: sem uma declaração de `background` aqui, a regra de hover comum
+   continuava vencendo essa propriedade sozinha, e o item ativo virava cinza-claro
+   ao passar o mouse, apagando exatamente a informação que o gradiente existe
+   para destacar — "onde eu estou". */
+.au-rail-item--ativo:hover {
+  background: var(--au-grad-marca);
+  color: var(--au-sobre-acento);
+}
 
 .au-rail-contagem {
   margin-left: auto;
@@ -1664,8 +1898,7 @@ body:has(.au-modulo) { --au-content-max: none; }
 .au-anexo > .au-icon { color: var(--au-text-subtle); flex: none; }
 .au-anexo-nome {
   color: var(--au-accent-text);
-  text-decoration: underline;
-  text-underline-offset: 2px;
+  text-decoration: none;
   /* Nome longo não empurra o tamanho para fora do card. */
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
@@ -2029,8 +2262,8 @@ a.au-horas-hora:hover { background: var(--au-success); color: var(--au-text-inve
 /* A barra à esquerda é o que separa lido de não lido sem depender de cor de
    texto — que some para quem não distingue as duas. */
 .au-sino-item--nova { border-left: 2px solid var(--au-accent); padding-left: var(--au-2); }
-.au-sino-link { font-size: var(--au-t-sm); color: var(--au-text); text-decoration: none; }
-.au-sino-link:hover { text-decoration: underline; }
+.au-sino-link { font-size: var(--au-t-sm); color: var(--au-accent-text); text-decoration: none; }
+.au-sino-link:hover { color: var(--au-accent); }
 .au-sino-quando { font-size: var(--au-t-xs); color: var(--au-text-subtle); }
 .au-sino-vazio { margin: 0; font-size: var(--au-t-sm); color: var(--au-text-subtle); }
 .au-sino-rodape { display: flex; }
@@ -2116,16 +2349,73 @@ a.au-horas-hora:hover { background: var(--au-success); color: var(--au-text-inve
 
 @media (max-width: 1080px) {
   .au-modulo { grid-template-columns: 1fr; gap: var(--au-5); }
+  /* Deitado, o trilho volta a ser uma faixa e não um cartão: a moldura que o
+     separa do conteúdo quando estão LADO A LADO não tem função quando um está
+     em cima do outro — ali quem separa é o empilhamento. */
   .au-rail {
     position: static;
-    flex-direction: row; flex-wrap: wrap;
     padding: 0 0 var(--au-4);
-    border-right: 0; border-bottom: 1px solid var(--au-border);
+    background: none;
+    border: 0; border-radius: 0; box-shadow: none;
+    border-bottom: 1px solid var(--au-border);
     /* Deitado, o trilho não é mais uma coluna alta: devolver a altura livre
        evita uma segunda barra de rolagem em cima da faixa de chips. */
-    max-height: none; overflow-y: visible;
+    max-height: none; overflow: visible;
   }
-  .au-rail-grupo { display: none; }
+  /* A TESTA INTEIRA SAI, e não só a marca.
+     Deitado, o trilho fica logo abaixo da topbar, que nesta largura volta a
+     mostrar o logo — as duas assinaturas apareceriam a poucos pixels uma da
+     outra. E o botão de recolher devolve LARGURA, que aqui não há para devolver:
+     a grade já é de uma coluna. Sem os dois, a testa é uma caixa vazia. */
+  .au-rail-topo { display: none; }
+  .au-rail-lista { overflow: visible; }
+  /* OS RÓTULOS DE GRUPO FICAM, deitado.
+     Eram escondidos aqui, e isso só funcionava porque o script abria todos os
+     `<details>` ao recolher. Sem os rótulos e com um grupo fechado, os itens
+     dele ficam invisíveis por um mecanismo do navegador que `display` no filho
+     não alcança — e não sobra nada em que clicar para abrir. Medido: faixa em
+     branco entre a topbar e o breadcrumb.
+     Deitado o trilho é um menu vertical comum acima do conteúdo, com o mesmo
+     acordeão de sempre. Uma estrutura só, como em cima. */
+  /* A largura recolhida também não vale mais — a grade é de uma coluna só. */
+  .au-modulo[data-trilho="recolhido"] { grid-template-columns: 1fr; }
+  /* "RECOLHIDO" NÃO EXISTE DEITADO — e é preciso dizer isso regra a regra.
+     `data-trilho` é preferência gravada no `localStorage`: quem recolheu o menu
+     no desktop chega ao celular com o atributo posto. Só que a largura ali é
+     uma coluna inteira, então não há o que recolher, e o que sobrava era um
+     menu de ícones centralizados sem nome nenhum — medido: sete símbolos soltos
+     e os itens escondidos. Aqui o trilho volta a ser a lista completa. */
+  .au-modulo[data-trilho="recolhido"] .au-rail-item {
+    display: flex;
+    justify-content: flex-start;
+    gap: var(--au-2);
+    font-size: var(--au-t-base);
+  }
+  .au-modulo[data-trilho="recolhido"] .au-rail-grupo {
+    justify-content: flex-start;
+    gap: var(--au-2);
+    padding: var(--au-2) var(--au-3);
+  }
+  .au-modulo[data-trilho="recolhido"] .au-rail-grupo-nome,
+  .au-modulo[data-trilho="recolhido"] .au-rail-grupo::after { display: block; }
+  .au-modulo[data-trilho="recolhido"] .au-rail-grupo-icone {
+    width: 16px; height: 16px;
+  }
+  .au-modulo[data-trilho="recolhido"] .au-rail-secao:has(.au-rail-item--ativo) > .au-rail-grupo {
+    background: none;
+  }
+  .au-modulo[data-trilho="recolhido"] .au-rail-secao:has(.au-rail-item--ativo) > .au-rail-grupo .au-rail-grupo-icone {
+    color: var(--au-text-subtle);
+  }
+  /* A contagem volta a ser o número. Recolhida ela vira um ponto de 8px com
+     `font-size: 0`, porque "2" não cabe numa faixa de 72px; aqui cabe, e um
+     ponto sem número esconde justamente o que a badge existe para dizer. */
+  .au-modulo[data-trilho="recolhido"] .au-rail-contagem {
+    position: static;
+    min-width: 20px; width: auto; height: auto;
+    padding: 1px 6px;
+    font-size: var(--au-t-2xs);
+  }
   .au-colunas--assimetrica { grid-template-columns: 1fr; }
 }
 
@@ -2196,7 +2486,7 @@ a.au-horas-hora:hover { background: var(--au-success); color: var(--au-text-inve
 .au-dia-link {
   grid-area: titulo;
   font-size: var(--au-t-base); font-weight: 560;
-  color: var(--au-text);
+  color: var(--au-accent-text);
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
 a.au-dia-link:hover { color: var(--au-accent-text); text-decoration: underline; }
@@ -2256,7 +2546,8 @@ a.au-dia-link:hover { color: var(--au-accent-text); text-decoration: underline; 
 .au-notif-corpo { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
 .au-notif-titulo { font-size: var(--au-t-base); color: var(--au-text-muted); }
 .au-notif--nova .au-notif-titulo { color: var(--au-text); font-weight: 600; }
-a.au-notif-titulo:hover { color: var(--au-accent-text); text-decoration: underline; }
+a.au-notif-titulo, .au-notif--nova a.au-notif-titulo { color: var(--au-accent-text); }
+a.au-notif-titulo:hover { color: var(--au-accent); }
 .au-notif-texto { font-size: var(--au-t-sm); color: var(--au-text-subtle); }
 .au-notif-quando {
   font-size: var(--au-t-xs); color: var(--au-text-subtle);
@@ -2284,9 +2575,9 @@ a.au-notif-titulo:hover { color: var(--au-accent-text); text-decoration: underli
 .au-doc-titulo {
   grid-area: titulo;
   font-size: var(--au-t-base); font-weight: 580;
-  color: var(--au-text);
+  color: var(--au-accent-text);
 }
-.au-doc-titulo:hover { color: var(--au-accent-text); text-decoration: underline; }
+.au-doc-titulo:hover { color: var(--au-accent); }
 .au-doc-resumo {
   grid-area: resumo;
   font-size: var(--au-t-sm); color: var(--au-text-muted);
@@ -2438,46 +2729,218 @@ a.au-notif-titulo:hover { color: var(--au-accent-text); text-decoration: underli
 }
 .au-topbar-botao:hover { background: var(--au-surface-sunken); color: var(--au-text); }
 
-/* ── Quem está logado, no canto ──────────────────────────────────────
-   Duas linhas apertadas: o nome, e a área embaixo em corpo menor. A área é o
-   que responde "entrei como quem?" num produto que muda de comportamento
-   conforme o papel — mas ela é contexto, não manchete, e por isso não compete
-   com o nome. */
-.au-topbar-eu {
+/* ── O menu da conta ─────────────────────────────────────────────────
+ *
+ * Mesmo mecanismo do sino — `<details>` nativo, sem JavaScript e sem Bootstrap.
+ * Antes havia só o nome e um ícone de sair: cargo, e-mail e último acesso não
+ * apareciam em lugar nenhum do produto, e "sair" era um ícone solto, do mesmo
+ * peso visual da lupa e do sino, ao lado de coisas que não deslogam ninguém. */
+.au-perfil { position: relative; }
+/* Padding simétrico, e não mais `3px var(--au-2) 3px 0`: aquela assimetria
+   deixava espaço à direita para o nome que ficava DEPOIS do círculo — com o
+   círculo sozinho, um respiro igual nos quatro lados é o que faz o fundo de
+   hover formar um círculo em volta dele, e não um retângulo deslocado. */
+.au-perfil-gatilho {
+  cursor: pointer; list-style: none;
+  display: inline-flex; align-items: center;
+  padding: 3px;
+  border-radius: var(--au-r-full);
+}
+.au-perfil-gatilho::-webkit-details-marker { display: none; }
+.au-perfil-gatilho:hover { background: var(--au-surface-sunken); }
+.au-perfil-gatilho:focus-visible { outline: none; box-shadow: var(--au-focus); }
+
+/* A FOTO E AS INICIAIS OCUPAM A MESMA CAIXA, sempre.
+ *
+ * Se o círculo mudasse de tamanho conforme houvesse ou não foto, a topbar se
+ * reorganizaria ao trocar de conta. `object-fit: cover` porque foto de perfil
+ * chega em qualquer proporção e esticar um rosto é pior que cortá-lo. */
+.au-perfil-foto {
+  flex: none;
+  width: 30px; height: 30px;
+  border-radius: var(--au-r-full);
+  object-fit: cover;
+  border: 1px solid var(--au-border-strong);
+}
+.au-perfil-iniciais {
+  flex: none;
+  width: 30px; height: 30px;
+  border-radius: var(--au-r-full);
+  display: inline-flex; align-items: center; justify-content: center;
+  background: var(--au-grad-marca);
+  color: var(--au-sobre-acento);
+  font-size: var(--au-t-xs); font-weight: 700; letter-spacing: .02em;
+}
+.au-perfil-foto--grande { width: 46px; height: 46px; }
+.au-perfil-iniciais--grande { width: 46px; height: 46px; font-size: var(--au-t-md); }
+/* Na tela de perfil, onde a foto é o assunto e não um adorno de menu. */
+.au-perfil-foto--enorme { width: 96px; height: 96px; }
+.au-perfil-iniciais--enorme { width: 96px; height: 96px; font-size: var(--au-t-2xl); }
+
+/* O editor da foto: prévia à esquerda, o que fazer com ela à direita. */
+.au-perfil-editor {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--au-5);
+  flex-wrap: wrap;
+}
+.au-perfil-editor-previa { flex: none; }
+.au-perfil-editor-corpo {
+  flex: 1 1 260px;
   display: flex;
   flex-direction: column;
-  line-height: 1.15;
-  padding-left: var(--au-2);
-  /* O nome não empurra a lupa para fora em nome comprido. */
-  max-width: 22ch;
+  gap: var(--au-3);
+}
+.au-perfil-editor-form {
+  display: flex;
+  align-items: center;
+  gap: var(--au-3);
+  flex-wrap: wrap;
+  margin: 0;
 }
 
-.au-topbar-eu-nome {
-  font-size: var(--au-t-sm);
-  font-weight: 600;
-  color: var(--au-text);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+.au-perfil-painel {
+  position: absolute; top: calc(100% + var(--au-2)); right: 0; z-index: 50;
+  width: min(304px, calc(100vw - var(--au-6)));
+  max-height: min(80vh, 560px); overflow-y: auto; overscroll-behavior: contain;
+  background: var(--au-surface); border: 1px solid var(--au-border);
+  border-radius: var(--au-r-md); box-shadow: var(--au-e-3);
 }
 
-.au-topbar-eu-area {
-  font-size: var(--au-t-xs);
-  color: var(--au-text-subtle);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+/* A testa é a única área pintada do menu, e leva a marca e não uma cor de
+   estado: quem está logado não é um estado do sistema. */
+.au-perfil-cabeca {
+  display: flex; align-items: center; gap: var(--au-3);
+  padding: var(--au-4);
+  background: var(--au-grad-marca);
+  border-radius: var(--au-r-md) var(--au-r-md) 0 0;
+}
+.au-perfil-cabeca .au-perfil-foto { border-color: rgb(255 255 255 / .45); }
+.au-perfil-cabeca .au-perfil-iniciais {
+  background: rgb(255 255 255 / .18);
+  border: 1px solid rgb(255 255 255 / .35);
+}
+.au-perfil-identidade { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
+/* Os três truncam: nome comprido, cargo comprido e e-mail corporativo não
+   podem esticar um menu de largura fixa nem quebrar em três linhas. */
+.au-perfil-nome {
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  font-size: var(--au-t-md); color: var(--au-sobre-acento);
+}
+.au-perfil-cargo {
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  font-size: var(--au-t-2xs); font-weight: 600;
+  letter-spacing: .06em; text-transform: uppercase;
+  color: rgb(255 255 255 / .82);
+}
+.au-perfil-email {
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  font-size: var(--au-t-xs); color: rgb(255 255 255 / .70);
 }
 
-/* O `<form>` existe só para o POST do logout — ele não pode ocupar espaço nem
-   quebrar o alinhamento dos botões ao lado. */
-.au-topbar-sair { display: flex; margin: 0; }
+.au-perfil-progresso {
+  padding: var(--au-3) var(--au-4);
+  background: var(--au-surface-sunken);
+  border-bottom: 1px solid var(--au-border);
+}
+.au-perfil-progresso-rotulo {
+  display: flex; justify-content: space-between; margin: 0 0 var(--au-2);
+  font-size: var(--au-t-xs); color: var(--au-text-muted);
+}
+.au-perfil-progresso-rotulo b { color: var(--au-accent-text); }
+/* `<progress>` e não uma `<div>` com largura: o valor é um número que um leitor
+   de tela deve anunciar, e o elemento nativo já o anuncia. O preço é ter de
+   pintar as duas pseudopartes, porque os motores não compartilham a mesma. */
+.au-perfil-barra {
+  display: block; width: 100%; height: 4px;
+  border: none; border-radius: var(--au-r-full);
+  background: var(--au-border);
+  appearance: none;
+}
+.au-perfil-barra::-webkit-progress-bar {
+  background: var(--au-border); border-radius: var(--au-r-full);
+}
+.au-perfil-barra::-webkit-progress-value {
+  background: var(--au-grad-acao); border-radius: var(--au-r-full);
+}
+.au-perfil-barra::-moz-progress-bar {
+  background: var(--au-accent); border-radius: var(--au-r-full);
+}
 
-/* Em tela estreita some o crachá e fica o nome: a topbar tem lugar para uma
-   coisa só, e nome sem área ainda identifica; área sem nome, não. */
+.au-perfil-secao { padding: var(--au-2); }
+.au-perfil-item {
+  display: flex; align-items: center; gap: var(--au-3);
+  padding: var(--au-2) var(--au-3);
+  border-radius: var(--au-r-sm);
+  color: var(--au-text); text-decoration: none;
+}
+.au-perfil-item:hover { background: var(--au-surface-sunken); }
+.au-perfil-item-icone {
+  display: inline-flex; align-items: center; justify-content: center;
+  flex: none; width: 30px; height: 30px;
+  border-radius: var(--au-r-sm);
+  background: var(--au-accent-bg); color: var(--au-accent-text);
+}
+.au-perfil-item-texto { display: flex; flex-direction: column; min-width: 0; }
+.au-perfil-item-texto b { font-size: var(--au-t-sm); font-weight: 600; }
+.au-perfil-item-texto small { font-size: var(--au-t-xs); color: var(--au-text-subtle); }
+
+/* O item que é uma CHAVE, e não um link: mesmo corpo, mais o interruptor à
+   direita. `text-align: left` e `width: 100%` porque `<button>` centraliza o
+   conteúdo por padrão e ele ficaria desalinhado dos links acima. */
+.au-perfil-item--chave {
+  width: 100%;
+  border: 0;
+  background: transparent;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.au-chave {
+  flex: none;
+  position: relative;
+  width: 34px; height: 20px;
+  border-radius: var(--au-r-full);
+  background: var(--au-border-strong);
+  transition: background var(--au-dur-fast) var(--au-ease);
+}
+.au-chave-bolinha {
+  position: absolute;
+  top: 2px; left: 2px;
+  width: 16px; height: 16px;
+  border-radius: var(--au-r-full);
+  background: var(--au-surface);
+  box-shadow: 0 1px 2px rgb(15 23 42 / .3);
+  transition: transform var(--au-dur-fast) var(--au-ease);
+}
+[aria-pressed="true"] .au-chave { background: var(--au-accent); }
+[aria-pressed="true"] .au-chave-bolinha { transform: translateX(14px); }
+@media (prefers-reduced-motion: reduce) {
+  .au-chave, .au-chave-bolinha { transition: none; }
+}
+
+.au-perfil-detalhes {
+  padding: var(--au-2) var(--au-4) var(--au-3);
+  border-top: 1px solid var(--au-border);
+}
+.au-perfil-detalhe {
+  display: flex; align-items: center; gap: var(--au-2);
+  margin: var(--au-1) 0 0;
+  font-size: var(--au-t-xs); color: var(--au-text-subtle);
+}
+.au-perfil-detalhe .au-icon { width: 13px; height: 13px; }
+
+.au-perfil-sair {
+  margin: 0; padding: var(--au-3);
+  border-top: 1px solid var(--au-border);
+  background: var(--au-surface-sunken);
+  border-radius: 0 0 var(--au-r-md) var(--au-r-md);
+}
+.au-perfil-sair .au-btn { width: 100%; }
+
 @media (max-width: 640px) {
-  .au-topbar-eu { max-width: 10ch; }
-  .au-topbar-eu-area { display: none; }
+  .au-perfil-painel { width: min(304px, calc(100vw - var(--au-4))); }
 }
 
 /* O crachá — cargo · área · unidade — abaixo da saudação. */
@@ -2543,8 +3006,8 @@ a.au-notif-titulo:hover { color: var(--au-accent-text); text-decoration: underli
   background: var(--au-surface-sunken);
 }
 .au-recurso-nome { font-size: var(--au-t-base); font-weight: 600; color: var(--au-text); }
-.au-recurso-nome a { color: inherit; }
-.au-recurso-nome a:hover { color: var(--au-accent-text); text-decoration: underline; }
+.au-recurso-nome a { color: var(--au-accent-text); }
+.au-recurso-nome a:hover { color: var(--au-accent); }
 .au-recurso-meta { font-size: var(--au-t-sm); color: var(--au-text-subtle); margin-left: auto; }
 
 .au-agenda { list-style: none; margin: 0; padding: 0; }
@@ -2639,7 +3102,7 @@ a.au-notif-titulo:hover { color: var(--au-accent-text); text-decoration: underli
 }
 .au-tabela thead th {
   text-align: left;
-  padding: var(--au-2) var(--au-4);
+  padding: var(--au-3) var(--au-4);
   background: var(--au-surface-sunken);
   border-bottom: 1px solid var(--au-border-strong);
   font-size: var(--au-t-2xs);
@@ -2649,24 +3112,75 @@ a.au-notif-titulo:hover { color: var(--au-accent-text); text-decoration: underli
   color: var(--au-text-subtle);
   white-space: nowrap;
 }
-.au-tabela tbody td {
+/* `middle` e não `top`.
+ *
+ * Com `top`, uma linha em que uma célula quebra em duas linhas e as vizinhas
+ * não — o caso normal de "Cliente" comprido ao lado de um valor — deixava os
+ * números grudados no topo e o olho perdia a horizontal. É o desalinhamento
+ * que mais aparece porque acontece exatamente nas linhas mais longas. */
+.au-tabela tbody td,
+.au-tabela tbody th {
   padding: var(--au-3) var(--au-4);
   border-bottom: 1px solid var(--au-border);
-  color: var(--au-text-muted);
-  vertical-align: top;
+  vertical-align: middle;
+  line-height: 1.45;
 }
-.au-tabela tbody tr:last-child td { border-bottom: none; }
-.au-tabela tbody tr:hover td { background: var(--au-surface-sunken); }
+.au-tabela tbody td { color: var(--au-text-muted); }
+
+/* O CABEÇALHO DE LINHA NÃO TINHA REGRA NENHUMA.
+ *
+ * São 13 `<th scope="row">` em 8 telas — o nome do contrato, a conta contábil,
+ * o centro de custo —, e todos caíam no padrão do navegador: centralizados,
+ * em negrito e SEM PADDING, encostados na borda, enquanto o `<td>` ao lado
+ * tinha os dois eixos de respiro. A primeira coluna da tabela era a única
+ * desalinhada, e é justamente a que ancora a leitura da linha. */
+.au-tabela tbody th {
+  text-align: left;
+  font-weight: 600;
+  color: var(--au-text);
+}
+.au-tabela tbody tr:last-child td,
+.au-tabela tbody tr:last-child th { border-bottom: none; }
+.au-tabela tbody tr:hover td,
+.au-tabela tbody tr:hover th { background: var(--au-surface-sunken); }
 /* Dinheiro e contagem alinhados à direita com dígito de largura fixa —
    coluna numérica desalinhada é o sinal mais rápido de produto solto. */
-.au-tabela .num {
+/* DUAS CLASSES FAZEM A MESMA COISA, e só uma funcionava no cabeçalho.
+ *
+ * O design system tem `num` (aqui) e `au-num` (mais abaixo), nascidas em ondas
+ * diferentes. As duas alinham à direita, mas só `num` tinha a variante para o
+ * `<thead>` — e sem ela a especificidade decide contra: `.au-tabela thead th`
+ * é (0,1,2) e vence `.au-num`, que é (0,1,0). Resultado medível: em toda tabela
+ * escrita com `au-num` — "Ver os números" sob cada gráfico, o mapa de calor, o
+ * detalhe da competência — os VALORES iam para a direita e os TÍTULOS ficavam à
+ * esquerda, cada coluna desencontrada do próprio cabeçalho.
+ *
+ * As duas ganham a variante. Unificar as classes seria o certo e é varredura em
+ * ~40 templates; isto conserta o sintoma nas duas grafias hoje. */
+.au-tabela .num,
+.au-tabela .au-num {
   text-align: right;
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
 }
-.au-tabela thead th.num { text-align: right; }
+.au-tabela thead th.num,
+.au-tabela thead th.au-num { text-align: right; }
 /* Célula com formulário de ação não deve esticar a linha. */
 .au-tabela tbody td form { margin: 0; }
+
+/* O APOIO DENTRO DA CÉLULA VAI PARA A LINHA DE BAIXO.
+ *
+ * `<small>` é inline, então "Sankhya" e o nome do responsável saíam grudados na
+ * mesma linha, separados só pelo espaço em branco do HTML — e o mesmo com a
+ * pílula de situação e o motivo do atraso ao lado dela. Em bloco e um degrau
+ * mais apagado, vira o que a marcação já dizia: informação subordinada à da
+ * linha de cima. */
+.au-tabela tbody td > small {
+  display: block;
+  margin-top: 2px;
+  font-size: var(--au-t-xs);
+  color: var(--au-text-subtle);
+}
 
 /* ── Reembolso item a item ──────────────────────────────────────────
    A lista de compras e a tela de acerto do adiantamento. Sem `style=` em
@@ -3130,18 +3644,22 @@ a.au-notif-titulo:hover { color: var(--au-accent-text); text-decoration: underli
   stroke-width: 2;
   stroke-linecap: round;
 }
-/* O ÚNICO ponto de crimson da tela, e o único traço colorido do desenho: o
-   visto é o ato que exige um nome atrás, que é o assunto desta tela inteira.
-   Crimson porque é a marca — nunca porque significa erro. */
+/* O único traço colorido do desenho: o visto é o ato que exige um nome atrás,
+   que é o assunto desta tela inteira. Bordô porque é a marca — nunca porque
+   significa erro.
+
+   `--au-bordo-400` e não `--au-marca`: este painel é navy ESCURO em qualquer
+   tema, e ali o bordô-700 da marca mede 1,13:1 — o traço simplesmente some. O
+   400 dá 2,96:1, que é o mesmo que o crimson anterior entregava neste fundo. */
 .au-porta-arte-visto {
-  stroke: var(--au-marca);
+  stroke: var(--au-bordo-400);
   stroke-width: 3.5;
   stroke-linecap: round;
   stroke-linejoin: round;
   fill: none;
 }
 .au-porta-arte-anel {
-  stroke: var(--au-marca);
+  stroke: var(--au-bordo-400);
   stroke-width: 1.5;
   fill: none;
   opacity: .45;
@@ -3294,6 +3812,46 @@ tr[data-abre-resumo]:focus-visible {
   gap: var(--au-2);
   margin: 0;
 }
+/* `.au-form-acoes--linha` sempre acompanha `.au-form-acoes` no HTML
+ * (`class="au-form-acoes au-form-acoes--linha"`), e a base foi desenhada para
+ * o RODAPÉ de um formulário — 16px de respiro e um fio acima, separando os
+ * botões do corpo que eles fecham. Dentro de uma célula de tabela não há corpo
+ * para separar; o fio e o respiro só empurravam a linha para baixo e inflavam
+ * a altura da linha inteira.
+ *
+ * Escopado à célula da fila, e não à classe em geral: a mesma dupla de classes
+ * aparece no formulário de "não resolveu?" do dossiê, onde vem depois de dois
+ * parágrafos e o fio de fato separa algo. */
+.au-tabela-col-acoes .au-form-acoes--linha {
+  padding-top: 0;
+  border-top: 0;
+}
+
+/* A COLUNA DE AÇÕES DA FILA TEM PISO DE LARGURA.
+ *
+ * `.au-form-acoes--linha` leva até quatro peças — Assumir, Concluir, o campo do
+ * motivo e Devolver —, e a coluna do `<td>` só tinha a largura que sobrava
+ * depois das outras seis. Medido: 144px, e nessa largura cada peça caía numa
+ * linha própria — cinco linhas empilhadas — e a LINHA INTEIRA da tabela
+ * esticava para 212px para caber, mesmo em telas cujo conteúdo é uma palavra
+ * curta. Era a causa da "altura desproporcional".
+ *
+ * Com piso de 232px as quatro peças formam duas linhas (dois botões em cima,
+ * campo e botão embaixo) em vez de cinco, e a tabela — que já rola na
+ * horizontal para caber as colunas nowrap de "Esperando há" e "Valor" — ganha
+ * mais uma coluna larga em vez de uma altura de linha absurda. */
+.au-tabela-col-acoes { min-width: 232px; }
+/* O CAMPO DO MOTIVO NÃO PODE PEDIR A LINHA INTEIRA.
+ * `.au-input--compacto` tem `width: 100%`, e num item flex sem `flex-basis`
+ * próprio essa largura VIRA a base de cálculo do wrap — um item que pede 100%
+ * da linha nunca divide linha com ninguém, e foi por isso que "Devolver"
+ * sempre caía numa terceira linha, mesmo depois de a coluna ganhar piso de
+ * largura. Com base de 88px ele reparte a segunda linha com o botão ao lado,
+ * como Assumir e Concluir já dividem a primeira. Escopado a este seletor, e
+ * não à classe em si: `.au-input--compacto` aparece em grades e formulários
+ * de bloco por todo o produto, onde `flex` não se aplica nem atrapalha, mas
+ * não vale arriscar. */
+.au-tabela-col-acoes .au-input--compacto { flex: 1 1 88px; min-width: 64px; }
 
 /* CAMPO COMPACTO — a única declaração desta classe.
    Ela existia DUAS vezes no arquivo, escrita em ondas diferentes: a de
@@ -3319,11 +3877,25 @@ tr[data-abre-resumo]:focus-visible {
    e CSRF, e um formulário por linha é mais simples que um formulário só com
    `name` numerado — que é onde se erra o índice e se encerra o papel errado. */
 
+/* MAIS DE UM PAPEL NA CÉLULA, e cada um é a sua própria linha inteira —
+ * etiqueta, escopo e o botão de encerrar. `margin-bottom: var(--au-1)` (4px)
+ * quase não separava uma linha da outra: numa pessoa com três ou quatro
+ * papéis, os botões "Encerrar" ficavam praticamente colados uns nos outros,
+ * cada um pertencendo a uma linha diferente sem nada dizendo isso. Com 8px —
+ * o dobro — e um fio entre as linhas, a célula lê como uma pequena lista, e
+ * não como um bloco de texto que por acaso tem botões dentro. */
 .au-papel-linha {
   display: flex;
   align-items: center;
   gap: var(--au-2);
-  margin: 0 0 var(--au-1);
+  padding-bottom: var(--au-2);
+  margin: 0 0 var(--au-2);
+  border-bottom: 1px solid var(--au-border);
+}
+.au-papel-linha:last-child {
+  padding-bottom: 0;
+  margin-bottom: 0;
+  border-bottom: 0;
 }
 .au-papel-linha--fim { opacity: .5; }
 
@@ -4045,6 +4617,21 @@ tr[data-abre-resumo]:focus-visible {
 @media (min-width: 1800px) {
   .au-graficos:has(> :nth-child(3)) { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 }
+
+/* RESULTADO FINANCEIRO FICA EM UMA COLUNA SÓ.
+ *
+ * O teto de três acima vale para faixas cujo gráfico é uma comparação curta.
+ * Esta não é: são cinco séries de doze meses — receita, impostos, indireto,
+ * EBITDA e o trimestral —, cada uma com rótulo de valor E de "% do orçado" em
+ * cima da barra. Em duas colunas os doze rótulos colidem e o número, que é o
+ * motivo de a faixa existir, deixa de ser legível.
+ *
+ * Preso ao `aria-labelledby` da faixa e não a `.au-graficos`: a de projetos
+ * tem dois gráficos de barra curta e lado a lado continua sendo o certo lá. */
+.au-secao-faixa[aria-labelledby="dinheiro"] .au-graficos {
+  grid-template-columns: minmax(0, 1fr);
+}
+
 .au-grafico { margin: 0; }
 .au-grafico-titulo {
   margin-bottom: var(--au-2);
@@ -4125,13 +4712,6 @@ tr[data-abre-resumo]:focus-visible {
   font-variant-numeric: tabular-nums;
   color: var(--au-text-subtle);
 }
-
-.au-btn--fantasma {
-  background: transparent;
-  border: 1px solid var(--au-border);
-  color: var(--au-text);
-}
-.au-btn--fantasma:hover { background: var(--au-neutral-bg); }
 
 /* ═══════════════════════════════════════════════════════════════
    Painel de exceções (11)
@@ -4879,6 +5459,14 @@ tr[data-abre-resumo]:focus-visible {
   font-size: var(--au-t-sm);
 }
 
+/* O RECORTE SAIU DO TRILHO.
+ *
+ * Ele entrava pelo bloco `rail` e aparecia acima do menu, com um rótulo
+ * "RECORTE" e um fio para não parecer erro de layout. Era remendo: a frase
+ * descreve os NÚMEROS, e no menu ela ficava longe deles e ocupava a testa da
+ * navegação. Agora `_tarjas.html` é incluído no corpo, junto do que ele explica,
+ * e a regra que o formatava dentro do trilho não tem mais alvo. */
+
 .au-tarjas {
   display: flex;
   flex-wrap: wrap;
@@ -4981,12 +5569,26 @@ tr[data-abre-resumo]:focus-visible {
  * em reunião ele cobria as primeiras linhas de toda tabela que passava por
  * baixo. Agora fica numa gaveta `popover`, e na tela sobra uma linha.
  */
+/* A BARRA DE CONTROLE É UMA FAIXA, e não botões soltos no ar.
+ *
+ * "Filtros" de um lado e Apresentar/Detalhamento/PDF do outro flutuavam entre o
+ * cabeçalho e o primeiro bloco, sem pertencer a nenhum dos dois — e como os
+ * blocos ganharam moldura, esse pedaço solto passou a ser a única coisa da tela
+ * sem chão. Com superfície própria ela vira o que é: a régua de controle desta
+ * tela, colada logo abaixo do título.
+ *
+ * Mais baixa e mais clara que um bloco de conteúdo de propósito: é ferramenta,
+ * não informação, e não pode competir com o que ela controla. */
 .au-filtro-barra {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
   gap: var(--au-2);
-  margin: var(--au-4) 0;
+  margin: 0 0 var(--au-5);
+  padding: var(--au-2) var(--au-3);
+  background: var(--au-surface);
+  border: 1px solid var(--au-border);
+  border-radius: var(--au-r-md);
 }
 
 /* A CONTAGEM no botão. Sem ela, "Filtros" fechado não distingue tela inteira de
@@ -5339,10 +5941,10 @@ tr[data-abre-resumo]:focus-visible {
   grid-template-columns: 1em 6ch minmax(0, 1fr);
   align-items: baseline;
   gap: var(--au-2);
-  color: inherit;
+  color: var(--au-accent-text);
   text-decoration: none;
 }
-.au-contabil-abrir:hover { text-decoration: underline; }
+.au-contabil-abrir:hover { color: var(--au-accent); }
 .au-contabil-abrir .au-contabil-codigo { margin-right: 0; }
 
 /* Largura fixa para o "+" e o "−" ocuparem o mesmo espaço: sem isso o nome do
@@ -5535,8 +6137,20 @@ tr[data-abre-resumo]:focus-visible {
   display: grid; gap: var(--au-3);
   grid-template-columns: repeat(auto-fit, minmax(11rem, 1fr));
 }
+/* OS CINCO CARTÕES TÊM A MESMA ALTURA, mesmo com conteúdo diferente.
+ *
+ * "Carteira mensal" e "Contratos ativos" não têm comparação contra o mês nem
+ * contra o ano — o serviço não calcula variação para eles —, então o rodapé de
+ * deltas sai vazio e os dois cartões nasciam uma linha mais baixos que os três
+ * vizinhos. Ficava lendo como defeito de alinhamento, e não como "aqui não há o
+ * que comparar".
+ *
+ * `height: 100%` faz o link preencher a célula do grid, que já estica; a coluna
+ * flex com `margin-top: auto` no rodapé mantém os deltas colados embaixo, de
+ * modo que a linha de comparação fica na MESMA altura nos cinco. */
 .au-painel-numero-link {
-  display: block; padding: var(--au-3) var(--au-4);
+  display: flex; flex-direction: column; height: 100%;
+  padding: var(--au-3) var(--au-4);
   background: var(--au-surface-raised);
   border: 1px solid var(--au-border); border-radius: var(--au-r-md);
   color: inherit; text-decoration: none;
@@ -5550,12 +6164,18 @@ tr[data-abre-resumo]:focus-visible {
   transform: translateY(-3px);
 }
 .au-painel-numero-valor { display: block; font-size: var(--au-t-xl); font-weight: 700; }
-.au-painel-numero-titulo { display: block; font-size: var(--au-t-sm); color: var(--au-text-muted); }
+/* Azul porque o cartão inteiro é um link e nada dizia isso: ele abria o
+   detalhamento do número e parecia um quadro estático. Sem sublinhado — a peça
+   clicável é o cartão, e sublinhar o título prometeria que só ele leva. */
+.au-painel-numero-titulo {
+  display: block; font-size: var(--au-t-sm);
+  color: var(--au-accent-text); font-weight: 600;
+}
 
 /* AS DUAS comparações lado a lado, cada uma rotulada. "−3,2%" sozinho não diz
  * contra o quê — e a resposta muda a decisão: contra o mês pode ser calendário,
  * contra o ano é tendência. */
-.au-painel-numero-comparacoes { display: flex; gap: var(--au-3); margin-top: var(--au-2); }
+.au-painel-numero-comparacoes { display: flex; gap: var(--au-3); margin-top: auto; padding-top: var(--au-2); }
 .au-painel-delta { font-size: var(--au-t-xs); font-weight: 600; }
 .au-painel-delta small { display: block; font-weight: 400; color: var(--au-text-subtle); }
 .au-painel-delta--alta { color: var(--au-success-text); }

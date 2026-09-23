@@ -39,7 +39,7 @@
   {% if material %}
     <input type="hidden" name="material" value="{{ material.codigo }}">
   {% endif %}
-  <button class="au-btn au-btn--sutil au-btn--pequeno" type="submit">
+  <button class="au-btn au-btn--fantasma au-btn--pequeno" type="submit">
     {% trans "Ver" %}
   </button>
 </form>
@@ -107,7 +107,7 @@
                 {% endif %}
               </td>
               <td>
-                <a class="au-btn au-btn--sutil au-btn--pequeno"
+                <a class="au-btn au-btn--fantasma au-btn--pequeno"
                    href="?unidade={{ filtro_unidade }}&amp;material={{ linha.material.codigo }}">
                   {% trans "Razão" %}
                 </a>
@@ -356,7 +356,7 @@
       </div>
 
       <div class="au-form-acoes">
-        <button class="au-btn au-btn--primario" type="submit">
+        <button class="au-btn au-btn--positivo" type="submit">
           {% trans "Registrar a reversa" %}
         </button>
       </div>
@@ -406,7 +406,7 @@
       </div>
 
       <div class="au-form-acoes">
-        <button class="au-btn au-btn--primario" type="submit">
+        <button class="au-btn au-btn--positivo" type="submit">
           {% trans "Dar entrada" %}
         </button>
       </div>
@@ -473,7 +473,7 @@
       </div>
 
       <div class="au-form-acoes">
-        <button class="au-btn au-btn--primario" type="submit">
+        <button class="au-btn au-btn--positivo" type="submit">
           {% trans "Registrar a contagem" %}
         </button>
       </div>

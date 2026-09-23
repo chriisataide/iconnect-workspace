@@ -4,28 +4,43 @@
   existe o Workspace no breadcrumb e a logo. Rail que repete a home vira um segundo
   menu principal, e dois menus principais é a forma mais rápida de o usuário
   parar de confiar em qualquer um dos dois.
-{% endcomment %}
-<p class="au-rail-grupo">{{ modulo.nome }}</p>
-<a class="au-rail-item au-rail-item--ativo" href="{% url 'workspace:modulo' modulo.chave %}">
-  <svg class="au-icon" aria-hidden="true"><use href="#i-{{ modulo.icone }}"></use></svg>
-  {% trans "Visão geral" %}
-</a>
 
-<p class="au-rail-grupo">{% trans "Autoatendimento" %}</p>
-<a class="au-rail-item" href="{% url 'workspace:servicos' %}">
-  <svg class="au-icon" aria-hidden="true"><use href="#i-grid"></use></svg>
-  {% trans "Todos os serviços" %}
-</a>
-<a class="au-rail-item" href="{% url 'workspace:minhas_solicitacoes' %}">
-  <svg class="au-icon" aria-hidden="true"><use href="#i-file"></use></svg>
-  {% trans "Minhas solicitações" %}
-  {% if abertas %}<span class="au-rail-contagem">{{ abertas }}</span>{% endif %}
-</a>
-{# Ver `_rail_servicos.html`: quem pode aprovar sempre vê a porta, com "0" quando não há fila. #}
-{% if ve_aprovacoes %}
-  <a class="au-rail-item" href="{% url 'workspace:aprovacoes' %}">
-    <svg class="au-icon" aria-hidden="true"><use href="#i-check"></use></svg>
-    {% trans "Aprovar" %}
-    <span class="au-rail-contagem {% if pendentes_aprovacao %}au-rail-contagem--alerta{% endif %}">{{ pendentes_aprovacao }}</span>
+  OS GRUPOS SÃO `<details>`, como em `_rail_servicos.html`.
+
+  Eram dois `<p class="au-rail-grupo">` fixos, e por isso o trilho de um app
+  parecia outro componente: ao lado do de indicadores, um tinha seta e recolhia
+  e o outro não, com rótulos de peso diferente. Dois menus que se comportam
+  diferente na mesma posição da tela ensinam que a posição não quer dizer nada.
+  A estrutura dos itens não mudou — só o invólucro do grupo.
+
+  Ambos nascem `open`: são quatro itens no total, e um trilho que abre fechado
+  obriga a um clique para ver um menu que caberia inteiro na tela.
+{% endcomment %}
+<details class="au-rail-secao" data-grupo="modulo" open>
+  <summary class="au-rail-grupo"><svg class="au-icon au-rail-grupo-icone" aria-hidden="true"><use href="#i-{{ modulo.icone }}"></use></svg><span class="au-rail-grupo-nome">{{ modulo.nome }}</span></summary>
+  <a class="au-rail-item au-rail-item--ativo" href="{% url 'workspace:modulo' modulo.chave %}">
+    <svg class="au-icon" aria-hidden="true"><use href="#i-{{ modulo.icone }}"></use></svg>
+    {% trans "Visão geral" %}
   </a>
-{% endif %}
+</details>
+
+<details class="au-rail-secao" data-grupo="autoatendimento" open>
+  <summary class="au-rail-grupo"><svg class="au-icon au-rail-grupo-icone" aria-hidden="true"><use href="#i-grid"></use></svg><span class="au-rail-grupo-nome">{% trans "Autoatendimento" %}</span></summary>
+  <a class="au-rail-item" href="{% url 'workspace:servicos' %}">
+    <svg class="au-icon" aria-hidden="true"><use href="#i-grid"></use></svg>
+    {% trans "Todos os serviços" %}
+  </a>
+  <a class="au-rail-item" href="{% url 'workspace:minhas_solicitacoes' %}">
+    <svg class="au-icon" aria-hidden="true"><use href="#i-file"></use></svg>
+    {% trans "Minhas solicitações" %}
+    {% if abertas %}<span class="au-rail-contagem">{{ abertas }}</span>{% endif %}
+  </a>
+  {# Ver `_rail_servicos.html`: quem pode aprovar sempre vê a porta, com "0" quando não há fila. #}
+  {% if ve_aprovacoes %}
+    <a class="au-rail-item" href="{% url 'workspace:aprovacoes' %}">
+      <svg class="au-icon" aria-hidden="true"><use href="#i-check"></use></svg>
+      {% trans "Aprovar" %}
+      <span class="au-rail-contagem {% if pendentes_aprovacao %}au-rail-contagem--alerta{% endif %}">{{ pendentes_aprovacao }}</span>
+    </a>
+  {% endif %}
+</details>

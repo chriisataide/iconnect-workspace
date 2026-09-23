@@ -4,10 +4,16 @@
   chega. Catálogo e Minhas solicitações são o que ela faz depois de saber.
 {% endcomment %}
 <details class="au-rail-secao" data-grupo="hoje" {% if grupo_aberto == "hoje" %}open{% endif %}>
-  <summary class="au-rail-grupo">{% trans "Hoje" %}</summary>
+  <summary class="au-rail-grupo"><svg class="au-icon au-rail-grupo-icone" aria-hidden="true"><use href="#i-spark"></use></svg><span class="au-rail-grupo-nome">{% trans "Hoje" %}</span></summary>
+{% comment %}
+  Ícone de RELÓGIO, e não mais `#i-spark`: o grupo "Hoje" (`<summary>` acima)
+  já usa spark, e item filho com o MESMO ícone do grupo que o contém lê como um
+  erro de cópia — "por que Meu dia e Hoje são a mesma coisa?". O relógio marca
+  o que é específico deste item: uma agenda do dia, e não o grupo inteiro.
+{% endcomment %}
 <a class="au-rail-item {% if aba == 'meu_dia' %}au-rail-item--ativo{% endif %}"
    href="{% url 'workspace:meu_dia' %}">
-  <svg class="au-icon" aria-hidden="true"><use href="#i-spark"></use></svg>
+  <svg class="au-icon" aria-hidden="true"><use href="#i-relogio"></use></svg>
   {% trans "Meu dia" %}
 </a>
 <a class="au-rail-item {% if aba == 'notificacoes' %}au-rail-item--ativo{% endif %}"
@@ -19,7 +25,7 @@
 
 </details>
 <details class="au-rail-secao" data-grupo="consultar" {% if grupo_aberto == "consultar" %}open{% endif %}>
-  <summary class="au-rail-grupo">{% trans "Consultar" %}</summary>
+  <summary class="au-rail-grupo"><svg class="au-icon au-rail-grupo-icone" aria-hidden="true"><use href="#i-search"></use></svg><span class="au-rail-grupo-nome">{% trans "Consultar" %}</span></summary>
 {% comment %}
   METAS em CONSULTAR e para todo mundo que está identificado: `met.ler.proprio`
   está no autoatendimento, e um sistema de metas em que a pessoa não vê as
@@ -102,7 +108,7 @@
 
 </details>
 <details class="au-rail-secao" data-grupo="pedir" {% if grupo_aberto == "pedir" %}open{% endif %}>
-  <summary class="au-rail-grupo">{% trans "Pedir" %}</summary>
+  <summary class="au-rail-grupo"><svg class="au-icon au-rail-grupo-icone" aria-hidden="true"><use href="#i-cart"></use></svg><span class="au-rail-grupo-nome">{% trans "Pedir" %}</span></summary>
 <a class="au-rail-item {% if aba == 'catalogo' %}au-rail-item--ativo{% endif %}"
    href="{% url 'workspace:servicos' %}">
   <svg class="au-icon" aria-hidden="true"><use href="#i-grid"></use></svg>
@@ -136,7 +142,7 @@
 </details>
 {% if ve_indicadores or ve_ciclos or ve_excecoes or ve_planos or ve_orcamento or ve_resultados or ve_quadro or ve_satisfacao %}
   <details class="au-rail-secao" data-grupo="resultados" {% if grupo_aberto == "resultados" %}open{% endif %}>
-    <summary class="au-rail-grupo">{% trans "Resultados da empresa" %}</summary>
+    <summary class="au-rail-grupo"><svg class="au-icon au-rail-grupo-icone" aria-hidden="true"><use href="#i-activity"></use></svg><span class="au-rail-grupo-nome">{% trans "Resultados da empresa" %}</span></summary>
   {% comment %}
     Indicadores aparece para quem tem `ind.ler` — Diretoria, Sócios e R.H. — e
     também para quem ATENDE uma fila, que tem direito aos números da própria
@@ -268,7 +274,7 @@
 
 {% if administra_papeis or ve_publicacoes or ve_faq or ve_candidaturas or ve_marketing or ve_documentos %}
   <details class="au-rail-secao" data-grupo="gestao" {% if grupo_aberto == "gestao" %}open{% endif %}>
-    <summary class="au-rail-grupo">{% trans "Gestão" %}</summary>
+    <summary class="au-rail-grupo"><svg class="au-icon au-rail-grupo-icone" aria-hidden="true"><use href="#i-users"></use></svg><span class="au-rail-grupo-nome">{% trans "Gestão" %}</span></summary>
   {% if administra_papeis %}
     <a class="au-rail-item {% if aba == 'pessoas' %}au-rail-item--ativo{% endif %}"
        href="{% url 'workspace:pessoas' %}">
@@ -343,7 +349,7 @@
 
 {% if na_fila or ve_estoque or ve_frota %}
   <details class="au-rail-secao" data-grupo="atender" {% if grupo_aberto == "atender" %}open{% endif %}>
-    <summary class="au-rail-grupo">{% trans "Atender" %}</summary>
+    <summary class="au-rail-grupo"><svg class="au-icon au-rail-grupo-icone" aria-hidden="true"><use href="#i-ticket"></use></svg><span class="au-rail-grupo-nome">{% trans "Atender" %}</span></summary>
   {% if na_fila %}
     <a class="au-rail-item {% if aba == 'fila' %}au-rail-item--ativo{% endif %}"
        href="{% url 'workspace:fila' %}">
@@ -392,7 +398,7 @@
 {% endcomment %}
 {% if ve_aprovacoes %}
   <details class="au-rail-secao" data-grupo="aprovar" {% if grupo_aberto == "aprovar" %}open{% endif %}>
-    <summary class="au-rail-grupo">{% trans "Aprovar" %}</summary>
+    <summary class="au-rail-grupo"><svg class="au-icon au-rail-grupo-icone" aria-hidden="true"><use href="#i-check"></use></svg><span class="au-rail-grupo-nome">{% trans "Aprovar" %}</span></summary>
   <a class="au-rail-item {% if aba == 'aprovacoes' %}au-rail-item--ativo{% endif %}"
      href="{% url 'workspace:aprovacoes' %}">
     <svg class="au-icon" aria-hidden="true"><use href="#i-check"></use></svg>

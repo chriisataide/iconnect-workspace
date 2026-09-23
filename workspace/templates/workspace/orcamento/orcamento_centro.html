@@ -32,12 +32,12 @@
     <thead>
       <tr>
         <th>{% trans "Mês" %}</th>
-        <th>{% trans "Orçado" %}</th>
-        <th>{% trans "Comprometido" %}</th>
-        <th>{% trans "Realizado" %}</th>
-        <th>{% trans "Consumido" %}</th>
-        <th>{% trans "Saldo" %}</th>
-        <th>{% trans "%" %}</th>
+        <th class="num">{% trans "Orçado" %}</th>
+        <th class="num">{% trans "Comprometido" %}</th>
+        <th class="num">{% trans "Realizado" %}</th>
+        <th class="num">{% trans "Consumido" %}</th>
+        <th class="num">{% trans "Saldo" %}</th>
+        <th class="num">{% trans "%" %}</th>
       </tr>
     </thead>
     <tbody>
@@ -89,9 +89,9 @@
         <thead>
           <tr>
             <th>{% trans "Mês" %}</th>
-            <th>{% trans "Operação (nosso)" %}</th>
-            <th>{% trans "Contábil (Sankhya)" %}</th>
-            <th>{% trans "Diferença" %}</th>
+            <th class="num">{% trans "Operação (nosso)" %}</th>
+            <th class="num">{% trans "Contábil (Sankhya)" %}</th>
+            <th class="num">{% trans "Diferença" %}</th>
           </tr>
         </thead>
         <tbody>
@@ -159,13 +159,13 @@
         {% trans "Obrigatório. Sem motivo, a revisão vira uma edição com data — e o motivo é a metade que sobrevive a quem a fez." %}
       </p>
 
-      <button class="au-btn au-btn--primario" type="submit">{% trans "Aplicar revisão" %}</button>
+      <button class="au-btn au-btn--positivo" type="submit">{% trans "Aplicar revisão" %}</button>
     </form>
 
     <form class="au-vigorar" method="post"
           action="{% url 'workspace:vigorar_orcamento' codigo=centro.codigo ano=ano %}">
       {% csrf_token %}
-      <button class="au-btn au-btn--sutil" type="submit">{% trans "Pôr o rascunho deste ano em vigor" %}</button>
+      <button class="au-btn au-btn--positivo" type="submit">{% trans "Pôr o rascunho deste ano em vigor" %}</button>
       <p class="au-ajuda">
         {% trans "Só funciona se houver um rascunho com linhas. Depois de vigorar, o teto muda por revisão." %}
       </p>

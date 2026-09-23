@@ -94,7 +94,7 @@
   <textarea class="au-input" id="detalhamento" name="detalhamento" rows="3">{{ meta.detalhamento|default:'' }}</textarea>
   <p class="au-ajuda">{% trans "Como ler a meta, em prosa. É o que responde “o que exatamente conta aqui?” sem exigir uma reunião." %}</p>
 
-  <button class="au-btn au-btn--primario" type="submit">{% trans "Salvar meta" %}</button>
+  <button class="au-btn au-btn--positivo" type="submit">{% trans "Salvar meta" %}</button>
 </form>
 
 {% if meta %}
@@ -102,7 +102,7 @@
         action="{% url 'workspace:meta_remover' quadro_id=quadro.pk %}">
     {% csrf_token %}
     <input type="hidden" name="meta" value="{{ meta.pk }}">
-    <button class="au-btn au-btn--sutil" type="submit">{% trans "Remover esta meta" %}</button>
+    <button class="au-btn au-btn--perigo" type="submit">{% trans "Remover esta meta" %}</button>
   </form>
 {% endif %}
 {% endif %}

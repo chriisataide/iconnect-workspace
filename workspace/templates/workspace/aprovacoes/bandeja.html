@@ -196,19 +196,19 @@
               aprovador e o solicitante passam a ler fatos diferentes.
             {% endcomment %}
             {% if entrada.servico %}
-              <button class="au-btn au-btn--sutil au-btn--pequeno" type="button"
+              <button class="au-btn au-btn--fantasma au-btn--pequeno" type="button"
                       data-abre-resumo="resumo-{{ entrada.servico.pk }}">
                 <svg class="au-icon au-icon--mini" aria-hidden="true"><use href="#i-search"></use></svg>
                 {% trans "Ver o pedido" %}
               </button>
             {% endif %}
-            <button class="au-btn au-btn--primario au-btn--pequeno" type="submit"
+            <button class="au-btn au-btn--positivo au-btn--pequeno" type="submit"
                     form="aprovar-{{ s.pk }}">
               <svg class="au-icon au-icon--mini" aria-hidden="true"><use href="#i-check"></use></svg>
               {% trans "Aprovar" %}
             </button>
             <details class="au-devolver">
-              <summary class="au-btn au-btn--sutil au-btn--pequeno">
+              <summary class="au-btn au-btn--cautela au-btn--pequeno">
                 <svg class="au-icon au-icon--mini" aria-hidden="true"><use href="#i-devolver"></use></svg>
                 {% trans "Devolver" %}
               </summary>
@@ -235,7 +235,7 @@
               reprova sem querer.
             {% endcomment %}
             <details class="au-devolver au-devolver--recusa">
-              <summary class="au-btn au-btn--sutil au-btn--pequeno">
+              <summary class="au-btn au-btn--perigo au-btn--pequeno">
                 <svg class="au-icon au-icon--mini" aria-hidden="true"><use href="#i-x"></use></svg>
                 {% trans "Reprovar" %}
               </summary>
@@ -258,7 +258,7 @@
 
     <div class="au-lote-barra">
       <span>{% trans "Selecionadas serão aprovadas em lote." %}</span>
-      <button class="au-btn au-btn--primario" type="submit">{% trans "Aprovar selecionadas" %}</button>
+      <button class="au-btn au-btn--positivo" type="submit">{% trans "Aprovar selecionadas" %}</button>
     </div>
   </form>
 

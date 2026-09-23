@@ -47,7 +47,7 @@
     <label class="au-sr" for="q">{% trans "Buscar nos meus pedidos" %}</label>
     <input class="au-input au-input--compacto" id="q" type="search" name="q"
            value="{{ busca }}" placeholder="{% trans 'nome do serviço…' %}">
-    <button class="au-btn au-btn--sutil au-btn--pequeno" type="submit">
+    <button class="au-btn au-btn--primario au-btn--pequeno" type="submit">
       {% trans "Buscar" %}
     </button>
     {% if not sem_filtro %}
@@ -165,7 +165,7 @@
                   <form method="post"
                         action="{% url 'workspace:descartar_rascunho' s.pk %}">
                     {% csrf_token %}
-                    <button class="au-btn au-btn--sutil au-btn--pequeno" type="submit">
+                    <button class="au-btn au-btn--perigo au-btn--pequeno" type="submit">
                       {% trans "Descartar" %}
                     </button>
                   </form>
@@ -181,7 +181,7 @@
                   o que ela escreveu, e o envio promove a mesma linha.
                 {% endcomment %}
                 <div class="au-acoes-linha">
-                  <a class="au-btn au-btn--primario au-btn--pequeno"
+                  <a class="au-btn au-btn--positivo au-btn--pequeno"
                      href="{% url 'workspace:pedir' s.item.chave %}?devolvido={{ s.pk }}">
                     {% trans "Corrigir e reenviar" %}
                   </a>
@@ -238,7 +238,7 @@
       <p class="au-vazio-dica">
         {% blocktrans %}Suas férias, reembolsos e requisições aparecem aqui.{% endblocktrans %}
       </p>
-      <p><a class="au-btn au-btn--primario" href="{% url 'workspace:servicos' %}">
+      <p><a class="au-btn au-btn--fantasma" href="{% url 'workspace:servicos' %}">
         {% trans "Ver o catálogo" %}
       </a></p>
     </div>
@@ -248,7 +248,7 @@
       <p class="au-vazio-dica">
         {% blocktrans %}Seus pedidos continuam aqui — é este filtro que não encontra nenhum.{% endblocktrans %}
       </p>
-      <p><a class="au-btn au-btn--sutil" href="{% url 'workspace:minhas_solicitacoes' %}">
+      <p><a class="au-btn au-btn--fantasma" href="{% url 'workspace:minhas_solicitacoes' %}">
         {% trans "Ver todos" %}
       </a></p>
     </div>

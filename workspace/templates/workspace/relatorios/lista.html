@@ -17,7 +17,7 @@
 {% block corpo %}
 <div class="au-form-linha">
   {% for valor, rotulo in tipos %}
-    <a class="au-btn {% if forloop.first %}au-btn--primario{% else %}au-btn--sutil{% endif %}"
+    <a class="au-btn {% if forloop.first %}au-btn--primario{% else %}au-btn--fantasma{% endif %}"
        href="{% url 'workspace:relatorio_novo' %}?tipo={{ valor }}">
       {{ rotulo }}
     </a>

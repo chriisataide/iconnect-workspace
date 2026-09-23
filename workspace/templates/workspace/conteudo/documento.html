@@ -39,7 +39,7 @@
         <span class="au-list-resumo">{{ documento.tamanho_legivel }}</span>
       {% endif %}
     </span>
-    <a class="au-btn au-btn--primario au-btn--pequeno"
+    <a class="au-btn au-btn--fantasma au-btn--pequeno"
        href="{% url 'workspace:baixar_documento' documento.slug %}">
       {% trans "Baixar" %}
     </a>
@@ -52,7 +52,7 @@
     {% csrf_token %}
     <label class="au-sr" for="arquivo">{% trans "Arquivo" %}</label>
     <input class="au-input" id="arquivo" name="arquivo" type="file" required>
-    <button class="au-btn au-btn--sutil au-btn--pequeno" type="submit">
+    <button class="au-btn au-btn--primario au-btn--pequeno" type="submit">
       {% if documento.tem_arquivo %}{% trans "Substituir arquivo" %}{% else %}{% trans "Anexar arquivo" %}{% endif %}
     </button>
   </form>
@@ -116,7 +116,7 @@
           </p>
           <form method="post" action="{% url 'workspace:confirmar_leitura' documento.slug %}">
             {% csrf_token %}
-            <button class="au-btn au-btn--primario" type="submit"
+            <button class="au-btn au-btn--positivo" type="submit"
                     {% if not documento.vigente %}disabled{% endif %}>
               {% trans "Confirmo que li" %}
             </button>

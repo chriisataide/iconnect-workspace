@@ -94,6 +94,7 @@ from .ponto import (
 )
 from .meu_dia import marcar_lidas, meu_dia, notificacoes
 from .modulo import modulo
+from .perfil import perfil
 from .reserva import (
     cancelar_reserva,
     minhas_reservas,
@@ -225,6 +226,7 @@ __all__ = [
     "indicadores",
     "marcar_lidas",
     "meu_dia",
+    "perfil",
     "minhas_solicitacoes",
     "modulo",
     "notificacoes",

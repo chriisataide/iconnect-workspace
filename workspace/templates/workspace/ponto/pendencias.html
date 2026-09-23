@@ -84,7 +84,7 @@
   <section class="au-secao">
     <div class="au-secao-cabeca">
       <h2 class="au-secao-titulo">{% trans "Validação concluída" %}</h2>
-      <a class="au-btn au-btn--sutil au-btn--pequeno"
+      <a class="au-btn au-btn--fantasma au-btn--pequeno"
          href="{% url 'workspace:ponto_historico' %}">{% trans "Histórico" %}</a>
     </div>
 
@@ -186,7 +186,7 @@
                 {% endif %}
               </td>
               <td>
-                <a class="au-btn au-btn--sutil au-btn--pequeno"
+                <a class="au-btn au-btn--fantasma au-btn--pequeno"
                    href="{% url 'workspace:ponto_mensagem' c.pk %}">{% trans "Ver mensagem" %}</a>
               </td>
             </tr>
@@ -213,7 +213,7 @@
       </table>
 
       <div class="au-form-acoes">
-        <button class="au-btn au-btn--sutil" type="submit">
+        <button class="au-btn au-btn--positivo" type="submit">
           {% trans "Salvar seleção" %}
         </button>
       </div>
@@ -233,7 +233,7 @@
           </label>
           <input class="au-input au-input--compacto" id="tel-{{ c.pk }}" name="telefone"
                  type="tel" inputmode="tel" required placeholder="(19) 99999-9999">
-          <button class="au-btn au-btn--sutil au-btn--pequeno" type="submit">
+          <button class="au-btn au-btn--primario au-btn--pequeno" type="submit">
             {% trans "Corrigir" %}
           </button>
         </form>
@@ -332,10 +332,10 @@
         {% trans "Restantes" %}: <strong data-ponto-restantes>{{ progresso.restantes }}</strong>
       </p>
       <div class="au-form-acoes">
-        <a class="au-btn au-btn--sutil" href="{% url 'workspace:ponto_lote' lote.pk %}">
+        <a class="au-btn au-btn--fantasma" href="{% url 'workspace:ponto_lote' lote.pk %}">
           {% trans "Ver detalhes" %}
         </a>
-        <a class="au-btn au-btn--sutil" href="{% url 'workspace:pendencias_ponto' %}">
+        <a class="au-btn au-btn--positivo" href="{% url 'workspace:pendencias_ponto' %}">
           {% trans "Novo processamento" %}
         </a>
       </div>

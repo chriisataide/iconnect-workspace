@@ -31,7 +31,22 @@
   </div>
 {% endif %}
 
+{% comment %}
+  CADA ASSUNTO NUMA `.au-secao`.
+
+  Os quatro blocos eram `<h2>` e `<div class="au-tabela">` soltos, irmãos crus
+  dentro de `corpo`. Medido: `.au-secao-titulo` tem `margin: 0` e `.au-tabela`
+  não tem margem nenhuma, então havia ZERO pixel entre o fim de uma tabela e o
+  título da próxima, e zero entre esse título e a tabela dele. Quatro assuntos
+  empilhados colados, sem moldura, com o título em 11px cinza-claro no meio —
+  era o "apertado e bagunçado" da tela.
+
+  `.au-secao` dentro de `.au-modulo-corpo` já dá `margin-top: 24px`,
+  `padding: 20px`, fundo, borda, raio e promove o título a `--au-t-lg` com fio
+  embaixo. Nada de CSS novo: a tela só não estava usando o que o sistema tem.
+{% endcomment %}
 {% if fontes %}
+<section class="au-secao">
 <h2 class="au-secao-titulo" id="fontes">{% trans "As fontes" %}</h2>
 <div class="au-tabela">
   <table>
@@ -86,7 +101,7 @@
               <form method="post"
                     action="{% url 'workspace:recarregar_fonte' item.fonte.chave %}">
                 {% csrf_token %}
-                <button class="au-btn au-btn--sutil" type="submit"
+                <button class="au-btn au-btn--primario" type="submit"
                         {% if not item.fonte.ativa or not item.fonte.configurada %}disabled{% endif %}>
                   {% trans "Recarregar" %}
                 </button>
@@ -98,8 +113,10 @@
     </tbody>
   </table>
 </div>
+</section>
 {% endif %}
 
+<section class="au-secao">
 <h2 class="au-secao-titulo" id="mapa">{% trans "Qual faixa vem de qual fonte" %}</h2>
 <div class="au-tabela">
   <table>
@@ -116,8 +133,10 @@
     </tbody>
   </table>
 </div>
+</section>
 
 {% if divergencias %}
+  <section class="au-secao">
   <h2 class="au-secao-titulo au-subsecao--alerta" id="divergencias">
     {% trans "Divergências abertas entre fontes" %}
   </h2>
@@ -154,9 +173,11 @@
       </tbody>
     </table>
   </div>
+  </section>
 {% endif %}
 
 {% if historico %}
+  <section class="au-secao">
   <h2 class="au-secao-titulo" id="historico">{% trans "Últimas execuções" %}</h2>
   <div class="au-tabela">
     <table>
@@ -198,5 +219,6 @@
       </tbody>
     </table>
   </div>
+  </section>
 {% endif %}
 {% endblock %}

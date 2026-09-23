@@ -15,6 +15,25 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="color-scheme" content="light dark">
   <meta name="theme-color" content="#2e3192">
+
+  {% comment %}
+    O TEMA É APLICADO ANTES DE PINTAR, e por isso este script é inline e fica
+    aqui em cima, e não no `workspace.js` que carrega com `defer`.
+
+    Com `defer` o navegador já desenhou a primeira tela usando o
+    `prefers-color-scheme`: quem escolheu escuro num sistema claro via um flash
+    branco em toda navegação. É o único script inline do produto, e ele cabe em
+    três linhas justamente para não virar lógica escondida no `<head>`.
+
+    O `nonce` é o que a CSP exige — `script-src 'self' 'nonce-…'`, sem
+    `unsafe-inline`. Sem o atributo, o navegador descarta isto em silêncio.
+  {% endcomment %}
+  <script nonce="{{ request.csp_nonce }}">
+    try {
+      var t = localStorage.getItem('au-tema');
+      if (t === 'dark' || t === 'light') document.documentElement.setAttribute('data-theme', t);
+    } catch (e) { /* navegação privada: segue o tema do sistema */ }
+  </script>
   {% comment %}
     O sufixo é o produto, e o bloco é a página. Antes o sufixo era "iConnect",
     o que fazia a aba dizer "RH · iConnect" para uma tela que não é do iConnect.
@@ -29,8 +48,20 @@
     O apple-touch é o único com fundo BRANCO e sem alfa: o iOS pinta a
     transparência de preto, e a águia vermelha sobre preto some.
   {% endcomment %}
+  {% comment %}
+    `favicon-aba.png` é o `adb-512.png` RECORTADO no desenho.
+
+    No arquivo original a águia ocupa 45% da largura e o resto é transparência —
+    num slot de aba de 16px sobram ~7px de escudo, que é o que fazia a marca
+    sumir entre as abas. Recortado no bbox e com 6% de folga, ela passa a ocupar
+    90%. Mesmo desenho, mesma cor; o que mudou foi a moldura vazia em volta.
+
+    Os outros dois ficam como estão: o `.ico` é o fallback de navegador antigo e
+    o apple-touch PRECISA da folga, porque o iOS arredonda o ícone e cortaria as
+    pontas das asas.
+  {% endcomment %}
   <link rel="icon" href="{% static 'workspace/img/favicon-adb.ico' %}" sizes="any">
-  <link rel="icon" type="image/png" href="{% static 'workspace/img/adb-512.png' %}">
+  <link rel="icon" type="image/png" href="{% static 'workspace/img/favicon-aba.png' %}">
   <link rel="apple-touch-icon" href="{% static 'workspace/img/adb-apple-touch.png' %}">
 
   <link rel="stylesheet" href="{% estatico 'workspace/src/tokens.css' %}">
@@ -137,7 +168,7 @@
                     jogava a pessoa na Central de qualquer tela em que estivesse.
                   {% endcomment %}
                   <input type="hidden" name="voltar" value="{{ request.path }}">
-                  <button class="au-btn au-btn--sutil au-btn--pequeno" type="submit">
+                  <button class="au-btn au-btn--fantasma au-btn--pequeno" type="submit">
                     {% trans "Marcar todas como lidas" %}
                   </button>
                 </form>
@@ -173,19 +204,130 @@
         nunca entrou é um botão que não faz nada.
       {% endcomment %}
       {% if eu %}
-        <span class="au-topbar-eu" title="{{ eu.nome_completo }}{% if eu.area %} · {{ eu.area }}{% endif %}">
-          <span class="au-topbar-eu-nome">{{ eu.nome }}</span>
-          {% if eu.area %}<span class="au-topbar-eu-area">{{ eu.area }}</span>{% endif %}
-        </span>
-        <form class="au-topbar-sair" method="post" action="{% url 'sair' %}">
-          {% csrf_token %}
-          <button class="au-topbar-botao" type="submit"
-                  aria-label="{% trans 'Sair' %}" title="{% trans 'Sair' %}">
-            <svg class="au-icon" aria-hidden="true"><use href="#i-sair"></use></svg>
-          </button>
-        </form>
+        {% comment %}
+          O MENU DE PERFIL É UM `<details>`, como o sino logo acima.
+
+          Não é Bootstrap: este produto não carrega Bootstrap, e o dropdown de
+          lá depende do Popper e de `data-bs-toggle`. `<details>` abre e fecha
+          sem uma linha de JavaScript, o que também resolve a CSP — não há
+          `unsafe-inline` em `script-src`, então handler inline seria descartado
+          em silêncio. Os ícones são o sprite SVG do próprio sistema, e não
+          Material Symbols, que é fonte do Google e esbarra em `font-src 'self'`.
+
+          SÓ O CÍRCULO fica na topbar — nome e área não moram mais ao lado dele.
+          Continuam existindo em dois lugares: no `title` do gatilho, para quem
+          passa o mouse, e por completo dentro do próprio menu, na
+          `.au-perfil-cabeca` abaixo. Repeti-los soltos ao lado do círculo
+          disputava a mesma largura que a busca e o sino já disputam na topbar,
+          e o menu já respondia "quem está sendo" com um clique.
+        {% endcomment %}
+        <details class="au-perfil">
+          <summary class="au-perfil-gatilho" title="{{ eu.nome_completo }}{% if eu.cargo %} · {{ eu.cargo }}{% endif %}"
+                   aria-label="{% trans 'Menu da conta' %}">
+            {% if eu.avatar %}
+              <img class="au-perfil-foto" src="{{ eu.avatar }}" alt="" aria-hidden="true">
+            {% else %}
+              <span class="au-perfil-iniciais" aria-hidden="true">{{ eu.iniciais }}</span>
+            {% endif %}
+          </summary>
+
+          <div class="au-perfil-painel">
+            <div class="au-perfil-cabeca">
+              {% if eu.avatar %}
+                <img class="au-perfil-foto au-perfil-foto--grande" src="{{ eu.avatar }}" alt="" aria-hidden="true">
+              {% else %}
+                <span class="au-perfil-iniciais au-perfil-iniciais--grande" aria-hidden="true">{{ eu.iniciais }}</span>
+              {% endif %}
+              <span class="au-perfil-identidade">
+                <strong class="au-perfil-nome">{{ eu.nome_completo }}</strong>
+                {% if eu.cargo %}<span class="au-perfil-cargo">{{ eu.cargo }}</span>{% endif %}
+                <span class="au-perfil-email">{{ request.user.email }}</span>
+              </span>
+            </div>
+
+            {% comment %}
+              A BARRA SÓ APARECE ENQUANTO FALTA ALGO. Em 100% ela viraria um
+              enfeite permanente dizendo "está tudo certo" — e uma medida que
+              nunca muda deixa de ser lida depois da segunda vez.
+            {% endcomment %}
+            {% if eu.perfil_completo < 100 %}
+              <div class="au-perfil-progresso">
+                <p class="au-perfil-progresso-rotulo">
+                  <span>{% trans "Perfil completo" %}</span>
+                  <b>{{ eu.perfil_completo }}%</b>
+                </p>
+                <progress class="au-perfil-barra" value="{{ eu.perfil_completo }}" max="100"></progress>
+              </div>
+            {% endif %}
+
+            {% comment %}
+              "Meu dia" e "Notificações" saíram daqui: os dois já têm porta
+              própria no trilho, e o sino ao lado deste menu abre a central de
+              avisos em um clique. Um menu de conta que repete a navegação vira
+              um terceiro lugar para procurar a mesma coisa.
+            {% endcomment %}
+            <div class="au-perfil-secao">
+              <a class="au-perfil-item" href="{% url 'workspace:perfil' %}">
+                <span class="au-perfil-item-icone"><svg class="au-icon" aria-hidden="true"><use href="#i-users"></use></svg></span>
+                <span class="au-perfil-item-texto">
+                  <b>{% trans "Meu perfil" %}</b>
+                  <small>{% trans "Foto e os seus dados" %}</small>
+                </span>
+              </a>
+              <a class="au-perfil-item" href="{% url 'workspace:minhas_solicitacoes' %}">
+                <span class="au-perfil-item-icone"><svg class="au-icon" aria-hidden="true"><use href="#i-file"></use></svg></span>
+                <span class="au-perfil-item-texto">
+                  <b>{% trans "Minhas solicitações" %}</b>
+                  <small>{% trans "O que você pediu e em que pé está" %}</small>
+                </span>
+              </a>
+
+              {% comment %}
+                A CHAVE DO MODO ESCURO é um `<button>` com `aria-pressed`, e não
+                um `<input type="checkbox">` dentro de um `<form>`: não há nada
+                para submeter — a preferência vive no `localStorage` e é aplicada
+                como `data-theme` no `<html>`.
+
+                Nasce `hidden` e o JS a revela. Sem JavaScript ela não faria
+                nada, e uma chave que não liga nada é pior que a ausência dela;
+                sem JS o tema segue o `prefers-color-scheme` do sistema, que é o
+                comportamento que o produto já tinha.
+              {% endcomment %}
+              <button class="au-perfil-item au-perfil-item--chave" type="button"
+                      data-tema-chave aria-pressed="false" hidden>
+                <span class="au-perfil-item-icone"><svg class="au-icon" aria-hidden="true"><use href="#i-spark"></use></svg></span>
+                <span class="au-perfil-item-texto">
+                  <b>{% trans "Modo escuro" %}</b>
+                  <small data-tema-estado>{% trans "Seguindo o sistema" %}</small>
+                </span>
+                <span class="au-chave" aria-hidden="true"><span class="au-chave-bolinha"></span></span>
+              </button>
+            </div>
+
+            <div class="au-perfil-detalhes">
+              {% if eu.unidade %}
+                <p class="au-perfil-detalhe">
+                  <svg class="au-icon" aria-hidden="true"><use href="#i-grid"></use></svg>
+                  {{ eu.unidade }}
+                </p>
+              {% endif %}
+              <p class="au-perfil-detalhe">
+                <svg class="au-icon" aria-hidden="true"><use href="#i-relogio"></use></svg>
+                {% blocktrans with quando=request.user.last_login|date:"d/m/Y H:i" %}Último acesso: {{ quando }}{% endblocktrans %}
+              </p>
+            </div>
+
+            <form class="au-perfil-sair" method="post" action="{% url 'sair' %}">
+              {% csrf_token %}
+              <button class="au-btn au-btn--perigo au-btn--pequeno" type="submit">
+                <svg class="au-icon" aria-hidden="true"><use href="#i-sair"></use></svg>
+                {% trans "Sair da conta" %}
+              </button>
+            </form>
+          </div>
+        </details>
       {% else %}
-        <a class="au-btn au-btn--sutil au-btn--pequeno" href="{% url 'entrar' %}">
+        <a class="au-btn au-btn--primario au-btn--pequeno" href="{% url 'entrar' %}">
           {% trans "Entrar" %}
         </a>
       {% endif %}

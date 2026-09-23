@@ -817,6 +817,13 @@
       grupo.open = lembrados[chave];
     }
     grupo.addEventListener('toggle', function () {
+      /* Recolher o trilho abre todos os grupos para que os ícones apareçam —
+       * ver o bloco "RECOLHER O TRILHO" no fim deste arquivo. Essa abertura é
+       * consequência da largura e NÃO é escolha da pessoa: gravá-la faria o
+       * trilho voltar com tudo aberto depois, e a preferência real se perderia.
+       * Enquanto recolhido, o que se lembra fica congelado. */
+      var modulo = grupo.closest('.au-modulo');
+      if (modulo && modulo.getAttribute('data-trilho') === 'recolhido') return;
       lembrados[chave] = grupo.open;
       gravar(CHAVE_GRUPOS, lembrados);
     });
@@ -964,14 +971,16 @@
  *
  * ## Os grupos, ao recolher
  *
- * Um `<details>` fechado não mostra os itens, e recolhido não há rótulo de
- * grupo para clicar. Quem resolve isso é o CSS, revelando os itens sem abrir o
- * `<details>` — ver `.au-rail-secao:not([open])` na folha de estilo.
+ * Recolhido mostra UMA LINHA POR GRUPO — o ícone do `<summary>` — e esconde os
+ * itens. Isso apaga um problema que existia antes: o `<summary>` fica visível
+ * com o `<details>` aberto ou fechado, então não é mais preciso forçar os
+ * grupos a abrir para que algo apareça. A versão anterior abria todos ao
+ * recolher e guardava quais estavam fechados para devolvê-los depois — um
+ * controle de largura reescrevendo a preferência de outro controle.
  *
- * Abrir os grupos aqui seria o caminho óbvio e está ERRADO: o script que
- * lembra quais grupos ficaram abertos escuta `toggle`, então recolher o trilho
- * gravaria "todos abertos" e essa mudança sobreviveria ao expandir. Um controle
- * de largura não pode reescrever a preferência de outro controle.
+ * Clicar num grupo recolhido EXPANDE o trilho e abre aquele grupo, em vez de
+ * abrir um `<details>` cujos itens o CSS esconde. Sem isso o clique não fazia
+ * nada visível, que é a pior resposta possível a um clique.
  *
  * ## Sem JavaScript
  *
@@ -1019,13 +1028,14 @@
     botao.setAttribute('aria-label', recolhido ? 'Expandir o menu' : 'Recolher o menu');
     botao.setAttribute('title', botao.getAttribute('aria-label'));
 
-    /* Recolhido, o rótulo do item vira invisível; o `title` é o que devolve o
-       nome a quem passa o ponteiro. */
-    Array.prototype.forEach.call(trilho.querySelectorAll('.au-rail-item'), function (item) {
+    /* Recolhido sobra só o ícone do grupo; o `title` é o que devolve o nome a
+       quem passa o ponteiro. Nos itens não é mais preciso — eles não estão na
+       tela. */
+    Array.prototype.forEach.call(trilho.querySelectorAll('.au-rail-grupo'), function (g) {
       if (recolhido) {
-        if (!item.getAttribute('title')) item.setAttribute('title', item.textContent.trim());
+        if (!g.getAttribute('title')) g.setAttribute('title', g.textContent.trim());
       } else {
-        item.removeAttribute('title');
+        g.removeAttribute('title');
       }
     });
 
@@ -1038,6 +1048,94 @@
     gravar(recolhido);
   });
 
-  trilho.insertBefore(botao, trilho.firstChild);
+  /* RECOLHIDO, CLICAR NUM GRUPO EXPANDE O TRILHO.
+     `preventDefault` porque o alvo é um `<summary>`: sem isso o navegador
+     também alternaria o `<details>`, e a pessoa acabaria com o trilho aberto e
+     o grupo que ela clicou FECHADO — o contrário do que pediu. */
+  trilho.addEventListener('click', function (e) {
+    if (modulo.getAttribute('data-trilho') !== 'recolhido') return;
+    var grupo = e.target.closest ? e.target.closest('.au-rail-grupo') : null;
+    if (!grupo) return;
+    e.preventDefault();
+    var secao = grupo.parentNode;
+    if (secao && secao.tagName === 'DETAILS') secao.open = true;
+    aplicar(false, false);
+    gravar(false);
+  });
+
+  /* Na testa do trilho, ao lado da marca — é a única parte que não rola. */
+  var topo = trilho.querySelector('.au-rail-topo');
+  (topo || trilho).appendChild(botao);
   aplicar(ler(), false);
+})();
+
+/* A chave do modo escuro, no menu da conta.
+ *
+ * ## Três estados, dois visíveis
+ *
+ * A preferência tem três valores possíveis: "claro", "escuro" e NENHUM — e o
+ * terceiro é o padrão, em que o tema segue o `prefers-color-scheme` do sistema
+ * operacional. A chave só alterna entre ligada e desligada; quem nunca a tocou
+ * fica no terceiro estado, e o rótulo diz isso ("Seguindo o sistema") em vez de
+ * mentir que está desligada.
+ *
+ * ## Por que o `<html>` e não uma classe no `<body>`
+ *
+ * `tokens.css` já declara os dois temas: `@media (prefers-color-scheme: dark)`
+ * guardado por `:root:not([data-theme="light"])`, e `:root[data-theme="dark"]`.
+ * Essa dupla é o que permite os três estados — o atributo VENCE a media query
+ * nos dois sentidos. Aqui basta escrever o atributo; nenhuma regra nova.
+ *
+ * ## Sem JavaScript
+ *
+ * O botão nasce `hidden` no template e só aparece aqui. Sem este arquivo o tema
+ * segue o sistema, que é o comportamento que o produto sempre teve.
+ */
+(function () {
+  'use strict';
+
+  var chave = document.querySelector('[data-tema-chave]');
+  if (!chave) return;
+
+  var CHAVE = 'au-tema';
+  var raiz = document.documentElement;
+  var estado = chave.querySelector('[data-tema-estado]');
+
+  function lerPreferencia() {
+    try { return window.localStorage.getItem(CHAVE); } catch (e) { return null; }
+  }
+
+  /* O que está NA TELA agora, que não é o mesmo que a preferência: sem
+     preferência gravada, quem decide é o sistema. */
+  function escuroAgora() {
+    var gravado = lerPreferencia();
+    if (gravado === 'dark') return true;
+    if (gravado === 'light') return false;
+    return window.matchMedia('(prefers-color-scheme: dark)').matches;
+  }
+
+  function pintar() {
+    var escuro = escuroAgora();
+    chave.setAttribute('aria-pressed', escuro ? 'true' : 'false');
+    if (!estado) return;
+    var gravado = lerPreferencia();
+    if (gravado === null) estado.textContent = 'Seguindo o sistema';
+    else estado.textContent = escuro ? 'Ligado' : 'Desligado';
+  }
+
+  chave.addEventListener('click', function () {
+    var escuro = !escuroAgora();
+    raiz.setAttribute('data-theme', escuro ? 'dark' : 'light');
+    try { window.localStorage.setItem(CHAVE, escuro ? 'dark' : 'light'); } catch (e) { /* ignora */ }
+    pintar();
+  });
+
+  /* Quem nunca escolheu acompanha o sistema em tempo real — trocar o tema do
+     macOS com a aba aberta tem de trocar aqui também, e o rótulo junto. */
+  window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', function () {
+    if (lerPreferencia() === null) pintar();
+  });
+
+  chave.hidden = false;
+  pintar();
 })();
