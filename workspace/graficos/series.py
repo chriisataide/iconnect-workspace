@@ -281,9 +281,11 @@ def _eixo_de_valor(rotulos_curtos: bool = True) -> dict:
         "type": "value",
         "axisLabel": {
             "color": COR_TEXTO,
-            # `{@…}` não vale em eixo — ele não tem dado por trás. O eixo usa o
-            # formatador nativo do ECharts, que é en-US; então o Python define
-            # os TICKS e o texto deles vira categoria. Ver `_eixo_com_ticks`.
+            # `{@…}` não vale em eixo — ele não tem dado por trás, e o
+            # formatador nativo do ECharts é en-US (`1,500,000`). A marca abaixo
+            # pede ao `echarts-adb.js` o formatador pt-BR (`1,5 Mi`): o tick é
+            # escala, não dado, e só o navegador sabe quais ticks cabem.
+            "formatoBR": "curto",
             "fontSize": 11,
         },
         "splitLine": {"lineStyle": {"color": COR_GRADE, "type": "dashed"}},
@@ -649,7 +651,7 @@ def cascata(
     #: Uma URL por passo, paralela a `passos`. É o que faz cada degrau LEVAR ao
     #: detalhamento — o clique abre o grupo de contas correspondente.
     urls: list[str] | None = None,
-    formatar=fmt.moeda_curta,
+    formatar=fmt.contabil_curto,
     formatar_tabela=fmt.moeda,
     altura: int = ALTURA,
 ) -> Bloco:
@@ -716,7 +718,13 @@ def cascata(
             "xAxis": {
                 "type": "category",
                 "data": rotulos,
-                "axisLabel": {"color": COR_TEXTO, "fontSize": 11},
+                # TODOS os nomes, quebrados em duas linhas. Com o padrão o
+                # ECharts escondia um sim, um não — e as deduções vermelhas
+                # ficavam sem dizer o que eram.
+                "axisLabel": {
+                    "color": COR_TEXTO, "fontSize": 11, "interval": 0,
+                    "width": 84, "overflow": "break", "lineHeight": 14,
+                },
                 "axisTick": {"show": False},
                 "axisLine": {"lineStyle": {"color": COR_GRADE}},
             },
@@ -745,24 +753,25 @@ def cascata(
                         {
                             "value": valor,
                             "itemStyle": {"color": cor},
-                            "rotulo": texto,
-                            # POR ITEM, e não na série: cada passo da cascata tem
-                            # a sua cor (ganho verde, perda vermelha, total
-                            # navy), e uma cor de rótulo só serviria a um deles.
-                            "label": {"color": cor_do_rotulo(cor)},
+                            # O TEXTO LITERAL, por item. `{@rotulo}` não resolvia
+                            # aqui — os dados são objetos e não `dataset` — e o
+                            # ECharts caía no valor cru: `1298267.36` na tela.
+                            #
+                            # E a cor do texto é a da barra: navy no total,
+                            # vermelho na dedução. Cor nunca sozinha — o
+                            # parêntese do contábil diz o mesmo.
+                            "label": {"formatter": texto, "color": cor},
                         }
                         for valor, cor, texto in zip(valores, cores, textos)
                     ],
+                    # EM CIMA e na horizontal, e não girado por dentro: a
+                    # dedução pequena é uma lasca de poucos pixels, e o número
+                    # girado dentro dela aparecia cortado ("1231.", "6"). A
+                    # cascata tem treze colunas largas — o texto deitado cabe.
                     "label": {
                         "show": True,
-                        # `{@rotulo}` não vale aqui: os dados são objetos e não
-                        # `dataset`. O ECharts expõe o item cru em `{c}`… mas ele
-                        # traz o valor, não o texto. `data.rotulo` é lido por
-                        # `{@rotulo}` mesmo assim — o `retrieveRawValue` procura
-                        # a dimensão no item bruto.
-                        "formatter": "{@rotulo}",
-                        "rotate": 90,
-                        "position": "inside",
+                        "position": "top",
+                        "distance": 4,
                         "fontSize": 11,
                         "fontWeight": "bold",
                     },
@@ -1780,6 +1789,10 @@ def barras_por_ano(
                     "type": "bar",
                     "name": nome,
                     "barMaxWidth": 22,
+                    # A cor NA SÉRIE também: só por item, a legenda caía na
+                    # paleta padrão do ECharts e mostrava cores que não
+                    # existiam nas barras.
+                    "itemStyle": {"color": CORES_POR_ANO[i % len(CORES_POR_ANO)]},
                     "data": [
                         _barra_do_ano(
                             valor, CORES_POR_ANO[i % len(CORES_POR_ANO)],
@@ -1833,16 +1846,16 @@ def _barra_do_ano(valor, cor: str, aviso: str | None, formatar):
         estilo |= {"opacity": 0.55, "borderColor": cor, "borderWidth": 1,
                    "borderType": "dashed"}
         rotulo = f"{rotulo}\n{aviso}"
+    # GIRADO e DENTRO da barra, como o resto do módulo. Deitado em cima, o
+    # rótulo de uma barra de 22px invadia o da vizinha do outro ano, e os dois
+    # viravam uma mancha ("R$ 3,R$ 3,05 Mi").
     return {
         "value": float(valor),
         "itemStyle": estilo,
         "label": {
-            "show": True,
-            "position": "top",
+            **_rotulo(cor=cor_do_rotulo(cor), dentro=True),
             "formatter": rotulo,
-            "fontSize": 10,
-            "fontWeight": "bold" if aviso else "normal",
-            "color": COR_ROTULO_ESCURO,
+            "fontWeight": "bold",
         },
     }
 

@@ -781,7 +781,12 @@ def test_a_cascata_fecha_no_acumulado():
 
 
 def test_a_cascata_pinta_ganho_e_perda_e_escreve_o_valor():
-    """Cor nunca sozinha: verde e vermelho, com o número dentro da barra."""
+    """Cor nunca sozinha: verde e vermelho, com o número escrito na barra.
+
+    O texto é o `formatter` LITERAL do item. A versão anterior guardava um
+    campo `rotulo` e pedia `{@rotulo}`, que não resolve em dado de objeto — o
+    ECharts desenhava o valor cru (`1298267.36`) e o teste passava.
+    """
     bloco = series.cascata(
         [("A", Decimal("300")), ("B", Decimal("-120"))], chave="x", titulo="t"
     )
@@ -789,7 +794,8 @@ def test_a_cascata_pinta_ganho_e_perda_e_escreve_o_valor():
 
     assert dados[0]["itemStyle"]["color"] == series.COR_POSITIVO
     assert dados[1]["itemStyle"]["color"] == series.COR_NEGATIVO
-    assert dados[1]["rotulo"] == fmt.moeda_curta(Decimal("-120"))
+    assert dados[1]["label"]["formatter"] == "(R$ 120)"
+    assert dados[0]["label"]["formatter"] == "R$ 300"
 
 
 def test_a_barra_de_composicao_e_uma_categoria_so():
@@ -1647,3 +1653,23 @@ def test_NENHUM_grafico_manda_html_no_texto_de_serie():
         cru = json.dumps(bloco.option, default=str)
         for marca in ("<br", "<b>", "<span", "<div", "&lt;"):
             assert marca not in cru, f"{bloco.chave} manda {marca} para a tela"
+
+
+def test_contabil_curto_poe_negativo_entre_parenteses():
+    assert fmt.contabil_curto(Decimal("-201231.44")) == "(R$ 201 Mil)"
+    assert fmt.contabil_curto(Decimal("1298267.36")) == "R$ 1,30 Mi"
+
+
+def test_trimestral_tem_cor_na_serie_para_a_legenda_bater():
+    """Com a cor só por barra, a legenda mostrava a paleta padrão do ECharts."""
+    bloco = series.barras_por_ano(
+        ["T1"], [("2026", [Decimal("10")]), ("2025", [Decimal("9")])],
+        chave="x", titulo="t",
+    )
+    for serie, cor in zip(bloco.option["series"], series.CORES_POR_ANO):
+        assert serie["itemStyle"]["color"] == cor
+        assert serie["data"][0]["label"]["rotate"] == 90
+
+
+def test_eixo_de_valor_pede_formato_pt_br():
+    assert series._eixo_de_valor()["axisLabel"]["formatoBR"] == "curto"

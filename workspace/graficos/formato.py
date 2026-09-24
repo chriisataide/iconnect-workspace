@@ -126,6 +126,18 @@ def moeda_curta(valor) -> str:
     return f"R$ {curto(d)}"
 
 
+def contabil_curto(valor) -> str:
+    """`R$ 1,30 Mi` e `(R$ 201 Mil)` — negativo entre parênteses, como no balanço.
+
+    É o formato da cascata: numa escada de deduções, o sinal de menos grudado
+    no número (`R$ -201 Mil`) some a um metro da tela; o parêntese não.
+    """
+    d = _decimal(valor)
+    if d is None:
+        return VAZIO
+    return f"(R$ {curto(abs(d))})" if d < 0 else f"R$ {curto(d)}"
+
+
 def percentual(valor, casas: int = 1, com_sinal: bool = False) -> str:
     """`-7.4` → `-7,4%`. Uma casa, como no benchmark.
 

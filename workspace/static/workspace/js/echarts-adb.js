@@ -9,6 +9,11 @@
  * Se o gráfico mostrar um número diferente da tabela ao lado, há UM lugar para
  * procurar, e ele é Python.
  *
+ * A única exceção é o TICK do eixo de valor: quais ticks cabem só o navegador
+ * sabe, e o formatador nativo do ECharts é en-US (`1,500,000`). Quando o
+ * Python marca o eixo com `formatoBR`, `formatarEixos` põe o texto em pt-BR.
+ * Tick é escala, não dado — o número conferível continua vindo pronto.
+ *
  * ## A tabela irmã fecha AQUI
  *
  * O HTML manda `<details open>`. Quem não tem JavaScript vê a grade, que é o
@@ -75,6 +80,31 @@
     });
   }
 
+  var MILHAO = 1e6, MIL = 1e4;
+  var casas = function (n, max) {
+    return n.toLocaleString("pt-BR", { maximumFractionDigits: max });
+  };
+  // Mesma escala de `formato.curto` no Python: "Mi" a partir do milhão,
+  // "Mil" a partir de dez mil, e o número inteiro abaixo disso.
+  function curtoBR(valor) {
+    var abs = Math.abs(valor);
+    if (abs >= MILHAO) return casas(valor / MILHAO, 2) + " Mi";
+    if (abs >= MIL) return casas(valor / 1000, 0) + " Mil";
+    return casas(valor, 0);
+  }
+
+  function formatarEixos(opcao) {
+    ["xAxis", "yAxis"].forEach(function (nome) {
+      if (!opcao[nome]) return;
+      [].concat(opcao[nome]).forEach(function (eixo) {
+        var rotulo = eixo && eixo.axisLabel;
+        if (rotulo && rotulo.formatoBR === "curto" && !rotulo.formatter) {
+          rotulo.formatter = curtoBR;
+        }
+      });
+    });
+  }
+
   function desenhar(tela) {
     var chave = tela.dataset.graficoTela;
     var opcao = opcaoDe(chave);
@@ -86,6 +116,7 @@
     tela.style.height = (tela.dataset.altura || 260) + "px";
 
     ajustarLegendas(opcao, tela);
+    formatarEixos(opcao);
     var grafico = EChartsADB.init(tela, null, { renderer: "svg" });
     grafico.setOption(opcao);
     instancias.set(chave, grafico);
