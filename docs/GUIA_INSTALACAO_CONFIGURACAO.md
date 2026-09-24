@@ -98,6 +98,22 @@ antes de entregar o arquivo.
 
 Inclua este diretorio no backup. Ele nao esta todo dentro do banco.
 
+## Logs
+
+Em producao o portal grava em `LOG_DIR` (padrao `/var/log/workspace`), ao lado
+dos logs do cron:
+
+- `erros.log`: erros 500 com traceback e avisos do portal.
+- `seguranca.log`: entrada, saida, bloqueio por tentativas e concessao de papel.
+
+O usuario que roda o gunicorn precisa de escrita na pasta. Sem ela, o portal
+sobe normalmente e loga so no terminal. A rotacao (30 dias; 180 para
+seguranca) e do logrotate:
+
+```bash
+sudo cp deploy/logrotate /etc/logrotate.d/workspace
+```
+
 ## Integracao com iConnect Platform
 
 | variavel | efeito |

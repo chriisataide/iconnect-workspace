@@ -2,6 +2,9 @@
 
 from __future__ import annotations
 
+import os
+from pathlib import Path
+
 from django.core.exceptions import ImproperlyConfigured
 
 from .base import *  # noqa: F403
@@ -74,26 +77,63 @@ STORAGES = {
     },
 }
 
+# ── Logs em arquivo ─────────────────────────────────────────────────
+#
+# Só o terminal não guarda histórico: reiniciou o serviço, o erro de ontem
+# sumiu. Os arquivos ficam em `/var/log/workspace`, ao lado dos logs do cron.
+#
+# `WatchedFileHandler` e não `TimedRotatingFileHandler`: são quatro workers do
+# gunicorn, e cada um giraria o arquivo por conta própria, perdendo linhas. Aqui
+# o Python só escreve; quem gira e apaga é o logrotate (`deploy/logrotate`), e o
+# handler reabre o arquivo quando ele é trocado.
+#
+# Sem permissão de escrita na pasta, o portal sobe só com o terminal em vez de
+# não subir: log é diagnóstico, e não pode ser a causa da queda.
+LOG_DIR = Path(_env("LOG_DIR", "/var/log/workspace"))
+try:
+    LOG_DIR.mkdir(parents=True, exist_ok=True)
+    _LOG_EM_ARQUIVO = os.access(LOG_DIR, os.W_OK)
+except OSError:
+    _LOG_EM_ARQUIVO = False
+
+
+def _arquivo(nome: str, nivel: str) -> dict:
+    return {
+        "class": "logging.handlers.WatchedFileHandler",
+        "filename": str(LOG_DIR / nome),
+        "formatter": "padrao",
+        "level": nivel,
+        "encoding": "utf-8",
+    }
+
+
+_handlers = {"console": {"class": "logging.StreamHandler", "formatter": "padrao"}}
+_geral, _seg = ["console"], ["console"]
+if _LOG_EM_ARQUIVO:
+    # `erros.log` pega WARNING para cima: os 500 com traceback (`django.request`)
+    # e o aviso do agregador quando um bloco do Meu dia não foi desenhado.
+    _handlers["erros"] = _arquivo("erros.log", "WARNING")
+    # A trilha de segurança em arquivo próprio, com retenção própria.
+    _handlers["seguranca"] = _arquivo("seguranca.log", "INFO")
+    _geral, _seg = ["console", "erros"], ["console", "seguranca"]
+
 LOGGING = {
     "version": 1,
     "disable_existing_loggers": False,
     "formatters": {
         "padrao": {"format": "{levelname} {asctime} {name} {message}", "style": "{"},
     },
-    "handlers": {
-        "console": {"class": "logging.StreamHandler", "formatter": "padrao"},
-    },
-    "root": {"handlers": ["console"], "level": "INFO"},
+    "handlers": _handlers,
+    "root": {"handlers": _geral, "level": "INFO"},
     "loggers": {
         # O agregador degrada em silêncio quando um provider falha; o warning é
         # o único rastro de que um bloco do Meu dia não foi desenhado.
-        "workspace": {"handlers": ["console"], "level": "INFO", "propagate": False},
+        "workspace": {"handlers": _geral, "level": "INFO", "propagate": False},
         # A TRILHA DE SEGURANÇA em fluxo próprio: entrada, saída, falha de
         # senha, bloqueio por tentativas, concessão e encerramento de papel.
-        # Logger separado para que a infraestrutura possa mandá-lo para outro
-        # destino — retenção e quem pode ler são outros neste fluxo.
+        # Logger separado para que retenção e quem pode ler sejam outros.
         #
         # Ele nunca carrega senha, token nem segredo: ver `contas/auditoria.py`.
-        "seguranca": {"handlers": ["console"], "level": "INFO", "propagate": False},
+        "seguranca": {"handlers": _seg, "level": "INFO", "propagate": False},
     },
 }

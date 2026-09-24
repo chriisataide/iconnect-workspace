@@ -1,0 +1,39 @@
+# Rotação dos logs do Workspace — instalar em /etc/logrotate.d/workspace
+#
+#   sudo cp deploy/logrotate /etc/logrotate.d/workspace
+#   sudo logrotate --debug /etc/logrotate.d/workspace   # confere sem girar
+#
+# O portal escreve com `WatchedFileHandler`, que reabre o arquivo quando ele é
+# movido — por isso NÃO precisa de `copytruncate` nem de reiniciar o gunicorn.
+# Os logs do cron (`carga.log`, `avisos.log`…) entram no mesmo giro: antes
+# cresciam sem limite.
+
+# Erros do portal e saída das rotinas agendadas: um mês basta para responder
+# "o que quebrou" e "a carga de terça rodou?".
+/var/log/workspace/erros.log
+/var/log/workspace/carga.log
+/var/log/workspace/avisos.log
+/var/log/workspace/excecoes.log
+/var/log/workspace/planos.log
+/var/log/workspace/estoque.log {
+    daily
+    rotate 30
+    missingok
+    notifempty
+    compress
+    delaycompress
+    dateext
+}
+
+# Trilha de segurança: retenção maior, porque um acesso indevido costuma ser
+# descoberto semanas depois. Sem leitura para outros usuários do servidor.
+/var/log/workspace/seguranca.log {
+    daily
+    rotate 180
+    missingok
+    notifempty
+    compress
+    delaycompress
+    dateext
+    create 0640
+}
