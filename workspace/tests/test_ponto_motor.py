@@ -354,3 +354,30 @@ def test_sem_coluna_de_codigo_o_nome_ainda_agrupa():
     )
     assert len(colaboradores) == 1
     assert len(colaboradores[0].pendencias) == 2
+
+
+def test_sem_openpyxl_nao_diz_que_a_planilha_esta_corrompida(monkeypatch):
+    """A falta do leitor virava "arquivo corrompido", e a pessoa reexportava
+    uma planilha certa num servidor sem as dependências instaladas."""
+    import builtins
+
+    original = builtins.__import__
+
+    def sem_openpyxl(nome, *args, **kwargs):
+        if nome == "openpyxl":
+            raise ImportError("No module named 'openpyxl'")
+        return original(nome, *args, **kwargs)
+
+    monkeypatch.setattr(builtins, "__import__", sem_openpyxl)
+    with pytest.raises(ponto.PlanilhaInvalida) as erro:
+        ponto.ler_planilha(b"PK\x03\x04qualquer", "ponto.xlsx")
+
+    assert "leitor de planilhas" in erro.value.mensagem
+    assert "corrompido" not in erro.value.mensagem
+
+
+def test_planilha_recusada_deixa_o_motivo_no_log(caplog):
+    with pytest.raises(ponto.PlanilhaInvalida):
+        ponto.ler_planilha(b"PK\x03\x04nao-e-zip-de-verdade", "ponto.xlsx")
+
+    assert any("openpyxl" in r.getMessage() for r in caplog.records)

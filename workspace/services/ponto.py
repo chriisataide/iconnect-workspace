@@ -25,9 +25,12 @@ bytes, devolve dados. É o que torna possível testá-lo sem subir Docker.
 from __future__ import annotations
 
 import io
+import logging
 import re
 from dataclasses import dataclass, field
 from datetime import date, datetime
+
+logger = logging.getLogger(__name__)
 
 # ── O contrato da planilha ──────────────────────────────────────────
 
@@ -256,11 +259,25 @@ def ler_planilha(conteudo: bytes, nome: str = "") -> list[dict]:
 
 
 def _ler_excel(conteudo: bytes) -> list[tuple]:
+    # A FALTA DO LEITOR não é defeito da planilha. Ela caía no `except` de
+    # baixo e virava "arquivo corrompido" — e a pessoa passava a tarde
+    # reexportando um arquivo que estava certo, num servidor sem `openpyxl`.
     try:
         import openpyxl
+    except ImportError as erro:
+        logger.error("openpyxl não está instalado: rode pip install -r requirements.txt")
+        raise PlanilhaInvalida(
+            "O servidor não tem o leitor de planilhas instalado. "
+            "Avise o suporte: falta instalar as dependências do Portal."
+        ) from erro
 
+    try:
         livro = openpyxl.load_workbook(io.BytesIO(conteudo), read_only=True, data_only=True)
     except Exception as erro:
+        # O motivo real vai para o log (erros.log em produção). Na tela ele
+        # não ajuda — "KeyError: xl/styles.xml" não diz o que fazer —, mas
+        # sem ele ninguém descobre por que uma planilha legítima foi recusada.
+        logger.warning("Planilha recusada pelo openpyxl: %r", erro, exc_info=True)
         raise PlanilhaInvalida(
             "Não foi possível abrir o arquivo. Ele parece corrompido ou não é uma planilha."
         ) from erro
