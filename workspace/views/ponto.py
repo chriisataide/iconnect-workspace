@@ -1,7 +1,7 @@
 """RH — a tela operacional das pendências de ponto.
 
-Uma tela só, com as cinco etapas em sequência: importar, validar, revisar,
-testar, enviar. O R.H. não abre n8n, Docker nem terminal; a complexidade fica
+Uma tela só, com as quatro etapas em sequência: importar, revisar, testar,
+enviar (a validação roda dentro da importação). O R.H. não abre n8n, Docker nem terminal; a complexidade fica
 do outro lado do webhook.
 
 Toda decisão de permissão é conferida AQUI, no servidor. Esconder botão é
@@ -27,6 +27,7 @@ from workspace.models.ponto import (
     SituacaoEnvio,
     SituacaoLote,
 )
+from workspace.services import listagem as lst
 from workspace.services import ponto as motor
 from workspace.services import ponto_lote as lot
 from workspace.services import ponto_whatsapp as zap
@@ -51,10 +52,12 @@ def _contexto(request: HttpRequest, lote: LotePonto | None) -> dict:
         "MODO_PRODUCAO": ModoEnvio.PRODUCAO,
     }
     if lote is not None:
-        colaboradores = list(lote.colaboradores.all())
+        pagina = lst.paginar(lote.colaboradores.all(), request.GET.get("p"), 10)
         contexto |= {
             "resumo": lot.resumo(lote),
-            "colaboradores": colaboradores,
+            "pagina": pagina,
+            "colaboradores": pagina.object_list,
+            "params": lst.parametros_sem_pagina(request),
             "progresso": zap.progresso(lote),
             "etapa": _etapa_de(lote),
         }
@@ -62,18 +65,16 @@ def _contexto(request: HttpRequest, lote: LotePonto | None) -> dict:
 
 
 def _etapa_de(lote: LotePonto) -> int:
-    """Qual das cinco bolinhas está acesa. Derivada do estado, nunca guardada.
+    """Qual das quatro bolinhas está acesa. Derivada do estado, nunca guardada.
 
     Uma coluna `etapa` no banco seria mais simples de ler e passaria a mentir
     no primeiro caminho que mudasse a situação sem lembrar de atualizá-la.
     """
     if lote.situacao in (SituacaoLote.CONCLUIDO, SituacaoLote.CONCLUIDO_COM_ERROS):
-        return 5
-    if lote.situacao == SituacaoLote.PROCESSANDO:
-        return 5
-    if lote.envios.exists():
         return 4
-    if lote.situacao == SituacaoLote.VALIDADO:
+    if lote.situacao == SituacaoLote.PROCESSANDO:
+        return 4
+    if lote.envios.exists():
         return 3
     return 2 if lote.colaboradores.exists() else 1
 
@@ -142,7 +143,7 @@ def ponto_corrigir(request: HttpRequest, pk: int) -> HttpResponse:
     except lot.UploadInvalido as erro:
         messages.error(request, erro.mensagem)
 
-    return redirect(f"{reverse('workspace:pendencias_ponto')}?lote={colaborador.lote_id}")
+    return redirect(f"{reverse('workspace:pendencias_ponto')}?lote={colaborador.lote_id}#colaboradores")
 
 
 @login_required
@@ -152,14 +153,19 @@ def ponto_selecionar(request: HttpRequest, pk: int) -> HttpResponse:
     lot.exigir(lot.pode_importar(request.user, cache=_cache(request)))
     lote = get_object_or_404(LotePonto, pk=pk)
 
+    # Só as linhas que estavam na tela: com a tabela paginada, quem não veio
+    # no POST pode estar em outra página, e não foi desmarcado por ninguém.
+    na_tela = [int(v) for v in request.POST.getlist("na_pagina") if v.isdigit()]
     escolhidos = {int(v) for v in request.POST.getlist("colaborador") if v.isdigit()}
-    for colaborador in lote.colaboradores.all():
+    for colaborador in lote.colaboradores.filter(pk__in=na_tela):
         marcado = colaborador.pk in escolhidos and colaborador.pode_produzir
         if marcado != colaborador.selecionado:
             colaborador.selecionado = marcado
             colaborador.save(update_fields=["selecionado"])
 
-    return redirect(f"{reverse('workspace:pendencias_ponto')}?lote={lote.pk}")
+    pagina = request.POST.get("p", "")
+    volta = f"&p={pagina}" if pagina.isdigit() else ""
+    return redirect(f"{reverse('workspace:pendencias_ponto')}?lote={lote.pk}{volta}#colaboradores")
 
 
 @login_required

@@ -8,11 +8,14 @@
   `params` carrega o filtro e a busca atuais. Sem ele, clicar em "próxima"
   dentro de um filtro voltaria para a lista inteira — e a pessoa perderia o
   recorte que acabou de montar sem entender por quê.
+
+  `ancora` (opcional) é o id da lista: sem ele, trocar de página devolve a
+  pessoa ao topo e ela precisa rolar de novo até a tabela.
 {% endcomment %}
 {% if pagina.paginator.num_pages > 1 %}
   <nav class="au-paginacao" aria-label="{% trans 'Páginas' %}">
     {% if pagina.has_previous %}
-      <a class="au-btn au-btn--sutil au-btn--pequeno" href="?{{ params }}p={{ pagina.previous_page_number }}">
+      <a class="au-btn au-btn--sutil au-btn--pequeno" href="?{{ params }}p={{ pagina.previous_page_number }}{% if ancora %}#{{ ancora }}{% endif %}">
         {% trans "Anterior" %}
       </a>
     {% else %}
@@ -30,7 +33,7 @@
     </span>
 
     {% if pagina.has_next %}
-      <a class="au-btn au-btn--sutil au-btn--pequeno" href="?{{ params }}p={{ pagina.next_page_number }}">
+      <a class="au-btn au-btn--sutil au-btn--pequeno" href="?{{ params }}p={{ pagina.next_page_number }}{% if ancora %}#{{ ancora }}{% endif %}">
         {% trans "Próxima" %}
       </a>
     {% else %}

@@ -1659,6 +1659,10 @@ body:has(.au-modulo) { --au-content-max: none; }
   font-weight: 650;
   line-height: 1;
   color: var(--au-text-subtle);
+/* Título + parágrafo: sem isto o <p> traz a margem do navegador e o respiro
+   de baixo fica o dobro do de cima. Solto entre seções, herda o vão delas. */
+.au-aviso > p { margin: var(--au-1) 0 0; }
+.au-secao + .au-aviso { margin-top: var(--au-6); }
   background: var(--au-surface);
   cursor: help;
   user-select: none;
@@ -3570,6 +3574,20 @@ a.au-notif-titulo:hover { color: var(--au-accent); }
      deixa boiando, e só o contorno o deixa chapado. */
   border: 1px solid var(--au-border);
   box-shadow: 0 18px 40px -18px rgb(15 23 42 / .22);
+/* Passo que leva à própria seção, na tela de etapas numa página só (ponto). */
+.au-trilha-link {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--au-2);
+  color: inherit;
+  text-decoration: none;
+}
+.au-trilha-link:hover .au-trilha-titulo { text-decoration: underline; }
+.au-trilha-link:hover .au-trilha-num { border-color: var(--au-accent-text); }
+
+/* Alvo de âncora não pode parar embaixo da topbar fixa. */
+.au-secao[id] { scroll-margin-top: calc(var(--au-topbar-h) + var(--au-4)); }
+
 }
 
 /* O FORMULÁRIO SOBRE BRANCO, e não sobre a cor da marca.

@@ -416,3 +416,34 @@ def test_sem_webhook_os_envios_nao_ficam_pendentes(client, rh, settings):
     assert b"n8n n\xc3\xa3o est\xc3\xa1 configurada" in resposta.content
     situacoes = set(EnvioPonto.objects.values_list("situacao", flat=True))
     assert situacoes == {"erro"}, f"nenhum envio pode ficar pendente: {situacoes}"
+
+
+def test_salvar_uma_pagina_nao_desmarca_as_outras(client, rh):
+    """Com a tabela paginada de 10 em 10, o POST só traz as linhas da tela.
+    Desmarcar quem não veio apagaria a seleção das outras páginas."""
+    lote = _lote_concluido(rh)
+    for i in range(11):
+        ColaboradorPonto.objects.create(
+            lote=lote, nome=f"Pessoa {i:02d}", telefone_normalizado="5519995550001",
+            selecionado=True,
+        )
+    client.force_login(rh)
+
+    with liberar(rh, lot.PERM_LER, lot.PERM_IMPORTAR):
+        corpo = client.get(
+            f"{reverse('workspace:pendencias_ponto')}?lote={lote.pk}"
+        ).content.decode()
+        assert "Página 1 de 2" in corpo
+        assert corpo.count('name="na_pagina"') == 10
+        assert "p=2#colaboradores" in corpo, "trocar de página não pode voltar ao topo"
+        assert 'href="#passo-revisar"' in corpo, "o passo leva à seção dele"
+        assert "Validar" not in corpo, "validar roda na importação, não é passo"
+
+        primeira = ColaboradorPonto.objects.filter(lote=lote)[:10]
+        client.post(
+            reverse("workspace:ponto_selecionar", args=[lote.pk]),
+            {"na_pagina": [c.pk for c in primeira], "colaborador": []},
+        )
+
+    assert ColaboradorPonto.objects.filter(lote=lote, selecionado=False).count() == 10
+    assert ColaboradorPonto.objects.filter(lote=lote, selecionado=True).count() == 2

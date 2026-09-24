@@ -4,10 +4,10 @@
 {% comment %}
   A tela operacional das pendências de ponto — §6 a §27.
 
-  Uma tela só, com as cinco etapas em sequência, e NÃO um assistente de cinco
+  Uma tela só, com as quatro etapas em sequência, e NÃO um assistente de quatro
   páginas. O R.H. revisa, corrige um telefone, volta a revisar e só então
   dispara; um passo por página faria cada correção custar duas navegações, e a
-  etapa 3 é justamente onde a pessoa fica.
+  etapa 2 é justamente onde a pessoa fica.
 
   O que está aqui vem do portal: `au-trilha` é o mesmo stepper dos pedidos de
   catálogo, `au-kpi` é o mesmo número do painel, `au-tabela` é a mesma tabela.
@@ -37,31 +37,36 @@
 {% block corpo %}
 
 {# ── O stepper — §6 ─────────────────────────────────────────────── #}
+{# "Validar" não é passo: a validação roda dentro da importação, sem nada #}
+{# para a pessoa fazer, e o resumo dela é o topo do que se revisa.        #}
 <ol class="au-trilha">
   <li class="au-trilha-passo {% if etapa > 1 %}au-trilha-passo--feito{% elif etapa == 1 or not lote %}au-trilha-passo--atual{% endif %}"
       {% if etapa == 1 or not lote %}aria-current="step"{% endif %}>
+    {% if lote and pode_importar %}<a class="au-trilha-link" href="#passo-importar">{% endif %}
     <span class="au-trilha-num" aria-hidden="true">1</span>
     <span class="au-trilha-titulo">{% trans "Importar" %}</span>
+    {% if lote and pode_importar %}</a>{% endif %}
   </li>
   <li class="au-trilha-passo {% if etapa > 2 %}au-trilha-passo--feito{% elif etapa == 2 %}au-trilha-passo--atual{% else %}au-trilha-passo--depois{% endif %}"
       {% if etapa == 2 %}aria-current="step"{% endif %}>
+    {% if lote %}<a class="au-trilha-link" href="#passo-revisar">{% endif %}
     <span class="au-trilha-num" aria-hidden="true">2</span>
-    <span class="au-trilha-titulo">{% trans "Validar" %}</span>
+    <span class="au-trilha-titulo">{% trans "Revisar" %}</span>
+    {% if lote %}</a>{% endif %}
   </li>
   <li class="au-trilha-passo {% if etapa > 3 %}au-trilha-passo--feito{% elif etapa == 3 %}au-trilha-passo--atual{% else %}au-trilha-passo--depois{% endif %}"
       {% if etapa == 3 %}aria-current="step"{% endif %}>
+    {% if lote and pode_testar %}<a class="au-trilha-link" href="#passo-testar">{% endif %}
     <span class="au-trilha-num" aria-hidden="true">3</span>
-    <span class="au-trilha-titulo">{% trans "Revisar" %}</span>
-  </li>
-  <li class="au-trilha-passo {% if etapa > 4 %}au-trilha-passo--feito{% elif etapa == 4 %}au-trilha-passo--atual{% else %}au-trilha-passo--depois{% endif %}"
-      {% if etapa == 4 %}aria-current="step"{% endif %}>
-    <span class="au-trilha-num" aria-hidden="true">4</span>
     <span class="au-trilha-titulo">{% trans "Testar" %}</span>
+    {% if lote and pode_testar %}</a>{% endif %}
   </li>
-  <li class="au-trilha-passo {% if etapa == 5 %}au-trilha-passo--atual{% else %}au-trilha-passo--depois{% endif %}"
-      {% if etapa == 5 %}aria-current="step"{% endif %}>
-    <span class="au-trilha-num" aria-hidden="true">5</span>
+  <li class="au-trilha-passo {% if etapa == 4 %}au-trilha-passo--atual{% else %}au-trilha-passo--depois{% endif %}"
+      {% if etapa == 4 %}aria-current="step"{% endif %}>
+    {% if lote and pode_enviar %}<a class="au-trilha-link" href="#passo-enviar">{% endif %}
+    <span class="au-trilha-num" aria-hidden="true">4</span>
     <span class="au-trilha-titulo">{% trans "Enviar" %}</span>
+    {% if lote and pode_enviar %}</a>{% endif %}
   </li>
 </ol>
 
@@ -81,7 +86,7 @@
 {% else %}
 
   {# ── O painel — §7 ───────────────────────────────────────────── #}
-  <section class="au-secao">
+  <section class="au-secao" id="passo-revisar">
     <div class="au-secao-cabeca">
       <h2 class="au-secao-titulo">{% trans "Validação concluída" %}</h2>
       <a class="au-btn au-btn--fantasma au-btn--pequeno"
@@ -132,10 +137,11 @@
   {# ── Revisão — §13 e §15 ─────────────────────────────────────── #}
   <form method="post" action="{% url 'workspace:ponto_selecionar' lote.pk %}">
     {% csrf_token %}
-    <section class="au-secao">
+    <input type="hidden" name="p" value="{{ pagina.number }}">
+    <section class="au-secao" id="colaboradores">
       <div class="au-secao-cabeca">
         <h2 class="au-secao-titulo">{% trans "Colaboradores" %}</h2>
-        <span class="au-secao-contagem">{{ colaboradores|length }}</span>
+        <span class="au-secao-contagem">{{ pagina.paginator.count }}</span>
       </div>
 
       <table class="au-tabela">
@@ -158,6 +164,7 @@
                   seleção de inválido é barrada no servidor também — ver
                   `ponto_selecionar`.
                 {% endcomment %}
+                <input type="hidden" name="na_pagina" value="{{ c.pk }}">
                 <input class="au-check" type="checkbox" name="colaborador" value="{{ c.pk }}"
                        {% if c.selecionado %}checked{% endif %}
                        {% if not c.pode_produzir %}disabled{% endif %}
@@ -212,6 +219,8 @@
         </tbody>
       </table>
 
+      {% include "workspace/_paginacao.html" with ancora="colaboradores" %}
+
       <div class="au-form-acoes">
         <button class="au-btn au-btn--positivo" type="submit">
           {% trans "Salvar seleção" %}
@@ -243,7 +252,7 @@
 
   {# ── Testar — §18, §19, §20 ──────────────────────────────────── #}
   {% if pode_testar %}
-    <section class="au-secao">
+    <section class="au-secao" id="passo-testar">
       <div class="au-secao-cabeca">
         <h2 class="au-secao-titulo">{% trans "Enviar teste" %}</h2>
       </div>
@@ -273,7 +282,7 @@
   {# ── Produção — §21. Só aparece para quem tem a permissão própria, e #}
   {# o servidor confere de novo em `ponto_enviar`.                      #}
   {% if pode_enviar %}
-    <section class="au-secao">
+    <section class="au-secao" id="passo-enviar">
       <div class="au-secao-cabeca">
         <h2 class="au-secao-titulo">{% trans "Preparar envio real" %}</h2>
       </div>
@@ -343,7 +352,7 @@
   {% endif %}
 
   {% if pode_importar %}
-    <section class="au-secao">
+    <section class="au-secao" id="passo-importar">
       <div class="au-secao-cabeca">
         <h2 class="au-secao-titulo">{% trans "Importar outra planilha" %}</h2>
       </div>
