@@ -26,7 +26,10 @@ from workspace.models import Publicacao, TipoPublicacao
 from workspace.models.catalogo import ItemCatalogo
 from workspace.services import painel
 
-LIMITE_CARD = 4
+#: Quantos cabem em cada card da home. O resto fica no "Ver todos", que
+#: mostra quantos sobraram — sem o número, ninguém sabe que há mais para ler.
+LIMITE_COMUNICADOS = 4
+LIMITE_NOTICIAS = 3
 
 
 @dataclass(frozen=True)
@@ -70,6 +73,9 @@ def home(request: HttpRequest) -> HttpResponse:
     # encontrar o resultado memoizado na requisição.
     contagens = painel.contadores(request)
 
+    comunicados = publicadas.do_tipo(TipoPublicacao.COMUNICADO)
+    noticias = publicadas.do_tipo(TipoPublicacao.NOTICIA)
+
     return render(
         request,
         "workspace/home.html",
@@ -90,8 +96,10 @@ def home(request: HttpRequest) -> HttpResponse:
             # barato. Função pura sobre `contagens`: sete cards custam as mesmas
             # consultas que os três fixos de antes.
             "cards": painel.cards(contagens, total_servicos),
-            "comunicados": publicadas.do_tipo(TipoPublicacao.COMUNICADO)[:LIMITE_CARD],
-            "noticias": publicadas.do_tipo(TipoPublicacao.NOTICIA)[:LIMITE_CARD],
+            "comunicados": comunicados[:LIMITE_COMUNICADOS],
+            "noticias": noticias[:LIMITE_NOTICIAS],
+            "mais_comunicados": max(comunicados.count() - LIMITE_COMUNICADOS, 0),
+            "mais_noticias": max(noticias.count() - LIMITE_NOTICIAS, 0),
         },
     )
 

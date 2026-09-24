@@ -706,3 +706,126 @@ def test_o_campo_de_arquivo_nao_usa_a_classe_de_campo_de_texto(client, cenario):
     assert 'class="au-input" id="anexo"' not in corpo
     # O input continua existindo e enviável: o label é a casca, não o controle.
     assert 'id="imagem" name="imagem" type="file"' in corpo
+
+
+# ── Imagem, anexo e o mural da home ─────────────────────────────────
+
+
+def _png(nome="foto.png"):
+    import io
+
+    from django.core.files.uploadedfile import SimpleUploadedFile
+    from PIL import Image
+
+    buffer = io.BytesIO()
+    Image.new("RGB", (4, 4), "navy").save(buffer, "PNG")
+    return SimpleUploadedFile(nome, buffer.getvalue(), content_type="image/png")
+
+
+def test_imagem_que_nao_e_bitmap_e_recusada(cenario):
+    """SVG com script, servido inline na origem do portal, executaria."""
+    from django.core.files.uploadedfile import SimpleUploadedFile
+
+    svg = SimpleUploadedFile(
+        "foto.png", b"<svg onload='alert(1)'/>", content_type="image/png"
+    )
+    with pytest.raises(PublicacaoError):
+        escrever(cenario, imagem=svg)
+
+
+def test_imagem_chega_a_quem_le_e_nao_a_quem_esta_fora(client, cenario):
+    """O arquivo era gravado e nenhuma tela o mostrava — não havia porta."""
+    geral = escrever(cenario, tipo=TipoPublicacao.NOTICIA, imagem=_png())
+    restrita = escrever(cenario, titulo="Só Financeiro", imagem=_png(),
+                        departamentos=[cenario["financeiro"].pk])
+    client.force_login(f.pessoa("fora"))
+
+    resposta = client.get(reverse("workspace:publicacao_arquivo", args=[geral.pk, "imagem"]))
+    assert resposta.status_code == 200
+    assert resposta["Content-Type"] == "image/png"
+    assert resposta["X-Content-Type-Options"] == "nosniff"
+
+    fora = client.get(reverse("workspace:publicacao_arquivo", args=[restrita.pk, "imagem"]))
+    assert fora.status_code == 404
+
+
+def test_anexo_baixa_como_arquivo(client, cenario):
+    from django.core.files.uploadedfile import SimpleUploadedFile
+
+    p = escrever(cenario, anexo=SimpleUploadedFile("ata.pdf", b"%PDF-1.4"))
+    client.force_login(cenario["ana"])
+
+    resposta = client.get(reverse("workspace:publicacao_arquivo", args=[p.pk, "anexo"]))
+    assert resposta.status_code == 200
+    assert "attachment" in resposta["Content-Disposition"]
+    leitura = client.get(reverse("workspace:publicacao_detalhe", args=[p.pk]))
+    assert "Baixar" in leitura.content.decode()
+
+
+def test_home_mostra_categoria_etiqueta_e_ver_todos(client, cenario):
+    escrever(cenario, tipo=TipoPublicacao.NOTICIA, categoria="Pessoas", imagem=_png())
+    escrever(cenario, titulo="Manutenção", prioridade=1)
+    client.force_login(cenario["ana"])
+
+    corpo = client.get(reverse("workspace:home")).content.decode()
+
+    assert "Pessoas" in corpo
+    assert "Atenção" in corpo
+    assert reverse("workspace:publicacoes_mural", args=["noticias"]) in corpo
+    assert reverse("workspace:publicacoes_mural", args=["comunicados"]) in corpo
+
+
+def test_ver_todos_lista_so_o_tipo_e_o_que_e_para_a_pessoa(client, cenario):
+    escrever(cenario, titulo="Aviso geral")
+    escrever(cenario, titulo="Notícia qualquer", tipo=TipoPublicacao.NOTICIA)
+    escrever(cenario, titulo="Rascunho escondido", publicar=False)
+    client.force_login(cenario["ana"])
+
+    corpo = client.get(reverse("workspace:publicacoes_mural", args=["comunicados"])).content.decode()
+
+    assert "Aviso geral" in corpo
+    assert "Notícia qualquer" not in corpo
+    assert "Rascunho escondido" not in corpo
+    assert client.get(reverse("workspace:publicacoes_mural", args=["outra"])).status_code == 404
+
+
+def test_quem_publica_ve_previa_do_rascunho(client, cenario):
+    rascunho = escrever(cenario, publicar=False)
+    url = reverse("workspace:publicacao_detalhe", args=[rascunho.pk])
+
+    client.force_login(cenario["ana"])
+    assert client.get(url).status_code == 404
+
+    client.force_login(cenario["editor"])
+    resposta = client.get(url)
+    assert resposta.status_code == 200
+    assert "Prévia" in resposta.content.decode()
+
+
+def test_categoria_grava_pela_tela(client, cenario):
+    client.force_login(cenario["editor"])
+    client.post(reverse("workspace:publicacao_nova"), {
+        "titulo": "Nova unidade", "tipo": TipoPublicacao.NOTICIA,
+        "categoria": "Empresa", "acao": "publicar", "imagem": _png(),
+    })
+
+    p = Publicacao.objects.get(titulo="Nova unidade")
+    assert p.categoria == "Empresa"
+    assert p.imagem
+
+
+def test_card_mostra_quantos_sobraram_no_ver_todos(client, cenario):
+    """4 comunicados e 3 notícias cabem no card; o resto vira "+N"."""
+    for i in range(6):
+        escrever(cenario, titulo=f"Aviso {i}")
+    for i in range(3):
+        escrever(cenario, titulo=f"Notícia {i}", tipo=TipoPublicacao.NOTICIA)
+    client.force_login(cenario["ana"])
+
+    resposta = client.get(reverse("workspace:home"))
+
+    assert len(resposta.context["comunicados"]) == 4
+    assert resposta.context["mais_comunicados"] == 2
+    assert resposta.context["mais_noticias"] == 0
+    corpo = resposta.content.decode()
+    assert corpo.count("au-mural-mais") == 1 and "+2" in corpo

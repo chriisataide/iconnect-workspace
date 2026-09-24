@@ -1,0 +1,23 @@
+{% load i18n %}
+{% comment %}
+  Uma linha de comunicado — home e "Ver todos". O ícone e a etiqueta saem da
+  prioridade, que é o que o leitor precisa saber antes de abrir.
+{% endcomment %}
+<li>
+  <a class="au-mural-item{% if pub.fixado %} au-mural-item--fixado{% endif %}"
+     href="{% url 'workspace:publicacao_detalhe' pub.pk %}">
+    <span class="au-mural-icone au-mural-icone--{{ pub.classe_prioridade }}" aria-hidden="true">
+      <svg class="au-icon"><use href="#i-{% if pub.classe_prioridade == 'atencao' %}alerta{% elif pub.classe_prioridade == 'urgente' %}megafone{% else %}file{% endif %}"></use></svg>
+    </span>
+    <span class="au-mural-texto">
+      <span class="au-mural-titulo">
+        {% if pub.fixado %}<svg class="au-list-pin" aria-hidden="true"><use href="#i-pin"></use></svg>{% endif %}
+        {{ pub.titulo }}
+      </span>
+      {% if pub.resumo %}<span class="au-mural-resumo">{{ pub.resumo }}</span>{% endif %}
+    </span>
+    <time class="au-mural-data" datetime="{{ pub.publicar_em|date:'c' }}">{{ pub.publicar_em|date:"d/m" }}</time>
+    <span class="au-mural-etiqueta au-mural-etiqueta--{{ pub.classe_prioridade }}">{{ pub.rotulo_prioridade }}</span>
+    <svg class="au-mural-seta" aria-hidden="true"><use href="#i-chevron"></use></svg>
+  </a>
+</li>

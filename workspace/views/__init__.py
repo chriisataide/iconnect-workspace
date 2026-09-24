@@ -117,7 +117,9 @@ from .publicacoes import (
     publicacao_editar,
     publicacoes,
 )
+from .publicacao import arquivo as publicacao_arquivo
 from .publicacao import detalhe as publicacao_detalhe
+from .publicacao import mural as publicacoes_mural
 from .servicos import (
     acerto,
     baixar_anexo,
@@ -246,7 +248,9 @@ __all__ = [
     "faq_editar",
     "faq_excluir",
     "perguntar",
+    "publicacao_arquivo",
     "publicacao_detalhe",
+    "publicacoes_mural",
     "publicacao_acao",
     "publicacao_editar",
     "publicacoes",

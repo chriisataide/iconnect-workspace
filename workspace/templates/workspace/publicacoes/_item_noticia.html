@@ -1,0 +1,28 @@
+{% load i18n %}
+{% comment %}
+  Uma notícia — `destaque` é a primeira do card: foto grande e resumo. As
+  outras são a versão compacta. Sem imagem, o quadro mostra o ícone em vez de
+  sumir: a coluna da foto some e a lista fica desalinhada.
+{% endcomment %}
+<li>
+  <a class="au-noticia{% if destaque %} au-noticia--destaque{% endif %}"
+     href="{% url 'workspace:publicacao_detalhe' pub.pk %}">
+    <span class="au-noticia-foto">
+      {% if pub.imagem %}
+        <img src="{% url 'workspace:publicacao_arquivo' pub.pk 'imagem' %}" alt="" loading="lazy">
+      {% else %}
+        <svg class="au-icon" aria-hidden="true"><use href="#i-jornal"></use></svg>
+      {% endif %}
+    </span>
+    <span class="au-noticia-texto">
+      {% if pub.categoria %}<span class="au-noticia-categoria">{{ pub.categoria }}</span>{% endif %}
+      <span class="au-noticia-titulo">{{ pub.titulo }}</span>
+      {% if destaque and pub.resumo %}<span class="au-noticia-resumo">{{ pub.resumo }}</span>{% endif %}
+      <time class="au-noticia-data" datetime="{{ pub.publicar_em|date:'c' }}">
+        <svg class="au-icon" aria-hidden="true"><use href="#i-calendario"></use></svg>
+        {{ pub.publicar_em|date:"d/m/Y" }}
+      </time>
+    </span>
+    <svg class="au-mural-seta" aria-hidden="true"><use href="#i-chevron"></use></svg>
+  </a>
+</li>

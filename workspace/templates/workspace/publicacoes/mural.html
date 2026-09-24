@@ -1,0 +1,48 @@
+{% extends "workspace/_shell.html" %}
+{% load i18n wks %}
+
+{% block titulo %}{{ titulo }}{% endblock %}
+
+{% block conteudo %}
+  <nav class="au-voltar-nav" aria-label="{% trans 'Navegação' %}">
+    <a class="au-btn au-btn--sutil" href="{% url 'workspace:home' %}">
+      <svg class="au-icon au-icon--espelhado" aria-hidden="true"><use href="#i-seta"></use></svg>
+      {% produto %}
+    </a>
+  </nav>
+
+  <article class="au-card au-mural au-mural--pagina" id="lista">
+    <header class="au-mural-cabeca">
+      <span class="au-mural-marca" aria-hidden="true">
+        <svg class="au-icon"><use href="#i-{% if tipo == 'noticias' %}jornal{% else %}megafone{% endif %}"></use></svg>
+      </span>
+      <div class="au-mural-cabeca-texto">
+        <h1 class="au-mural-nome">{{ titulo }}</h1>
+        <p class="au-mural-desc">{{ descricao }}</p>
+      </div>
+      <span class="au-secao-contagem">{{ pagina.paginator.count }}</span>
+    </header>
+
+    {% if itens %}
+      {% if tipo == "noticias" %}
+        <ul class="au-noticias">
+          {% for pub in itens %}
+            {% include "workspace/publicacoes/_item_noticia.html" with destaque=True %}
+          {% endfor %}
+        </ul>
+      {% else %}
+        <ul class="au-mural-lista">
+          {% for pub in itens %}
+            {% include "workspace/publicacoes/_item_comunicado.html" %}
+          {% endfor %}
+        </ul>
+      {% endif %}
+      {% include "workspace/_paginacao.html" with ancora="lista" %}
+    {% else %}
+      <div class="au-vazio">
+        <p class="au-vazio-titulo">{% trans "Nada no ar por enquanto." %}</p>
+        <p class="au-vazio-dica">{% trans "Quando o R.H. ou a diretoria publicarem algo, aparece aqui." %}</p>
+      </div>
+    {% endif %}
+  </article>
+{% endblock %}

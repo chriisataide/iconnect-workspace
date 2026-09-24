@@ -60,6 +60,18 @@
   </div>
 
   <div class="au-campo">
+    {# "Etiqueta" e não "Categoria": essa palavra já confundiu com o Tipo. #}
+    <label class="au-rotulo" for="categoria">{% trans "Etiqueta" %}</label>
+    <input class="au-input" id="categoria" name="categoria" type="text" maxlength="40"
+           value="{{ valores.categoria }}" list="categorias-sugeridas"
+           placeholder="{% trans 'Empresa, Pessoas, Mercado…' %}">
+    <datalist id="categorias-sugeridas">
+      <option value="Empresa"><option value="Pessoas"><option value="Qualidade de Vida"><option value="Mercado">
+    </datalist>
+    <p class="au-ajuda">{% trans "Opcional. O selo que aparece sobre a notícia no card da home." %}</p>
+  </div>
+
+  <div class="au-campo">
     <label class="au-rotulo" for="resumo">{% trans "Resumo" %}</label>
     <input class="au-input" id="resumo" name="resumo" type="text" maxlength="300"
            value="{{ valores.resumo }}">
@@ -95,7 +107,10 @@
       <input class="au-sr" id="imagem" name="imagem" type="file" accept="image/*"
              data-nome-em=".au-arquivo-nome">
       {% if publicacao.imagem %}
+        <img class="au-arquivo-previa" src="{% url 'workspace:publicacao_arquivo' publicacao.pk 'imagem' %}" alt="{% trans 'Imagem atual' %}">
         <p class="au-ajuda">{% trans "Já existe uma imagem. Enviar outra substitui." %}</p>
+      {% else %}
+        <p class="au-ajuda">{% trans "PNG, JPEG, WebP ou GIF, até 5 MB. Aparece na notícia e na leitura." %}</p>
       {% endif %}
       {% comment %}
         O arquivo é o único campo que NÃO volta quando a gravação falha: o

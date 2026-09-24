@@ -1,40 +1,45 @@
 {% load i18n %}
-<article class="au-card">
-  <header class="au-card-cabeca">
-    <span class="au-card-icone"><svg class="au-icon" aria-hidden="true"><use href="#i-{{ icone }}"></use></svg></span>
-    <h3 class="au-card-titulo">{{ titulo }}</h3>
-    {% if itens %}<span class="au-secao-contagem">{{ itens|length }}</span>{% endif %}
+{% comment %}
+  O card de Comunicados ou de Notícias na home. `tipo` escolhe o desenho das
+  linhas; cabeçalho, "Ver todos" e estado vazio são os mesmos.
+
+  Empty state explica O QUE é, POR QUE está vazio e QUAL a próxima ação
+  (Etapa 6 §8.6). Para quem NÃO publica não há ação a oferecer, e sugerir uma
+  seria mandar a pessoa bater numa porta trancada.
+{% endcomment %}
+<article class="au-card au-mural">
+  <header class="au-mural-cabeca">
+    <span class="au-mural-marca" aria-hidden="true"><svg class="au-icon"><use href="#i-{{ icone }}"></use></svg></span>
+    <div class="au-mural-cabeca-texto">
+      <h3 class="au-mural-nome">{{ titulo }}</h3>
+      <p class="au-mural-desc">{{ descricao }}</p>
+    </div>
+    {% if itens %}
+      <a class="au-mural-todos" href="{% url 'workspace:publicacoes_mural' tipo %}">
+        {{ ver_todos }}
+        {% if mais %}
+          <span class="au-mural-mais">+{{ mais }}<span class="au-sr"> {% trans "a mais" %}</span></span>
+        {% endif %}
+        <svg class="au-icon" aria-hidden="true"><use href="#i-seta"></use></svg>
+      </a>
+    {% endif %}
   </header>
 
   {% if itens %}
-    <ul class="au-lista">
-      {% for pub in itens %}
-        <li class="au-list-row">
-          <span class="au-ponto au-ponto--{{ pub.classe_prioridade }}" aria-hidden="true"></span>
-          <a class="au-list-link" href="{% url 'workspace:publicacao_detalhe' pub.pk %}">
-            <span class="au-list-titulo">
-              {% if pub.fixado %}<svg class="au-list-pin" aria-hidden="true"><use href="#i-pin"></use></svg>{% endif %}
-              {{ pub.titulo }}
-            </span>
-            {% if pub.resumo %}<span class="au-list-resumo">{{ pub.resumo }}</span>{% endif %}
-          </a>
-          <time class="au-list-meta" datetime="{{ pub.publicar_em|date:'c' }}">{{ pub.publicar_em|date:"d/m" }}</time>
-        </li>
-      {% endfor %}
-    </ul>
+    {% if tipo == "noticias" %}
+      <ul class="au-noticias">
+        {% for pub in itens %}
+          {% include "workspace/publicacoes/_item_noticia.html" with destaque=forloop.first %}
+        {% endfor %}
+      </ul>
+    {% else %}
+      <ul class="au-mural-lista">
+        {% for pub in itens %}
+          {% include "workspace/publicacoes/_item_comunicado.html" %}
+        {% endfor %}
+      </ul>
+    {% endif %}
   {% else %}
-    {% comment %}
-      Empty state explica O QUE é, POR QUE está vazio e QUAL a próxima ação
-      (Etapa 6 §8.6). "Nada publicado ainda" sozinho não ajuda ninguém.
-
-      A DICA APONTAVA PARA O DJANGO ADMIN, e ficou apontando depois que a
-      redação entrou no produto. Quem lia era mandado para uma tela que exige
-      `is_staff` — que o R.H. e a diretoria não têm, nem devem ter. É o mesmo
-      comentário defasado que o acervo normativo tinha, no módulo ao lado.
-
-      Para quem NÃO publica a dica é outra: não há ação a oferecer, e sugerir
-      uma seria mandar a pessoa bater numa porta trancada.
-    {% endcomment %}
     <div class="au-vazio">
       <p class="au-vazio-titulo">{{ vazio }}</p>
       {% if ve_publicacoes %}

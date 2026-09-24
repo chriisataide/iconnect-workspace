@@ -46,6 +46,7 @@
             <tr>
               <td>
                 <a href="{% url 'workspace:publicacao_editar' p.pk %}">{{ p.titulo }}</a>
+                <a class="au-secao-link" href="{% url 'workspace:publicacao_detalhe' p.pk %}">{% trans "ver" %}</a>
                 {% if p.fixado %}
                   <span class="au-selo">{% trans "destaque" %}</span>
                 {% endif %}

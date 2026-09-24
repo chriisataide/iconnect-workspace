@@ -95,6 +95,7 @@ def publicacao_editar(request: HttpRequest, pk: int | None = None) -> HttpRespon
                 tipo=request.POST.get("tipo", TipoPublicacao.COMUNICADO),
                 resumo=request.POST.get("resumo", ""),
                 corpo=request.POST.get("corpo", ""),
+                categoria=request.POST.get("categoria", ""),
                 prioridade=request.POST.get("prioridade") or 0,
                 fixado=bool(request.POST.get("fixado")),
                 # Dois botões, um formulário: "Salvar rascunho" e "Publicar".
@@ -140,6 +141,7 @@ def _valores_de(publicacao: Publicacao | None) -> dict:
     if publicacao is None:
         return {
             "titulo": "", "tipo": TipoPublicacao.COMUNICADO, "resumo": "", "corpo": "",
+            "categoria": "",
             "prioridade": Prioridade.NORMAL.value, "fixado": False,
             "publicar_em": "", "expira_em": "",
             "unidades": set(), "departamentos": set(),
@@ -149,6 +151,7 @@ def _valores_de(publicacao: Publicacao | None) -> dict:
         "tipo": publicacao.tipo,
         "resumo": publicacao.resumo,
         "corpo": publicacao.corpo,
+        "categoria": publicacao.categoria,
         "prioridade": publicacao.prioridade,
         "fixado": publicacao.fixado,
         "publicar_em": _para_campo(publicacao.publicar_em),
@@ -173,6 +176,7 @@ def _valores_do_post(request: HttpRequest) -> dict:
         "tipo": request.POST.get("tipo", TipoPublicacao.COMUNICADO),
         "resumo": request.POST.get("resumo", ""),
         "corpo": request.POST.get("corpo", ""),
+        "categoria": request.POST.get("categoria", ""),
         # INT e não a string crua: o template compara com os valores de
         # `Prioridade.choices`, que são inteiros. `"1" == 1` é falso, e o
         # `<select>` voltaria em "Normal" depois de um erro — trocando a

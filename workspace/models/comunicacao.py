@@ -108,6 +108,10 @@ class Publicacao(models.Model):
         max_length=300, blank=True, help_text="Uma linha, exibida no card do Workspace."
     )
     corpo = models.TextField(blank=True)
+    # Rótulo livre do card ("Empresa", "Pessoas", "Mercado"). Texto e não
+    # tabela: quem publica inventa a editoria no dia, e uma lista fechada
+    # obrigaria alguém a cadastrar "Qualidade de Vida" antes de escrever.
+    categoria = models.CharField(max_length=40, blank=True)
 
     prioridade = models.IntegerField(choices=Prioridade.choices, default=Prioridade.NORMAL)
     fixado = models.BooleanField(default=False, help_text="Fixa no topo da lista.")
@@ -225,6 +229,14 @@ class Publicacao(models.Model):
             "expirado": "Expirado",
             "no_ar": "No ar",
         }[self.situacao]
+
+    @property
+    def rotulo_prioridade(self) -> str:
+        """A etiqueta do card: "Geral" diz mais ao leitor que "Normal"."""
+        return {
+            Prioridade.URGENTE: "Importante",
+            Prioridade.ATENCAO: "Atenção",
+        }.get(self.prioridade, "Geral")
 
     @property
     def classe_prioridade(self) -> str:

@@ -15,8 +15,14 @@
     <p class="au-artigo-tipo">
       <span class="au-ponto au-ponto--{{ publicacao.classe_prioridade }}" aria-hidden="true"></span>
       {{ publicacao.get_tipo_display }}
-      {% if publicacao.prioridade %}· {{ publicacao.get_prioridade_display }}{% endif %}
+      {% if publicacao.categoria %}· {{ publicacao.categoria }}{% endif %}
+      {% if publicacao.prioridade %}· {{ publicacao.rotulo_prioridade }}{% endif %}
     </p>
+    {% if not publicacao.no_ar %}
+      <p class="au-aviso au-aviso--warning">
+        {% blocktrans with s=publicacao.situacao_rotulo %}Prévia — esta publicação não está no ar ({{ s }}). Só quem publica vê esta página.{% endblocktrans %}
+      </p>
+    {% endif %}
 
     <h1 class="au-artigo-titulo">{{ publicacao.titulo }}</h1>
 
@@ -27,8 +33,20 @@
       {% if publicacao.autor %}· {{ publicacao.autor.get_full_name|default:publicacao.autor.get_username }}{% endif %}
     </p>
 
+    {% if publicacao.imagem %}
+      <img class="au-artigo-imagem" src="{% url 'workspace:publicacao_arquivo' publicacao.pk 'imagem' %}" alt="">
+    {% endif %}
+
     {% if publicacao.corpo %}
       <div class="au-artigo-corpo">{{ publicacao.corpo|linebreaks }}</div>
+    {% endif %}
+
+    {% if publicacao.anexo %}
+      <a class="au-artigo-anexo" href="{% url 'workspace:publicacao_arquivo' publicacao.pk 'anexo' %}">
+        <svg class="au-icon" aria-hidden="true"><use href="#i-clipe"></use></svg>
+        <span>{{ anexo_nome }}</span>
+        <span class="au-artigo-anexo-acao">{% trans "Baixar" %}</span>
+      </a>
     {% endif %}
   </article>
 {% endblock %}

@@ -111,8 +111,8 @@
     </div>
 
     <div class="au-colunas">
-      {% include "workspace/_card_publicacoes.html" with titulo=_("Comunicados") itens=comunicados icone="megafone" vazio=_("Nenhum comunicado no ar.") %}
-      {% include "workspace/_card_publicacoes.html" with titulo=_("Notícias") itens=noticias icone="jornal" vazio=_("Nenhuma notícia publicada.") %}
+      {% include "workspace/_card_publicacoes.html" with tipo="comunicados" titulo=_("Comunicados") descricao=_("Fique por dentro das informações importantes da empresa.") ver_todos=_("Ver todos") itens=comunicados mais=mais_comunicados icone="megafone" vazio=_("Nenhum comunicado no ar.") %}
+      {% include "workspace/_card_publicacoes.html" with tipo="noticias" titulo=_("Notícias") descricao=_("Acompanhe as novidades da nossa empresa e do mercado.") ver_todos=_("Ver todas") itens=noticias mais=mais_noticias icone="jornal" vazio=_("Nenhuma notícia publicada.") %}
     </div>
   </section>
 

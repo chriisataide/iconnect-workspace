@@ -27,6 +27,12 @@ from workspace.models.comunicacao import Publicacao, TipoPublicacao
 
 PERMISSAO_PUBLICAR = "com.publicar"
 
+#: A imagem vai para a home de todo mundo, servida inline. Só formato que o
+#: navegador desenha como bitmap: SVG e HTML disfarçados de imagem executariam
+#: script na origem do portal.
+FORMATOS_IMAGEM = {"PNG": "image/png", "JPEG": "image/jpeg", "WEBP": "image/webp", "GIF": "image/gif"}
+LIMITE_IMAGEM = 5 * 1024 * 1024
+
 
 class PublicacaoError(Exception):
     """A publicação não pode ser gravada assim."""
@@ -39,6 +45,24 @@ def pode_publicar(pessoa, cache: dict | None = None) -> bool:
 def _garantir(pessoa, cache=None) -> None:
     if not pode_publicar(pessoa, cache=cache):
         raise PublicacaoError("Você não pode publicar comunicados.")
+
+
+def validar_imagem(arquivo) -> None:
+    """Abre com o Pillow: extensão e `content_type` vêm do cliente e mentem."""
+    from PIL import Image, UnidentifiedImageError
+
+    if arquivo.size > LIMITE_IMAGEM:
+        raise PublicacaoError("A imagem passa de 5 MB. Use uma versão menor.")
+    try:
+        with Image.open(arquivo) as img:
+            formato = img.format
+            img.verify()
+    except (UnidentifiedImageError, OSError, SyntaxError):
+        formato = None
+    finally:
+        arquivo.seek(0)
+    if formato not in FORMATOS_IMAGEM:
+        raise PublicacaoError("A imagem precisa ser PNG, JPEG, WebP ou GIF.")
 
 
 def redacao(pessoa, cache: dict | None = None):
@@ -69,6 +93,7 @@ def salvar(
     tipo: str,
     resumo: str = "",
     corpo: str = "",
+    categoria: str = "",
     prioridade: int = 0,
     fixado: bool = False,
     publicar: bool = False,
@@ -104,6 +129,9 @@ def salvar(
     # publicação era gravada, a tela dizia "Comunicado publicado." e ele não
     # aparecia para ninguém — nem para quem escreveu. A conclusão de quem via
     # isso é exatamente "publicar comunicado não funciona".
+    if imagem is not None:
+        validar_imagem(imagem)
+
     efetivo = publicar_em or (publicacao.publicar_em if publicacao else timezone.now())
     if expira_em and expira_em <= efetivo:
         raise PublicacaoError(
@@ -117,6 +145,7 @@ def salvar(
     publicacao.tipo = tipo
     publicacao.resumo = (resumo or "").strip()[:300]
     publicacao.corpo = corpo or ""
+    publicacao.categoria = (categoria or "").strip()[:40]
     # `try` e não `int()` cru: o formulário é `novalidate`, e o valor chega da
     # requisição sem passar por form do Django. Um `prioridade=normal` — que é o
     # que um formulário desatualizado em outra aba manda — virava `ValueError`
